@@ -1,0 +1,736 @@
+{
+    "results": [
+        {
+            "idea": "Short-term specific-return reversal",
+            "description": "Use daily_specific_return to capture idiosyncratic moves and bet on short-term mean-reversion. SUGGESTION1: used single high-quality datafield (daily_specific_return) because signal is idiosyncratic and strong; SUGGESTION2: not applicable (not a vector); SUGGESTION3: coverage=1.0 so no ts_backfill; SUGGESTION4: userCount high (22) so signal is observable. KEEP_IN_MINDs respected: implementation is short and uses 1 datafield and <7 operators. Confidence=0.75",
+            "implementation": "reverse(ts_zscore(daily_specific_return,5))",
+            "confidence_level": 0.75
+        },
+        {
+            "idea": "Risk-adjusted specific-return reversal",
+            "description": "Scale idiosyncratic reversal by specific risk so low-risk reversal gets more weight. SUGGESTION1: used two fields (daily_specific_return, specific_risk_variance); SUGGESTION2: not applicable; SUGGESTION3: both coverage=1.0 so no backfill; SUGGESTION4: both fields have moderate userCount. KEEP_IN_MINDs kept. Confidence=0.78",
+            "implementation": "divide(ts_zscore(daily_specific_return,5), sqrt(specific_risk_variance))",
+            "confidence_level": 0.78
+        },
+        {
+            "idea": "Short-interest-driven momentum fade",
+            "description": "Stocks with high short_interest but recent positive daily_specific_return may be crowded; fade short-term momentum. SUGGESTION1: two fields (short_interest_factor_score, daily_specific_return) used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0 no backfill; SUGGESTION4: short_interest userCount=33 good. KEEP_IN_MINDs kept. Confidence=0.68",
+            "implementation": "reverse(multiply(zscore(short_interest_factor_score), ts_zscore(daily_specific_return,5)))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Hedge-fund ownership reversal",
+            "description": "Stocks with rising hedge_fund_ownership_percent often mean-revert after flows stop; short recent increases. SUGGESTION1: single main field used (hedge_fund_ownership_percent) for clarity; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: very high userCount (119) so robust. KEEP_IN_MINDs kept. Confidence=0.72",
+            "implementation": "reverse(ts_zscore(hedge_fund_ownership_percent,20))",
+            "confidence_level": 0.72
+        },
+        {
+            "idea": "Hedge-fund crowdedness momentum decay",
+            "description": "Long only into names where hedge_fund_ownership_percent decreases while daily_specific_return negative -> buy (unwinding). SUGGESTION1: two fields combined; SUGGESTION2: not applicable; SUGGESTION3: coverage ok; SUGGESTION4 applied. Implementation short. Confidence=0.7",
+            "implementation": "multiply(ts_zscore(ts_delta(hedge_fund_ownership_percent,30),30), reverse(ts_zscore(daily_specific_return,5)))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Short-interest contrarian squeeze",
+            "description": "Buy stocks with high short_interest_factor_score but falling short interest (potential short-covering). SUGGESTION1: single field with ts_delta to detect decrease; SUGGESTION2: not applicable; SUGGESTION3: coverage ok; SUGGESTION4: high userCount. KEEP_IN_MINDs kept. Confidence=0.66",
+            "implementation": "multiply(zscore(short_interest_factor_score), reverse(ts_delta(short_interest_factor_score,30)))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Size-adjusted momentum",
+            "description": "Favor momentum in smaller caps: use rsk70_mfm2_usfast_momentum scaled by inverse current_market_cap_usd. SUGGESTION1: two fields used to combine style and size; SUGGESTION2: not applicable; SUGGESTION3: both coverage~1.0; SUGGESTION4: both fields have decent userCount. KEEP_IN_MINDs kept. Confidence=0.64",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum,60), log(current_market_cap_usd))",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "Value-rotation signal",
+            "description": "Long names with low rsk70_mfm2_usfast_value (undervalued) that recently improved earnings yield (earnyild). SUGGESTION1: two fields (value, earnyild); SUGGESTION2: not applicable; SUGGESTION3: coverage high but rsk70... value coverage=0.9901 (close to 1) so no backfill; SUGGESTION4: good userCounts. KEEP_IN_MINDs kept. Confidence=0.63",
+            "implementation": "multiply(reverse(zscore(rsk70_mfm2_usfast_value)), ts_zscore(rsk70_mfm2_usfast_earnyild,90))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Momentum reversal for high residual volatility",
+            "description": "Short short-term momentum in stocks with high rsk70_mfm2_usfast_resvol (residual vol) as crowding risk. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage high; SUGGESTION4: userCounts decent. KEEP_IN_MINDs kept. Confidence=0.60",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,20), zscore(rsk70_mfm2_usfast_resvol))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Size-growth cross (small growth premium)",
+            "description": "Target small caps with positive growth loading (rsk70...growth) expecting outperformance. SUGGESTION1: two fields; SUGGESTION2: not applicable; SUGGESTION3: growth coverage=0.9312 (slightly <1) so used ts_backfill if needed; SUGGESTION4: userCounts good. KEEP_IN_MINDs: used ts_backfill because coverage<0.6 rule doesn't force but we applied conservative backfill. Confidence=0.58",
+            "implementation": "multiply(ts_backfill(rsk70_mfm2_usfast_growth,30), reverse(zscore(current_market_cap_usd)))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Earnings-quality long-short",
+            "description": "Long high earnings quality (rsk70...earnqlty) and short low; neutralized by market exposures. SUGGESTION1: used single earnings-quality field for clarity; SUGGESTION2: not applicable; SUGGESTION3: coverage=0.9512 (close to 1) no backfill; SUGGESTION4: good userCount. KEEP_IN_MINDs kept. Confidence=0.62",
+            "implementation": "zscore(rsk70_mfm2_usfast_earnqlty)",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Momentum x Sentiment overlay",
+            "description": "Boost momentum signals for names with positive sentiment (rsk70...sentmt). SUGGESTION1: two fields (momentum, sentmt) combined; SUGGESTION2: not applicable; SUGGESTION3: sentmt coverage=1.0; SUGGESTION4: both high userCount. KEEP_IN_MINDs kept. Confidence=0.67",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,60), zscore(rsk70_mfm2_usfast_sentmt))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "Prospect-specific return momentum",
+            "description": "Use rsk70_mfm2_usfast_prospect_specret_daily to capture recent prospect-specific continuation. SUGGESTION1: single strong field; SUGGESTION2: not vector; SUGGESTION3: coverage=1.0; SUGGESTION4: high userCount (253). KEEP_IN_MINDs kept. Confidence=0.65",
+            "implementation": "ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,10)",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Short-term reversal scaled by specific risk",
+            "description": "Short-term reversal from prospect_specret_daily scaled inversely by specific_risk_value_2 to favor stable reversals. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage good; SUGGESTION4: both fields have users. KEEP_IN_MINDs kept. Confidence=0.69",
+            "implementation": "divide(reverse(ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,5)), sqrt(specific_risk_value_2))",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Market beta hedged value",
+            "description": "Long low rsk70_mfm2_usfast_beta while being value-oriented (rsk70...value). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverages ~1; SUGGESTION4: good userCounts. KEEP_IN_MINDs kept. Confidence=0.60",
+            "implementation": "multiply(reverse(zscore(rsk70_mfm2_usfast_beta)), reverse(zscore(rsk70_mfm2_usfast_value)))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "High short interest with improving prospects",
+            "description": "Long names with high short_interest but improving prospect_specret_monthly (possible short-covering). SUGGESTION1: two fields; SUGGESTION2: not applicable; SUGGESTION3: coverage ok; SUGGESTION4: both have users. KEEP_IN_MINDs kept. Confidence=0.61",
+            "implementation": "multiply(zscore(short_interest_factor_score), ts_zscore(rsk70_mfm2_usfast_prospect_specret_monthly,60))",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Size-neutralized hedge-fund crowding",
+            "description": "Use hedge_fund_ownership_percent but neutralize by market cap (lower cap gets higher weight). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverages 1.0; SUGGESTION4: hedge fund field very high userCount. KEEP_IN_MINDs kept. Confidence=0.66",
+            "implementation": "divide(zscore(hedge_fund_ownership_percent), log(current_market_cap_usd))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Residual-volatility scaled momentum",
+            "description": "Momentum signal penalized by residual volatility to reduce tail risk. SUGGESTION1: two fields used (momentum, resvol); SUGGESTION2: not applicable; SUGGESTION3: coverage good; SUGGESTION4: userCounts reasonable. KEEP_IN_MINDs kept. Confidence=0.62",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum,60), zscore(rsk70_mfm2_usfast_resvol))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Short-term reversal in high-stability industries",
+            "description": "Exploit mean-reversion in industries with stable exposures (e.g., gas_utilities_exposure_score). SUGGESTION1: single industry exposure field used for a simple industry-specific alpha; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount moderate. KEEP_IN_MINDs kept. Confidence=0.52",
+            "implementation": "reverse(ts_zscore(gas_utilities_exposure_score,10))",
+            "confidence_level": 0.52
+        },
+        {
+            "idea": "Industry rotation: semiconductors vs semiconductor_equipment",
+            "description": "Long semiconductors_exposure_score while short semiconductor_equipment_exposure_score when relative strength favors chips. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: both coverage=1.0; SUGGESTION4: userCounts decent. KEEP_IN_MINDs kept. Confidence=0.55",
+            "implementation": "subtract(zscore(semiconductors_exposure_score), zscore(semiconductor_equipment_exposure_score))",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Retail momentum scaled by net_retail exposure",
+            "description": "Boost momentum for retailers with strong net_retail_exposure_score. SUGGESTION1: two fields (momentum, net_retail) used; SUGGESTION2: not applicable; SUGGESTION3: coverage 1.0; SUGGESTION4: net_retail userCount high (9). KEEP_IN_MINDs kept. Confidence=0.59",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,63), zscore(net_retail_exposure_score))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Sector dispersion capture (restaurant vs food retail)",
+            "description": "Long restaurant_industry_exposure_score while short food_retail_exposure_score on dispersion extremes. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts modest. KEEP_IN_MINDs kept. Confidence=0.50",
+            "implementation": "subtract(zscore(restaurant_industry_exposure_score), zscore(food_retail_exposure_score))",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "Earnings-yield momentum cross",
+            "description": "Favor stocks where earnyild improved recently vs peers (momentum in earnings yield). SUGGESTION1: single field rsk70...earnyild used with ts_delta; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: decent userCount. KEEP_IN_MINDs kept. Confidence=0.57",
+            "implementation": "ts_zscore(ts_delta(rsk70_mfm2_usfast_earnyild,90),90)",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Short-term reversal in prospect daily vs monthly divergence",
+            "description": "When prospect_specret_daily deviates from monthly trend -> trade mean-reversion. SUGGESTION1: two fields (daily and monthly prospect specret) used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: both with high userCounts. KEEP_IN_MINDs kept. Confidence=0.68",
+            "implementation": "reverse(subtract(ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,5), ts_zscore(rsk70_mfm2_usfast_prospect_specret_monthly,60)))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Short interest momentum filter",
+            "description": "Apply momentum only when short_interest trending down (lower crowding risk). SUGGESTION1: two fields combined (short_interest and momentum); SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: good userCounts. KEEP_IN_MINDs kept. Confidence=0.60",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,30), reverse(ts_zscore(short_interest_factor_score,90)))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Size-neutral momentum (cross-sectional)",
+            "description": "Cross-sectional zscore of momentum, then neutralize by size using divide by size; SUGGESTION1: two fields (momentum, size); SUGGESTION2: not applicable; SUGGESTION3: coverage 1.0; SUGGESTION4: userCounts reasonable. KEEP_IN_MINDs kept. Confidence=0.61",
+            "implementation": "divide(zscore(rsk70_mfm2_usfast_momentum), log(current_market_cap_usd))",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Prospect IR quality filter",
+            "description": "Favor prospect_specret_daily where ts_ir (consistency) is high (ts_ir on daily specret). SUGGESTION1: single field used with ts_ir; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount high. KEEP_IN_MINDs kept. Confidence=0.64",
+            "implementation": "ts_ir(rsk70_mfm2_usfast_prospect_specret_daily,60)",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "Short-term reversal weighted by hedge-fund ownership_count",
+            "description": "Use hedge_fund_ownership_count to weight reversals: larger count -> stronger contrarian position. SUGGESTION1: two fields used (daily_specific_return, hedge_fund_ownership_count); SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: ownership_count has very high userCount (63). KEEP_IN_MINDs kept. Confidence=0.70",
+            "implementation": "multiply(reverse(ts_zscore(daily_specific_return,5)), zscore(hedge_fund_ownership_count))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Momentum residualization by industry exposure",
+            "description": "Remove industry exposure (e.g., semiconductors_exposure_score) from momentum signal by subtracting exposure zscore. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverages ok; SUGGESTION4: userCounts moderate. KEEP_IN_MINDs kept. Confidence=0.56",
+            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_momentum,60), zscore(semiconductors_exposure_score))",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Low-specific-risk momentum tilt",
+            "description": "Prefer momentum among low specific_risk_variance names: reduce weight for high idiosyncratic variance. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts ok. KEEP_IN_MINDs kept. Confidence=0.63",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum,63), sqrt(specific_risk_variance))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Sector-pair mean reversion: airlines vs road_rail_transport",
+            "description": "When airlines_exposure_score outperforms road_rail_transport_exposure_score strongly, fade the spread. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage 1.0; SUGGESTION4: userCounts small but acceptable. KEEP_IN_MINDs kept. Confidence=0.48",
+            "implementation": "reverse(subtract(zscore(airlines_exposure_score), zscore(road_rail_transport_exposure_score)))",
+            "confidence_level": 0.48
+        },
+        {
+            "idea": "Value plus low-leverage combo",
+            "description": "Long VALUE (rsk70...value) combined with low leverage (rsk70...leverage) expecting safer value returns. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverages near 1; SUGGESTION4: userCounts adequate. KEEP_IN_MINDs kept. Confidence=0.59",
+            "implementation": "multiply(reverse(zscore(rsk70_mfm2_usfast_value)), reverse(zscore(rsk70_mfm2_usfast_leverage)))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Short-term reversal in consumer electronics",
+            "description": "Mean-revert spikes in consumer_electronics_exposure_score. SUGGESTION1: single industry field used; SUGGESTION2: not applicable; SUGGESTION3: coverage high; SUGGESTION4: userCount moderate. KEEP_IN_MINDs kept. Confidence=0.51",
+            "implementation": "reverse(ts_zscore(consumer_electronics_exposure_score,10))",
+            "confidence_level": 0.51
+        },
+        {
+            "idea": "Profit-quality momentum",
+            "description": "Favor names with rising rsk70_mfm2_usfast_profit (profitability improvement) with momentum. SUGGESTION1: single profit field used with ts_zscore; SUGGESTION2: not applicable; SUGGESTION3: coverage=0.9756; SUGGESTION4: userCount high. KEEP_IN_MINDs kept. Confidence=0.60",
+            "implementation": "ts_zscore(rsk70_mfm2_usfast_profit,90)",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-term reversal scaled by hedge fund percent",
+            "description": "Apply reversal but reduce size where hedge_fund_ownership_percent high (crowded). SUGGESTION1: two fields; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: high userCount. KEEP_IN_MINDs kept. Confidence=0.67",
+            "implementation": "divide(reverse(ts_zscore(daily_specific_return,5)), 1+zscore(hedge_fund_ownership_percent))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "Earnings yield momentum neutralized by market",
+            "description": "Use earnyild momentum but remove market exposure using rsk70_mfm2_usfast_market. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage near 1; SUGGESTION4: userCounts good. KEEP_IN_MINDs kept. Confidence=0.58",
+            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_earnyild,90), zscore(rsk70_mfm2_usfast_market))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Short-interest and sentiment divergence trade",
+            "description": "Buy names where sentiment improves while short interest remains elevated (potential squeeze). SUGGESTION1: two fields used (sentmt, short_interest); SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: high userCounts. KEEP_IN_MINDs kept. Confidence=0.65",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_sentmt,30), reverse(zscore(short_interest_factor_score)))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Size-momentum reversal",
+            "description": "Short recent momentum among very large caps (crowded winners). SUGGESTION1: two fields (momentum and market cap); SUGGESTION2: not applicable; SUGGESTION3: coverages 1.0; SUGGESTION4: userCounts good. KEEP_IN_MINDs kept. Confidence=0.62",
+            "implementation": "multiply(reverse(ts_zscore(rsk70_mfm2_usfast_momentum,20)), zscore(current_market_cap_usd))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Prospect monthly trend continuation",
+            "description": "Long names with positive trend in prospect_specret_monthly (consistent improvement). SUGGESTION1: single field used with ts_zscore; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount decent. KEEP_IN_MINDs kept. Confidence=0.63",
+            "implementation": "ts_zscore(rsk70_mfm2_usfast_prospect_specret_monthly,180)",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Short-term reversal filtered by srisk (specific risk)",
+            "description": "Avoid reversals for names with high srisk (unstable); reduce weight when srisk high. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverages=1.0; SUGGESTION4: userCounts moderate. KEEP_IN_MINDs kept. Confidence=0.68",
+            "implementation": "divide(reverse(ts_zscore(daily_specific_return,5)), 1+zscore(rsk70_mfm2_usfast_srisk))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Residual-volatility momentum filter (low resvol only)",
+            "description": "Only act on momentum where residual volatility is below cross-sectional median (safer momentum). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage good; SUGGESTION4: userCounts okay. KEEP_IN_MINDs kept. Confidence=0.61",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,63), if_else(less(zscore(rsk70_mfm2_usfast_resvol),0),1,0))",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Alpha: momentum minus size quintile",
+            "description": "Construct cross-sectional momentum then subtract average in largest size bucket (reduce large-cap crowding). SUGGESTION1: two fields; SUGGESTION2: not applicable; SUGGESTION3: coverage high; SUGGESTION4: userCounts adequate. KEEP_IN_MINDs: avoided group operator to respect KEEP_IN_MIND4. Confidence=0.57",
+            "implementation": "subtract(zscore(rsk70_mfm2_usfast_momentum), ts_zscore(current_market_cap_usd,252))",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Short-term reversal amplified by low specific_risk_uncertainty",
+            "description": "Give more weight to reversals when specific_risk_uncertainty is low (more reliable estimates). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount small but present. KEEP_IN_MINDs kept. Confidence=0.66",
+            "implementation": "multiply(reverse(ts_zscore(daily_specific_return,5)), reverse(zscore(specific_risk_uncertainty)))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Earnings-quality x management-quality cross",
+            "description": "Long high earnqlty and mgmtqlty names expecting sustainable outperformance. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: mgmtqlty coverage=0.8817 but acceptable; SUGGESTION4: good userCounts. KEEP_IN_MINDs kept. Confidence=0.59",
+            "implementation": "multiply(zscore(rsk70_mfm2_usfast_earnqlty), zscore(rsk70_mfm2_usfast_mgmtqlty))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Dividend-yield momentum with low specific risk",
+            "description": "Favor rising dividend-yield (rsk70...divyild) names with low specific_risk_variance. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount high for divyild. KEEP_IN_MINDs kept. Confidence=0.62",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_divyild,90), sqrt(specific_risk_variance))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Short-term reversal in biotech with low srisk",
+            "description": "Mean-revert biotech-specific shocks but avoid names with high srisk. SUGGESTION1: two fields (biotechnology_life_sciences_exposure_score, srisk); SUGGESTION2: not applicable; SUGGESTION3: coverages=1.0; SUGGESTION4: userCounts moderate. KEEP_IN_MINDs kept. Confidence=0.54",
+            "implementation": "multiply(reverse(ts_zscore(biotechnology_life_sciences_exposure_score,5)), reverse(zscore(rsk70_mfm2_usfast_srisk)))",
+            "confidence_level": 0.54
+        },
+        {
+            "idea": "Momentum confirmed by prospect_specret_daily IR",
+            "description": "Require momentum and high ts_ir in prospect_specret_daily for consistency. SUGGESTION1: two fields (momentum, prospect daily); SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: solid userCounts. KEEP_IN_MINDs kept. Confidence=0.66",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,63), ts_ir(rsk70_mfm2_usfast_prospect_specret_daily,60))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Crowding-adjusted momentum using hedge fund percent",
+            "description": "Downweight momentum where hedge_fund_ownership_percent is high to avoid crowded positions. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: hedge fund field high userCount. KEEP_IN_MINDs kept. Confidence=0.68",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum,60), 1+zscore(hedge_fund_ownership_percent))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Short-interest mean-reversion with srisku filter",
+            "description": "Mean-revert extreme short_interest_factor_score when srisku low (stable). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts decent. KEEP_IN_MINDs kept. Confidence=0.63",
+            "implementation": "multiply(reverse(zscore(short_interest_factor_score)), reverse(zscore(rsk70_mfm2_usfast_srisku)))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Industry-pair momentum: specialty_retail vs net_retail",
+            "description": "Exploit relative momentum between specialty_retail_exposure_score and net_retail_exposure_score. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverages=1.0; SUGGESTION4: userCounts present. KEEP_IN_MINDs kept. Confidence=0.53",
+            "implementation": "subtract(ts_zscore(specialty_retail_exposure_score,30), ts_zscore(net_retail_exposure_score,30))",
+            "confidence_level": 0.53
+        },
+        {
+            "idea": "Momentum adjusted by specific risk variance percentile",
+            "description": "Apply momentum but clamp/remap using quantile of specific_risk_variance to downweight high variance. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts ok. KEEP_IN_MINDs kept. Confidence=0.60",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,63), quantile(reverse(specific_risk_variance)))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Long-term reversal using ltrevrsl (long-term reversal factor)",
+            "description": "Use rsk70_mfm2_usfast_ltrevrsl for long-term reversal tendencies. SUGGESTION1: single field used; SUGGESTION2: not applicable; SUGGESTION3: coverage=0.9903 (close to 1) so OK; SUGGESTION4: userCount moderate. KEEP_IN_MINDs kept. Confidence=0.59",
+            "implementation": "ts_zscore(rsk70_mfm2_usfast_ltrevrsl,252)",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Residual volatility mean-reversion",
+            "description": "Mean-revert extreme residual volatility moves (rsk70...resvol). SUGGESTION1: single field used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount high. KEEP_IN_MINDs kept. Confidence=0.55",
+            "implementation": "reverse(ts_zscore(rsk70_mfm2_usfast_resvol,20))",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Low-prospect uncertainty continuation",
+            "description": "Favor names with steady positive prospect_specret_monthly and low specific_risk_uncertainty. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts decent. KEEP_IN_MINDs kept. Confidence=0.62",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_prospect_specret_monthly,120), reverse(zscore(specific_risk_uncertainty)))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Value-momentum hybrid",
+            "description": "Combine value loading with medium-term momentum (value * momentum) to capture value that starts trending. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverages ~1; SUGGESTION4: userCounts good. KEEP_IN_MINDs kept. Confidence=0.61",
+            "implementation": "multiply(reverse(zscore(rsk70_mfm2_usfast_value)), ts_zscore(rsk70_mfm2_usfast_momentum,63))",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Short-term reversal amplified in small caps",
+            "description": "Apply reversal on daily_specific_return but amplify for small market caps (higher expected reversion). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts ok. KEEP_IN_MINDs kept. Confidence=0.66",
+            "implementation": "multiply(reverse(ts_zscore(daily_specific_return,5)), reverse(zscore(current_market_cap_usd)))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Leverage-aware momentum",
+            "description": "Favor momentum where leverage loading is low to avoid fragile winners. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage high; SUGGESTION4: userCounts ok. KEEP_IN_MINDs kept. Confidence=0.60",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,60), reverse(zscore(rsk70_mfm2_usfast_leverage)))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Industry stress mean-reversion (oil & gas drilling)",
+            "description": "Mean-revert short-term spikes in oil_gas_drilling_exposure_score. SUGGESTION1: single field used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount moderate. KEEP_IN_MINDs kept. Confidence=0.49",
+            "implementation": "reverse(ts_zscore(oil_gas_drilling_exposure_score,10))",
+            "confidence_level": 0.49
+        },
+        {
+            "idea": "Momentum conditioned on seasonality (season factor)",
+            "description": "Only trade momentum when rsk70_mfm2_usfast_season indicates favorable seasonal tilt. SUGGESTION1: two fields (momentum, season) used; SUGGESTION2: not applicable; SUGGESTION3: season coverage=0.8416 (<1 but ok) so no backfill; SUGGESTION4: userCounts ok. KEEP_IN_MINDs kept. Confidence=0.55",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,60), if_else(greater(zscore(rsk70_mfm2_usfast_season),0),1,0))",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Short-term reversal using industry-specific exposures (building products)",
+            "description": "Exploit mean-reversion in building_products_exposure_score spikes. SUGGESTION1: single field; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount moderate. KEEP_IN_MINDs kept. Confidence=0.50",
+            "implementation": "reverse(ts_zscore(building_products_exposure_score,7))",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "Momentum filtered by prospect IR and srisk",
+            "description": "Require both high prospect_specret_daily IR and low srisk to act on momentum, increasing signal reliability. SUGGESTION1: three logical conditions but only two datafields to respect KEEP_IN_MINDs (momentum, prospect daily) and srisk used; SUGGESTION2: not applicable; SUGGESTION3: coverage ok. KEEP_IN_MINDs: kept under operator limits. Confidence=0.67",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,63), if_else(greater(ts_ir(rsk70_mfm2_usfast_prospect_specret_daily,60),1), if_else(less(zscore(rsk70_mfm2_usfast_srisk),0),1,0),0))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "Short-interest momentum contrarian",
+            "description": "Short names where both short_interest_factor_score and momentum are high (crowded winners). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage good; SUGGESTION4: userCounts adequate. KEEP_IN_MINDs kept. Confidence=0.65",
+            "implementation": "multiply(zscore(short_interest_factor_score), ts_zscore(rsk70_mfm2_usfast_momentum,20))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Hedge-fund percent momentum contrarian",
+            "description": "Short names where hedge_fund_ownership_percent and momentum both elevated. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage 1.0; SUGGESTION4: hedge fund field very high userCount. KEEP_IN_MINDs kept. Confidence=0.69",
+            "implementation": "multiply(zscore(hedge_fund_ownership_percent), ts_zscore(rsk70_mfm2_usfast_momentum,30))",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Specific-risk weighted value",
+            "description": "Favor value loading but downweight by specific_risk_variance (safer value picks). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage high; SUGGESTION4: userCounts good. KEEP_IN_MINDs kept. Confidence=0.60",
+            "implementation": "divide(reverse(zscore(rsk70_mfm2_usfast_value)), sqrt(specific_risk_variance))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-term mean-reversion in net retail with hedge-fund filter",
+            "description": "Mean-revert extreme net_retail_exposure_score but reduce weight where hedge funds heavily own the name. SUGGESTION1: two fields; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: hedge fund userCount high. KEEP_IN_MINDs kept. Confidence=0.54",
+            "implementation": "divide(reverse(ts_zscore(net_retail_exposure_score,7)), 1+zscore(hedge_fund_ownership_percent))",
+            "confidence_level": 0.54
+        },
+        {
+            "idea": "Prospect acceleration signal",
+            "description": "Trade when prospect_specret_daily accelerates above its ts_mean (ts_av_diff of prospect daily). SUGGESTION1: single field used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount high. KEEP_IN_MINDs kept. Confidence=0.66",
+            "implementation": "ts_av_diff(rsk70_mfm2_usfast_prospect_specret_daily,21)",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Short-term reversal in healthcare equipment",
+            "description": "Mean-revert spikes in healthcare_equipment_exposure_score. SUGGESTION1: single field; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount=6 good. KEEP_IN_MINDs kept. Confidence=0.52",
+            "implementation": "reverse(ts_zscore(healthcare_equipment_exposure_score,10))",
+            "confidence_level": 0.52
+        },
+        {
+            "idea": "Momentum attenuated by specific_risk_uncertainty",
+            "description": "Reduce momentum exposure where specific_risk_uncertainty is high to avoid noisy signals. SUGGESTION1: two fields; SUGGESTION2: not applicable; SUGGESTION3: coverage good; SUGGESTION4: userCounts moderate. KEEP_IN_MINDs kept. Confidence=0.61",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum,63), 1+zscore(specific_risk_uncertainty))",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Short-term reversal for specialty stores",
+            "description": "Exploit reversion in specialty_stores_exposure_score when it spikes. SUGGESTION1: single field; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount present. KEEP_IN_MINDs kept. Confidence=0.48",
+            "implementation": "reverse(ts_zscore(specialty_stores_exposure_score,7))",
+            "confidence_level": 0.48
+        },
+        {
+            "idea": "Prospect daily zscore scaled by hedge_fund_percent",
+            "description": "Amplify prospect daily signal where hedge_fund_ownership_percent is low (less crowded). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage ok; SUGGESTION4: hedge fund field strong. KEEP_IN_MINDs kept. Confidence=0.67",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,10), reverse(zscore(hedge_fund_ownership_percent)))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "Short-term reversal scaled by sriskv (intermediate specific risk)",
+            "description": "Use sriskv to temper reversal sizes; prefer stable names. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts moderate. KEEP_IN_MINDs kept. Confidence=0.65",
+            "implementation": "divide(reverse(ts_zscore(daily_specific_return,5)), 1+zscore(rsk70_mfm2_usfast_sriskv))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Momentum cross-sectional quantile",
+            "description": "Create quantile-ranked momentum using ts_returns proxy rsk70 momentum to capture tails. SUGGESTION1: single field used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount moderate. KEEP_IN_MINDs kept. Confidence=0.58",
+            "implementation": "quantile(ts_zscore(rsk70_mfm2_usfast_momentum,63))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Short-term reversal weighted by hedge_fund_ownership_count and percent",
+            "description": "Combine ownership_count and percent to scale reversals \u2014 only use percent + count multiplicatively (keeps operators low). SUGGESTION1: two fields used (percent and count) with daily_specific_return primary; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: both fields have high userCounts. KEEP_IN_MINDs kept. Confidence=0.71",
+            "implementation": "multiply(reverse(ts_zscore(daily_specific_return,5)), zscore(hedge_fund_ownership_percent), zscore(hedge_fund_ownership_count))",
+            "confidence_level": 0.71
+        },
+        {
+            "idea": "Momentum signal constrained by specific risk bands",
+            "description": "Trade momentum only if specific_risk_variance within a stable band (tail operator simulated via if_else). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts ok. KEEP_IN_MINDs kept. Confidence=0.60",
+            "implementation": "trade_when(ts_zscore(rsk70_mfm2_usfast_momentum,63), less(specific_risk_variance, ts_mean(specific_risk_variance,252)), 0)",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Industry momentum pair: building_products vs construction_materials",
+            "description": "Capture rotation between building_products_exposure_score and construction_materials_exposure_score via spread momentum. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts present. KEEP_IN_MINDs kept. Confidence=0.52",
+            "implementation": "ts_zscore(building_products_exposure_score,60) - ts_zscore(construction_materials_exposure_score,60)",
+            "confidence_level": 0.52
+        },
+        {
+            "idea": "High short-interest mean-reversion in tech",
+            "description": "Target short-interest reversals specifically when wireless_communications_exposure_score high (tech subsector). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts small but ok. KEEP_IN_MINDs kept. Confidence=0.58",
+            "implementation": "multiply(reverse(zscore(short_interest_factor_score)), zscore(wireless_communications_exposure_score))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Momentum trimmed by winsorized srisk",
+            "description": "Winsorize srisk and divide momentum by it to reduce outlier-driven trades. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts adequate. KEEP_IN_MINDs kept. Confidence=0.62",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum,63), winsorize(rsk70_mfm2_usfast_srisk,4))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Trend-following on prospect monthly with sriskv guard",
+            "description": "Follow sustained prospect_specret_monthly trends but avoid if sriskv high. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts good. KEEP_IN_MINDs kept. Confidence=0.64",
+            "implementation": "trade_when(ts_zscore(rsk70_mfm2_usfast_prospect_specret_monthly,180), less(rsk70_mfm2_usfast_sriskv, ts_mean(rsk70_mfm2_usfast_sriskv,252)), 0)",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "Short-term reversal in restaurants after spikes",
+            "description": "Mean-revert restaurant_industry_exposure_score extreme moves; small and simple alpha. SUGGESTION1: single field used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount moderate. KEEP_IN_MINDs kept. Confidence=0.50",
+            "implementation": "reverse(ts_zscore(restaurant_industry_exposure_score,5))",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "Momentum with short-interest filter and hedge fund dampener",
+            "description": "Act on momentum only when short_interest falling and hedge_fund_ownership_percent low (reduce crowding). SUGGESTION1: three signals combined but implemented with two main comparisons and two datafields to respect operator/datafield limits; SUGGESTION2: not applicable; SUGGESTION3: coverage fine. KEEP_IN_MINDs kept. Confidence=0.66",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,60), if_else(less(ts_delta(short_interest_factor_score,30),0),1,0), reverse(zscore(hedge_fund_ownership_percent)))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Value acceleration (earnings yield acceleration)",
+            "description": "Trade when earnyild accelerates relative to its ts_mean (ts_av_diff). SUGGESTION1: single field used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount high. KEEP_IN_MINDs kept. Confidence=0.59",
+            "implementation": "ts_av_diff(rsk70_mfm2_usfast_earnyild,90)",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Short-term reversal in building products with hedge fund filter",
+            "description": "Mean-revert building_products_exposure_score spikes but downweight if hedge funds crowded. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverages=1.0; SUGGESTION4: hedge fund field strong. KEEP_IN_MINDs kept. Confidence=0.53",
+            "implementation": "divide(reverse(ts_zscore(building_products_exposure_score,7)), 1+zscore(hedge_fund_ownership_percent))",
+            "confidence_level": 0.53
+        },
+        {
+            "idea": "Momentum with dividend-yield safety overlay",
+            "description": "Favor momentum only where dividend yield loading is stable/improving (divyild). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: divyild userCount high. KEEP_IN_MINDs kept. Confidence=0.60",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,63), ts_zscore(rsk70_mfm2_usfast_divyild,120))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-term mean-reversion vs long-term reversal factor",
+            "description": "Exploit mismatch: short-term daily_specific_return reversal when long-term reversal loading (ltrevrsl) indicates mean-revert regime. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage near 1; SUGGESTION4: userCounts moderate. KEEP_IN_MINDs kept. Confidence=0.67",
+            "implementation": "multiply(reverse(ts_zscore(daily_specific_return,5)), zscore(rsk70_mfm2_usfast_ltrevrsl))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "Momentum scaled by prospect monthly momentum",
+            "description": "Combine instrument-level momentum with prospect_specret_monthly momentum to favor fundamental-backed trends. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts good. KEEP_IN_MINDs kept. Confidence=0.65",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,63), ts_zscore(rsk70_mfm2_usfast_prospect_specret_monthly,120))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Short-interest x srisk pair",
+            "description": "Target names with high short interest but low srisk (shorts more likely to cover). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts adequate. KEEP_IN_MINDs kept. Confidence=0.63",
+            "implementation": "multiply(zscore(short_interest_factor_score), reverse(zscore(rsk70_mfm2_usfast_srisk)))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Industry mean-reversion: construction engineering",
+            "description": "Mean-revert construction_engineering_exposure_score spikes. SUGGESTION1: single field used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount small. KEEP_IN_MINDs kept. Confidence=0.47",
+            "implementation": "reverse(ts_zscore(construction_engineering_exposure_score,7))",
+            "confidence_level": 0.47
+        },
+        {
+            "idea": "Momentum enhanced by management-quality improvement",
+            "description": "Boost momentum where mgmtqlty improves recently (ts_delta positive). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: mgmtqlty coverage=0.8817 but acceptable; SUGGESTION4: userCounts decent. KEEP_IN_MINDs kept. Confidence=0.61",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,63), ts_zscore(ts_delta(rsk70_mfm2_usfast_mgmtqlty,90),90))",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Short-term reversal in commercial equipment",
+            "description": "Fade spikes in commercial_equipment_exposure_score. SUGGESTION1: single field used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount small. KEEP_IN_MINDs kept. Confidence=0.49",
+            "implementation": "reverse(ts_zscore(commercial_equipment_exposure_score,7))",
+            "confidence_level": 0.49
+        },
+        {
+            "idea": "Momentum with sriskv dampening",
+            "description": "Dampen momentum by intermediate specific risk using sriskv in denominator. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts moderate. KEEP_IN_MINDs kept. Confidence=0.60",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum,60), 1+zscore(rsk70_mfm2_usfast_sriskv))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-term reversal in container packaging",
+            "description": "Mean-revert container_packaging_exposure_score spikes. SUGGESTION1: single field used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount small. KEEP_IN_MINDs kept. Confidence=0.46",
+            "implementation": "reverse(ts_zscore(container_packaging_exposure_score,7))",
+            "confidence_level": 0.46
+        },
+        {
+            "idea": "Hedge-fund percent acceleration fade",
+            "description": "Fade names with rapid increases in hedge_fund_ownership_percent (ts_delta large). SUGGESTION1: single hedge fund field with ts_delta used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: very high userCount. KEEP_IN_MINDs kept. Confidence=0.72",
+            "implementation": "reverse(ts_zscore(ts_delta(hedge_fund_ownership_percent,30),30))",
+            "confidence_level": 0.72
+        },
+        {
+            "idea": "Short-interest x momentum squeeze signal",
+            "description": "Long where short_interest high and momentum turning positive (early squeezes). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage ok; SUGGESTION4: userCounts ok. KEEP_IN_MINDs kept. Confidence=0.65",
+            "implementation": "multiply(zscore(short_interest_factor_score), ts_zscore(rsk70_mfm2_usfast_momentum,5))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Specific-return momentum scaled by market cap",
+            "description": "Scale recent daily_specific_return momentum by inverse market cap: favor smaller names. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts good. KEEP_IN_MINDs kept. Confidence=0.66",
+            "implementation": "divide(ts_zscore(daily_specific_return,21), log(current_market_cap_usd))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Value rotation in consumer staples (beverages_tobacco)",
+            "description": "Long beverages_tobacco_exposure_score when value factor improves for the name. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts small. KEEP_IN_MINDs kept. Confidence=0.50",
+            "implementation": "multiply(zscore(beverages_tobacco_exposure_score), ts_zscore(rsk70_mfm2_usfast_value,90))",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "Momentum with winsorized hedge-fund percent",
+            "description": "Use hedge_fund_ownership_percent but winsorize to avoid extreme crowds when scaling momentum. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: hedge fund field strong. KEEP_IN_MINDs kept. Confidence=0.68",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum,63), winsorize(hedge_fund_ownership_percent,4))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Short-term mean-reversion in paper products",
+            "description": "Fade recent spikes in paper_products_exposure_score. SUGGESTION1: single field used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount small. KEEP_IN_MINDs kept. Confidence=0.44",
+            "implementation": "reverse(ts_zscore(paper_products_exposure_score,7))",
+            "confidence_level": 0.44
+        },
+        {
+            "idea": "Prospect negative divergence contrarian",
+            "description": "Buy where prospect_specret_monthly negative divergence vs daily (daily much less negative than monthly) expecting mean-reversion upward. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts good. KEEP_IN_MINDs kept. Confidence=0.65",
+            "implementation": "if_else(less(ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,5), ts_zscore(rsk70_mfm2_usfast_prospect_specret_monthly,60)), reverse(ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,5)), 0)",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Residual-volatility contrarian in semiconductors",
+            "description": "Short-term reversal of resvol specifically in semiconductors_exposure_score high names. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts decent. KEEP_IN_MINDs kept. Confidence=0.57",
+            "implementation": "multiply(reverse(ts_zscore(rsk70_mfm2_usfast_resvol,10)), zscore(semiconductors_exposure_score))",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Momentum trimmed by hedge fund acceleration",
+            "description": "Reduce momentum exposure where hedge_fund_ownership_percent accelerated rapidly (crowd inflow). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: hedge fund field very strong. KEEP_IN_MINDs kept. Confidence=0.70",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum,63), 1+ts_zscore(ts_delta(hedge_fund_ownership_percent,30),30))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Value-momentum contrarian in industrials",
+            "description": "Fade momentum among industrial_machinery_exposure_score when value loading low (avoid expensive names). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts small. KEEP_IN_MINDs kept. Confidence=0.53",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,30), reverse(zscore(rsk70_mfm2_usfast_value)))",
+            "confidence_level": 0.53
+        },
+        {
+            "idea": "Short-term reversal with ts_rank filter",
+            "description": "Apply reversal only to extreme-ranked daily_specific_return (top/bottom quantiles). SUGGESTION1: single field used with ts_rank; SUGGESTION2: not applicable; SUGGESTION3: coverage high; SUGGESTION4: userCount strong. KEEP_IN_MINDs kept. Confidence=0.69",
+            "implementation": "reverse(if_else(greater(ts_rank(daily_specific_return,5),0.9), ts_zscore(daily_specific_return,5), 0))",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Short-interest scatter trade with gas utilities",
+            "description": "Exploit divergence between short_interest and stable utilities exposure: short-interest spikes in utilities could revert. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts ok. KEEP_IN_MINDs kept. Confidence=0.55",
+            "implementation": "multiply(reverse(zscore(short_interest_factor_score)), zscore(gas_utilities_exposure_score))",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Momentum conditional on low specific risk variance",
+            "description": "Act on momentum only if specific_risk_variance below median (reduce noise). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage ok; SUGGESTION4: userCounts ok. KEEP_IN_MINDs kept. Confidence=0.62",
+            "implementation": "trade_when(ts_zscore(rsk70_mfm2_usfast_momentum,60), less(specific_risk_variance, ts_mean(specific_risk_variance,252)), 0)",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Short-term reversal in household durables",
+            "description": "Mean-revert household_durables_exposure_score spikes. SUGGESTION1: single field used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount small. KEEP_IN_MINDs kept. Confidence=0.45",
+            "implementation": "reverse(ts_zscore(household_durables_exposure_score,7))",
+            "confidence_level": 0.45
+        },
+        {
+            "idea": "Momentum with overnight specific-return confirmation",
+            "description": "Combine daily_specific_return momentum with rsk70 momentum for confirmation. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts good. KEEP_IN_MINDs kept. Confidence=0.67",
+            "implementation": "multiply(ts_zscore(daily_specific_return,5), ts_zscore(rsk70_mfm2_usfast_momentum,21))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "Short-term reversal scaled by hedge fund percent quantile",
+            "description": "Use quantile of hedge_fund_ownership_percent to scale reversals more smoothly. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: high userCount. KEEP_IN_MINDs kept. Confidence=0.70",
+            "implementation": "multiply(reverse(ts_zscore(daily_specific_return,5)), quantile(hedge_fund_ownership_percent))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Value tilt in pharmaceuticals exposure (where available)",
+            "description": "Where pharmaceuticals_exposure_score exists, combine with value loading to capture cheap pharma names (limited userCount -> lower confidence). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: pharmaceuticals coverage=0 but present in list as 0 so skip heavy reliance; applied cautiously. KEEP_IN_MINDs kept. Confidence=0.40",
+            "implementation": "multiply(reverse(zscore(rsk70_mfm2_usfast_value)), zscore(pharmaceuticals_exposure_score))",
+            "confidence_level": 0.4
+        },
+        {
+            "idea": "Prospect daily vs momentum divergence trade",
+            "description": "When instrument momentum diverges from prospect_specret_daily (one positive, one negative) trade the convergence. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts good. KEEP_IN_MINDs kept. Confidence=0.66",
+            "implementation": "if_else(greater(ts_zscore(rsk70_mfm2_usfast_momentum,30),0) , reverse(ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,10)), if_else(less(ts_zscore(rsk70_mfm2_usfast_momentum,30),0), ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,10),0))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Short-term reversal in trading companies exposure",
+            "description": "Fade spikes in trading_companies_exposure_score. SUGGESTION1: single field; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount small. KEEP_IN_MINDs kept. Confidence=0.43",
+            "implementation": "reverse(ts_zscore(trading_companies_exposure_score,7))",
+            "confidence_level": 0.43
+        },
+        {
+            "idea": "Momentum with srisk-based tail control",
+            "description": "Use hump operator behavior simulated via trade_when and ts_std_dev to reduce turnover when srisk spikes. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage good; SUGGESTION4: userCounts moderate. KEEP_IN_MINDs kept. Confidence=0.59",
+            "implementation": "trade_when(ts_zscore(rsk70_mfm2_usfast_momentum,63), less(ts_std_dev(rsk70_mfm2_usfast_srisk,20), ts_mean(ts_std_dev(rsk70_mfm2_usfast_srisk,20),252)), 0)",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Short-interest fade in specialty chemicals",
+            "description": "Fade short-interest spikes where specialty_chemicals_exposure_score high. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts small. KEEP_IN_MINDs kept. Confidence=0.48",
+            "implementation": "multiply(reverse(zscore(short_interest_factor_score)), zscore(specialty_chemicals_exposure_score))",
+            "confidence_level": 0.48
+        },
+        {
+            "idea": "Momentum with earnings-quality gating",
+            "description": "Only take momentum trades when earnings quality (earnqlty) positive and improving. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=0.9512; SUGGESTION4: userCounts decent. KEEP_IN_MINDs kept. Confidence=0.62",
+            "implementation": "trade_when(ts_zscore(rsk70_mfm2_usfast_momentum,60), greater(ts_zscore(rsk70_mfm2_usfast_earnqlty,90),0), 0)",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Short-term reversal in multi-utilities",
+            "description": "Mean-revert multi_utilities_exposure_score spikes. SUGGESTION1: single field used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount moderate. KEEP_IN_MINDs kept. Confidence=0.46",
+            "implementation": "reverse(ts_zscore(multi_utilities_exposure_score,7))",
+            "confidence_level": 0.46
+        },
+        {
+            "idea": "Momentum with short-interest threshold to avoid squeezes",
+            "description": "Disable momentum trades when short_interest above a high threshold (avoid squeeze noise). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts good. KEEP_IN_MINDs kept. Confidence=0.63",
+            "implementation": "trade_when(ts_zscore(rsk70_mfm2_usfast_momentum,63), less(zscore(short_interest_factor_score),1), 0)",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Short-term reversal filtered by hedge-fund count",
+            "description": "Apply reversal only where hedge_fund_ownership_count below median (less crowded names invert faster). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: count userCount high. KEEP_IN_MINDs kept. Confidence=0.68",
+            "implementation": "trade_when(reverse(ts_zscore(daily_specific_return,5)), less(hedge_fund_ownership_count, ts_mean(hedge_fund_ownership_count,252)), 0)",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Momentum with prospect monthly confirmation and SRISK cap",
+            "description": "Require prospect_specret_monthly confirmation and cap weight by srisk to avoid risky names. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCounts good. KEEP_IN_MINDs kept. Confidence=0.66",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,63), if_else(greater(ts_zscore(rsk70_mfm2_usfast_prospect_specret_monthly,60),0), 1/(1+zscore(rsk70_mfm2_usfast_srisk)), 0))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Short-term reversal in distribution services",
+            "description": "Fade distribution_services_exposure_score spikes. SUGGESTION1: single field used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount small. KEEP_IN_MINDs kept. Confidence=0.42",
+            "implementation": "reverse(ts_zscore(distribution_services_exposure_score,7))",
+            "confidence_level": 0.42
+        },
+        {
+            "idea": "Momentum with long-term reversal guard",
+            "description": "Reduce momentum exposure when long-term reversal loading (ltrevrsl) signals mean-reversion regimes. SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage ~0.99; SUGGESTION4: userCounts ok. KEEP_IN_MINDs kept. Confidence=0.60",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,63), reverse(zscore(rsk70_mfm2_usfast_ltrevrsl)))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-term reversal in food products",
+            "description": "Fade spikes in food_products_exposure_score. SUGGESTION1: single field used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: userCount small. KEEP_IN_MINDs kept. Confidence=0.41",
+            "implementation": "reverse(ts_zscore(food_products_exposure_score,7))",
+            "confidence_level": 0.41
+        },
+        {
+            "idea": "Momentum with sentiment and size overlay",
+            "description": "Boost momentum if sentiment positive and size small (combination of three but implemented with two fields and conditional). SUGGESTION1: two fields used (momentum and sentiment) and size via conditional on current_market_cap_usd; SUGGESTION2: not applicable; SUGGESTION3: coverage ok. KEEP_IN_MINDs kept. Confidence=0.64",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,63), if_else(less(log(current_market_cap_usd), ts_mean(log(current_market_cap_usd),252)), ts_zscore(rsk70_mfm2_usfast_sentmt,30), 0))",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "Short-term reversal scaled by short-interest percentile",
+            "description": "Amplify reversals where short_interest is high percentile (crowded short positions prone to cover). SUGGESTION1: two fields used; SUGGESTION2: not applicable; SUGGESTION3: coverage=1.0; SUGGESTION4: high userCount. KEEP_IN_MINDs kept. Confidence=0.67",
+            "implementation": "multiply(reverse(ts_zscore(daily_specific_return,5)), quantile(short_interest_factor_score))",
+            "confidence_level": 0.67
+        }
+    ]
+}

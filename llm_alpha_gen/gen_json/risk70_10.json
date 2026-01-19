@@ -1,0 +1,676 @@
+{
+    "results": [
+        {
+            "idea": "Short-term momentum zscore",
+            "description": "Uses ts_zscore on rsk70_mfm2_usfast_momentum (20-day) to capture short-term momentum relative to its recent distribution. Applied SUGGESTION1 by using a high-userCount style factor; SUGGESTION2 not applicable (no vector fields). Coverage >0.6 so ts_backfill not needed (SUGGESTION3). Chose a well-used field (SUGGESTION4). Confidence set to 0.72 because momentum has persistent cross-sectional signal but mean-reversion risks exist.",
+            "implementation": "ts_zscore(rsk70_mfm2_usfast_momentum, 20)",
+            "confidence_level": 0.72
+        },
+        {
+            "idea": "1-day reversal zscore",
+            "description": "Apply ts_zscore to rsk70_mfm2_usfast_1drevrsl over 5 days to detect short-term mean-reversion. Followed SUGGESTION1 and SUGGESTION4 by using a high-userCount 1d reversal factor. No vectors (SUGGESTION2) and coverage is 1.0 so no ts_backfill. Confidence 0.68 reflecting high short-term profitability but transaction costs risk.",
+            "implementation": "ts_zscore(rsk70_mfm2_usfast_1drevrsl, 5)",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Idiosyncratic return scaled by specific risk",
+            "description": "Scale daily_specific_return by inverse of specific_risk_variance to favor high idiosyncratic return with low idiosyncratic variance. Used two fields (SUGGESTION1) with high user counts; no vector. Coverage=1 so no backfill. Confidence 0.77 due to direct alpha from specific returns after risk scaling.",
+            "implementation": "divide(ts_zscore(daily_specific_return, 10), sqrt(specific_risk_variance))",
+            "confidence_level": 0.77
+        },
+        {
+            "idea": "Hedge-fund crowding contrarian",
+            "description": "Short stocks with high hedge_fund_ownership_percent (crowded) and go long low ownership. Used hedge_fund_ownership_percent (high userCount) per SUGGESTION4. Single field implementation (SUGGESTION1 partially). No vector/backfill. Confidence 0.65 because crowding unwinds can be profitable but timing risk exists.",
+            "implementation": "reverse(hedge_fund_ownership_percent)",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Hedge-fund ownership momentum",
+            "description": "Capture increases in hedge fund ownership count: ts_delta(hedge_fund_ownership_count, 30) zscored to find growing institutional accumulation. Used two related HF fields to follow SUGGESTION1 and SUGGESTION4. Coverage full so no backfill. Confidence 0.6 due to noisy filings cadence.",
+            "implementation": "ts_zscore(ts_delta(hedge_fund_ownership_count, 30), 60)",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-interest short-squeeze long signal",
+            "description": "Long stocks with high short_interest_factor_score but rising daily_specific_return (squeeze). Used two fields (SUGGESTION1) combining short interest and specific return. No vector/backfill. Confidence 0.66 \u2014 logic intuitive but execution/timing matters.",
+            "implementation": "multiply(ts_zscore(short_interest_factor_score, 30), ts_zscore(daily_specific_return, 5))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Momentum divided by residual volatility",
+            "description": "Normalize rsk70_mfm2_usfast_momentum by rsk70_mfm2_usfast_resvol to prefer momentum with low residual volatility. Applied SUGGESTION1 and SUGGESTION4 by using well-known style factors. Coverage high so no backfill. Confidence 0.74 \u2014 balances return vs noise.",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum, 30), ts_backfill(rsk70_mfm2_usfast_resvol, 10))",
+            "confidence_level": 0.74
+        },
+        {
+            "idea": "Size-adjusted value",
+            "description": "Combine rsk70_mfm2_usfast_value (value loading) with rsk70_mfm2_usfast_size to favor small-cap value. Used two high-use style fields per SUGGESTION1/4. No vectors; coverage >0.9 so no backfill. Confidence 0.7 for classic value-size premium.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_value, 90), reverse(ts_zscore(rsk70_mfm2_usfast_size, 90)))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Sentiment-weighted momentum",
+            "description": "Modulate momentum by rsk70_mfm2_usfast_sentmt to prefer momentum when sentiment is supportive. Used two widely-used fields per SUGGESTION1/4. Coverage 1 so no backfill. Confidence 0.71 \u2014 sentiment often enhances momentum signals.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum, 60), ts_zscore(rsk70_mfm2_usfast_sentmt, 30))",
+            "confidence_level": 0.71
+        },
+        {
+            "idea": "Market beta-neutral momentum",
+            "description": "Neutralize momentum against broad_market_factor_score by subtracting its short-term zscore. Used two fields to control market exposure (SUGGESTION1). Coverage full. Confidence 0.69 because market neutrality reduces systemic risk.",
+            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_momentum, 60), ts_zscore(broad_market_factor_score, 60))",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Earnings-quality mean-reversion",
+            "description": "Long stocks with low rsk70_mfm2_usfast_earnqlty zscore expecting re-rating. Used earnings-quality field despite slightly lower coverage (0.9512) but >0.6 so no ts_backfill. Applied SUGGESTION4 moderately. Confidence 0.58 because earnings quality is structural and mean-reversion slower.",
+            "implementation": "reverse(ts_zscore(rsk70_mfm2_usfast_earnqlty, 180))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Growth momentum divergence",
+            "description": "Long stocks where rsk70_mfm2_usfast_growth (long-term growth) lags rsk70_mfm2_usfast_momentum \u2014 buy momentum outperformance vs growth. Used two high-use fields (SUGGESTION1/4). No backfill needed. Confidence 0.62 since growth/momentum divergence can signal rotation.",
+            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_momentum, 60), ts_zscore(rsk70_mfm2_usfast_growth, 180))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Short crowded small caps",
+            "description": "Short stocks with high hedge_fund_ownership_percent and low current_market_cap_usd to exploit crowdedness in small names. Two fields used (SUGGESTION1) and preference for high userCount field. No vector/backfill. Confidence 0.64; crowding risk amplified in small caps.",
+            "implementation": "multiply(hedge_fund_ownership_percent, reverse(ts_zscore(current_market_cap_usd, 252)))",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "Idiosyncratic momentum",
+            "description": "ts_zscore of daily_specific_return over 20 days to capture persistent stock-specific moves. Single-field simple alpha (SUGGESTION1). Chose daily_specific_return due to high userCount (SUGGESTION4). Confidence 0.73 \u2014 specific-return momentum is robust historically.",
+            "implementation": "ts_zscore(daily_specific_return, 20)",
+            "confidence_level": 0.73
+        },
+        {
+            "idea": "Profitability momentum",
+            "description": "Use rsk70_mfm2_usfast_profit zscore over 90 days to capture improving profit loading. Used a high-userCount style field per SUGGESTION4. Coverage high; no backfill. Confidence 0.6 as profit signals are medium-term.",
+            "implementation": "ts_zscore(rsk70_mfm2_usfast_profit, 90)",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Residual-volatility breakout",
+            "description": "Long stocks with rising rsk70_mfm2_usfast_resvol: ts_delta over 30 days zscored. Two operators, one field. SUGGESTION1 satisfied; SUGGESTION4 chosen for robustness. Confidence 0.59 \u2014 high residual vol can precede big moves but riskier.",
+            "implementation": "ts_zscore(ts_delta(rsk70_mfm2_usfast_resvol, 30), 60)",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Value momentum cross",
+            "description": "Buy when value loading improves and momentum positive: multiply zscores of rsk70_mfm2_usfast_value and rsk70_mfm2_usfast_momentum. Two fields, both high-userCount per SUGGESTION4. Confidence 0.7 \u2014 combines complementary signals.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_value, 180), ts_zscore(rsk70_mfm2_usfast_momentum, 60))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Size-neutral specific return",
+            "description": "Normalize daily_specific_return by size: divide ts_zscore(daily_specific_return,20) by ts_zscore(current_market_cap_usd,252) to remove size bias. Two fields used per SUGGESTION1/4. Confidence 0.68 \u2014 reduces size tilt.",
+            "implementation": "divide(ts_zscore(daily_specific_return, 20), ts_zscore(current_market_cap_usd, 252))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Short interest momentum fade",
+            "description": "Short stocks where short_interest_factor_score has increased recently but momentum negative: subtract momentum from short-interest zscore. Two fields used. Coverage full. Confidence 0.61 \u2014 timing sensitive.",
+            "implementation": "subtract(ts_zscore(short_interest_factor_score, 30), ts_zscore(rsk70_mfm2_usfast_momentum, 30))",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "HF ownership risk-adjusted reversal",
+            "description": "Long stocks with falling hedge_fund_ownership_percent and negative recent returns (daily_specific_return) indicating potential rebound. Used two fields (SUGGESTION1) and high HF counts (SUGGESTION4). Confidence 0.63 for contrarian rebalances.",
+            "implementation": "multiply(ts_zscore(reverse(ts_delta(hedge_fund_ownership_percent, 60)), 120), ts_zscore(daily_specific_return, 5))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Market factor tail hedge",
+            "description": "Use reverse(broad_market_factor_score) as hedge overlay: when market factor high, take defensive stance. Single-field, SUGGESTION4 used. Coverage 1 so no backfill. Confidence 0.55 \u2014 defensive overlay is low alpha but risk-reducing.",
+            "implementation": "reverse(broad_market_factor_score)",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "High short-interest mean-revert",
+            "description": "Mean-reversion on daily_specific_return for high short_interest_factor_score names: if short interest high, invert recent negative specific returns. Combined two fields per SUGGESTION1. Confidence 0.62 \u2014 potential short-covering plays.",
+            "implementation": "multiply(ts_zscore(short_interest_factor_score, 90), reverse(ts_zscore(daily_specific_return, 10)))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Momentum x HF ownership filter",
+            "description": "Prefer momentum where hedge_fund_ownership_percent increasing: multiply momentum zscore by ts_delta of HF ownership percent. Two fields used (SUGGESTION1) with high counts. Confidence 0.67 \u2014 institutional buying can amplify momentum.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum, 60), ts_zscore(ts_delta(hedge_fund_ownership_percent, 120), 180))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "Value re-rating by prospect",
+            "description": "Long stocks where rsk70_mfm2_usfast_prospect improved vs rsk70_mfm2_usfast_value to capture re-rating. Two style factors used per SUGGESTION1/4. Confidence 0.6 \u2014 relies on analyst/prospect changes translating to price.",
+            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_prospect, 180), ts_zscore(rsk70_mfm2_usfast_value, 180))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Specific-return IR signal",
+            "description": "Use ts_ir(daily_specific_return, 60) approximated by ts_mean/ts_std_dev via ts_ir operator to find persistent idiosyncratic performers. Single field high userCount (SUGGESTION4). Confidence 0.71 as IR emphasizes signal-to-noise.",
+            "implementation": "ts_ir(daily_specific_return, 60)",
+            "confidence_level": 0.71
+        },
+        {
+            "idea": "Short HF-owned expensive names",
+            "description": "Short names with high hedge_fund_ownership_percent and high rsk70_mfm2_usfast_value (overvalued). Two fields, both widely used. Confidence 0.58 due to execution risk.",
+            "implementation": "multiply(hedge_fund_ownership_percent, ts_zscore(rsk70_mfm2_usfast_value, 90))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Residual vol adjusted reversal",
+            "description": "Favor mean-reversion when residual volatility low: divide ts_zscore(rsk70_mfm2_usfast_1drevrsl, 10) by ts_zscore(rsk70_mfm2_usfast_resvol, 60). Two fields used. Confidence 0.66 \u2014 reduces false signals from noisy names.",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_1drevrsl, 10), ts_zscore(rsk70_mfm2_usfast_resvol, 60))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Size-adjusted momentum crossover",
+            "description": "Momentum zscore minus size zscore to prefer momentum in smaller stocks: subtract(ts_zscore(size), ts_zscore(size benchmark)). Uses two style factors per SUGGESTION1/4. Confidence 0.6.",
+            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_momentum, 60), ts_zscore(rsk70_mfm2_usfast_size, 60))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "HF ownership percent momentum",
+            "description": "ts_zscore(ts_delta(hedge_fund_ownership_percent, 90), 180) to find names with increasing HF percent momentum. Single field, high counts. Confidence 0.59 given filing lag but persistent accumulation can matter.",
+            "implementation": "ts_zscore(ts_delta(hedge_fund_ownership_percent, 90), 180)",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Market factor contrarian momentum",
+            "description": "When broad_market_factor_score is high, invert momentum signal: multiply reverse(broad_market_factor_score) with momentum zscore. Two fields used per SUGGESTION1. Confidence 0.57 for defensive momentum.",
+            "implementation": "multiply(reverse(broad_market_factor_score), ts_zscore(rsk70_mfm2_usfast_momentum, 60))",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Prospect-specific return synergy",
+            "description": "Multiply rsk70_mfm2_usfast_prospect_specret_daily with daily_specific_return to capture names where prospect model and daily idiosyncratic returns align. Two fields used. Confidence 0.68; alignment indicates stronger idiosyncratic moves.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily, 20), ts_zscore(daily_specific_return, 10))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Short-interest contrarian",
+            "description": "Reverse short_interest_factor_score to long names with low short interest (crowded-to-be-long). Single field chosen (SUGGESTION1/4). Confidence 0.54 \u2014 weaker alpha but low turnover.",
+            "implementation": "reverse(short_interest_factor_score)",
+            "confidence_level": 0.54
+        },
+        {
+            "idea": "Momentum scaled by liquidity proxy",
+            "description": "Scale momentum by current_market_cap_usd to avoid tiny illiquid extremes: divide ts_zscore(rsk70_mfm2_usfast_momentum,60) by ts_zscore(current_market_cap_usd,252). Two fields used per SUGGESTION1. Confidence 0.66.",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum, 60), ts_zscore(current_market_cap_usd, 252))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Value mean-reversion",
+            "description": "Reverse ts_zscore(rsk70_mfm2_usfast_value, 180) to capture value mean reversion vs fundamentals. Single field selected (SUGGESTION1/4). Coverage high so no backfill. Confidence 0.57 \u2014 value mean reversion is long horizon.",
+            "implementation": "reverse(ts_zscore(rsk70_mfm2_usfast_value, 180))",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "HF ownership percent overhang fade",
+            "description": "Short increases in hedge_fund_ownership_percent when specific returns negative: multiply ts_delta(hedge_fund_ownership_percent, 60) with reverse(ts_zscore(daily_specific_return, 5)). Two fields used. Confidence 0.61.",
+            "implementation": "multiply(ts_zscore(ts_delta(hedge_fund_ownership_percent, 60), 120), reverse(ts_zscore(daily_specific_return, 5)))",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Residual volatility scaled momentum",
+            "description": "Divide rsk70_mfm2_usfast_momentum zscore by rsk70_mfm2_usfast_resvol zscore to favor stable momentum. Two fields, high user counts per SUGGESTION4. Confidence 0.72.",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum, 30), ts_zscore(rsk70_mfm2_usfast_resvol, 30))",
+            "confidence_level": 0.72
+        },
+        {
+            "idea": "Specific return momentum filter by HF count",
+            "description": "Multiply ts_zscore(daily_specific_return,20) by ts_zscore(hedge_fund_ownership_count, 180) to emphasize specific-return momentum where HF base is increasing. Two fields used. Confidence 0.65.",
+            "implementation": "multiply(ts_zscore(daily_specific_return, 20), ts_zscore(hedge_fund_ownership_count, 180))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Size-value reversal",
+            "description": "Long small caps with improving value loading: multiply reverse(ts_zscore(rsk70_mfm2_usfast_size, 252)) with ts_zscore(rsk70_mfm2_usfast_value, 180). Two fields. Confidence 0.63.",
+            "implementation": "multiply(reverse(ts_zscore(rsk70_mfm2_usfast_size, 252)), ts_zscore(rsk70_mfm2_usfast_value, 180))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Short HF-owned momentum fade",
+            "description": "Short names with high hedge_fund_ownership_percent but negative rsk70_mfm2_usfast_momentum: multiply HF percent by reverse(momentum). Two fields used. Confidence 0.6.",
+            "implementation": "multiply(hedge_fund_ownership_percent, reverse(ts_zscore(rsk70_mfm2_usfast_momentum, 60)))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Prospect daily specific alignment",
+            "description": "Long names where rsk70_mfm2_usfast_prospect_specret_daily positive and daily_specific_return positive: multiply two zscores. Two fields used, both high coverage. Confidence 0.69.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily, 20), ts_zscore(daily_specific_return, 5))",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Momentum persistence via ts_ir",
+            "description": "Use ts_ir of rsk70_mfm2_usfast_momentum over 90d to prefer persistent momentum signals. Single field; SUGGESTION4 respected. Confidence 0.7 due to persistence emphasis.",
+            "implementation": "ts_ir(rsk70_mfm2_usfast_momentum, 90)",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Short-interest heated breakout",
+            "description": "Multiply short_interest_factor_score by ts_zscore(rsk70_mfm2_usfast_momentum, 10) to find shorts where short interest and momentum align (potential squeeze or collapse). Two fields used. Confidence 0.6.",
+            "implementation": "multiply(short_interest_factor_score, ts_zscore(rsk70_mfm2_usfast_momentum, 10))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "HF ownership percent risk-neutralizer",
+            "description": "Divide momentum zscore by (1+hedge_fund_ownership_percent) to downweight crowded names. Two fields used; simple and covers SUGGESTION1/4. Confidence 0.65.",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum, 60), add(1, hedge_fund_ownership_percent))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Earnings yield momentum",
+            "description": "Combine rsk70_mfm2_usfast_earnyild zscore with short-term momentum to capture improving yield with momentum. Two fields: earnings yield and momentum. Confidence 0.62.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_earnyild, 180), ts_zscore(rsk70_mfm2_usfast_momentum, 60))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "HF ownership reduction mean-revert",
+            "description": "Long names where hedge_fund_ownership_percent declined sharply (ts_delta negative) but daily_specific_return negative \u2014 expect buyback. Two fields. Confidence 0.6.",
+            "implementation": "multiply(reverse(ts_delta(hedge_fund_ownership_percent, 90)), reverse(ts_zscore(daily_specific_return, 10)))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Prospect monthly confirmation",
+            "description": "Use rsk70_mfm2_usfast_prospect_specret_monthly zscore to find names with improving monthly prospect-specific returns. Single field. Confidence 0.64.",
+            "implementation": "ts_zscore(rsk70_mfm2_usfast_prospect_specret_monthly, 90)",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "Short high specific risk",
+            "description": "Short names with large specific_risk_variance combined with negative daily_specific_return: multiply two fields to penalize high idiosyncratic risk and negative returns. Two fields used. Confidence 0.56.",
+            "implementation": "multiply(ts_zscore(specific_risk_variance, 252), reverse(ts_zscore(daily_specific_return, 10)))",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Momentum filtered by management quality",
+            "description": "Multiply rsk70_mfm2_usfast_mgmtqlty zscore with momentum to favor momentum in strong management names. Two fields used; mgmtqlty coverage 0.8817 (>0.6) so no backfill. Confidence 0.63.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_mgmtqlty, 180), ts_zscore(rsk70_mfm2_usfast_momentum, 60))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Short HF ownership percent spike",
+            "description": "Short stocks with rapid increases in hedge_fund_ownership_percent (ts_delta positive large). Single primary HF field used. Confidence 0.58 due to filing lags.",
+            "implementation": "ts_zscore(ts_delta(hedge_fund_ownership_percent, 120), 240)",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Momentum x low specific risk",
+            "description": "Favor momentum signals if specific risk variance is low: divide momentum zscore by specific_risk_variance zscore. Two fields used. Confidence 0.7.",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum, 60), ts_zscore(specific_risk_variance, 252))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "HF ownership percent contrarian momentum",
+            "description": "When HF percent falls and momentum negative, go long (contrarian): multiply reverse(ts_delta(hedge_fund_ownership_percent, 60)) by reverse(ts_zscore(rsk70_mfm2_usfast_momentum, 20)). Two fields. Confidence 0.6.",
+            "implementation": "multiply(reverse(ts_zscore(ts_delta(hedge_fund_ownership_percent, 60), 120)), reverse(ts_zscore(rsk70_mfm2_usfast_momentum, 20)))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Value by HF ownership arbitrage",
+            "description": "Buy undervalued names (value zscore high) with low hedge fund ownership percent: multiply reverse(hedge_fund_ownership_percent) with ts_zscore(rsk70_mfm2_usfast_value, 180). Two fields. Confidence 0.61.",
+            "implementation": "multiply(reverse(hedge_fund_ownership_percent), ts_zscore(rsk70_mfm2_usfast_value, 180))",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Specific-return persistence over risk",
+            "description": "Divide ts_zscore(ts_sum(daily_specific_return, 5), 20) by ts_std_dev(daily_specific_return, 60) to emphasize persistent specific returns relative to volatility. Single field used. Confidence 0.72.",
+            "implementation": "divide(ts_zscore(ts_sum(daily_specific_return, 5), 20), ts_std_dev(daily_specific_return, 60))",
+            "confidence_level": 0.72
+        },
+        {
+            "idea": "Momentum decayed by hump",
+            "description": "Apply hump to momentum to reduce turnover: hump(ts_zscore(rsk70_mfm2_usfast_momentum, 30), hump=0.01). Single field; operator hump used to limit turnover (useful practice). Confidence 0.65.",
+            "implementation": "hump(ts_zscore(rsk70_mfm2_usfast_momentum, 30), hump=0.01)",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "HF ownership percent x short interest divergence",
+            "description": "Find conversion opportunities where hedge fund ownership is low but short interest high: multiply reverse(hedge_fund_ownership_percent) with short_interest_factor_score. Two fields used. Confidence 0.59.",
+            "implementation": "multiply(reverse(hedge_fund_ownership_percent), short_interest_factor_score)",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Momentum vs market dispersion",
+            "description": "Subtract broad_market_factor_score zscore from momentum to find momentum independent of market trend. Two fields; reduces market beta. Confidence 0.63.",
+            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_momentum, 60), ts_zscore(broad_market_factor_score, 60))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Size-neutral HF crowding",
+            "description": "Divide hedge_fund_ownership_percent by current_market_cap_usd to find highly owned small caps (crowded small names). Two fields used. Confidence 0.6.",
+            "implementation": "divide(hedge_fund_ownership_percent, ts_zscore(current_market_cap_usd, 252))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Momentum confirmed by prospect daily",
+            "description": "Multiply momentum zscore with rsk70_mfm2_usfast_prospect_specret_daily zscore to confirm momentum with prospect model. Two fields used, both high coverage. Confidence 0.68.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum, 60), ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily, 20))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Short highly volatile specific losers",
+            "description": "Short names where daily_specific_return negative and specific_risk_variance high: multiply reverse(daily_specific_return) with specific_risk_variance. Two fields used. Confidence 0.55.",
+            "implementation": "multiply(reverse(ts_zscore(daily_specific_return, 10)), ts_zscore(specific_risk_variance, 252))",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "HF ownership percent zscore cross-section",
+            "description": "Cross-sectional zscore (quantile-like) of hedge_fund_ownership_percent using ts_zscore then quantile to get relative rank. One field used; SUGGESTION4 satisfied. Confidence 0.58.",
+            "implementation": "quantile(ts_zscore(hedge_fund_ownership_percent, 252))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Value rotation filter by sentiment",
+            "description": "Long value when rsk70_mfm2_usfast_sentmt positive: multiply value zscore with sentiment zscore. Two fields used. Confidence 0.62.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_value, 180), ts_zscore(rsk70_mfm2_usfast_sentmt, 30))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "HF ownership percent contrarian small-cap",
+            "description": "Long small caps where HF ownership percent decreased recently: multiply reverse(ts_delta(hedge_fund_ownership_percent, 120)) with reverse(ts_zscore(current_market_cap_usd,252)). Two fields used. Confidence 0.59.",
+            "implementation": "multiply(reverse(ts_zscore(ts_delta(hedge_fund_ownership_percent, 120), 240)), reverse(ts_zscore(current_market_cap_usd, 252)))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Momentum persistence with ts_decay_linear",
+            "description": "Apply ts_decay_linear to momentum to emphasize recent momentum while smoothing older signals: ts_decay_linear(rsk70_mfm2_usfast_momentum, 60). Single field. Confidence 0.66.",
+            "implementation": "ts_decay_linear(rsk70_mfm2_usfast_momentum, 60)",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Specific-return seasonal adjustment",
+            "description": "Subtract long-term mean of daily_specific_return (ts_mean 252) from short-term (ts_mean 20) to capture seasonality: ts_av_diff(daily_specific_return, 252). Single field. Confidence 0.64.",
+            "implementation": "ts_av_diff(daily_specific_return, 252)",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "HF ownership percent x prospect",
+            "description": "Multiply hedge_fund_ownership_percent by rsk70_mfm2_usfast_prospect to find names where HF ownership and prospect align. Two fields used. Confidence 0.6.",
+            "implementation": "multiply(hedge_fund_ownership_percent, ts_zscore(rsk70_mfm2_usfast_prospect, 90))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Residual vol dampened specific momentum",
+            "description": "Divide ts_zscore(ts_sum(daily_specific_return,5),10) by ts_zscore(rsk70_mfm2_usfast_resvol,60) to focus on clean idiosyncratic momentum. Two fields. Confidence 0.71.",
+            "implementation": "divide(ts_zscore(ts_sum(daily_specific_return, 5), 10), ts_zscore(rsk70_mfm2_usfast_resvol, 60))",
+            "confidence_level": 0.71
+        },
+        {
+            "idea": "Short-interest fade plus HF neutralizer",
+            "description": "Short names with rising short_interest_factor_score but high hedge_fund_ownership_percent mitigates: subtract HF percent from short-interest zscore. Two fields used. Confidence 0.58.",
+            "implementation": "subtract(ts_zscore(short_interest_factor_score, 60), hedge_fund_ownership_percent)",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Momentum vs earnings quality spread",
+            "description": "Buy where momentum > earnings-quality to capture rotation into lower quality winners: subtract earnqlty zscore from momentum zscore. Two fields used. Confidence 0.56.",
+            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_momentum, 60), ts_zscore(rsk70_mfm2_usfast_earnqlty, 180))",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "HF ownership percent volatility arbitrage",
+            "description": "Target names where hedge_fund_ownership_percent stable (low ts_std_dev) but daily_specific_return volatile \u2014 potential mispricing. Use ts_std_dev on HF percent combined with specific return zscore. Two fields. Confidence 0.52.",
+            "implementation": "multiply(reverse(ts_std_dev(hedge_fund_ownership_percent, 180)), ts_zscore(daily_specific_return, 20))",
+            "confidence_level": 0.52
+        },
+        {
+            "idea": "Momentum x low HF count",
+            "description": "Favor momentum in names with few hedge funds (less crowded): multiply momentum zscore with reverse(hedge_fund_ownership_count). Two fields used. Confidence 0.6.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum, 60), reverse(hedge_fund_ownership_count))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Value upside momentum",
+            "description": "Combine high value zscore with recent positive momentum: multiply ts_zscore(rsk70_mfm2_usfast_value,180) with ts_zscore(rsk70_mfm2_usfast_momentum,30). Two fields used. Confidence 0.67.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_value, 180), ts_zscore(rsk70_mfm2_usfast_momentum, 30))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "HF ownership percent decile cap",
+            "description": "Bucket hedge_fund_ownership_percent into deciles and go long lowest decile (contrarian). Uses bucket and single field per KEEP_IN_MIND. Confidence 0.57.",
+            "implementation": "bucket(ts_zscore(hedge_fund_ownership_percent, 252), range=\"0,1,0.1\")",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Short-interest x specific risk",
+            "description": "Short names where short_interest_factor_score high and specific_risk_variance high: multiply two fields. Confidence 0.56.",
+            "implementation": "multiply(short_interest_factor_score, ts_zscore(specific_risk_variance, 252))",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Momentum filtered by prospect monthly",
+            "description": "Multiply momentum zscore with rsk70_mfm2_usfast_prospect_specret_monthly zscore to confirm durable moves. Two fields used. Confidence 0.66.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum, 60), ts_zscore(rsk70_mfm2_usfast_prospect_specret_monthly, 60))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "HF ownership percent co-movement with specific returns",
+            "description": "Use ts_corr between hedge_fund_ownership_percent and daily_specific_return to find names where HF flows correlate with idiosyncratic returns. Two fields used. Confidence 0.6.",
+            "implementation": "ts_corr(hedge_fund_ownership_percent, daily_specific_return, 180)",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Momentum scaled by specific risk variance",
+            "description": "Divide momentum zscore by sqrt(specific_risk_variance) to prefer momentum with lower idiosyncratic risk. Two fields used. Confidence 0.7.",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum, 60), sqrt(specific_risk_variance))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "HF ownership percent slowdown long bias",
+            "description": "Long names where hedge_fund_ownership_count growth slows (negative ts_delta) and daily_specific_return positive: multiply reverse(ts_delta(hedge_fund_ownership_count, 180)) with ts_zscore(daily_specific_return, 10). Two fields. Confidence 0.58.",
+            "implementation": "multiply(reverse(ts_zscore(ts_delta(hedge_fund_ownership_count, 180), 360)), ts_zscore(daily_specific_return, 10))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Size-neutral residual-volatility filter",
+            "description": "Divide rsk70_mfm2_usfast_resvol by ts_zscore(current_market_cap_usd,252) to find small names with high residual vol (trade carefully). Two fields used. Confidence 0.53.",
+            "implementation": "divide(rsk70_mfm2_usfast_resvol, ts_zscore(current_market_cap_usd, 252))",
+            "confidence_level": 0.53
+        },
+        {
+            "idea": "Momentum x HF percent zscore cross",
+            "description": "Cross-sectional zscore of product of momentum and HF percent to find names where both align. Two fields used. Confidence 0.65.",
+            "implementation": "ts_zscore(multiply(ts_zscore(rsk70_mfm2_usfast_momentum, 60), ts_zscore(hedge_fund_ownership_percent, 252)), 60)",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Prospect re-rating contrarian",
+            "description": "Reverse ts_zscore(rsk70_mfm2_usfast_prospect, 180) to find names where prospect deteriorated (possible oversell). Single field used. Confidence 0.54.",
+            "implementation": "reverse(ts_zscore(rsk70_mfm2_usfast_prospect, 180))",
+            "confidence_level": 0.54
+        },
+        {
+            "idea": "Momentum signal winsorized",
+            "description": "Winsorize ts_zscore(rsk70_mfm2_usfast_momentum,60) to reduce outlier-driven turnover. Single field; uses winsorize operator to cap extremes. Confidence 0.62.",
+            "implementation": "winsorize(ts_zscore(rsk70_mfm2_usfast_momentum, 60), std=4)",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "HF ownership percent relative strength",
+            "description": "Compute ts_rank of hedge_fund_ownership_percent (90d) to find stocks with rising HF share relative to themselves. Single field implementation. Confidence 0.56.",
+            "implementation": "ts_rank(hedge_fund_ownership_percent, 90)",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Momentum x low short interest",
+            "description": "Favor momentum in names with low short_interest_factor_score: multiply momentum zscore with reverse(short_interest_factor_score). Two fields used. Confidence 0.61.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum, 60), reverse(short_interest_factor_score))",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Specific-return gap reversion",
+            "description": "Use last_diff_value on daily_specific_return to capture large recent jumps and expect partial reversion: last_diff_value(daily_specific_return, 10). Single field. Confidence 0.55.",
+            "implementation": "last_diff_value(daily_specific_return, 10)",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "HF ownership percent and prospect divergence",
+            "description": "Short names where HF ownership rising but prospect loading falling: subtract prospect zscore from HF percent delta. Two fields used. Confidence 0.57.",
+            "implementation": "subtract(ts_zscore(ts_delta(hedge_fund_ownership_percent, 120), 240), ts_zscore(rsk70_mfm2_usfast_prospect, 120))",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Momentum-confirmed earnings yield",
+            "description": "Multiply earnings yield zscore with short-term momentum to capture value with momentum. Two fields. Confidence 0.63.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_earnyild, 180), ts_zscore(rsk70_mfm2_usfast_momentum, 30))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "HF ownership percent volatility dampener",
+            "description": "Divide momentum by (1 + ts_std_dev(hedge_fund_ownership_percent, 180)) to avoid names with unstable HF ownership. Two fields used. Confidence 0.6.",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum, 60), add(1, ts_std_dev(hedge_fund_ownership_percent, 180)))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Specific-return kurtosis filter",
+            "description": "Use ts_kurtosis(daily_specific_return, 60) to penalize names with heavy tails, then multiply with momentum. Two fields used (kurtosis operator and momentum field). Confidence 0.53.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum, 60), reverse(ts_kurtosis(daily_specific_return, 60)))",
+            "confidence_level": 0.53
+        },
+        {
+            "idea": "HF ownership percent mean-revert with bucket",
+            "description": "Bucket hedge_fund_ownership_percent into 5 buckets and long lowest bucket. Uses bucket and single field. Confidence 0.56.",
+            "implementation": "bucket(ts_zscore(hedge_fund_ownership_percent, 252), buckets=\"0,20,40,60,80,100\")",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Momentum trimmed by winsorized specific return",
+            "description": "Multiply momentum by winsorized daily_specific_return to avoid extreme idiosyncratic spikes. Two fields used. Confidence 0.64.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum, 60), winsorize(ts_zscore(daily_specific_return, 20), std=3))",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "HF ownership percent long-short pair",
+            "description": "Long decile with lowest HF percent, short decile with highest HF percent using bucketed HF percent. Single field bucketed. Confidence 0.58.",
+            "implementation": "bucket(ts_zscore(hedge_fund_ownership_percent, 252), range=\"0,1,0.1\")",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Momentum confirmation by regional momentum",
+            "description": "Multiply rsk70_mfm2_usfast_momentum by rsk70_mfm2_usfast_regmom to favor names with both global and regional momentum. Two fields used. Confidence 0.65.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum, 60), ts_zscore(rsk70_mfm2_usfast_regmom, 60))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "HF ownership percent extreme tail fade",
+            "description": "Use tail operator to cap extreme HF percent values, then reverse to go contrarian at extremes. Single field with tail and reverse operations. Confidence 0.59.",
+            "implementation": "reverse(tail(hedge_fund_ownership_percent, lower=0, upper=0.9, newval=0.9))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Momentum scaled by market cap percentile",
+            "description": "Divide momentum zscore by quantile(current_market_cap_usd) to favor momentum among smaller market cap percentiles. Two fields used. Confidence 0.62.",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum, 60), quantile(ts_zscore(current_market_cap_usd, 252)))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Specific-return short-term reversal",
+            "description": "Use ts_arg_max on daily_specific_return over 5 days to detect most recent extreme and short accordingly. Single field used. Confidence 0.53.",
+            "implementation": "ts_arg_max(daily_specific_return, 5)",
+            "confidence_level": 0.53
+        },
+        {
+            "idea": "HF ownership percent x sentiment divergence",
+            "description": "Short names where hedge_fund_ownership_percent rising but rsk70_mfm2_usfast_sentmt falling: subtract sentiment from HF percent delta. Two fields. Confidence 0.56.",
+            "implementation": "subtract(ts_zscore(ts_delta(hedge_fund_ownership_percent, 90), 180), ts_zscore(rsk70_mfm2_usfast_sentmt, 30))",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Momentum scaled by short interest",
+            "description": "Divide momentum zscore by (1+short_interest_factor_score) to downweight names with heavy short interest. Two fields used. Confidence 0.6.",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum, 60), add(1, short_interest_factor_score))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Prospect surprise trade",
+            "description": "Long names where rsk70_mfm2_usfast_prospect_specret_daily outperforms its monthly value: ts_delta between daily and monthly prospect specret. Single field (prospect daily and monthly are same group\u2014uses one of them). Confidence 0.61.",
+            "implementation": "ts_delta(rsk70_mfm2_usfast_prospect_specret_daily, 20)",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Value x low residual volatility",
+            "description": "Multiply value zscore by reverse(residual volatility zscore) to favor stable value names. Two fields used. Confidence 0.66.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_value, 180), reverse(ts_zscore(rsk70_mfm2_usfast_resvol, 60)))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "HF ownership percent consolidation breakout",
+            "description": "Long names where hedge_fund_ownership_percent has been flat (low days_from_last_change) but recently increased (small ts_delta positive): use days_from_last_change and ts_delta together. Single field operations on HF percent. Confidence 0.55.",
+            "implementation": "ts_delta(hedge_fund_ownership_percent, 30)",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Short high specific risk momentum",
+            "description": "Short names with positive momentum but very high specific_risk_variance (mean-reversion risk): multiply momentum zscore by specific risk then reverse. Two fields used. Confidence 0.52.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum, 60), ts_zscore(specific_risk_variance, 252))",
+            "confidence_level": 0.52
+        },
+        {
+            "idea": "HF ownership percent and market factor hedge",
+            "description": "When HF percent aligns with broad market factor (positive correlation), reduce exposure: subtract broad market zscore from HF percent zscore. Two fields used. Confidence 0.56.",
+            "implementation": "subtract(ts_zscore(hedge_fund_ownership_percent, 252), ts_zscore(broad_market_factor_score, 60))",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Momentum amplified by prospect daily",
+            "description": "Multiply momentum with rsk70_mfm2_usfast_prospect_specret_daily to amplify momentum where prospect model supports it. Two fields used. Confidence 0.67.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum, 60), ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily, 20))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "HF ownership percent low-count momentum",
+            "description": "Favor momentum in names with low hedge_fund_ownership_count (less crowded): multiply momentum zscore with reverse(hedge_fund_ownership_count). Two fields used. Confidence 0.59.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum, 60), reverse(hedge_fund_ownership_count))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Value re-rating after HF outflows",
+            "description": "Buy value names where hedge_fund_ownership_percent decreased significantly (ts_delta negative) expecting mean-revert. Two fields used. Confidence 0.58.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_value, 180), reverse(ts_zscore(ts_delta(hedge_fund_ownership_percent, 120), 240)))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Momentum with HF ownership smoothing",
+            "description": "Use ts_mean of hedge_fund_ownership_percent over 180 days to smooth noise, then multiply with momentum zscore. Two fields used. Confidence 0.6.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum, 60), ts_mean(hedge_fund_ownership_percent, 180))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-interest percent spike short",
+            "description": "Short when short_interest_factor_score shows large recent increase: ts_delta short interest 30-day zscore. Single field. Confidence 0.57.",
+            "implementation": "ts_zscore(ts_delta(short_interest_factor_score, 30), 60)",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Specific-return mean-reversion tail",
+            "description": "Use tail to clamp extreme daily_specific_return values and reverse extreme winners/losers: reverse(tail(daily_specific_return, lower=-0.2, upper=0.2, newval=0.0)). Single field. Confidence 0.54.",
+            "implementation": "reverse(tail(daily_specific_return, lower=-0.2, upper=0.2, newval=0.0))",
+            "confidence_level": 0.54
+        },
+        {
+            "idea": "Prospect monthly momentum filter",
+            "description": "Multiply monthly prospect specret zscore with short-term momentum to capture durable moves: two fields used. Confidence 0.63.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_prospect_specret_monthly, 90), ts_zscore(rsk70_mfm2_usfast_momentum, 30))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "HF ownership percent risk overlay (scale)",
+            "description": "Scale momentum by factor (1 - hedge_fund_ownership_percent) to reduce weight on crowded names: divide momentum zscore by (1 + hedge_fund_ownership_percent). Two fields used. Confidence 0.61.",
+            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum, 60), add(1, hedge_fund_ownership_percent))",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Value x HF ownership count",
+            "description": "Prefer value names with rising hedge_fund_ownership_count (institutional validation): multiply value zscore with ts_delta(hedge_fund_ownership_count,180). Two fields used. Confidence 0.6.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_value, 180), ts_zscore(ts_delta(hedge_fund_ownership_count, 180), 360))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Momentum x low specific variance",
+            "description": "Multiply momentum zscore with reverse(specific_risk_variance) to favor lower idiosyncratic noise. Two fields used. Confidence 0.69.",
+            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum, 60), reverse(ts_zscore(specific_risk_variance, 252)))",
+            "confidence_level": 0.69
+        }
+    ]
+}

@@ -1,0 +1,628 @@
+{
+    "results": [
+        {
+            "idea": "Cross-sectional z-score on overall sentiment score",
+            "description": "Used single high-coverage field snt1_cored1_score (coverage 0.6329). SUGGESTION1: not applied (single field chosen for clarity). SUGGESTION2: not applied (field is scalar). SUGGESTION3: not applied (coverage > 0.6). SUGGESTION4: applied (high userCount and alphaCount -> more reliable). Confidence set to 0.75 based on broad coverage and heavy existing usage.",
+            "implementation": "zscore(snt1_cored1_score)",
+            "confidence_level": 0.75
+        },
+        {
+            "idea": "Cross-sectional buy-minus-sell analyst recommendation spread",
+            "description": "Combines buy and sell recommendation percents. SUGGESTION1: applied (two fields). SUGGESTION2: not applied (scalars). SUGGESTION3: applied via ts_backfill for both (coverage ~0.5557). SUGGESTION4: partially applied (buy/sell have reasonable alphaCount). Confidence 0.68 because recommendation spreads historically informative but noisy.",
+            "implementation": "subtract(zscore(ts_backfill(snt1_d1_buyrecpercent,30)), zscore(ts_backfill(snt1_d1_sellrecpercent,30)))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Momentum in earnings revision (1-month)",
+            "description": "Time-series momentum on earnings revision. SUGGESTION1: single field to capture pure signal. SUGGESTION2: not applied. SUGGESTION3: applied ts_backfill (coverage 0.558). SUGGESTION4: earningsrevision has high alphaCount, applied. Confidence 0.70 due to predictive power of revision momentum.",
+            "implementation": "ts_delta(ts_backfill(snt1_d1_earningsrevision,30), 21)",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Cross-sectional zscore of earnings surprise scaled by price",
+            "description": "Uses earnings surprise normalized cross-sectionally. SUGGESTION1: single field (focus). SUGGESTION2: not applied. SUGGESTION3: applied ts_backfill (coverage 0.5575). SUGGESTION4: moderate alphaCount applied. Confidence 0.66 because surprises often mean-revert.",
+            "implementation": "zscore(ts_backfill(snt1_d1_earningssurprise,30))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "High analyst coverage + positive revisions (composite)",
+            "description": "Combine analystcoverage and earningsrevision to prefer well-covered improving names. SUGGESTION1: applied (2 fields). SUGGESTION2: not applied. SUGGESTION3: applied ts_backfill to both (coverage <0.6 for coverage field). SUGGESTION4: used coverage and earningsrevision due to strong user/alpha counts. Confidence 0.72.",
+            "implementation": "multiply(zscore(ts_backfill(snt1_d1_analystcoverage,30)), zscore(ts_backfill(snt1_d1_earningsrevision,30)))",
+            "confidence_level": 0.72
+        },
+        {
+            "idea": "Dispersion (analyst estimates) predicts volatility risk premium",
+            "description": "Use analyst dispersion dtstsespe as a cross-sectional risk signal. SUGGESTION1: single field. SUGGESTION2: not applied. SUGGESTION3: applied ts_backfill (coverage 0.5572). SUGGESTION4: moderate alphaCount used. Confidence 0.55 as dispersion is noisy but useful for short-term reversals.",
+            "implementation": "zscore(ts_backfill(snt1_d1_dtstsespe,30))",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Net recommendation percent mean-reversion (short-term)",
+            "description": "Short-term reversal on net recommendation percent. SUGGESTION1: single field. SUGGESTION3: ts_backfill used (coverage 0.5557). SUGGESTION4: high alphaCount (3874) increases confidence. SUGGESTION2 not applied. Confidence 0.67.",
+            "implementation": "reverse(ts_delta(ts_backfill(snt1_d1_netrecpercent,30), 5))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "Earnings surprise momentum vs analyst sentiment divergence",
+            "description": "Contrast earnings surprise with analyst net rec percent to find surprises not yet reflected in recommendations. SUGGESTION1: applied (2 fields). SUGGESTION3: ts_backfill both. SUGGESTION2 not applied. SUGGESTION4: used fields with decent alphaCounts. Confidence 0.69.",
+            "implementation": "subtract(zscore(ts_backfill(snt1_d1_earningssurprise,30)), zscore(ts_backfill(snt1_d1_netrecpercent,30)))",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Stocks with rising long-term EPS growth estimate",
+            "description": "Time-series increase in longtermepsgrowthest indicates durable upgrades. SUGGESTION1: single field. SUGGESTION3: ts_backfill (coverage 0.5413). SUGGESTION4: moderate alphaCount. SUGGESTION2 not applied. Confidence 0.58.",
+            "implementation": "ts_delta(ts_backfill(snt1_d1_longtermepsgrowthest,90), 60)",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Analyst target momentum (uptarget vs downtarget spread)",
+            "description": "Capture net movement in targets via uptargetpercent minus downtargetpercent. SUGGESTION1: applied (2 fields). SUGGESTION3: ts_backfill both (coverage ~0.5508). SUGGESTION4: reasonable alphaCounts used. Confidence 0.63.",
+            "implementation": "subtract(zscore(ts_backfill(snt1_d1_uptargetpercent,60)), zscore(ts_backfill(snt1_d1_downtargetpercent,60)))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Stocks with rising analyst coverage and rising buy percent",
+            "description": "Combine analystcoverage and buyrecpercent for improving interest. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4: both fields have good user/alphaCount. Confidence 0.7.",
+            "implementation": "multiply(zscore(ts_backfill(snt1_d1_analystcoverage,60)), zscore(ts_backfill(snt1_d1_buyrecpercent,60)))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Reversion from extreme sentiment score",
+            "description": "Short-term mean-reversion on extreme snt1_cored1_score values. SUGGESTION1: single field. SUGGESTION3: not applied (coverage >0.6). SUGGESTION4: high user/alphaCount used. Confidence 0.65.",
+            "implementation": "reverse(zscore(snt1_cored1_score))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Stocks with high sell rec percent but positive earnings revision (contrarian)",
+            "description": "Target stocks where analysts still sell but earnings revision turns positive. SUGGESTION1: applied (2 fields). SUGGESTION3: ts_backfill both. SUGGESTION4: fields have adequate usage. Confidence 0.62 (contrarian riskier).",
+            "implementation": "multiply(zscore(ts_backfill(snt1_d1_sellrecpercent,60)), ts_delta(ts_backfill(snt1_d1_earningsrevision,60),30))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Stocks with persistent high stockrank (momentum)",
+            "description": "Use stockrank time persistence to find momentum. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied (coverage 0.5672). SUGGESTION4: moderate counts. Confidence 0.6.",
+            "implementation": "ts_arg_max(ts_backfill(snt1_d1_stockrank,90), 90)",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Earnings torpedo (big expected drop) as short signal",
+            "description": "Use earningstorpedo to identify upcoming downside. SUGGESTION1: single field. SUGGESTION3: ts_backfill (coverage 0.5522). SUGGESTION4: lower alphaCount so confidence reduced. SUGGESTION2 not applied. Confidence 0.5.",
+            "implementation": "zscore(ts_backfill(snt1_d1_earningstorpedo,30))",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "Cross-sectional IR of earningsrevision over 60 days",
+            "description": "Use ts_ir to capture stable revision signals. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. SUGGESTION4: applied (high alphaCount). Confidence 0.71.",
+            "implementation": "ts_ir(ts_backfill(snt1_d1_earningsrevision,90), 90)",
+            "confidence_level": 0.71
+        },
+        {
+            "idea": "Recent jump in buy recommendation percent (momentum)",
+            "description": "ts_delta on buyrecpercent to capture analyst upgrade momentum. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied (coverage 0.5557). SUGGESTION4 used. Confidence 0.68.",
+            "implementation": "ts_delta(ts_backfill(snt1_d1_buyrecpercent,30), 10)",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Stocks with low analyst dispersion and positive earnings revision (consensus upgrade)",
+            "description": "Combine low dtstsespe with positive earningsrevision to find credible upgrades. SUGGESTION1: applied (2 fields). SUGGESTION3: ts_backfill both. SUGGESTION4: both moderate. Confidence 0.66.",
+            "implementation": "multiply(reverse(zscore(ts_backfill(snt1_d1_dtstsespe,30))), zscore(ts_backfill(snt1_d1_earningsrevision,30)))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Net target percent change (momentum in targets)",
+            "description": "ts_delta on nettargetpercent to capture directional target movement. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied (coverage 0.5508). SUGGESTION4 moderate. Confidence 0.6.",
+            "implementation": "ts_delta(ts_backfill(snt1_d1_nettargetpercent,60), 30)",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Cross-sectional rank of dynamicfocusrank (short-term focus changes)",
+            "description": "Use dynamicfocusrank to capture attention-driven moves. SUGGESTION1: single field. SUGGESTION3: ts_backfill (coverage 0.5651). SUGGESTION4 considered. Confidence 0.57.",
+            "implementation": "zscore(ts_backfill(snt1_d1_dynamicfocusrank,30))",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Buy recommendation acceleration (second derivative)",
+            "description": "Measure acceleration in buyrecpercent via ts_delta of ts_delta. SUGGESTION1: single field. SUGGESTION3: ts_backfill used. SUGGESTION4 used. Confidence 0.64.",
+            "implementation": "ts_delta(ts_delta(ts_backfill(snt1_d1_buyrecpercent,60),10),5)",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "Earnings surprise relative zscore minus stock sentiment score",
+            "description": "Compare earningssurprise with overall sentiment score to find undervalued surprises. SUGGESTION1: applied (2 fields). SUGGESTION3: ts_backfill for earningssurprise only (coverage <0.6); snt1_cored1_score no backfill. SUGGESTION4: used high-usage sentiment. Confidence 0.7.",
+            "implementation": "subtract(zscore(ts_backfill(snt1_d1_earningssurprise,30)), zscore(snt1_cored1_score))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Stocks with falling analyst coverage but improving earningsrevision (discovery signal)",
+            "description": "Analystcoverage decline with positive revisions may indicate underfollowed improvements. SUGGESTION1: applied (2 fields). SUGGESTION3: ts_backfill both. SUGGESTION4 moderate. Confidence 0.59.",
+            "implementation": "multiply(reverse(ts_delta(ts_backfill(snt1_d1_analystcoverage,90),30)), ts_delta(ts_backfill(snt1_d1_earningsrevision,90),30))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Cross-sectional ts_zscore of earningsrevision (time-series normalized)",
+            "description": "Use ts_zscore to reduce outliers in earningsrevision. SUGGESTION1: single field. SUGGESTION3: ts_backfill used. SUGGESTION4 applied. Confidence 0.72.",
+            "implementation": "ts_zscore(ts_backfill(snt1_d1_earningsrevision,60), 60)",
+            "confidence_level": 0.72
+        },
+        {
+            "idea": "Stocks with high buyrecpercent but low stockrank (contrarian long)",
+            "description": "Buy percent high but stockrank low suggests lagged price response. SUGGESTION1: applied (2 fields). SUGGESTION3: ts_backfill both. SUGGESTION4 used. Confidence 0.61.",
+            "implementation": "subtract(zscore(ts_backfill(snt1_d1_buyrecpercent,60)), zscore(ts_backfill(snt1_d1_stockrank,60)))",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Short names with rising downtargetpercent",
+            "description": "Identify increasing analyst downtargetpercent as short candidates. SUGGESTION1: single field. SUGGESTION3: ts_backfill (coverage 0.5508). SUGGESTION4 moderate. Confidence 0.56.",
+            "implementation": "ts_delta(ts_backfill(snt1_d1_downtargetpercent,60),30)",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Cross-sectional normalize of netrecpercent to remove mean",
+            "description": "Use normalize to remove cross-sectional bias from netrecpercent. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. SUGGESTION4 used. Confidence 0.65.",
+            "implementation": "normalize(ts_backfill(snt1_d1_netrecpercent,30))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Stocks with low analyst coverage and positive earnings surprise (inefficient discovery)",
+            "description": "Target positive surprises in low-coverage names. SUGGESTION1: applied (2 fields: coverage + surprise). SUGGESTION3: ts_backfill both. SUGGESTION4: used coverage to find less-traded names. Confidence 0.64.",
+            "implementation": "multiply(reverse(zscore(ts_backfill(snt1_d1_analystcoverage,60))), zscore(ts_backfill(snt1_d1_earningssurprise,30)))",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "Persistent positive stockrank after upgrades (holding momentum)",
+            "description": "Check persistence of stockrank via ts_arg_max and ts_delay. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. SUGGESTION4 moderate. Confidence 0.58.",
+            "implementation": "subtract(ts_arg_max(ts_backfill(snt1_d1_stockrank,120),120), ts_arg_min(ts_backfill(snt1_d1_stockrank,120),120))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Earnings revision surprise divergence (revision vs surprise)",
+            "description": "Compare sign/magnitude of earningsrevision vs earningssurprise to find mismatches. SUGGESTION1: applied (2 fields). SUGGESTION3: ts_backfill both. SUGGESTION4 used. Confidence 0.67.",
+            "implementation": "subtract(zscore(ts_backfill(snt1_d1_earningsrevision,60)), zscore(ts_backfill(snt1_d1_earningssurprise,30)))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "High dynamicfocusrank with rising buy recommendations (momentum + attention)",
+            "description": "Combine dynamicfocusrank with buyrecpercent. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 moderate. Confidence 0.6.",
+            "implementation": "multiply(zscore(ts_backfill(snt1_d1_dynamicfocusrank,30)), ts_delta(ts_backfill(snt1_d1_buyrecpercent,30),10))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Mean-reversion of extreme net target percent",
+            "description": "Reverse extreme nettargetpercent cross-sectionally. SUGGESTION1: single field. SUGGESTION3: ts_backfill (coverage 0.5508). SUGGESTION4 moderate. Confidence 0.58.",
+            "implementation": "reverse(zscore(ts_backfill(snt1_d1_nettargetpercent,30)))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Stocks with falling long-term EPS growth but high buy percent (contrarian short)",
+            "description": "Flag names where long-term growth estimate declines despite buy recommendations. SUGGESTION1: applied (2 fields). SUGGESTION3: ts_backfill both. SUGGESTION4 moderate. Confidence 0.52.",
+            "implementation": "multiply(ts_delta(ts_backfill(snt1_d1_longtermepsgrowthest,180),90), zscore(ts_backfill(snt1_d1_buyrecpercent,60)))",
+            "confidence_level": 0.52
+        },
+        {
+            "idea": "Cross-sectional winsorized earnings surprise",
+            "description": "Winsorize earningssurprise to reduce outliers then zscore. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. SUGGESTION2 not applied. SUGGESTION4 used. Confidence 0.7.",
+            "implementation": "zscore(winsorize(ts_backfill(snt1_d1_earningssurprise,60), 4))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Stocks with high analyst dispersion but improving buy percent (opportunistic long)",
+            "description": "High dtstsespe + rising buyrecpercent may signal evolving consensus. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 moderate. Confidence 0.55.",
+            "implementation": "multiply(zscore(ts_backfill(snt1_d1_dtstsespe,30)), ts_delta(ts_backfill(snt1_d1_buyrecpercent,30),10))",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Cross-sectional quantile of stockrank to target extremes",
+            "description": "Bucket stockrank into quantiles to pick tails. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. SUGGESTION4 moderate. Confidence 0.6.",
+            "implementation": "quantile(ts_backfill(snt1_d1_stockrank,30))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-term reversal after spikes in analyst downtargetpercent",
+            "description": "ts_max_diff on downtargetpercent finds big jumps; reverse for quick mean-reversion. SUGGESTION1: single field. SUGGESTION3: ts_backfill used. Confidence 0.57.",
+            "implementation": "reverse(ts_max_diff(ts_backfill(snt1_d1_downtargetpercent,30),30))",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Relative sentiment: core score minus analyst net recommendations",
+            "description": "Compare retail/other sentiment (cored1_score) with analyst netrecpercent to find disagreement. SUGGESTION1: applied. SUGGESTION3: ts_backfill for netrecpercent only. SUGGESTION4 used cored1_score high usage. Confidence 0.71.",
+            "implementation": "subtract(zscore(snt1_cored1_score), zscore(ts_backfill(snt1_d1_netrecpercent,30)))",
+            "confidence_level": 0.71
+        },
+        {
+            "idea": "Stocks where target upgrades lag earnings surprises (catch-up long)",
+            "description": "High earningssurprise but low uptargetpercent indicates target lag \u2014 potential alpha. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 applied. Confidence 0.68.",
+            "implementation": "subtract(zscore(ts_backfill(snt1_d1_earningssurprise,30)), zscore(ts_backfill(snt1_d1_uptargetpercent,30)))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Cross-sectional ts_std_dev of analystcoverage (stability measure)",
+            "description": "High ts_std_dev in coverage indicates changing analyst attention. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. SUGGESTION4 moderate. Confidence 0.53.",
+            "implementation": "ts_std_dev(ts_backfill(snt1_d1_analystcoverage,180),180)",
+            "confidence_level": 0.53
+        },
+        {
+            "idea": "Stocks with improving netrecpercent and improving stockrank (convergent signal)",
+            "description": "Combine netrecpercent momentum with stockrank momentum. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 used. Confidence 0.69.",
+            "implementation": "multiply(ts_delta(ts_backfill(snt1_d1_netrecpercent,60),30), ts_delta(ts_backfill(snt1_d1_stockrank,60),30))",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Earnings surprise persistence (product of recent surprises)",
+            "description": "ts_product on earningssurprise over short window to find persistent surprises. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. SUGGESTION4 moderate. Confidence 0.62.",
+            "implementation": "ts_product(ts_backfill(snt1_d1_earningssurprise,20), 20)",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Cross-sectional scale of buyrecpercent to booksize",
+            "description": "Scale buyrecpercent for portfolio sizing. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. SUGGESTION4 moderate. Confidence 0.6.",
+            "implementation": "scale(ts_backfill(snt1_d1_buyrecpercent,30))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Stocks with negative earnings revision but increasing buy rec (contradiction)",
+            "description": "Detect contradictory signals where buyrecpercent rises despite negative revisions. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 moderate. Confidence 0.53.",
+            "implementation": "subtract(ts_delta(ts_backfill(snt1_d1_buyrecpercent,60),30), ts_delta(ts_backfill(snt1_d1_earningsrevision,60),30))",
+            "confidence_level": 0.53
+        },
+        {
+            "idea": "Cross-sectional kurtosis of earningsrevision (tail risk)",
+            "description": "Use ts_kurtosis to detect heavy-tailed revision behavior. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. SUGGESTION4 moderate. Confidence 0.5.",
+            "implementation": "ts_kurtosis(ts_backfill(snt1_d1_earningsrevision,120),120)",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "Stocks with rising buyrecpercent but falling analystcoverage (selective upgrades)",
+            "description": "Highlight upgrades concentrated among fewer analysts. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 considered. Confidence 0.57.",
+            "implementation": "multiply(ts_delta(ts_backfill(snt1_d1_buyrecpercent,60),30), reverse(ts_delta(ts_backfill(snt1_d1_analystcoverage,60),30)))",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Long-term eps growth estimate vs current sentiment gap",
+            "description": "Compare longtermepsgrowthest with cored1_score to find underappreciated growth names. SUGGESTION1: applied. SUGGESTION3: ts_backfill for long-term growth (coverage 0.5413); cored1_score no backfill. SUGGESTION4 used. Confidence 0.63.",
+            "implementation": "subtract(zscore(ts_backfill(snt1_d1_longtermepsgrowthest,180)), zscore(snt1_cored1_score))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Stocks with unusually low sell recommendation percent (bullish)",
+            "description": "Low sellrecpercent cross-sectionally may indicate consensus buy. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied (coverage 0.5557). SUGGESTION4 used. Confidence 0.59.",
+            "implementation": "reverse(zscore(ts_backfill(snt1_d1_sellrecpercent,30)))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Target upgrade momentum adjusted by coverage",
+            "description": "Combine uptargetpercent momentum scaled by analystcoverage to emphasize well-covered upgrades. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 used. Confidence 0.66.",
+            "implementation": "multiply(ts_delta(ts_backfill(snt1_d1_uptargetpercent,60),30), zscore(ts_backfill(snt1_d1_analystcoverage,60)))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Short-term zscore of dynamicfocusrank (attention-driven reversals)",
+            "description": "High attention spikes often reverse. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. SUGGESTION4 moderate. Confidence 0.54.",
+            "implementation": "reverse(ts_zscore(ts_backfill(snt1_d1_dynamicfocusrank,20),20))",
+            "confidence_level": 0.54
+        },
+        {
+            "idea": "Cross-sectional product of buyrecpercent and stockrank (consensus momentum)",
+            "description": "Combine buyrecpercent and stockrank for stronger signals. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 applied. Confidence 0.7.",
+            "implementation": "multiply(zscore(ts_backfill(snt1_d1_buyrecpercent,60)), zscore(ts_backfill(snt1_d1_stockrank,60)))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Earningssurprise scaled by inverse analystcoverage (low-coverage surprise)",
+            "description": "Amplify surprises in low-coverage names to exploit inefficiency. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 used. Confidence 0.68.",
+            "implementation": "multiply(zscore(ts_backfill(snt1_d1_earningssurprise,30)), reverse(zscore(ts_backfill(snt1_d1_analystcoverage,60))))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Stocks with increasing sell rec percent and negative earningsrevision (short)",
+            "description": "Convergence of negative signals increases short conviction. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 used. Confidence 0.66.",
+            "implementation": "multiply(ts_delta(ts_backfill(snt1_d1_sellrecpercent,60),30), reverse(ts_delta(ts_backfill(snt1_d1_earningsrevision,60),30)))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Netrecpercent zscore de-seasonalized via ts_scale",
+            "description": "Use ts_scale to remove time-dependent extremes in netrecpercent. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. SUGGESTION4 moderate. Confidence 0.6.",
+            "implementation": "ts_scale(ts_backfill(snt1_d1_netrecpercent,120),120)",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Stocks with high analyst target dispersion (net target spread)",
+            "description": "Use difference between uptargetpercent and downtargetpercent for target dispersion. SUGGESTION1: applied (2 fields). SUGGESTION3: ts_backfill both. SUGGESTION4 moderate. Confidence 0.55.",
+            "implementation": "subtract(zscore(ts_backfill(snt1_d1_uptargetpercent,60)), zscore(ts_backfill(snt1_d1_downtargetpercent,60)))",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Mean-reversion in analystcoverage sudden drops (buy on coverage dip that recovers)",
+            "description": "Identify temporary drops in analystcoverage that revert. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. SUGGESTION4 moderate. Confidence 0.52.",
+            "implementation": "reverse(ts_max_diff(ts_backfill(snt1_d1_analystcoverage,60),60))",
+            "confidence_level": 0.52
+        },
+        {
+            "idea": "Stocks with improving earningsrevision but lagging stockrank (alpha capture)",
+            "description": "Expect stockrank to catch up to improving fundamentals. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 applied. Confidence 0.67.",
+            "implementation": "subtract(zscore(ts_backfill(snt1_d1_earningsrevision,60)), zscore(ts_backfill(snt1_d1_stockrank,60)))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "Relative increase in downtargetpercent vs market (short signal)",
+            "description": "Isolate names where downtargetpercent rises against cross-section. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. SUGGESTION4 moderate. Confidence 0.56.",
+            "implementation": "quantile(ts_backfill(snt1_d1_downtargetpercent,30))",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Stocks with stable analyst coverage and rising buyrecpercent (credible upgrades)",
+            "description": "Filter for rising buyrecpercent while coverage stable to avoid noise. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 used. Confidence 0.65.",
+            "implementation": "multiply(reverse(ts_std_dev(ts_backfill(snt1_d1_analystcoverage,90),90)), ts_delta(ts_backfill(snt1_d1_buyrecpercent,60),30))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Cross-sectional tail-capped netrecpercent to avoid outliers",
+            "description": "Winsorize netrecpercent then zscore. SUGGESTION1: single field. SUGGESTION3: ts_backfill used. SUGGESTION4 applied. Confidence 0.6.",
+            "implementation": "zscore(winsorize(ts_backfill(snt1_d1_netrecpercent,60),4))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Stocks where analyst buy momentum leads stockrank by lag (predictive)",
+            "description": "Use ts_regression lag to see if buyrecpercent leads stockrank. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 used. Confidence 0.7.",
+            "implementation": "ts_regression(ts_backfill(snt1_d1_stockrank,120), ts_backfill(snt1_d1_buyrecpercent,120), 120, lag=10)",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Rapidly rising uptargetpercent as buy trigger",
+            "description": "ts_delta on uptargetpercent to capture positive target momentum. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. SUGGESTION4 moderate. Confidence 0.61.",
+            "implementation": "ts_delta(ts_backfill(snt1_d1_uptargetpercent,60),30)",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Stocks with negative earningssurprise but high buyrecpercent (contrarian short)",
+            "description": "Conflict between buy recommendations and negative surprise indicates potential overhang. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 used. Confidence 0.54.",
+            "implementation": "multiply(reverse(zscore(ts_backfill(snt1_d1_earningssurprise,30))), zscore(ts_backfill(snt1_d1_buyrecpercent,60)))",
+            "confidence_level": 0.54
+        },
+        {
+            "idea": "Cross-sectional group-neutralized netrecpercent (sector-neutral)",
+            "description": "GROUP operators require a group field which is not provided, so not applied. SUGGESTION1: not applied. SUGGESTION3: ts_backfill used for netrecpercent. SUGGESTION4 used. Confidence 0.48 (cannot neutralize here).",
+            "implementation": "zscore(ts_backfill(snt1_d1_netrecpercent,60))",
+            "confidence_level": 0.48
+        },
+        {
+            "idea": "Stocks with high analyst dispersion but strong positive earningsrevision (divergence capture)",
+            "description": "High dispersion plus positive revision can precede consensus upgrades. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 moderate. Confidence 0.6.",
+            "implementation": "multiply(zscore(ts_backfill(snt1_d1_dtstsespe,60)), zscore(ts_backfill(snt1_d1_earningsrevision,60)))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Persistent high nettargetpercent (momentum in targets)",
+            "description": "ts_count_nans not required. Use ts_zscore on nettargetpercent to find persistent high values. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. Confidence 0.59.",
+            "implementation": "ts_zscore(ts_backfill(snt1_d1_nettargetpercent,90),90)",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Stocks where analyst coverage increases but netrecpercent lags (late buy signal)",
+            "description": "Analyst coverage increasing but recommendations not yet upgraded suggests upcoming rec upgrades. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 used. Confidence 0.62.",
+            "implementation": "subtract(ts_delta(ts_backfill(snt1_d1_analystcoverage,90),30), ts_delta(ts_backfill(snt1_d1_netrecpercent,90),30))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Short-term reversal of extreme stockrank spikes",
+            "description": "Use ts_arg_max to detect recent extremes then reverse. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. Confidence 0.55.",
+            "implementation": "reverse(ts_arg_max(ts_backfill(snt1_d1_stockrank,30),30))",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Cross-sectional zscore of cored1_score adjusted by analyst sentiment netrec",
+            "description": "Blend retail sentiment with analyst net recommendations to find disagreements. SUGGESTION1: applied. SUGGESTION3: ts_backfill for netrecpercent only. SUGGESTION4 used high count of cored1_score. Confidence 0.72.",
+            "implementation": "subtract(zscore(snt1_cored1_score), zscore(ts_backfill(snt1_d1_netrecpercent,30)))",
+            "confidence_level": 0.72
+        },
+        {
+            "idea": "Earnings revision volatility (ts_std_dev) as risk filter",
+            "description": "High revision volatility suggests unstable forecasts; avoid or short. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. SUGGESTION4 moderate. Confidence 0.5.",
+            "implementation": "ts_std_dev(ts_backfill(snt1_d1_earningsrevision,120),120)",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "Momentum in netrecpercent after large negative surprises (contrarian fade)",
+            "description": "Look for netrecpercent rebound after big negative surprises to capture recovery. SUGGESTION1: applied (2 fields). SUGGESTION3: ts_backfill both. SUGGESTION4 used. Confidence 0.6.",
+            "implementation": "multiply(ts_delta(ts_backfill(snt1_d1_netrecpercent,60),30), reverse(zscore(ts_backfill(snt1_d1_earningssurprise,30))))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Cross-sectional zscore of analystcoverage (attention allocation)",
+            "description": "Identify names with unusually high analystcoverage. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. SUGGESTION4 moderate. Confidence 0.58.",
+            "implementation": "zscore(ts_backfill(snt1_d1_analystcoverage,60))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Rapid uptick in stockrank vs static buyrecpercent (price catching up)",
+            "description": "If stockrank jumps but buyrecpercent stable, price may have momentum without analyst support. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 moderate. Confidence 0.56.",
+            "implementation": "subtract(ts_delta(ts_backfill(snt1_d1_stockrank,30),10), ts_delta(ts_backfill(snt1_d1_buyrecpercent,60),30))",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Cross-sectional ts_quantile of earningssurprise",
+            "description": "Rank recent surprises and convert to quantiles for Gaussian-like signal. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. SUGGESTION4 moderate. Confidence 0.68.",
+            "implementation": "ts_quantile(ts_backfill(snt1_d1_earningssurprise,30),30)",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Stocks with rising downtargetpercent but falling buyrecpercent (confirming weakness)",
+            "description": "Two-down signals combined increase confidence of decline. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 used. Confidence 0.64.",
+            "implementation": "multiply(ts_delta(ts_backfill(snt1_d1_downtargetpercent,60),30), ts_delta(ts_backfill(snt1_d1_buyrecpercent,60),-30))",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "Earningsrevision zscore normalized over long window (reduce seasonality)",
+            "description": "Use ts_scale or ts_zscore over long window to smooth seasonal patterns. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. SUGGESTION4 used. Confidence 0.69.",
+            "implementation": "ts_zscore(ts_backfill(snt1_d1_earningsrevision,180),180)",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Stocks with low stockrank but rising analyst targets (rebound candidates)",
+            "description": "Target names with improving uptargetpercent while stockrank low. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 moderate. Confidence 0.62.",
+            "implementation": "multiply(reverse(zscore(ts_backfill(snt1_d1_stockrank,60))), ts_delta(ts_backfill(snt1_d1_uptargetpercent,60),30))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Short names with sustained high sellrecpercent",
+            "description": "Sustained high sellrecpercent indicates persistent analyst negativity. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. SUGGESTION4 used. Confidence 0.57.",
+            "implementation": "ts_mean(ts_backfill(snt1_d1_sellrecpercent,90),90)",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Cross-sectional tail trimming of dynamicfocusrank",
+            "description": "Winsorize attention metric before ranking to avoid spikes. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. Confidence 0.53.",
+            "implementation": "zscore(winsorize(ts_backfill(snt1_d1_dynamicfocusrank,30),4))",
+            "confidence_level": 0.53
+        },
+        {
+            "idea": "Momentum of analyst net target percent (short-term)",
+            "description": "ts_delta on nettargetpercent to capture directional target changes. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. Confidence 0.6.",
+            "implementation": "ts_delta(ts_backfill(snt1_d1_nettargetpercent,30),10)",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Stocks with rising analyst dispersion but falling stockrank (sell)",
+            "description": "Divergence where disagreement grows while price-based rank falls. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. Confidence 0.54.",
+            "implementation": "multiply(ts_delta(ts_backfill(snt1_d1_dtstsespe,60),30), reverse(ts_delta(ts_backfill(snt1_d1_stockrank,60),30)))",
+            "confidence_level": 0.54
+        },
+        {
+            "idea": "Earnings torpedo magnitude zscore for aggressive shorts",
+            "description": "Cross-sectional zscore of earningstorpedo to find large expected drops. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. SUGGESTION4 lower alphaCount reduces confidence. Confidence 0.48.",
+            "implementation": "zscore(ts_backfill(snt1_d1_earningstorpedo,30))",
+            "confidence_level": 0.48
+        },
+        {
+            "idea": "Combine sentiment core score and analyst target momentum for discovery",
+            "description": "Blend snt1_cored1_score with uptargetpercent momentum to find names where both sentiment and targets move up. SUGGESTION1: applied. SUGGESTION3: ts_backfill for uptargetpercent only. SUGGESTION4 used. Confidence 0.7.",
+            "implementation": "multiply(zscore(snt1_cored1_score), ts_delta(ts_backfill(snt1_d1_uptargetpercent,60),30))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Cross-sectional reverse rank of buyrecpercent after huge upticks (mean-revert spikes)",
+            "description": "Reverse extreme rapid buyrecpercent spikes expecting pullback. SUGGESTION1: single field. SUGGESTION3: ts_backfill used. Confidence 0.56.",
+            "implementation": "reverse(ts_arg_max(ts_backfill(snt1_d1_buyrecpercent,30),30))",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Stocks where stockrank leads analyst upgrades (short-term predictive)",
+            "description": "If stockrank rises before buyrecpercent, price leads analyst opinion \u2014 exploit continuation. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 used. Confidence 0.66.",
+            "implementation": "ts_regression(ts_backfill(snt1_d1_buyrecpercent,120), ts_backfill(snt1_d1_stockrank,120),120, lag=5)",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Normalized earnings surprise per analyst coverage (efficiency-adjusted surprise)",
+            "description": "Divide surprise by coverage to get per-analyst surprise significance. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. SUGGESTION4 used. Confidence 0.69.",
+            "implementation": "divide(ts_backfill(snt1_d1_earningssurprise,30), ts_backfill(snt1_d1_analystcoverage,30))",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Stocks with increasing sellrecpercent but improving long-term EPS growth (contradiction)",
+            "description": "Conflict between sell recs and improving fundamentals may present mispricings. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. Confidence 0.51.",
+            "implementation": "multiply(ts_delta(ts_backfill(snt1_d1_sellrecpercent,60),30), ts_delta(ts_backfill(snt1_d1_longtermepsgrowthest,180),90))",
+            "confidence_level": 0.51
+        },
+        {
+            "idea": "Cross-sectional rank of analystcoverage growth rate",
+            "description": "Rank names by growth in analystcoverage to find up-and-coming coverage. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. Confidence 0.6.",
+            "implementation": "ts_rank(ts_delta(ts_backfill(snt1_d1_analystcoverage,120),60),60)",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Stocks with persistent positive netrecpercent despite negative earnings surprises (contrarian long)",
+            "description": "Analyst recommendations staying positive despite surprises may indicate overlooked resilience. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. Confidence 0.58.",
+            "implementation": "multiply(ts_mean(ts_backfill(snt1_d1_netrecpercent,90),90), reverse(ts_mean(ts_backfill(snt1_d1_earningssurprise,30),30)))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Earningsrevision zscore cross-sectional multiplied by core sentiment",
+            "description": "Blend analyst revision strength with broader sentiment signal. SUGGESTION1: applied. SUGGESTION3: ts_backfill for revision only. SUGGESTION4 used. Confidence 0.73.",
+            "implementation": "multiply(zscore(snt1_cored1_score), ts_zscore(ts_backfill(snt1_d1_earningsrevision,60),60))",
+            "confidence_level": 0.73
+        },
+        {
+            "idea": "Stocks with declining analyst coverage and falling uptargetpercent (avoid/short)",
+            "description": "Dual negative signals suggest persistent deterioration. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. Confidence 0.55.",
+            "implementation": "multiply(ts_delta(ts_backfill(snt1_d1_analystcoverage,90),30), ts_delta(ts_backfill(snt1_d1_uptargetpercent,90),30))",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Cross-sectional zscore of buyrecpercent minus target momentum",
+            "description": "Find where buy recommendations outpace target momentum or vice versa. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. Confidence 0.63.",
+            "implementation": "subtract(zscore(ts_backfill(snt1_d1_buyrecpercent,60)), ts_delta(ts_backfill(snt1_d1_uptargetpercent,60),30))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Stocks with sudden drops in buyrecpercent (short-term short)",
+            "description": "ts_max_diff to capture sharp declines in buy recommendations. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. Confidence 0.57.",
+            "implementation": "ts_max_diff(ts_backfill(snt1_d1_buyrecpercent,30),30)",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Earnings surprise momentum filtered by low analyst dispersion",
+            "description": "Prefer surprises in low-dispersion names for credibility. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. Confidence 0.66.",
+            "implementation": "multiply(zscore(ts_backfill(snt1_d1_earningssurprise,30)), reverse(zscore(ts_backfill(snt1_d1_dtstsespe,30))))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Stocks with positive netrecpercent and rising stockrank (confirmatory signal)",
+            "description": "Combine recommendation positivity with price-based rank momentum. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. Confidence 0.7.",
+            "implementation": "multiply(zscore(ts_backfill(snt1_d1_netrecpercent,60)), ts_delta(ts_backfill(snt1_d1_stockrank,60),30))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Cross-sectional reversal after extreme cored1_score spikes",
+            "description": "Extreme retail sentiment often mean-reverts quickly. SUGGESTION1: single field. SUGGESTION3: not applied. SUGGESTION4 applied. Confidence 0.66.",
+            "implementation": "reverse(zscore(snt1_cored1_score))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Buyrecpercent percentile momentum (quantile) over month",
+            "description": "Use quantile of recent buyrecpercent changes to define momentum buckets. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. Confidence 0.62.",
+            "implementation": "quantile(ts_delta(ts_backfill(snt1_d1_buyrecpercent,30),10))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Earningsrevision relative to long-term EPS growth (re-rating signal)",
+            "description": "Compare short-term revision to long-term growth to detect re-rating potential. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. Confidence 0.65.",
+            "implementation": "subtract(ts_zscore(ts_backfill(snt1_d1_earningsrevision,60),60), zscore(ts_backfill(snt1_d1_longtermepsgrowthest,180)))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Short names with rising downtargetpercent and falling netrecpercent",
+            "description": "Combine two negative trends for stronger short signal. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. Confidence 0.66.",
+            "implementation": "multiply(ts_delta(ts_backfill(snt1_d1_downtargetpercent,60),30), reverse(ts_delta(ts_backfill(snt1_d1_netrecpercent,60),30)))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Stocks with sustained high analyst coverage but low buy percent (sell-side pessimism despite attention)",
+            "description": "High coverage but low buy percent suggests widespread skepticism. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. Confidence 0.59.",
+            "implementation": "multiply(zscore(ts_backfill(snt1_d1_analystcoverage,90)), reverse(zscore(ts_backfill(snt1_d1_buyrecpercent,60))))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Earnings surprise zscore adjusted by dtstsespe (confidence-weighted surprise)",
+            "description": "Downweight surprises with high dispersion. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. Confidence 0.67.",
+            "implementation": "divide(zscore(ts_backfill(snt1_d1_earningssurprise,30)), ts_backfill(snt1_d1_dtstsespe,30))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "Cross-sectional zscore of stockrank scaled by sentiment core score",
+            "description": "Give more weight to stockrank when core sentiment is positive. SUGGESTION1: applied. SUGGESTION3: ts_backfill for stockrank only. SUGGESTION4 used. Confidence 0.7.",
+            "implementation": "multiply(zscore(ts_backfill(snt1_d1_stockrank,60)), zscore(snt1_cored1_score))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Rapid increases in netrecpercent with low coverage (stealth upgrades)",
+            "description": "Spot upgrades occurring among few analysts that may later broaden. SUGGESTION1: applied. SUGGESTION3: ts_backfill both. Confidence 0.64.",
+            "implementation": "multiply(ts_delta(ts_backfill(snt1_d1_netrecpercent,30),10), reverse(zscore(ts_backfill(snt1_d1_analystcoverage,60))))",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "Stocks with consistent positive upleg in target percent (cumulative momentum)",
+            "description": "ts_sum of uptargetpercent increases to capture sustained target upward moves. SUGGESTION1: single field. SUGGESTION3: ts_backfill applied. Confidence 0.6.",
+            "implementation": "ts_sum(ts_backfill(snt1_d1_uptargetpercent,90),90)",
+            "confidence_level": 0.6
+        }
+    ]
+}

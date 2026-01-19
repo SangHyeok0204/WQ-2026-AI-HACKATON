@@ -1,0 +1,271 @@
+# LLM Alpha Generation Pipeline - 코드베이스 설명서
+
+## 프로젝트 개요
+이 프로젝트는 LLM(Large Language Model)을 활용하여 WorldQuant Brain 플랫폼에서 알파(Alpha) 팩터를 자동으로 생성하고 시뮬레이션하는 파이프라인입니다.
+
+---
+
+## 파일 구조
+
+```
+llm_alpha_gen/
+├── llm_alpha_gen/
+│   ├── llm_alpha_guide.ipynb    # 메인 Jupyter 노트북 (실행 가이드)
+│   ├── ace_lib.py               # WorldQuant Brain API 래퍼 라이브러리
+│   ├── llm_functions.py         # LLM 호출 및 알파 생성 함수
+│   ├── AAF.py                   # Alpha Automation Functions (데이터필드 관리)
+│   ├── parser.py                # 알파 Expression 파싱 및 트리 구조화
+│   ├── helpful_functions.py     # 유틸리티 함수 (결과 정리, 저장 등)
+│   ├── my_research.py           # 메인 실행 스크립트 (자동화용)
+│   ├── operators_list.json      # 오퍼레이터 정보 (입출력 타입 포함)
+│   ├── operator_inputs.json     # 오퍼레이터 입력 타입 정보
+│   ├── datafield/               # 데이터필드 메타데이터 저장 폴더
+│   │   └── {delay}/{region}/{universe}/
+│   │       └── *.json           # 각 데이터셋별 데이터필드 정보
+│   ├── datasets/                # 데이터셋 목록 저장 폴더
+│   ├── gen_json/                # LLM이 생성한 알파 JSON 저장
+│   └── results/                 # 시뮬레이션 결과 CSV 저장
+└── __MACOSX/                    # (무시) Mac 메타데이터
+```
+
+---
+
+## 핵심 파이프라인 흐름
+
+### 1단계: 초기화 (AAF.py - initiate_datafield)
+```
+[WorldQuant Brain API]
+    ↓ 데이터셋 목록 가져오기
+    ↓ 각 데이터셋의 데이터필드 정보 수집
+    ↓ JSON으로 저장 (./datafield/{delay}/{region}/{universe}/)
+[데이터필드 메타데이터 준비 완료]
+```
+
+### 2단계: LLM으로 알파 생성 (llm_functions.py - generate_expressions_from_dataset)
+```
+[입력]
+    ├── 데이터필드 정보 (id, description, coverage, userCount, alphaCount)
+    ├── 오퍼레이터 목록 (name, description, input/output types)
+    └── 프롬프트 설정 (alpha_num=100개)
+
+[LLM 호출] OpenAI GPT (gpt-5-mini-2025-08-07)
+    ↓ 스트리밍으로 응답 수신
+
+[출력]
+    └── JSON 형태의 알파 아이디어 리스트
+        {
+            "results": [
+                {
+                    "idea": "알파의 핵심 아이디어",
+                    "description": "상세 설명",
+                    "implementation": "rank(ts_delta(close, 5))",  // 실제 코드
+                    "confidence_level": 0.7
+                },
+                ...
+            ]
+        }
+```
+
+### 3단계: Sanity Check (parser.py + my_research.py)
+```
+[Expression 파싱]
+    ↓ parse_expression(): 수식 → 함수 형태로 변환
+    ↓ build_tree(): 함수 형태 → 트리 구조로 변환
+
+[타입 검증]
+    ├── 오퍼레이터의 입력 타입과 자식 노드 타입 일치 확인
+    ├── 최종 출력이 MATRIX 타입인지 확인
+    └── 존재하지 않는 데이터필드 사용 여부 확인
+
+[결과]
+    ├── True: 시뮬레이션 가능
+    └── False: 불량 알파 (필터링)
+```
+
+### 4단계: 시뮬레이션 (ace_lib.py)
+```
+[ace.generate_alpha()]
+    ↓ 알파 설정 생성 (region, universe, neutralization 등)
+
+[ace.multi_simulate_alphas_map()]
+    ↓ 멀티스레드로 8개씩 병렬 시뮬레이션
+    ↓ WorldQuant Brain API 호출
+
+[결과 저장]
+    └── ./results/{region}_{universe}_{category}.csv
+```
+
+---
+
+## 주요 모듈 상세 설명
+
+### ace_lib.py (WorldQuant Brain API 래퍼)
+- `start_session()`: 인증 및 세션 시작
+- `get_datasets()`: 데이터셋 목록 조회
+- `get_datafields()`: 데이터필드 목록 조회
+- `get_operators()`: 오퍼레이터 목록 조회
+- `generate_alpha()`: 알파 설정 딕셔너리 생성
+- `simulate_single_alpha()`: 단일 알파 시뮬레이션
+- `multi_simulate_alphas_map()`: 병렬 시뮬레이션 (8개 동시)
+- `get_alpha_pnl()`: PnL 데이터 조회
+- `check_session_timeout()`: 세션 만료 확인
+
+### llm_functions.py (LLM 호출)
+- `call_llm_stream()`: OpenAI API 스트리밍 호출
+- `generate_expressions_from_dataset()`: 데이터셋 기반 알파 생성 프롬프트 구성 및 호출
+- `save_json()`, `import_json()`: JSON 입출력
+- `cut_first_to_last_brace()`: 응답에서 JSON 부분만 추출
+
+### AAF.py (데이터필드 관리)
+- `initiate_datafield()`: 전체 데이터필드 정보 초기화
+- `datafields_to_json()`: 단일 데이터셋의 데이터필드를 JSON 저장
+- `make_total_dicts()`: 모든 데이터필드를 하나의 total.json으로 병합
+- `find_datafield()`: 특정 데이터필드 정보 검색
+
+### parser.py (Expression 파싱)
+- `parse_expression()`: 중위 표기법 → 함수 표기법 변환
+- `build_tree()`: 함수 표기법 → TreeNode 트리 구조
+- `TreeNode`: 트리 노드 클래스 (value, node_type, children)
+- `classify_node()`: 노드 타입 분류 (operator/datafield/number/special_argument)
+- `draw_tree()`: 트리 시각화 (networkx + matplotlib)
+
+### my_research.py (자동화 스크립트)
+- `sanity_checker()`: Expression 유효성 검증
+- `datset_to_simnum()`: 데이터셋 중요도에 따른 시뮬레이션 횟수 결정
+- `main()`: 전체 파이프라인 자동 실행
+
+---
+
+## 데이터 흐름도
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    WorldQuant Brain Platform                     │
+└─────────────────────────────────────────────────────────────────┘
+                              ↑ ↓
+                    [ace_lib.py - API 호출]
+                              ↑ ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  [AAF.py]                                                        │
+│  데이터셋/데이터필드 → JSON 저장 (./datafield/)                    │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  [llm_functions.py]                                              │
+│  데이터필드 + 오퍼레이터 → 프롬프트 생성 → LLM 호출 → 알파 JSON    │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  [parser.py + sanity_checker]                                    │
+│  알파 Expression → 파싱 → 트리 구조 → 타입 검증 → 유효/무효 판정  │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  [ace_lib.py - 시뮬레이션]                                       │
+│  유효한 알파 → 시뮬레이션 → 결과 CSV 저장 (./results/)            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## LLM 프롬프트 구조
+
+```xml
+<MISSION>
+- 100개의 다양한 알파 아이디어 생성
+- idea, description, implementation, confidence_level 4개 필드로 구성
+</MISSION>
+
+<SUGGESTIONS>
+1. 여러 데이터필드 조합 사용
+2. VECTOR 타입은 vec_avg()/vec_sum()으로 감싸기
+3. coverage < 0.6이면 ts_backfill() 사용
+4. userCount/alphaCount가 높은 데이터필드 선호
+</SUGGESTIONS>
+
+<KEEP_IN_MIND>
+1. implementation은 너무 길면 안됨
+2. 오퍼레이터 7개, 데이터필드 2개 이하
+3. 주어진 데이터필드만 사용
+4. GROUP 타입은 group 파라미터로만 사용
+</KEEP_IN_MIND>
+
+<OPERATORS>{오퍼레이터 리스트}</OPERATORS>
+<DATA>{데이터필드 리스트}</DATA>
+<ANSWER_FORMAT>{JSON 형식}</ANSWER_FORMAT>
+```
+
+---
+
+## 설정 (settings)
+
+```python
+settings = {
+    "instrumentType": "EQUITY",      # 고정
+    "region": "USA",                 # USA, CHN, EUR, ASI 등
+    "universe": "TOP3000",           # TOP200, TOP500, TOP1000, TOP3000
+    "delay": 1,                      # 0 또는 1
+    "decay": 0,                      # 0~20
+    "neutralization": "MARKET",      # MARKET, INDUSTRY, SUBINDUSTRY
+    "truncation": 0.01,              # 0.01~0.1
+    "pasteurization": "ON",          # ON/OFF
+    "nan_handling": "OFF",           # ON/OFF
+    "language": "FASTEXPR",          # 고정
+    "visualization": False           # True/False
+}
+```
+
+---
+
+## 주요 함수 호출 예시
+
+```python
+# 1. 세션 시작
+s = ace.start_session()
+
+# 2. 데이터필드 초기화 (최초 1회)
+aaf.initiate_datafield(s, settings)
+
+# 3. LLM으로 알파 생성
+response = llm.generate_expressions_from_dataset(
+    s,
+    alpha_region="USA",
+    alpha_universe="TOP3000",
+    dataset_id="fundamental10",
+    model="gpt-5-mini-2025-08-07",
+    datafields_num_cap=500,
+    alpha_num=100
+)
+
+# 4. 응답 파싱
+alphas = json.loads(llm.cut_first_to_last_brace(response))
+
+# 5. Sanity Check 후 유효한 알파만 필터링
+valid_alphas = [a for a in alphas["results"] if sanity_checker(a['implementation'])]
+
+# 6. 시뮬레이션용 알파 리스트 생성
+alpha_list = [
+    ace.generate_alpha(
+        regular=a['implementation'],
+        region="USA",
+        universe="TOP3000",
+        neutralization="INDUSTRY"
+    ) for a in valid_alphas
+]
+
+# 7. 병렬 시뮬레이션 실행
+results = ace.multi_simulate_alphas_map(s, alpha_list, tags_list, descs_list, num_threads=8)
+```
+
+---
+
+## 비용 정보
+- GPT-5-mini 기준: 알파 100개 생성 시도당 약 100원 (6쿼리 기준 $0.4)
+- 로컬 LLM (Ollama) 사용 가능: 비용 절감 가능
+
+---
+
+## 알려진 제한사항
+1. Sanity Checker가 완벽하지 않음 (일부 유효한 알파가 필터링될 수 있음)
+2. `operators_list.json`에 누락된 오퍼레이터가 있을 수 있음
+3. LLM이 `rank()` 오퍼레이터를 과도하게 사용하는 경향이 있어 exclude 처리됨

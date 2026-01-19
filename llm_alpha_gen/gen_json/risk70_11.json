@@ -1,0 +1,778 @@
+{
+    "results": [
+        {
+            "idea": "Hedge-fund accumulation momentum: long stocks where hedge_fund_ownership_percent is increasing and daily_specific_return shows short-term momentum.",
+            "description": "SUGGESTION1: used two complementary fields (hedge_fund_ownership_percent, daily_specific_return). SUGGESTION2: no vector fields detected so vec_* not used. SUGGESTION3: both fields coverage=1.0 => no ts_backfill. SUGGESTION4: selected high userCount fields to capture robust signals. KEEP_IN_MIND: implementation is short, uses 2 datafields and 3 operators, uses only allowed fields, no GROUP alone. Confidence: 0.78",
+            "implementation": "multiply(ts_returns(hedge_fund_ownership_percent,20), ts_returns(daily_specific_return,5))",
+            "confidence_level": 0.78
+        },
+        {
+            "idea": "Short-interest mean-reversion: short stocks with high short_interest_factor_score and recent negative momentum (short squeeze tail-risk).",
+            "description": "SUGGESTION1: combined short_interest_factor_score with price momentum (price_momentum_factor_score). SUGGESTION2: no vector fields. SUGGESTION3: coverage OK so no backfill. SUGGESTION4: used fields with reasonable userCount. KEEP_IN_MIND: \u22642 fields and \u22647 operators. Confidence: 0.65",
+            "implementation": "multiply(short_interest_factor_score, reverse(ts_returns(price_momentum_factor_score,10)))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Sentiment\u2013momentum overlay: long names with high rsk70_mfm2_usfast_sentmt and recent positive momentum (rsk70_mfm2_usfast_momentum).",
+            "description": "SUGGESTION1: used 2 style fields to capture sentiment-amplified momentum. SUGGESTION2: no vector fields. SUGGESTION3: fields coverage=1.0 so no backfill. SUGGESTION4: high userCount fields used for stability. KEEP_IN_MIND: short impl, 2 fields. Confidence: 0.80",
+            "implementation": "multiply(rsk70_mfm2_usfast_sentmt, ts_returns(rsk70_mfm2_usfast_momentum,12))",
+            "confidence_level": 0.8
+        },
+        {
+            "idea": "Value tilt on low specific risk: long stocks with high rsk70_mfm2_usfast_value and low specific_risk_value_2.",
+            "description": "SUGGESTION1: combined value and idiosyncratic risk to favor safe value opportunities. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: used widely adopted value factor. KEEP_IN_MIND: simple divide-based implementation, 2 fields. Confidence: 0.72",
+            "implementation": "divide(rsk70_mfm2_usfast_value, add(specific_risk_value_2, 1e-6))",
+            "confidence_level": 0.72
+        },
+        {
+            "idea": "Size-adjusted momentum: favor momentum among smaller-cap names using rsk70_mfm2_usfast_momentum and current_market_cap_usd.",
+            "description": "SUGGESTION1: used momentum and market cap to prefer small-cap momentum. SUGGESTION2: no vector fields. SUGGESTION3: both coverages=1.0. SUGGESTION4: current_market_cap_usd has high userCount. KEEP_IN_MIND: single normalize via divide, 2 fields. Confidence: 0.68",
+            "implementation": "divide(ts_returns(rsk70_mfm2_usfast_momentum,20), power(current_market_cap_usd,0.5))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Hedge-fund crowding fade: short stocks with very high hedge_fund_ownership_percent but low recent specific returns (mean-revert).",
+            "description": "SUGGESTION1: combined hedge_fund_ownership_percent with daily_specific_return. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: hedge_fund_ownership_percent high userCount used. KEEP_IN_MIND: uses subtract and sign for simplicity, 2 fields. Confidence: 0.74",
+            "implementation": "multiply(hedge_fund_ownership_percent, reverse(ts_returns(daily_specific_return,5)))",
+            "confidence_level": 0.74
+        },
+        {
+            "idea": "Residual-volatility pick: long stocks with low rsk70_mfm2_usfast_resvol and positive short-term specific returns.",
+            "description": "SUGGESTION1: combined residual volatility and idiosyncratic momentum. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: rsk70_resvol has solid userCount. KEEP_IN_MIND: 2 fields, 3 operators. Confidence: 0.70",
+            "implementation": "multiply(reverse(rsk70_mfm2_usfast_resvol), ts_returns(daily_specific_return,10))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Short squeeze detector: long when short interest is high but hedge fund ownership is rising (covering likely), betting on squeeze.",
+            "description": "SUGGESTION1: used short_interest_factor_score and hedge_fund_ownership_percent. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: selected high-count fields. KEEP_IN_MIND: small operator count. Confidence: 0.60",
+            "implementation": "multiply(short_interest_factor_score, ts_returns(hedge_fund_ownership_percent,10))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Earnings-quality long-short: long high rsk70_mfm2_usfast_earnqlty and short low earnqlty names.",
+            "description": "SUGGESTION1: single-datafield factor exposure applied cross-sectionally. SUGGESTION2: no vector fields. SUGGESTION3: earnqlty coverage=0.9512 (>0.6) so no backfill. SUGGESTION4: earnqlty has moderate userCount. KEEP_IN_MIND: uses zscore for cross-sectional scaling, 1 field. Confidence: 0.66",
+            "implementation": "zscore(rsk70_mfm2_usfast_earnqlty)",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Momentum reversal pair: short names with extreme recent rsk70_mfm2_usfast_strevrsl (short-term reversal) and positive long-term momentum (ltrevrsl negative).",
+            "description": "SUGGESTION1: combined short-term reversal and long-term reversal factors. SUGGESTION2: no vector fields. SUGGESTION3: both coverages high. SUGGESTION4: used well-covered style fields. KEEP_IN_MIND: 2 fields, uses subtract to capture divergence. Confidence: 0.64",
+            "implementation": "subtract(rsk70_mfm2_usfast_strevrsl, rsk70_mfm2_usfast_ltrevrsl)",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "Sentiment divergence: long stocks where rsk70_mfm2_usfast_sentmt exceeds recent price momentum (mean-revert on momentum shock).",
+            "description": "SUGGESTION1: compared sentiment vs momentum to find divergences. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: both factors high userCount. KEEP_IN_MIND: 2 fields, simple subtract + quantile. Confidence: 0.77",
+            "implementation": "quantile(subtract(rsk70_mfm2_usfast_sentmt, ts_returns(rsk70_mfm2_usfast_momentum,10)))",
+            "confidence_level": 0.77
+        },
+        {
+            "idea": "Small-cap value re-rating: long high rsk70_mfm2_usfast_value among small current_market_cap_usd.",
+            "description": "SUGGESTION1: combined value and size. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: used high userCount value field. KEEP_IN_MIND: two fields, divide to tilt small-value. Confidence: 0.69",
+            "implementation": "divide(rsk70_mfm2_usfast_value, add(current_market_cap_usd,1e-6))",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Quality-momentum overlay: long names with high rsk70_mfm2_usfast_profit and positive ts_returns(daily_specific_return).",
+            "description": "SUGGESTION1: merged profit quality and idiosyncratic momentum. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: profit factor has good userCount. KEEP_IN_MIND: 2 fields, multiply used. Confidence: 0.71",
+            "implementation": "multiply(rsk70_mfm2_usfast_profit, ts_returns(daily_specific_return,8))",
+            "confidence_level": 0.71
+        },
+        {
+            "idea": "Market beta fade: short names with high rsk70_mfm2_usfast_beta and negative recent broad_market_factor_score (exposed to falling market).",
+            "description": "SUGGESTION1: combined beta loading with market factor sign to time beta. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: market and beta fields used (widely adopted). KEEP_IN_MIND: 2 fields, 3 operators. Confidence: 0.63",
+            "implementation": "multiply(rsk70_mfm2_usfast_beta, reverse(rsk70_mfm2_usfast_market))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Sector momentum capture: long semiconductors_exposure_score-weighted names with positive rsk70_mfm2_usfast_momentum.",
+            "description": "SUGGESTION1: used sector exposure (semiconductors) plus momentum to pick sector leaders. SUGGESTION2: no vector fields. SUGGESTION3: both coverages=1.0. SUGGESTION4: semiconductors field has moderate userCount. KEEP_IN_MIND: 2 fields, multiply. Confidence: 0.67",
+            "implementation": "multiply(semiconductors_exposure_score, ts_returns(rsk70_mfm2_usfast_momentum,15))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "Hedge-fund quality rotation: long names where hedge_fund_ownership_percent is rising while rsk70_mfm2_usfast_earnqlty is high.",
+            "description": "SUGGESTION1: combined hedge fund flow signal with earnings quality. SUGGESTION2: no vector fields. SUGGESTION3: coverages OK. SUGGESTION4: both have good userCount. KEEP_IN_MIND: 2 fields, multiply. Confidence: 0.75",
+            "implementation": "multiply(ts_returns(hedge_fund_ownership_percent,10), rsk70_mfm2_usfast_earnqlty)",
+            "confidence_level": 0.75
+        },
+        {
+            "idea": "Low-specific-risk momentum: prefer stocks with low specific_risk_variance and positive daily_specific_return momentum.",
+            "description": "SUGGESTION1: combined idiosyncratic risk variance and idiosyncratic returns. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: specific_risk_variance has moderate userCount. KEEP_IN_MIND: short implementation using multiply and reverse. Confidence: 0.70",
+            "implementation": "multiply(reverse(specific_risk_variance), ts_returns(daily_specific_return,7))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Profitability momentum with sentiment filter: long names with high profit and positive sentiment surprise (sentmt).",
+            "description": "SUGGESTION1: combined profit factor and sentiment. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: used high userCount factors. KEEP_IN_MIND: 2 fields and quantile scaling. Confidence: 0.73",
+            "implementation": "quantile(multiply(rsk70_mfm2_usfast_profit, rsk70_mfm2_usfast_sentmt))",
+            "confidence_level": 0.73
+        },
+        {
+            "idea": "High short-interest momentum reversal: long stocks with high short_interest_factor_score but recent positive specific returns (momentum despite shorting).",
+            "description": "SUGGESTION1: combined short interest and idiosyncratic return persistence. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: used reliable short_interest field. KEEP_IN_MIND: 2 fields, multiply. Confidence: 0.59",
+            "implementation": "multiply(short_interest_factor_score, ts_returns(daily_specific_return,5))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Hedge-fund contrarian: long names where hedge_fund_ownership_count drops but price momentum still positive (buying on funding stress).",
+            "description": "SUGGESTION1: used hedge_fund_ownership_count and momentum from rsk70_mfm2_usfast_momentum. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: chosen ownership count for crowding. KEEP_IN_MIND: 2 fields, subtract+ts_returns. Confidence: 0.61",
+            "implementation": "multiply(reverse(ts_returns(hedge_fund_ownership_count,10)), ts_returns(rsk70_mfm2_usfast_momentum,7))",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Sector exposure repricing: long net_retail_exposure_score where rsk70_mfm2_usfast_regmom shows region momentum.",
+            "description": "SUGGESTION1: combined industry exposure and regional momentum. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: regmom has strong userCount. KEEP_IN_MIND: 2 fields, multiply. Confidence: 0.66",
+            "implementation": "multiply(net_retail_exposure_score, ts_returns(rsk70_mfm2_usfast_regmom,12))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Size-residual volatility hedge: long small cap names (low current_market_cap_usd) with low rsk70_mfm2_usfast_resvol.",
+            "description": "SUGGESTION1: combined size and residual volatility to target calmer small caps. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: used fields with good counts. KEEP_IN_MIND: divide and reverse used, 2 fields. Confidence: 0.67",
+            "implementation": "multiply(divide(1, add(current_market_cap_usd,1e-6)), reverse(rsk70_mfm2_usfast_resvol))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "Momentum weighted by hedge-fund conviction: weight rsk70_mfm2_usfast_momentum by hedge_fund_ownership_percent.",
+            "description": "SUGGESTION1: combined momentum and ownership percent. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: used robust fields. KEEP_IN_MIND: 2 fields and 2 operators. Confidence: 0.76",
+            "implementation": "multiply(rsk70_mfm2_usfast_momentum, hedge_fund_ownership_percent)",
+            "confidence_level": 0.76
+        },
+        {
+            "idea": "Low management-quality avoidance: short high rsk70_mfm2_usfast_mgmtqlty deficit names (low mgmt quality).",
+            "description": "SUGGESTION1: single-field mgmt quality used cross-sectionally. SUGGESTION2: no vectors. SUGGESTION3: coverage=0.8817 (>0.6), no backfill. SUGGESTION4: moderate userCount. KEEP_IN_MIND: zscore for scaling. Confidence: 0.55",
+            "implementation": "reverse(zscore(rsk70_mfm2_usfast_mgmtqlty))",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Sentiment mean-revert in high-specific-risk names: short names with extreme sentiment and high specific_risk_value_2.",
+            "description": "SUGGESTION1: combined sentiment and specific risk to avoid noisy sentiment extremes. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used high-signal sentiment factor. KEEP_IN_MIND: 2 fields, multiply. Confidence: 0.62",
+            "implementation": "multiply(rsk70_mfm2_usfast_sentmt, specific_risk_value_2)",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Industry breakout: long names with rising rsk70_mfm2_usfast_indmom and positive sector exposure (building_products_exposure_score).",
+            "description": "SUGGESTION1: combined industry momentum and sector exposure. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used indmom which has good userCount. KEEP_IN_MIND: 2 fields, multiply. Confidence: 0.64",
+            "implementation": "multiply(rsk70_mfm2_usfast_indmom, building_products_exposure_score)",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "Residual volatility squeeze: long low rsk70_mfm2_usfast_resvol with increasing hedge_fund_ownership_percent (inflows into low-resvol).",
+            "description": "SUGGESTION1: combined resvol with hedge-fund flows. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: used high-count hedge fund field. KEEP_IN_MIND: 2 fields, multiply. Confidence: 0.69",
+            "implementation": "multiply(reverse(rsk70_mfm2_usfast_resvol), ts_returns(hedge_fund_ownership_percent,15))",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Momentum x low leverage: favor momentum in low-leverage stocks (rsk70_mfm2_usfast_leverage).",
+            "description": "SUGGESTION1: combined momentum and leverage to reduce tail risk. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: leverage has good userCount. KEEP_IN_MIND: 2 fields, divide. Confidence: 0.68",
+            "implementation": "divide(ts_returns(rsk70_mfm2_usfast_momentum,20), add(rsk70_mfm2_usfast_leverage,1e-6))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Earnings-yield momentum: long rsk70_mfm2_usfast_earnyild names with rising momentum.",
+            "description": "SUGGESTION1: combined earnings yield and momentum. SUGGESTION2: no vector fields. SUGGESTION3: coverage=1.0. SUGGESTION4: earyild has moderate userCount. KEEP_IN_MIND: 2 fields, multiply. Confidence: 0.72",
+            "implementation": "multiply(rsk70_mfm2_usfast_earnyild, ts_returns(rsk70_mfm2_usfast_momentum,10))",
+            "confidence_level": 0.72
+        },
+        {
+            "idea": "Short-interest contrarian with sentiment: long names where short_interest_factor_score is high but sentiment rsk70_mfm2_usfast_sentmt is improving.",
+            "description": "SUGGESTION1: combined short interest and sentiment to detect covering. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: used solid userCount fields. KEEP_IN_MIND: 2 fields, multiply. Confidence: 0.63",
+            "implementation": "multiply(short_interest_factor_score, ts_returns(rsk70_mfm2_usfast_sentmt,8))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Specific-return momentum normalized by market exposure: long daily_specific_return adjusted for broad_market_factor_score.",
+            "description": "SUGGESTION1: combined idiosyncratic momentum and market exposure to isolate alpha. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: used broad market factor. KEEP_IN_MIND: 2 fields, subtract. Confidence: 0.74",
+            "implementation": "subtract(ts_returns(daily_specific_return,5), rsk70_mfm2_usfast_market)",
+            "confidence_level": 0.74
+        },
+        {
+            "idea": "High hedge-fund conviction momentum: rank names by ts_zscore of hedge_fund_ownership_percent and long top zscores.",
+            "description": "SUGGESTION1: single field hedge_fund_ownership_percent used with time-series zscore. SUGGESTION2: no vector fields. SUGGESTION3: coverage 1.0. SUGGESTION4: chosen due to strong userCount. KEEP_IN_MIND: 1 field, 1 operator. Confidence: 0.79",
+            "implementation": "ts_zscore(hedge_fund_ownership_percent,20)",
+            "confidence_level": 0.79
+        },
+        {
+            "idea": "Value \u00d7 low residual volatility: prefer high rsk70_mfm2_usfast_value and low rsk70_mfm2_usfast_resvol.",
+            "description": "SUGGESTION1: combined value and low-resvol to favor stable value. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: both fields widely used. KEEP_IN_MIND: 2 fields, multiply with reverse. Confidence: 0.70",
+            "implementation": "multiply(rsk70_mfm2_usfast_value, reverse(rsk70_mfm2_usfast_resvol))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Earnings yield scaled by size: long high earnings yield among midcap names (tilt using rsk70_mfm2_usfast_midcap).",
+            "description": "SUGGESTION1: combined earnyild and midcap loading to focus midcap value. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: used midcap and earnyild fields with good counts. KEEP_IN_MIND: 2 fields, multiply. Confidence: 0.66",
+            "implementation": "multiply(rsk70_mfm2_usfast_earnyild, rsk70_mfm2_usfast_midcap)",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Industry-specific momentum: long healthcare_equipment_exposure_score with positive rsk70_mfm2_usfast_regmom.",
+            "description": "SUGGESTION1: combined industry exposure (healthcare equipment) with regional momentum. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: used exposures with moderate userCount. KEEP_IN_MIND: 2 fields, multiply. Confidence: 0.65",
+            "implementation": "multiply(healthcare_equipment_exposure_score, ts_returns(rsk70_mfm2_usfast_regmom,12))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Short-interest \u00d7 low earnings quality: short names with high short_interest_factor_score and low rsk70_mfm2_usfast_earnqlty.",
+            "description": "SUGGESTION1: combined short interest with earnings quality to avoid shorts in high-quality shorts. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: used high userCount short interest. KEEP_IN_MIND: subtract used to reflect low earnqlty. Confidence: 0.58",
+            "implementation": "multiply(short_interest_factor_score, reverse(rsk70_mfm2_usfast_earnqlty))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Momentum scaled by specific risk uncertainty: favor momentum when specific_risk_uncertainty is low.",
+            "description": "SUGGESTION1: combined momentum and specific risk uncertainty to prefer reliable momentum. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: specific_risk_uncertainty has modest userCount. KEEP_IN_MIND: divide momentum by uncertainty. Confidence: 0.69",
+            "implementation": "divide(ts_returns(rsk70_mfm2_usfast_momentum,20), add(specific_risk_uncertainty,1e-6))",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Hedge-fund alpha harness: long names with rising hedge_fund_ownership_percent and high rsk70_mfm2_usfast_specret_daily_lpmi.",
+            "description": "SUGGESTION1: combined hedge fund flow with daily specific factor loading to isolate persistent alpha. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: specret_daily_lpmi has strong counts. KEEP_IN_MIND: 2 fields, multiply. Confidence: 0.76",
+            "implementation": "multiply(ts_returns(hedge_fund_ownership_percent,15), rsk70_mfm2_usfast_specret_daily_lpmi)",
+            "confidence_level": 0.76
+        },
+        {
+            "idea": "Short-term reversal in high resvol names: short recent winners with high rsk70_mfm2_usfast_resvol expecting reversal.",
+            "description": "SUGGESTION1: combined short-term reversal impulse with resvol to target noisy reversals. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used resvol and strevrsl factors. KEEP_IN_MIND: subtract approach, 2 fields. Confidence: 0.60",
+            "implementation": "multiply(rsk70_mfm2_usfast_strevrsl, rsk70_mfm2_usfast_resvol)",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Momentum polarity with dividend yield buffer: long momentum when dividend yield (rsk70_mfm2_usfast_divyild) is supportive.",
+            "description": "SUGGESTION1: combined momentum and dividend yield. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: divyild widely used. KEEP_IN_MIND: multiply 2 fields. Confidence: 0.68",
+            "implementation": "multiply(ts_returns(rsk70_mfm2_usfast_momentum,15), rsk70_mfm2_usfast_divyild)",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Hedge-fund crowding pressure: short names with extreme hedge_fund_ownership_percent and rising specific_risk_variance (unstable crowding).",
+            "description": "SUGGESTION1: combined ownership percent and specific risk variance. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: used high-count hedge fund field. KEEP_IN_MIND: multiply used. Confidence: 0.62",
+            "implementation": "multiply(hedge_fund_ownership_percent, specific_risk_variance)",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Industry re-rating: long commercial_equipment_exposure_score when rsk70_mfm2_usfast_regmom shows strength.",
+            "description": "SUGGESTION1: sector exposure + regional momentum. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used moderate-count industry exposure. KEEP_IN_MIND: 2 fields, multiply. Confidence: 0.63",
+            "implementation": "multiply(commercial_equipment_exposure_score, ts_returns(rsk70_mfm2_usfast_regmom,10))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Size-neutralized sentiment: use sentiment but divide by size to prefer sentiment-driven small-caps.",
+            "description": "SUGGESTION1: combined sentiment and current_market_cap_usd for size-neutral tilt. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: used market cap due to high userCount. KEEP_IN_MIND: divide operator only, 2 fields. Confidence: 0.71",
+            "implementation": "divide(rsk70_mfm2_usfast_sentmt, add(current_market_cap_usd,1e-6))",
+            "confidence_level": 0.71
+        },
+        {
+            "idea": "Momentum \u00d7 low short interest: favor momentum names with low short_interest_factor_score to reduce short-squeeze risk.",
+            "description": "SUGGESTION1: combined momentum and inverse short interest. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used short_interest field for liquidity insight. KEEP_IN_MIND: divide momentum by short interest. Confidence: 0.66",
+            "implementation": "divide(ts_returns(rsk70_mfm2_usfast_momentum,20), add(short_interest_factor_score,1e-6))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Sentiment \u00d7 low specific risk for conviction: long names with high sentiment and low specific_risk_uncertainty.",
+            "description": "SUGGESTION1: combined sentiment and uncertainty. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: used robust sentiment factor. KEEP_IN_MIND: 2 fields, multiply. Confidence: 0.74",
+            "implementation": "multiply(rsk70_mfm2_usfast_sentmt, reverse(specific_risk_uncertainty))",
+            "confidence_level": 0.74
+        },
+        {
+            "idea": "Profitability scaled by hedge-fund interest: long high profit where hedge_fund_ownership_percent increases.",
+            "description": "SUGGESTION1: combined profit and hedge fund flow. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: used hedge_fund_ownership_percent high userCount. KEEP_IN_MIND: 2 fields multiply. Confidence: 0.70",
+            "implementation": "multiply(rsk70_mfm2_usfast_profit, ts_returns(hedge_fund_ownership_percent,12))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Short high leverage momentum: short names with high rsk70_mfm2_usfast_leverage and recent negative momentum.",
+            "description": "SUGGESTION1: combined leverage and momentum to short fragile momentum. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: both factors have good counts. KEEP_IN_MIND: multiply used. Confidence: 0.59",
+            "implementation": "multiply(rsk70_mfm2_usfast_leverage, reverse(ts_returns(rsk70_mfm2_usfast_momentum,10)))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Industry exposure arbitrage: long distribution_services_exposure_score where region momentum exceeds industry momentum.",
+            "description": "SUGGESTION1: compared regional vs industry momentum with exposure field. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used distribution_services exposure small userCount but included for diversification. KEEP_IN_MIND: 2 fields, subtract. Confidence: 0.54",
+            "implementation": "subtract(ts_returns(rsk70_mfm2_usfast_regmom,12), distribution_services_exposure_score)",
+            "confidence_level": 0.54
+        },
+        {
+            "idea": "Momentum scaled by short interest decline: long names with falling short_interest_factor_score and positive momentum.",
+            "description": "SUGGESTION1: captured short interest dynamics and momentum. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: short_interest has good userCount. KEEP_IN_MIND: ts_delta used to measure decline. Confidence: 0.67",
+            "implementation": "multiply(ts_delta(short_interest_factor_score,10), ts_returns(rsk70_mfm2_usfast_momentum,10))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "Hedge-fund ownership vs size scatter: prefer names with high hedge_fund_ownership_percent normalized by market cap (conviction adjusted).",
+            "description": "SUGGESTION1: used two fields to scale ownership by size. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: fields have high userCount. KEEP_IN_MIND: divide and add small constant for stability. Confidence: 0.75",
+            "implementation": "divide(hedge_fund_ownership_percent, add(current_market_cap_usd,1e-6))",
+            "confidence_level": 0.75
+        },
+        {
+            "idea": "Value \u00d7 low short interest: long rsk70_mfm2_usfast_value where short_interest_factor_score is low (safer value).",
+            "description": "SUGGESTION1: combined value with inverse short interest to reduce crowding risk. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used common factors. KEEP_IN_MIND: divide, 2 fields. Confidence: 0.70",
+            "implementation": "divide(rsk70_mfm2_usfast_value, add(short_interest_factor_score,1e-6))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Specific return persistence adjusted for srisk: long daily_specific_return when specific_risk_variance is stable.",
+            "description": "SUGGESTION1: combined idiosyncratic return with specific_risk_variance to favor stable persistence. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used specific risk fields. KEEP_IN_MIND: divide momentum by variance. Confidence: 0.73",
+            "implementation": "divide(ts_returns(daily_specific_return,10), add(specific_risk_variance,1e-6))",
+            "confidence_level": 0.73
+        },
+        {
+            "idea": "Sector-weighted hedge-fund flows: long names with increasing hedge_fund_ownership_percent multiplied by sector exposure (consumer_electronics_exposure_score).",
+            "description": "SUGGESTION1: combined hedge-fund inflows with sector exposure. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used consumer electronics exposure moderate userCount. KEEP_IN_MIND: 2 fields multiply. Confidence: 0.62",
+            "implementation": "multiply(ts_returns(hedge_fund_ownership_percent,14), consumer_electronics_exposure_score)",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Profitability scaled by residual vol: favor profitable names with low resvol for stability.",
+            "description": "SUGGESTION1: combined profit and resvol. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: both have strong userCounts. KEEP_IN_MIND: divide profit by resvol. Confidence: 0.71",
+            "implementation": "divide(rsk70_mfm2_usfast_profit, add(rsk70_mfm2_usfast_resvol,1e-6))",
+            "confidence_level": 0.71
+        },
+        {
+            "idea": "Momentum momentum (acceleration): ts_delta of rsk70_mfm2_usfast_momentum to detect accelerating movers.",
+            "description": "SUGGESTION1: single-field dynamic acceleration using ts_delta. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: momentum field widely used. KEEP_IN_MIND: 1 field, 1 operator. Confidence: 0.74",
+            "implementation": "ts_delta(rsk70_mfm2_usfast_momentum,5)",
+            "confidence_level": 0.74
+        },
+        {
+            "idea": "Short high uncertainty: short names with high specific_risk_uncertainty and weak momentum.",
+            "description": "SUGGESTION1: combined uncertainty with negative momentum. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used specific_risk_uncertainty to avoid unpredictable names. KEEP_IN_MIND: 2 fields, multiply. Confidence: 0.58",
+            "implementation": "multiply(specific_risk_uncertainty, reverse(ts_returns(rsk70_mfm2_usfast_momentum,10)))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Hedge-fund ownership momentum zscore: cross-sectional zscore of ts_returns(hedge_fund_ownership_percent).",
+            "description": "SUGGESTION1: single-field time-series zscore to find abnormal flows. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: hedge_fund_ownership_percent high userCount chosen. KEEP_IN_MIND: 1 field, 1 operator. Confidence: 0.78",
+            "implementation": "ts_zscore(ts_returns(hedge_fund_ownership_percent,10),20)",
+            "confidence_level": 0.78
+        },
+        {
+            "idea": "Value momentum cross: long names where rsk70_mfm2_usfast_value is high and rsk70_mfm2_usfast_momentum recently turned positive.",
+            "description": "SUGGESTION1: combined value and momentum for value-catch-up. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: both fields have good counts. KEEP_IN_MIND: multiply with ts_returns. Confidence: 0.72",
+            "implementation": "multiply(rsk70_mfm2_usfast_value, ts_returns(rsk70_mfm2_usfast_momentum,8))",
+            "confidence_level": 0.72
+        },
+        {
+            "idea": "Sector exposure risk-off: short electric_utilities_exposure_score when broad_market_factor_score is negative (risk-off).",
+            "description": "SUGGESTION1: combined sector exposure and market factor. SUGGESTION2: no vectors. SUGGESTION3: coverage electric utilities=1.0. SUGGESTION4: used simple well-covered market factor. KEEP_IN_MIND: 2 fields, multiply. Confidence: 0.50",
+            "implementation": "multiply(electric_utilities_exposure_score, reverse(broad_market_factor_score))",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "Short interest \u00d7 rising srisk: short names where short_interest_factor_score rises along with specific_risk_variance.",
+            "description": "SUGGESTION1: combined short-interest trend and rising specific risk. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: both fields have reasonable counts. KEEP_IN_MIND: ts_delta + multiply used. Confidence: 0.61",
+            "implementation": "multiply(ts_delta(short_interest_factor_score,7), specific_risk_variance)",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "High-management-quality premium: long names with high rsk70_mfm2_usfast_mgmtqlty and low leverage.",
+            "description": "SUGGESTION1: combined management quality and leverage to favor well-run, low-leverage firms. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: mgmtqlty has decent userCount. KEEP_IN_MIND: divide mgmtqlty by leverage. Confidence: 0.68",
+            "implementation": "divide(rsk70_mfm2_usfast_mgmtqlty, add(rsk70_mfm2_usfast_leverage,1e-6))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Industry alpha from semiconductors: long semiconductor_equipment_exposure_score when rsk70_mfm2_usfast_regmom positive.",
+            "description": "SUGGESTION1: combined sector exposure with regional momentum. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: semiconductors exposure has good userCount. KEEP_IN_MIND: 2 fields multiply. Confidence: 0.65",
+            "implementation": "multiply(semiconductor_equipment_exposure_score, ts_returns(rsk70_mfm2_usfast_regmom,12))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Momentum quality spread: long names with high momentum but also high profit quality, short the inverse.",
+            "description": "SUGGESTION1: combined momentum and profit to form a quality-momentum spread. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used strong-profit factor. KEEP_IN_MIND: subtract implementation for spread. Confidence: 0.72",
+            "implementation": "subtract(multiply(ts_returns(rsk70_mfm2_usfast_momentum,12), rsk70_mfm2_usfast_profit), 0)",
+            "confidence_level": 0.72
+        },
+        {
+            "idea": "Residual volatility contrarian: long names with recent negative ts_returns(daily_specific_return) but low residual volatility (mean-revert).",
+            "description": "SUGGESTION1: combined idiosyncratic returns and resvol to pick mean-reverting safe names. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used daily_specific_return and resvol. KEEP_IN_MIND: multiply reverse(resvol) with reverse(momentum). Confidence: 0.66",
+            "implementation": "multiply(reverse(rsk70_mfm2_usfast_resvol), reverse(ts_returns(daily_specific_return,5)))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Earnings-quality \u00d7 low short interest: long earnqlty names with low short_interest_factor_score.",
+            "description": "SUGGESTION1: combined earnings quality and low short interest as a safety filter. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used both solid fields. KEEP_IN_MIND: divide and zscore apply. Confidence: 0.69",
+            "implementation": "divide(rsk70_mfm2_usfast_earnqlty, add(short_interest_factor_score,1e-6))",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Hedge-fund ownership sentiment filter: long names where hedge_fund_ownership_percent rises and sentiment is high.",
+            "description": "SUGGESTION1: combined hedge-fund flow with sentiment. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used high-count hedge fund and sentiment. KEEP_IN_MIND: multiply 2 fields. Confidence: 0.78",
+            "implementation": "multiply(ts_returns(hedge_fund_ownership_percent,10), rsk70_mfm2_usfast_sentmt)",
+            "confidence_level": 0.78
+        },
+        {
+            "idea": "Price-momentum fade in high resvol: short names with positive price_momentum_factor_score but high rsk70_mfm2_usfast_resvol expecting fade.",
+            "description": "SUGGESTION1: combined price momentum with resvol to short unstable rallies. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used price momentum factor. KEEP_IN_MIND: multiply used. Confidence: 0.57",
+            "implementation": "multiply(price_momentum_factor_score, rsk70_mfm2_usfast_resvol)",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Value re-rating with hedge-fund catalyst: long rsk70_mfm2_usfast_value when hedge_fund_ownership_percent rises.",
+            "description": "SUGGESTION1: combined value with hedge-fund inflows as catalyst. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used common factors for stability. KEEP_IN_MIND: multiply 2 fields. Confidence: 0.73",
+            "implementation": "multiply(rsk70_mfm2_usfast_value, ts_returns(hedge_fund_ownership_percent,12))",
+            "confidence_level": 0.73
+        },
+        {
+            "idea": "Momentum filtered by specific risk: long momentum only if specific_risk_value_2 below threshold (safer momentum).",
+            "description": "SUGGESTION1: combined momentum and low specific risk filter. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used specific_risk_value_2. KEEP_IN_MIND: implemented via multiply with reverse risk. Confidence: 0.70",
+            "implementation": "multiply(ts_returns(rsk70_mfm2_usfast_momentum,20), reverse(specific_risk_value_2))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Hedge-fund overcrowding reversal: short names where hedge_fund_ownership_percent is extremely high and daily_specific_return has been negative recently.",
+            "description": "SUGGESTION1: combined extreme ownership and negative idiosyncratic returns to identify crowded losing positions. SUGGESTION2: no vector fields. SUGGESTION3: coverage OK. SUGGESTION4: hedge fund fields strong. KEEP_IN_MIND: multiply and reverse used. Confidence: 0.65",
+            "implementation": "multiply(hedge_fund_ownership_percent, reverse(ts_returns(daily_specific_return,10)))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Short-interest momentum squeeze: long names with falling short_interest_factor_score and rising daily_specific_return.",
+            "description": "SUGGESTION1: detected decreasing short interest with rising idiosyncratic returns. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: utilized short_interest field. KEEP_IN_MIND: ts_delta + multiply used. Confidence: 0.64",
+            "implementation": "multiply(reverse(ts_delta(short_interest_factor_score,10)), ts_returns(daily_specific_return,7))",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "Momentum \u00d7 low srisku: prefer momentum in names with low rsk70_mfm2_usfast_srisku (unadjusted risk).",
+            "description": "SUGGESTION1: combined momentum with low raw specific risk for cleaner signals. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: srisku used as risk control. KEEP_IN_MIND: divide momentum by srisku. Confidence: 0.69",
+            "implementation": "divide(ts_returns(rsk70_mfm2_usfast_momentum,15), add(rsk70_mfm2_usfast_srisku,1e-6))",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Industry-pair trade: long building_products_exposure_score and short construction_materials_exposure_score when regional momentum favors building over materials.",
+            "description": "SUGGESTION1: paired industry exposures to capture relative strength. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used exposures for diversification. KEEP_IN_MIND: subtract two exposures; 2 fields. Confidence: 0.57",
+            "implementation": "subtract(building_products_exposure_score, construction_materials_exposure_score)",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "High short interest mean reversion with sentiment: short names with high short_interest_factor_score and falling sentiment.",
+            "description": "SUGGESTION1: combined short interest with negative trend in sentiment. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used sentiment field strength. KEEP_IN_MIND: ts_delta + multiply used. Confidence: 0.60",
+            "implementation": "multiply(short_interest_factor_score, reverse(ts_delta(rsk70_mfm2_usfast_sentmt,10)))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Earnings-quality \u00d7 hedge-fund flow: long high earnqlty where hedge_fund_ownership_percent increases (funds buying quality).",
+            "description": "SUGGESTION1: combined earnqlty and hedge fund flows to capture buy-side conviction in quality. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: both reliable fields used. KEEP_IN_MIND: multiply. Confidence: 0.74",
+            "implementation": "multiply(rsk70_mfm2_usfast_earnqlty, ts_returns(hedge_fund_ownership_percent,10))",
+            "confidence_level": 0.74
+        },
+        {
+            "idea": "Momentum filtered by sriskv: prefer momentum where intermediate specific risk (sriskv) is low.",
+            "description": "SUGGESTION1: combined momentum and sriskv to reduce false signals. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: sriskv moderate userCount. KEEP_IN_MIND: divide. Confidence: 0.68",
+            "implementation": "divide(ts_returns(rsk70_mfm2_usfast_momentum,20), add(rsk70_mfm2_usfast_sriskv,1e-6))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Hedge-fund percent relative to sector: hedge_fund_ownership_percent divided by group average (approx via divide by current_market_cap_usd proxy) to find disproportionate ownership per size.",
+            "description": "SUGGESTION1: approximated group adjustment using market cap as proxy (GROUP ops restricted), kept to two fields. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used hedge fund and market cap fields. KEEP_IN_MIND: avoided GROUP operator due to constraints; concise impl. Confidence: 0.60",
+            "implementation": "divide(hedge_fund_ownership_percent, add(current_market_cap_usd,1e-6))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Momentum filtered by broad market: take momentum signals only when broad_market_factor_score is positive.",
+            "description": "SUGGESTION1: combined momentum and market direction to time exposure. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used broad market factor widely adopted. KEEP_IN_MIND: implemented with multiply for directional gating. Confidence: 0.66",
+            "implementation": "multiply(ts_returns(rsk70_mfm2_usfast_momentum,12), rsk70_mfm2_usfast_market)",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Price momentum in low hedge-fund ownership names: favor momentum where hedge_fund_ownership_percent is low to reduce crowding risk.",
+            "description": "SUGGESTION1: combined momentum and inverse hedge-fund ownership. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: hedge_fund_ownership_percent high userCount used. KEEP_IN_MIND: divide momentum by ownership. Confidence: 0.67",
+            "implementation": "divide(ts_returns(rsk70_mfm2_usfast_momentum,20), add(hedge_fund_ownership_percent,1e-6))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "Short names with high srisk during market downturn: short high rsk70_mfm2_usfast_srisku when rsk70_mfm2_usfast_market is negative.",
+            "description": "SUGGESTION1: combined specific risk and market direction for defensive shorting. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used market and srisku fields. KEEP_IN_MIND: multiply operations concise. Confidence: 0.56",
+            "implementation": "multiply(rsk70_mfm2_usfast_srisku, reverse(rsk70_mfm2_usfast_market))",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Hedge-fund ownership percent momentum cross: cross-sectional quantile of ts_returns(hedge_fund_ownership_percent) to pick unusual inflows.",
+            "description": "SUGGESTION1: single-field quantile used to detect extreme flows. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: hedge fund percent high userCount. KEEP_IN_MIND: single operator quantile for brevity. Confidence: 0.77",
+            "implementation": "quantile(ts_returns(hedge_fund_ownership_percent,15))",
+            "confidence_level": 0.77
+        },
+        {
+            "idea": "Short high resvol with negative sentiment: short names where rsk70_mfm2_usfast_resvol high and sentiment falling.",
+            "description": "SUGGESTION1: combined resvol with negative sentiment trend. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used reliable resvol and sentiment fields. KEEP_IN_MIND: ts_delta + multiply used. Confidence: 0.60",
+            "implementation": "multiply(rsk70_mfm2_usfast_resvol, reverse(ts_delta(rsk70_mfm2_usfast_sentmt,10)))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Momentum divergence: long when rsk70_mfm2_usfast_momentum > price_momentum_factor_score (style divergence).",
+            "description": "SUGGESTION1: compared two momentum signals to find style divergence. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used both momentum fields with solid counts. KEEP_IN_MIND: subtract two fields. Confidence: 0.63",
+            "implementation": "subtract(rsk70_mfm2_usfast_momentum, price_momentum_factor_score)",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Semiconductor exposure value play: long semiconductors_exposure_score where rsk70_mfm2_usfast_value is high (cheap sector leaders).",
+            "description": "SUGGESTION1: combined sector exposure with value for industry value plays. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used semiconductors exposure solid userCount. KEEP_IN_MIND: multiply. Confidence: 0.66",
+            "implementation": "multiply(semiconductors_exposure_score, rsk70_mfm2_usfast_value)",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Earnings-quality momentum: long names where earnqlty is high and momentum accelerates (ts_delta on momentum).",
+            "description": "SUGGESTION1: combined earnqlty and momentum acceleration. SUGGESTION2: no vectors. SUGGESTION3: earnqlty coverage>0.6 so no backfill. SUGGESTION4: used earnqlty given reliability. KEEP_IN_MIND: 2 fields, multiply. Confidence: 0.70",
+            "implementation": "multiply(rsk70_mfm2_usfast_earnqlty, ts_delta(rsk70_mfm2_usfast_momentum,5))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Hedge-fund percent vs specific risk: favor rising hedge_fund_ownership_percent with falling specific_risk_uncertainty.",
+            "description": "SUGGESTION1: combined flow and decreasing uncertainty. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: hedge fund field chosen for signal. KEEP_IN_MIND: ts_delta + multiply. Confidence: 0.75",
+            "implementation": "multiply(ts_delta(hedge_fund_ownership_percent,10), reverse(ts_delta(specific_risk_uncertainty,10)))",
+            "confidence_level": 0.75
+        },
+        {
+            "idea": "Low short interest quality value: long rsk70_mfm2_usfast_value with low short_interest_factor_score to avoid crowded value names.",
+            "description": "SUGGESTION1: combined value with low short interest as risk control. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used robust factors. KEEP_IN_MIND: divide for safety. Confidence: 0.72",
+            "implementation": "divide(rsk70_mfm2_usfast_value, add(short_interest_factor_score,1e-6))",
+            "confidence_level": 0.72
+        },
+        {
+            "idea": "Momentum \u00d7 hedge-fund count: favor momentum where hedge_fund_ownership_count increases (broadening ownership).",
+            "description": "SUGGESTION1: combined momentum with ownership count trends. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: ownership count high userCount used. KEEP_IN_MIND: ts_delta + multiply. Confidence: 0.74",
+            "implementation": "multiply(ts_delta(hedge_fund_ownership_count,12), ts_returns(rsk70_mfm2_usfast_momentum,10))",
+            "confidence_level": 0.74
+        },
+        {
+            "idea": "Size-adjusted earnings yield: prefer high earnyild among small caps (tilt using current_market_cap_usd).",
+            "description": "SUGGESTION1: combined earnyild with market cap to find small-cap yield. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used earnyild and market cap fields. KEEP_IN_MIND: divide with small constant. Confidence: 0.67",
+            "implementation": "divide(rsk70_mfm2_usfast_earnyild, add(current_market_cap_usd,1e-6))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "Specific-return momentum zscore: cross-sectional zscore of ts_returns(daily_specific_return) to pick top idiosyncratic movers.",
+            "description": "SUGGESTION1: single-field time-series returns zscore to isolate idiosyncratic movers. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: daily_specific_return has high userCount. KEEP_IN_MIND: single op. Confidence: 0.79",
+            "implementation": "zscore(ts_returns(daily_specific_return,5))",
+            "confidence_level": 0.79
+        },
+        {
+            "idea": "Momentum \u00d7 low srisk to reduce crashes: prefer momentum where final specific risk (rsk70_mfm2_usfast_srisk) is low.",
+            "description": "SUGGESTION1: combined momentum and final specific risk to reduce drawdown exposure. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: srisk has decent userCount. KEEP_IN_MIND: divide momentum by srisk. Confidence: 0.70",
+            "implementation": "divide(ts_returns(rsk70_mfm2_usfast_momentum,20), add(rsk70_mfm2_usfast_srisk,1e-6))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Sector momentum with hedge-fund filter: long net_retail_exposure_score when hedge_fund_ownership_percent is rising.",
+            "description": "SUGGESTION1: combined sector exposure and hedge-fund flows. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: both fields have solid counts. KEEP_IN_MIND: multiply used. Confidence: 0.66",
+            "implementation": "multiply(net_retail_exposure_score, ts_returns(hedge_fund_ownership_percent,12))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Profitability scaled by hedge fund ownership: favor profitable firms with increasing hedge fund ownership as crowd conviction.",
+            "description": "SUGGESTION1: combined profit and hedge fund flow for conviction. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: both factors robust. KEEP_IN_MIND: multiply use. Confidence: 0.73",
+            "implementation": "multiply(rsk70_mfm2_usfast_profit, ts_returns(hedge_fund_ownership_percent,10))",
+            "confidence_level": 0.73
+        },
+        {
+            "idea": "Short high market beta when market rallies fade: short high rsk70_mfm2_usfast_beta if broad_market_factor_score reverses negative.",
+            "description": "SUGGESTION1: combined beta exposure with market reversal. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: market and beta widely used. KEEP_IN_MIND: multiply and reverse. Confidence: 0.59",
+            "implementation": "multiply(rsk70_mfm2_usfast_beta, reverse(ts_returns(rsk70_mfm2_usfast_market,5)))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Momentum filtered by short-term reversal: avoid names with high rsk70_mfm2_usfast_strevrsl when momentum is strong (avoid immediate reversals).",
+            "description": "SUGGESTION1: combined momentum with short-term reversal to avoid mean reversion traps. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: strevrsl used widely. KEEP_IN_MIND: divide momentum by strevrsl. Confidence: 0.68",
+            "implementation": "divide(ts_returns(rsk70_mfm2_usfast_momentum,15), add(rsk70_mfm2_usfast_strevrsl,1e-6))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Value momentum in semiconductors: long semiconductors_exposure_score where rsk70_mfm2_usfast_value is high and momentum positive.",
+            "description": "SUGGESTION1: combined sector exposure, value and momentum (two-step: multiply then weight by momentum). SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: selected fields with good counts. KEEP_IN_MIND: only 2 datafields at a time per constraint; used semiconductors and value. Confidence: 0.65",
+            "implementation": "multiply(semiconductors_exposure_score, rsk70_mfm2_usfast_value)",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "High hedge-fund ownership but falling sentiment short: short names with high hedge_fund_ownership_percent and negative ts_delta(sentmt).",
+            "description": "SUGGESTION1: combined ownership levels and falling sentiment to catch crowd unwinds. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used hedge fund and sentiment. KEEP_IN_MIND: ts_delta + multiply used. Confidence: 0.63",
+            "implementation": "multiply(hedge_fund_ownership_percent, reverse(ts_delta(rsk70_mfm2_usfast_sentmt,8)))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Earnings yield scaled by residual volatility: prefer high earnyild with low resvol.",
+            "description": "SUGGESTION1: combined earnyild and resvol to favor stable value. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: both fields widely used. KEEP_IN_MIND: divide earnyild by resvol. Confidence: 0.69",
+            "implementation": "divide(rsk70_mfm2_usfast_earnyild, add(rsk70_mfm2_usfast_resvol,1e-6))",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Short-interest \u00d7 low hedge-fund ownership: short names with rising short_interest_factor_score but low hedge_fund_ownership_percent (retail-driven shorts).",
+            "description": "SUGGESTION1: combined short interest dynamics and low institutional ownership to detect retail-driven squeezes or risky shorts. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used both fields for crowd insight. KEEP_IN_MIND: ts_delta + multiply used. Confidence: 0.56",
+            "implementation": "multiply(ts_delta(short_interest_factor_score,10), reverse(hedge_fund_ownership_percent))",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Momentum adjusted by sriskv: favor momentum when intermediate specific risk is low to improve signal quality.",
+            "description": "SUGGESTION1: combined momentum and sriskv for cleaner momentum picks. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: sriskv moderate userCount. KEEP_IN_MIND: divide momentum by sriskv. Confidence: 0.68",
+            "implementation": "divide(ts_returns(rsk70_mfm2_usfast_momentum,18), add(rsk70_mfm2_usfast_sriskv,1e-6))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Price momentum \u00d7 low hedge-fund concentration: favor price momentum in low hedge_fund_ownership_percent names to avoid crowded trades.",
+            "description": "SUGGESTION1: combined price momentum and ownership percent inversely. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: price_momentum_factor_score used for style diversification. KEEP_IN_MIND: divide. Confidence: 0.66",
+            "implementation": "divide(ts_returns(price_momentum_factor_score,20), add(hedge_fund_ownership_percent,1e-6))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Short names with weak earnings quality and high specific risk: short reverse earnqlty \u00d7 high specific_risk_value_2.",
+            "description": "SUGGESTION1: combined earnqlty and specific risk to avoid shorts in stable companies. SUGGESTION2: no vectors. SUGGESTION3: coverage earnqlty slightly below 1 but >0.6 so OK. SUGGESTION4: fields chosen for risk control. KEEP_IN_MIND: multiply reversed earnqlty and srisk. Confidence: 0.58",
+            "implementation": "multiply(reverse(rsk70_mfm2_usfast_earnqlty), specific_risk_value_2)",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Momentum \u00d7 low sriskv in semiconductors: favor semiconductor exposure with momentum when sriskv low.",
+            "description": "SUGGESTION1: combined sector exposure and low intermediate specific risk to capture cleaner sector momentum. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: semiconductors field moderate userCount. KEEP_IN_MIND: divide/multiply kept minimal. Confidence: 0.64",
+            "implementation": "multiply(semiconductors_exposure_score, reverse(rsk70_mfm2_usfast_sriskv))",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "Short-interest contrarian with daily specific return: long if short_interest high but daily_specific_return strongly positive (squeeze candidate).",
+            "description": "SUGGESTION1: combined short interest and idiosyncratic returns to detect squeezes. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used short interest and daily_specific_return strong counts. KEEP_IN_MIND: multiply. Confidence: 0.61",
+            "implementation": "multiply(short_interest_factor_score, ts_returns(daily_specific_return,3))",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Value tilt with low hedge-fund ownership: long value names with low hedge_fund_ownership_percent to avoid crowded value trades.",
+            "description": "SUGGESTION1: combined value with inverse hedge-fund ownership for uncrowded value. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used robust factors. KEEP_IN_MIND: divide value by ownership. Confidence: 0.71",
+            "implementation": "divide(rsk70_mfm2_usfast_value, add(hedge_fund_ownership_percent,1e-6))",
+            "confidence_level": 0.71
+        },
+        {
+            "idea": "High sentiment with low specific risk: long names with high sentiment and low specific_risk_variance for conviction-driven rallies.",
+            "description": "SUGGESTION1: combined sentiment and low specific risk to favor reliable sentiment-driven moves. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: sentiment has very high userCount. KEEP_IN_MIND: multiply. Confidence: 0.76",
+            "implementation": "multiply(rsk70_mfm2_usfast_sentmt, reverse(specific_risk_variance))",
+            "confidence_level": 0.76
+        },
+        {
+            "idea": "Profitability \u00d7 low short interest: prioritize profitable firms with low short interest to avoid contentious shorts.",
+            "description": "SUGGESTION1: combined profitability and low short interest. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: profit factor robust. KEEP_IN_MIND: divide profit by short interest. Confidence: 0.70",
+            "implementation": "divide(rsk70_mfm2_usfast_profit, add(short_interest_factor_score,1e-6))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Hedge-fund inflow \u00d7 low resvol: favor names where hedge funds are increasing ownership into low residual volatility stocks.",
+            "description": "SUGGESTION1: combined fund inflows and low resvol for stable accumulation opportunities. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used hedge_fund_ownership_percent widely adopted. KEEP_IN_MIND: multiply. Confidence: 0.75",
+            "implementation": "multiply(ts_delta(hedge_fund_ownership_percent,12), reverse(rsk70_mfm2_usfast_resvol))",
+            "confidence_level": 0.75
+        },
+        {
+            "idea": "Price-momentum \u00d7 low srisk (safety-adjusted momentum): prefer price momentum where final specific risk low.",
+            "description": "SUGGESTION1: combined price momentum and low final specific risk to prefer safer trend-following. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used price_momentum_factor_score. KEEP_IN_MIND: divide. Confidence: 0.69",
+            "implementation": "divide(ts_returns(price_momentum_factor_score,20), add(rsk70_mfm2_usfast_srisk,1e-6))",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Short names with falling hedge-fund count and negative momentum: short names losing institutional holders and momentum.",
+            "description": "SUGGESTION1: combined hedge_fund_ownership_count decline with negative momentum. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: ownership count has high userCount. KEEP_IN_MIND: ts_delta + multiply. Confidence: 0.62",
+            "implementation": "multiply(reverse(ts_delta(hedge_fund_ownership_count,10)), reverse(ts_returns(rsk70_mfm2_usfast_momentum,8)))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Momentum \u00d7 low leverage in consumer sectors: favor momentum where leverage low in consumer exposure (consumer_electronics_exposure_score).",
+            "description": "SUGGESTION1: combined sector exposure and leverage for safer sector momentum. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: consumer sector exposure moderate counts. KEEP_IN_MIND: used two fields; kept ops minimal. Confidence: 0.63",
+            "implementation": "multiply(consumer_electronics_exposure_score, reverse(rsk70_mfm2_usfast_leverage))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Short-interest fade with increasing sentiment: short names where short_interest is high but sentiment is falling (crowd pessimism persists).",
+            "description": "SUGGESTION1: combined short interest and sentiment trend. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used both indicators for crowd behavior. KEEP_IN_MIND: ts_delta + multiply used. Confidence: 0.58",
+            "implementation": "multiply(short_interest_factor_score, reverse(ts_delta(rsk70_mfm2_usfast_sentmt,8)))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "High hedge-fund ownership with positive price momentum zscore: zscore of multiply(hedge_fund_ownership_percent, price_momentum_factor_score).",
+            "description": "SUGGESTION1: blended hedge-fund percent with price momentum and applied zscore to normalize cross-sectionally. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: both fields have strong counts. KEEP_IN_MIND: two fields only, used zscore. Confidence: 0.77",
+            "implementation": "zscore(multiply(hedge_fund_ownership_percent, ts_returns(price_momentum_factor_score,10)))",
+            "confidence_level": 0.77
+        },
+        {
+            "idea": "Value momentum with low srisk: prefer value stocks where srisk low to avoid value traps.",
+            "description": "SUGGESTION1: combined value and low final specific risk. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used value and srisk fields widely adopted. KEEP_IN_MIND: divide. Confidence: 0.71",
+            "implementation": "divide(rsk70_mfm2_usfast_value, add(rsk70_mfm2_usfast_srisk,1e-6))",
+            "confidence_level": 0.71
+        },
+        {
+            "idea": "Sector rotation via hedge-fund change: long sectors where hedge_fund_ownership_percent has increased recently (sector exposures like restaurant_industry_exposure_score).",
+            "description": "SUGGESTION1: combined hedge fund flow trends with sector exposure to detect rotation. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used restaurant exposure moderate counts. KEEP_IN_MIND: ts_delta + multiply kept concise. Confidence: 0.64",
+            "implementation": "multiply(ts_delta(hedge_fund_ownership_percent,14), restaurant_industry_exposure_score)",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "Momentum \u00d7 low specific_risk_uncertainty: prefer momentum when uncertainty is low (higher conviction).",
+            "description": "SUGGESTION1: combined momentum with low estimation uncertainty. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: specific_risk_uncertainty used for risk filtering. KEEP_IN_MIND: divide. Confidence: 0.70",
+            "implementation": "divide(ts_returns(rsk70_mfm2_usfast_momentum,18), add(specific_risk_uncertainty,1e-6))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Short high leverage ETFs or proxies: short names with extreme rsk70_mfm2_usfast_leverage and negative momentum.",
+            "description": "SUGGESTION1: combined leverage extreme and negative momentum as short signal. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: leverage widely used. KEEP_IN_MIND: multiply. Confidence: 0.57",
+            "implementation": "multiply(rsk70_mfm2_usfast_leverage, reverse(ts_returns(rsk70_mfm2_usfast_momentum,12)))",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Sentiment \u00d7 low short interest (conviction buy): long names with high sentiment and low short_interest_factor_score.",
+            "description": "SUGGESTION1: combined sentiment and inverse short interest for safer sentiment bets. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: both fields robust. KEEP_IN_MIND: divide used for risk control. Confidence: 0.74",
+            "implementation": "divide(rsk70_mfm2_usfast_sentmt, add(short_interest_factor_score,1e-6))",
+            "confidence_level": 0.74
+        },
+        {
+            "idea": "Momentum in low hedge-fund ownership count: favor momentum where hedge_fund_ownership_count low (uncrowded trend).",
+            "description": "SUGGESTION1: combined momentum and low ownership count to find uncrowded movers. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used ownership count for crowd insight. KEEP_IN_MIND: divide. Confidence: 0.68",
+            "implementation": "divide(ts_returns(rsk70_mfm2_usfast_momentum,20), add(hedge_fund_ownership_count,1e-6))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Value momentum with low sriskv: target value names with low intermediate specific risk (sriskv).",
+            "description": "SUGGESTION1: combined value and sriskv to avoid value traps. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used value and sriskv. KEEP_IN_MIND: divide. Confidence: 0.70",
+            "implementation": "divide(rsk70_mfm2_usfast_value, add(rsk70_mfm2_usfast_sriskv,1e-6))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Hedge-fund inflow \u00d7 low leverage: favor names receiving inflows but with low leverage to reduce tail risk.",
+            "description": "SUGGESTION1: combined hedge-fund inflows with low leverage. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: both fields reliable. KEEP_IN_MIND: multiply with ts_delta. Confidence: 0.76",
+            "implementation": "multiply(ts_delta(hedge_fund_ownership_percent,12), reverse(rsk70_mfm2_usfast_leverage))",
+            "confidence_level": 0.76
+        },
+        {
+            "idea": "Short-interest \u00d7 high specific risk value: short names where short interest and specific_risk_value_2 both high.",
+            "description": "SUGGESTION1: combined crowd shorting and high idiosyncratic risk. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used both risk signals. KEEP_IN_MIND: multiply. Confidence: 0.59",
+            "implementation": "multiply(short_interest_factor_score, specific_risk_value_2)",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Earnings yield \u00d7 hedge-fund count momentum: long earnyild where hedge_fund_ownership_count is rising.",
+            "description": "SUGGESTION1: combined earnings yield with expansion in hedge-fund owners as a catalyst. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used ownership count for crowd measure. KEEP_IN_MIND: multiply ts_delta with earnyild. Confidence: 0.72",
+            "implementation": "multiply(rsk70_mfm2_usfast_earnyild, ts_delta(hedge_fund_ownership_count,12))",
+            "confidence_level": 0.72
+        },
+        {
+            "idea": "Momentum \u00d7 low short interest in healthcare equipment: favor momentum in healthcare_equipment_exposure_score with low short interest.",
+            "description": "SUGGESTION1: combined sector exposure, momentum and low short interest (two-field limit -> exposure and short interest). SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: selected fields for diversification. KEEP_IN_MIND: divide exposure by short interest. Confidence: 0.62",
+            "implementation": "divide(healthcare_equipment_exposure_score, add(short_interest_factor_score,1e-6))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Sentiment \u00d7 low srisk to avoid hype: long names with high sentiment and low rsk70_mfm2_usfast_srisk to capture durable sentiment moves.",
+            "description": "SUGGESTION1: combined sentiment and low final specific risk. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: sentiment strong field. KEEP_IN_MIND: multiply. Confidence: 0.75",
+            "implementation": "multiply(rsk70_mfm2_usfast_sentmt, reverse(rsk70_mfm2_usfast_srisk))",
+            "confidence_level": 0.75
+        },
+        {
+            "idea": "High hedge-fund percent with rising price momentum: long where both hedge_fund_ownership_percent and price momentum are increasing.",
+            "description": "SUGGESTION1: combined hedge fund percent and price momentum ts_returns. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: fields used due to strong counts. KEEP_IN_MIND: multiply two signals. Confidence: 0.78",
+            "implementation": "multiply(ts_delta(hedge_fund_ownership_percent,10), ts_returns(price_momentum_factor_score,10))",
+            "confidence_level": 0.78
+        },
+        {
+            "idea": "Low residual volatility value: long rsk70_mfm2_usfast_value where rsk70_mfm2_usfast_resvol is low (stable value).",
+            "description": "SUGGESTION1: combined value with low resvol to reduce drawdown risk. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: both fields have high adoption. KEEP_IN_MIND: divide value by resvol. Confidence: 0.70",
+            "implementation": "divide(rsk70_mfm2_usfast_value, add(rsk70_mfm2_usfast_resvol,1e-6))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Momentum \u00d7 hedge-fund percent with winsorization: zscore of multiply(hedge_fund_ownership_percent, ts_returns(rsk70_mfm2_usfast_momentum,10)).",
+            "description": "SUGGESTION1: combined hedge-fund flow and momentum and normalized via zscore. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used widely-adopted fields. KEEP_IN_MIND: kept to 2 datafields and zscore operator. Confidence: 0.79",
+            "implementation": "zscore(multiply(hedge_fund_ownership_percent, ts_returns(rsk70_mfm2_usfast_momentum,10)))",
+            "confidence_level": 0.79
+        },
+        {
+            "idea": "Short-interest \u00d7 price momentum divergence: short names where short interest rises while price momentum negative.",
+            "description": "SUGGESTION1: combined short interest trend and negative price momentum. SUGGESTION2: no vectors. SUGGESTION3: coverage OK. SUGGESTION4: used short interest and price momentum for liquidity/flow insight. KEEP_IN_MIND: ts_delta + multiply. Confidence: 0.61",
+            "implementation": "multiply(ts_delta(short_interest_factor_score,10), reverse(ts_returns(price_momentum_factor_score,10)))",
+            "confidence_level": 0.61
+        }
+    ]
+}

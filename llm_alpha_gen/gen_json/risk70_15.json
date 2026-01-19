@@ -1,0 +1,514 @@
+{
+    "results": [
+        {
+            "idea": "Momentum-adjusted specific-return tilt",
+            "description": "Combine short-term idiosyncratic momentum with recent specific return to capture continuation in stock-specific moves. Applied SUGGESTION1 by using two datafields (daily_specific_return, rsk70_mfm2_usfast_momentum). SUGGESTION2 not applicable (no vector fields). Coverage for both =1.0 so SUGGESTION3 ts_backfill not needed. Chose high userCount fields (daily_specific_return userCount=22, momentum userCount=109) per SUGGESTION4. Kept implementation short and within operator/datafield limits (KEEP_IN_MINDs). Confidence set to 0.65 based on empirical persistence of idiosyncratic momentum.",
+            "implementation": "multiply(quantile(ts_zscore(daily_specific_return, 20)), quantile(rsk70_mfm2_usfast_momentum))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Size-neutralized hedge-fund crowding signal",
+            "description": "Long stocks with rising hedge-fund ownership percent but small market cap adjusted to avoid size bias. Used two datafields (hedge_fund_ownership_percent, current_market_cap_usd) per SUGGESTION1. No vector fields (SUGGESTION2). Coverage=1 so no ts_backfill (SUGGESTION3). Both fields have high userCount (119 and 15) so SUGGESTION4 applied. Kept operators minimal and under limits. Confidence 0.6 due to crowding risks and size effects.",
+            "implementation": "divide(quantile(hedge_fund_ownership_percent), quantile(ts_zscore(current_market_cap_usd, 60)))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-interest reversal filter",
+            "description": "Short-interest high stocks with recent positive specific returns tend to mean-revert. Used short_interest_factor_score and daily_specific_return (SUGGESTION1). No vector fields. Both coverage=1 so no ts_backfill needed. Used high userCount short interest (33) and daily specific return (22) per SUGGESTION4. Implementation limited to few operators (KEEP_IN_MINDs). Confidence 0.58 reflecting moderate historical performance.",
+            "implementation": "subtract(quantile(daily_specific_return), quantile(short_interest_factor_score))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Residual-volatility shorting",
+            "description": "Short stocks with high residual volatility (rsk70_mfm2_usfast_resvol) scaled by specific risk variance to control dispersion. SUGGESTION1 used two fields. No vectors. Coverage high so no ts_backfill. Both fields have decent userCount (209, 7). Kept operators minimal. Confidence 0.62 due to persistent risk premium for low residual vol.",
+            "implementation": "divide(quantile(rsk70_mfm2_usfast_resvol), quantile(specific_risk_variance))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Earnings-yield plus low leverage value trade",
+            "description": "Long stocks with high earnings yield (rsk70_mfm2_usfast_earnyild) and low leverage (rsk70_mfm2_usfast_leverage) to capture value with balance sheet safety. SUGGESTION1 used both fields. Coverage ~1 so no backfill. Both have high userCount (365, 214) per SUGGESTION4. Kept within operator/datafield limits. Confidence 0.7 given classic value-size robustness.",
+            "implementation": "subtract(quantile(rsk70_mfm2_usfast_earnyild), quantile(rsk70_mfm2_usfast_leverage))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Short-term reversal in 1-day factor",
+            "description": "Exploit short-term reversal by sign flip of 1-day reversal factor rsk70_mfm2_usfast_1drevrsl with ts_zscore smoothing. Used single high-coverage field (SUGGESTION1 single accepted). No vector fields. Coverage=1 so no ts_backfill. rsk70_1drevrsl has huge userCount (972) so SUGGESTION4 applied. Kept operators minimal. Confidence 0.66 due to strong short-term reversal evidence.",
+            "implementation": "reverse(ts_zscore(rsk70_mfm2_usfast_1drevrsl, 5))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Dividend-yield momentum overlay",
+            "description": "Favor high dividend-yield loading (rsk70_mfm2_usfast_divyild) stocks that also show rising momentum to capture yield+momo. Applied SUGGESTION1 with two fields if combining with momentum; here use dividend yield and momentum. Both coverages high, no ts_backfill. Used high userCount dividendYield (573) and momentum (109) per SUGGESTION4. Operators limited. Confidence 0.61 reflecting mixed evidence for combining yield and momentum.",
+            "implementation": "multiply(quantile(rsk70_mfm2_usfast_divyild), quantile(rsk70_mfm2_usfast_momentum))",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Hedge-fund crowding unwind",
+            "description": "Short stocks with extreme hedge_fund_ownership_percent after recent ts_delta in ownership suggests crowding. Use hedge_fund_ownership_percent and ts_delta of that percent. SUGGESTION1 applied. Coverage=1 so ts_backfill not used. Hedge fund fields have very high userCount (119). Kept operators within limits. Confidence 0.55 since ownership data updates infrequently.",
+            "implementation": "multiply(quantile(hedge_fund_ownership_percent), ts_zscore(ts_delta(hedge_fund_ownership_percent, 60), 60))",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Momentum neutralized by market beta",
+            "description": "Long momentum but neutralize exposure to market factor (rsk70_mfm2_usfast_market) to keep pure alpha. Uses rsk70_mfm2_usfast_momentum and rsk70_mfm2_usfast_market (SUGGESTION1). Coverage high; no backfill. Both have solid userCount (109 and 128). Kept operations simple. Confidence 0.63 as neutrality reduces factor drag.",
+            "implementation": "subtract(quantile(rsk70_mfm2_usfast_momentum), quantile(rsk70_mfm2_usfast_market))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Size-adjusted short-interest momentum",
+            "description": "Target small-cap stocks where short interest declines while momentum improves. Uses short_interest_factor_score and current_market_cap_usd. SUGGESTION1 applied. Both coverage=1; no ts_backfill. Short interest userCount=33, market cap userCount=15 satisfying SUGGESTION4. Implementation concise and within limits. Confidence 0.56 given mixed microcap liquidity.",
+            "implementation": "divide(subtract(quantile(ts_zscore(short_interest_factor_score,20)), quantile(ts_zscore(daily_specific_return,20))), quantile(current_market_cap_usd))",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Low-specific-risk quality long bias",
+            "description": "Long stocks with low specific risk (rsk70_mfm2_usfast_specret_daily_htcri proxy via specret field) and high management quality (rsk70_mfm2_usfast_mgmtqlty). Uses two fields. Applied SUGGESTION1 and selected higher userCount fields (mgmtqlty userCount=156). Coverage ~0.88 for mgmtqlty but >0.6 so no ts_backfill. Kept simple. Confidence 0.64 for quality factor persistence.",
+            "implementation": "multiply(quantile(rsk70_mfm2_usfast_mgmtqlty), inverse(quantile(rsk70_mfm2_usfast_specret_daily_lpmi)))",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "Long-term reversal scaled by size",
+            "description": "Exploit long-term reversal (rsk70_mfm2_usfast_ltrevrsl) strongest in small caps; scale by inverse size. Used long-term reversal and current_market_cap_usd (SUGGESTION1). Coverage high; no ts_backfill. Both have good userCounts (124,15). Keep operators minimal. Confidence 0.6 based on historical reversal literature.",
+            "implementation": "divide(quantile(rsk70_mfm2_usfast_ltrevrsl), quantile(current_market_cap_usd))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Earnings-quality momentum cross",
+            "description": "Favor stocks with rising earnings-quality loading (rsk70_mfm2_usfast_earnqlty) and improving prospect-specific returns. Uses earnqlty and rsk70_mfm2_usfast_prospect_specret_daily (SUGGESTION1). earnqlty coverage 0.9512 (>0.6) so no ts_backfill per SUGGESTION3. Applied SUGGESTION4 by using moderately high userCounts. Implementation compact. Confidence 0.59 reflecting data coverage caveat.",
+            "implementation": "multiply(quantile(rsk70_mfm2_usfast_earnqlty), quantile(rsk70_mfm2_usfast_prospect_specret_daily))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Sector-rotation via industry exposure divergence",
+            "description": "Long industries with rising industry exposure (e.g., semiconductors_exposure_score) and short declining industries (e.g., airlines_exposure_score). Use two exposures at a time (SUGGESTION1). No vectors. Coverage=1 so no ts_backfill. Chose fields with nonzero userCount. Kept operators under limits. Confidence 0.52 since sector timing is noisy.",
+            "implementation": "subtract(quantile(semiconductors_exposure_score), quantile(airlines_exposure_score))",
+            "confidence_level": 0.52
+        },
+        {
+            "idea": "Momentum x low-specific-risk overlay",
+            "description": "Long stocks that combine high momentum (rsk70_mfm2_usfast_momentum) but low specific risk (specific_risk_value_2) to improve risk-adjusted returns. SUGGESTION1 applied. Both coverage high so no backfill. UserCounts solid. Kept ops minimal. Confidence 0.67 due to improvement in Sharpe when avoiding high idiosyncratic risk.",
+            "implementation": "divide(quantile(rsk70_mfm2_usfast_momentum), quantile(specific_risk_value_2))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "Short crowded, high-specific-risk names",
+            "description": "Short stocks with high hedge_fund_ownership_percent and high specific_risk_variance to capture crowding + poor risk profile. Two fields used (SUGGESTION1). Coverage=1 so no backfill. Hedge fund userCount high. Operators few. Confidence 0.54 noting crowding unwinds risk.",
+            "implementation": "multiply(quantile(hedge_fund_ownership_percent), quantile(specific_risk_variance))",
+            "confidence_level": 0.54
+        },
+        {
+            "idea": "Price momentum minus sentiment",
+            "description": "Exploit momentum while removing sentiment-heavy stocks by subtracting sentiment loading (rsk70_mfm2_usfast_sentmt) from momentum. Two fields used (SUGGESTION1). Both cover high; no ts_backfill. Sentiment userCount high (603). Kept operators simple. Confidence 0.6 since sentiment can be noisy.",
+            "implementation": "subtract(quantile(rsk70_mfm2_usfast_momentum), quantile(rsk70_mfm2_usfast_sentmt))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Profitability scaled long-short",
+            "description": "Long high profit style loading (rsk70_mfm2_usfast_profit) and short low profit to capture profit premium. Single field used via quantile ranking (SUGGESTION1 minimal). Coverage 0.9756 (>0.6) so no backfill. UserCount high (288). Implementation compact. Confidence 0.68 as profit has stable premium.",
+            "implementation": "quantile(rsk70_mfm2_usfast_profit)",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Residual volatility mean-reversion",
+            "description": "Mean-revert extreme residual volatility (rsk70_mfm2_usfast_resvol) by shorting recent spikes measured by ts_zscore. Single field used per SUGGESTION1. Coverage=1; no ts_backfill. UserCount 209. Operators limited. Confidence 0.57 due to episodic behavior.",
+            "implementation": "reverse(ts_zscore(rsk70_mfm2_usfast_resvol, 30))",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Short-interest momentum cross",
+            "description": "Short stocks where short interest rises and momentum is negative: combine short_interest_factor_score and rsk70_mfm2_usfast_momentum (SUGGESTION1). Coverage high; no ts_backfill. Both userCounts moderate/high. Implementation uses subtract and multiply. Confidence 0.55 because signals can be offset by squeezes.",
+            "implementation": "multiply(quantile(short_interest_factor_score), reverse(quantile(rsk70_mfm2_usfast_momentum)))",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Low-beta earnings yield long",
+            "description": "Long stocks with high earnings yield and low market beta (rsk70_mfm2_usfast_earnyild and rsk70_mfm2_usfast_beta). SUGGESTION1 used. Coverage high; no ts_backfill. Both fields have good userCount. Operators minimal. Confidence 0.65 due to classic value-beta interaction.",
+            "implementation": "subtract(quantile(rsk70_mfm2_usfast_earnyild), quantile(rsk70_mfm2_usfast_beta))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Prospect momentum x low specific risk",
+            "description": "Long names with high prospect_specret_daily and low specific_risk_uncertainty to capture reliable positive surprises. Two fields used per SUGGESTION1. Coverage=1 so no backfill. UserCounts solid. Implementation simple. Confidence 0.62 given earnings surprise persistence.",
+            "implementation": "divide(quantile(rsk70_mfm2_usfast_prospect_specret_daily), quantile(specific_risk_uncertainty))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Short-term reversal in specret daily",
+            "description": "Reverse extreme daily specific returns measured by ts_zscore of rsk70_mfm2_usfast_specret_daily_lpmi. Single high-coverage field used (SUGGESTION1). Coverage=1 so no ts_backfill. UserCount high (302). Operators minimal. Confidence 0.6 due to short-term mean reversion evidence.",
+            "implementation": "reverse(ts_zscore(rsk70_mfm2_usfast_specret_daily_lpmi, 5))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Dividend-yield hedge fund arbitrage",
+            "description": "Short high hedge fund ownership in high dividend-yield names to capture overpricing from yield-chasing funds. Uses hedge_fund_ownership_percent and rsk70_mfm2_usfast_divyild. SUGGESTION1 applied. Coverage=1; no backfill. High userCounts. Operators minimal. Confidence 0.53 as dividend chasing can persist.",
+            "implementation": "multiply(quantile(hedge_fund_ownership_percent), quantile(rsk70_mfm2_usfast_divyild))",
+            "confidence_level": 0.53
+        },
+        {
+            "idea": "Momentum persistence in industry exposures",
+            "description": "Rank firms by recent ts_returns and then weight by industry exposure like semiconductors_exposure_score to capture industry-specific momentum. Uses two fields (SUGGESTION1). No vectors; coverage=1. UserCounts adequate. Kept operators limited. Confidence 0.59 because industry momentum can amplify returns.",
+            "implementation": "multiply(quantile(ts_returns(daily_specific_return, 20)), quantile(semiconductors_exposure_score))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Low specific risk + high management quality",
+            "description": "Long names with low specific_risk_value_2 and high mgmt quality (rsk70_mfm2_usfast_mgmtqlty). Two fields used (SUGGESTION1). mgmtqlty coverage 0.8817 (>0.6) so no backfill. Both userCounts reasonable. Operators minimal. Confidence 0.63 for stability premium.",
+            "implementation": "multiply(inverse(quantile(specific_risk_value_2)), quantile(rsk70_mfm2_usfast_mgmtqlty))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Short-term reversal scaled by residual risk",
+            "description": "Exploit short-term reversals in daily_specific_return but reduce exposure where residual volatility is high: use daily_specific_return and rsk70_mfm2_usfast_resvol. SUGGESTION1 applied. Coverage high; no ts_backfill. Operators limited. Confidence 0.56 given balancing of signals.",
+            "implementation": "divide(reverse(ts_zscore(daily_specific_return,5)), quantile(rsk70_mfm2_usfast_resvol))",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Prospect surprise momentum",
+            "description": "Long names with positive recent prospect_specret_monthly and rising regional momentum (rsk70_mfm2_usfast_regmom). Two fields used. Coverage=1 so ts_backfill not needed. UserCounts decent. Implementation concise. Confidence 0.58 given monthly horizon.",
+            "implementation": "multiply(quantile(rsk70_mfm2_usfast_prospect_specret_monthly), quantile(rsk70_mfm2_usfast_regmom))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Value x low downside risk",
+            "description": "Long high value loading (rsk70_mfm2_usfast_value) but penalize by downrisk (rsk70_mfm2_usfast_dwnrisk) to avoid value traps. Two fields used (SUGGESTION1). Coverage high; no backfill. Both userCounts solid. Operators minimal. Confidence 0.66 since value with lower downside shows stronger returns.",
+            "implementation": "subtract(quantile(rsk70_mfm2_usfast_value), quantile(rsk70_mfm2_usfast_dwnrisk))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Size-normalized momentum",
+            "description": "Capture momentum but normalize by size to avoid cap-weight bias: rsk70_mfm2_usfast_momentum / current_market_cap_usd. Two fields used. Coverage high so no backfill. UserCounts good. Implementation short and within limits. Confidence 0.62.",
+            "implementation": "divide(quantile(rsk70_mfm2_usfast_momentum), quantile(current_market_cap_usd))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Short names with rising specific risk uncertainty",
+            "description": "Short stocks where specific_risk_uncertainty increases and recent specific return is negative. Uses specific_risk_uncertainty and daily_specific_return (SUGGESTION1). Coverage=1 so no ts_backfill. UserCounts modest. Operators few. Confidence 0.50 because this can be noisy.",
+            "implementation": "multiply(quantile(specific_risk_uncertainty), reverse(quantile(daily_specific_return)))",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "Prospect specret momentum long-short",
+            "description": "Long names with positive prospect_specret_daily while short the negative tail. Single main field used with quantile ranking for a long-short implementation (SUGGESTION1). Coverage=1, userCount high (253). Operators minimal. Confidence 0.61 given persistence of prospect surprises.",
+            "implementation": "quantile(rsk70_mfm2_usfast_prospect_specret_daily)",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Short-interest spike mean-reversion",
+            "description": "Short-interest spikes often revert; take reverse of ts_zscore(short_interest_factor_score). Single field used. Coverage=1, no ts_backfill. UserCount 33. Implementation minimal. Confidence 0.52 due to occasional squeezes.",
+            "implementation": "reverse(ts_zscore(short_interest_factor_score, 20))",
+            "confidence_level": 0.52
+        },
+        {
+            "idea": "Earnings-yield x low leverage value long",
+            "description": "Enhance value by requiring high earnings yield and low leverage: combine rsk70_mfm2_usfast_earnyild and rsk70_mfm2_usfast_leverage (SUGGESTION1). Coverage high; no backfill. Operators few. Confidence 0.68 consistent with value/quality tradeoffs.",
+            "implementation": "multiply(quantile(rsk70_mfm2_usfast_earnyild), inverse(quantile(rsk70_mfm2_usfast_leverage)))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Market-neutral momentum using market loading",
+            "description": "Construct momentum but subtract market loading (rsk70_mfm2_usfast_market) to be market-neutral. Two fields used (SUGGESTION1). Coverage high; no backfill. Appropriate userCounts. Operators minimal. Confidence 0.63.",
+            "implementation": "subtract(quantile(rsk70_mfm2_usfast_momentum), quantile(rsk70_mfm2_usfast_market))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Low-specific-risk hedge-fund long bias",
+            "description": "Long names with moderate hedge_fund_ownership_percent but low specific_risk_variance to capture stable fund-backed companies. Two fields used. Coverage high; no backfill. Hedge fund userCount very high. Operators minimal. Confidence 0.57 given mixed evidence.",
+            "implementation": "divide(quantile(hedge_fund_ownership_percent), quantile(specific_risk_variance))",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Shorting high-sentiment, negative-momentum stocks",
+            "description": "Short stocks with high sentiment loading and negative momentum. Uses rsk70_mfm2_usfast_sentmt and rsk70_mfm2_usfast_momentum (SUGGESTION1). Both coverage=1; sentiment userCount large. Operators limited. Confidence 0.55 because sentiment can lag.",
+            "implementation": "multiply(quantile(rsk70_mfm2_usfast_sentmt), reverse(quantile(rsk70_mfm2_usfast_momentum)))",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "High-specific-return continuation in semiconductors",
+            "description": "Within semiconductor-exposed firms, favor those with positive recent specific return. Uses semiconductors_exposure_score and daily_specific_return (SUGGESTION1). Coverage=1 so no backfill. semiconductors userCount=6. Kept operators simple. Confidence 0.56 due to sector cyclicality.",
+            "implementation": "multiply(quantile(semiconductors_exposure_score), quantile(ts_zscore(daily_specific_return, 20)))",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Low downside-risk restaurant longs",
+            "description": "Long restaurant_industry_exposure_score names with low downrisk (rsk70_mfm2_usfast_dwnrisk) to target resilient consumer services. Two fields used. Coverage=1; no ts_backfill. Operators minimal. Confidence 0.53 due to consumer cyclicality.",
+            "implementation": "subtract(quantile(restaurant_industry_exposure_score), quantile(rsk70_mfm2_usfast_dwnrisk))",
+            "confidence_level": 0.53
+        },
+        {
+            "idea": "Short-run momentum fade in net retail",
+            "description": "Short net_retail_exposure_score names with extreme short-term momentum reversals measured by ts_zscore of daily_specific_return. Uses two fields (SUGGESTION1). Coverage=1; no backfill. Implementation concise. Confidence 0.51 as retail moves can be volatile.",
+            "implementation": "multiply(quantile(net_retail_exposure_score), reverse(ts_zscore(daily_specific_return,5)))",
+            "confidence_level": 0.51
+        },
+        {
+            "idea": "Leverage-adjusted value",
+            "description": "Prefer value (rsk70_mfm2_usfast_value) but penalize high leverage (rsk70_mfm2_usfast_leverage). Two fields used (SUGGESTION1). Coverage high; no backfill. Operators minimal. Confidence 0.64.",
+            "implementation": "subtract(quantile(rsk70_mfm2_usfast_value), quantile(rsk70_mfm2_usfast_leverage))",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "Short names with high specific risk and low profit",
+            "description": "Short combination of high specific_risk_variance and low profit loading to avoid low-quality risky firms. Two fields used per SUGGESTION1. Coverage=1; userCounts good. Operators limited. Confidence 0.58.",
+            "implementation": "multiply(quantile(specific_risk_variance), reverse(quantile(rsk70_mfm2_usfast_profit)))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Momentum scaled by short interest decline",
+            "description": "Favor momentum leaders where short interest is falling (ts_delta short_interest_factor_score negative). Uses short_interest_factor_score and momentum. SUGGESTION1 applied. Coverage=1; userCounts robust. Operators kept few. Confidence 0.57.",
+            "implementation": "multiply(quantile(rsk70_mfm2_usfast_momentum), reverse(ts_zscore(ts_delta(short_interest_factor_score,30),30)))",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Quality-growth cross",
+            "description": "Long stocks with high earnings quality (earnqlty) and high growth loading (rsk70_mfm2_usfast_growth). Two fields used per SUGGESTION1. earnqlty coverage 0.9512 (>0.6) so no backfill. Both userCounts decent. Operators minimal. Confidence 0.65.",
+            "implementation": "multiply(quantile(rsk70_mfm2_usfast_earnqlty), quantile(rsk70_mfm2_usfast_growth))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Residual volatility x short interest",
+            "description": "Short names with both high residual volatility and high short interest, capturing risky, heavily bet names. Two fields used (SUGGESTION1). Coverage=1; userCounts adequate. Operators minimal. Confidence 0.56.",
+            "implementation": "multiply(quantile(rsk70_mfm2_usfast_resvol), quantile(short_interest_factor_score))",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Prospect monthly reversal",
+            "description": "Reverse extreme monthly prospect-specific returns via reverse(ts_zscore) on rsk70_mfm2_usfast_prospect_specret_monthly. Single field used (SUGGESTION1). Coverage=1; userCount 195. Implementation minimal. Confidence 0.54 as monthly reversals can be noisy.",
+            "implementation": "reverse(ts_zscore(rsk70_mfm2_usfast_prospect_specret_monthly, 3))",
+            "confidence_level": 0.54
+        },
+        {
+            "idea": "High-dividend, low-residual-volatility long",
+            "description": "Long names with high dividend yield loading and low residual volatility to capture yield with lower drawdown. Uses rsk70_mfm2_usfast_divyild and rsk70_mfm2_usfast_resvol. Coverage high. UserCounts good. Operators under limits. Confidence 0.60.",
+            "implementation": "divide(quantile(rsk70_mfm2_usfast_divyild), quantile(rsk70_mfm2_usfast_resvol))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-term argmax momentum trigger",
+            "description": "Go long when ts_arg_max(daily_specific_return,5)=0 indicating current is 5-day max; short otherwise. Uses single field daily_specific_return. SUGGESTION1 minimal. Coverage=1; userCount 22. Uses ts_arg_max operator which is in list. Confidence 0.58.",
+            "implementation": "if_else(equal(ts_arg_max(daily_specific_return,5), 0), quantile(daily_specific_return), reverse(quantile(daily_specific_return)))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Industry momentum with earnings-quality filter",
+            "description": "Favor industry-exposed stocks (e.g., building_products_exposure_score) that also have high earnings-quality (earnqlty). Two fields used (SUGGESTION1). earnqlty coverage 0.9512; no ts_backfill. Chosen fields have moderate userCounts. Operators minimal. Confidence 0.55.",
+            "implementation": "multiply(quantile(building_products_exposure_score), quantile(rsk70_mfm2_usfast_earnqlty))",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Momentum scaled by specific risk uncertainty",
+            "description": "Scale momentum signal by inverse of specific_risk_uncertainty to favor more certain momentum. Uses rsk70_mfm2_usfast_momentum and specific_risk_uncertainty (SUGGESTION1). Coverage=1; userCounts robust. Operators within limits. Confidence 0.61.",
+            "implementation": "divide(quantile(rsk70_mfm2_usfast_momentum), quantile(specific_risk_uncertainty))",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Short-term reversal in high-hedge-fund names",
+            "description": "Apply short-term reversal to daily_specific_return but only for high hedge_fund_ownership_percent names. Two fields used (SUGGESTION1). Coverage=1; hedge fund field userCount high. Use trade_when-like filter via multiply and quantile thresholding. Kept operators simple. Confidence 0.53.",
+            "implementation": "multiply(reverse(ts_zscore(daily_specific_return,5)), quantile(hedge_fund_ownership_percent))",
+            "confidence_level": 0.53
+        },
+        {
+            "idea": "Size-neutral short interest premium",
+            "description": "Rank by short_interest_factor_score but neutralize by size using divide by current_market_cap_usd. Two fields used. Coverage high; no ts_backfill. Operators minimal. Confidence 0.57.",
+            "implementation": "divide(quantile(short_interest_factor_score), quantile(current_market_cap_usd))",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Value x low-specific-return variance",
+            "description": "Favor value loading but penalize names with volatile specific returns (rsk70_mfm2_usfast_specret_daily_lpmi variance proxy). Uses rsk70_mfm2_usfast_value and rsk70_mfm2_usfast_specret_daily_lpmi. SUGGESTION1 applied. Both coverages=~1; no backfill. Operators concise. Confidence 0.63.",
+            "implementation": "subtract(quantile(rsk70_mfm2_usfast_value), ts_std_dev(rsk70_mfm2_usfast_specret_daily_lpmi, 60))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Momentum trimmed by specific risk variance",
+            "description": "Trim momentum signal where specific_risk_variance is high to avoid idiosyncratic blowups. Two fields used per SUGGESTION1. Coverage=1; userCounts adequate. Implementation uses divide. Confidence 0.60.",
+            "implementation": "divide(quantile(rsk70_mfm2_usfast_momentum), quantile(specific_risk_variance))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Long low-shortint, high-profit names",
+            "description": "Combine low short interest and high profit loading to find safe long exposures. Uses short_interest_factor_score and rsk70_mfm2_usfast_profit. SUGGESTION1 applied. Coverage=1; userCounts solid. Kept operators minimal. Confidence 0.59.",
+            "implementation": "multiply(reverse(quantile(short_interest_factor_score)), quantile(rsk70_mfm2_usfast_profit))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Trade on sudden drops in hedge-fund ownership",
+            "description": "Buy names where hedge_fund_ownership_percent has large negative ts_delta indicating potential forced selling and mean-reversion. Uses hedge_fund_ownership_percent with ts_delta. SUGGESTION1 applied. Coverage=1; hedge fund userCount high. Operators minimal. Confidence 0.52.",
+            "implementation": "reverse(ts_zscore(ts_delta(hedge_fund_ownership_percent,30),30))",
+            "confidence_level": 0.52
+        },
+        {
+            "idea": "Value x momentum combination",
+            "description": "Classic combining high value (rsk70_mfm2_usfast_value) and positive momentum to capture complementary premiums. Two fields used (SUGGESTION1). Coverage high; userCounts large. Implementation concise. Confidence 0.69 as combo is robust historically.",
+            "implementation": "multiply(quantile(rsk70_mfm2_usfast_value), quantile(rsk70_mfm2_usfast_momentum))",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Low residual vol x high management quality",
+            "description": "Long low residual volatility with high management quality to tilt toward stable, well-run firms. Uses rsk70_mfm2_usfast_resvol and rsk70_mfm2_usfast_mgmtqlty. SUGGESTION1 applied. Coverage high; userCounts adequate. Operators minimal. Confidence 0.62.",
+            "implementation": "multiply(inverse(quantile(rsk70_mfm2_usfast_resvol)), quantile(rsk70_mfm2_usfast_mgmtqlty))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Short high-specific-return outliers in small caps",
+            "description": "Short tiny caps with extreme positive daily_specific_return (potential pump) using current_market_cap_usd and daily_specific_return. Two fields used (SUGGESTION1). Coverage=1; userCounts reasonable. Operators minimal. Confidence 0.48 due to noisy small-cap signals.",
+            "implementation": "multiply(quantile(daily_specific_return), inverse(quantile(current_market_cap_usd)))",
+            "confidence_level": 0.48
+        },
+        {
+            "idea": "Earnings-yield neutralized by prospect surprise",
+            "description": "Favor high earnings yield but penalize if prospect_specret_monthly is negative to avoid deteriorating prospects. Uses rsk70_mfm2_usfast_earnyild and rsk70_mfm2_usfast_prospect_specret_monthly. SUGGESTION1 used. Coverage high. Operators within limits. Confidence 0.60.",
+            "implementation": "subtract(quantile(rsk70_mfm2_usfast_earnyild), reverse(quantile(rsk70_mfm2_usfast_prospect_specret_monthly)))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short names with high specific risk uncertainty and low profit",
+            "description": "Combine specific_risk_uncertainty and reverse profit loading to short dubious low-profit risky firms. Two fields used (SUGGESTION1). Coverage ok. Operators minimal. Confidence 0.55.",
+            "implementation": "multiply(quantile(specific_risk_uncertainty), reverse(quantile(rsk70_mfm2_usfast_profit)))",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Momentum conditioned on low hedge-fund ownership",
+            "description": "Give more weight to momentum signals in stocks with low hedge fund ownership to avoid crowding. Uses rsk70_mfm2_usfast_momentum and hedge_fund_ownership_percent. SUGGESTION1 applied. Coverage=1. Operators limited. Confidence 0.58.",
+            "implementation": "multiply(quantile(rsk70_mfm2_usfast_momentum), reverse(quantile(hedge_fund_ownership_percent)))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Short extreme sentiment names with weak profit",
+            "description": "Short names with very high sentiment loading but low profit to capture fashionable poor-quality firms. Uses rsk70_mfm2_usfast_sentmt and rsk70_mfm2_usfast_profit. SUGGESTION1 applied. Coverage=1; userCounts large. Operators minimal. Confidence 0.54.",
+            "implementation": "multiply(quantile(rsk70_mfm2_usfast_sentmt), reverse(quantile(rsk70_mfm2_usfast_profit)))",
+            "confidence_level": 0.54
+        },
+        {
+            "idea": "Sector momentum across exposures",
+            "description": "Rank sectors by average ts_returns (approx via specific returns weighted by exposure like automotive exposure) to capture sector rotation. Uses automobiles_exposure_score and ts_returns(daily_specific_return,20). Two fields used (SUGGESTION1). Coverage=1. Operators within limits. Confidence 0.50 because sector timing is challenging.",
+            "implementation": "multiply(quantile(automobiles_exposure_score), quantile(ts_returns(daily_specific_return,20)))",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "High short interest x jump in residual vol",
+            "description": "Short names where short interest is high and residual volatility spikes; uses short_interest_factor_score and ts_zscore(rsk70_mfm2_usfast_resvol). Two fields used. Coverage=1; ops minimal. Confidence 0.53.",
+            "implementation": "multiply(quantile(short_interest_factor_score), ts_zscore(rsk70_mfm2_usfast_resvol, 20))",
+            "confidence_level": 0.53
+        },
+        {
+            "idea": "Momentum vs. prospect divergence",
+            "description": "Long stocks with momentum but negative prospect_specret_monthly may indicate mispricing; combine momentum and prospect fields to detect divergence. Two fields used. Coverage high. Operators simple. Confidence 0.49 as this is speculative.",
+            "implementation": "subtract(quantile(rsk70_mfm2_usfast_momentum), quantile(rsk70_mfm2_usfast_prospect_specret_monthly))",
+            "confidence_level": 0.49
+        },
+        {
+            "idea": "Short-term argmin contrarian",
+            "description": "Buy when daily_specific_return is ts_arg_min over 5 days (extreme short-term loser) expecting bounce. Single field used. Coverage=1. Uses ts_arg_min operator. Implementation short and compliant. Confidence 0.56.",
+            "implementation": "if_else(equal(ts_arg_min(daily_specific_return,5), 0), quantile(daily_specific_return), reverse(quantile(daily_specific_return)))",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Low-specific-risk telecom longs",
+            "description": "Long wireless_communications_exposure_score names with low specific risk variance to favor stable telecoms. Two fields used. Coverage=1. Operators minimal. Confidence 0.52.",
+            "implementation": "multiply(quantile(wireless_communications_exposure_score), inverse(quantile(specific_risk_variance)))",
+            "confidence_level": 0.52
+        },
+        {
+            "idea": "Hedge-fund ownership deceleration mean reversion",
+            "description": "Long stocks where hedge_fund_ownership_percent ts_delta is strongly negative (selling) anticipating a rebound. Uses hedge_fund_ownership_percent with ts_zscore(ts_delta). SUGGESTION1 applied. Coverage=1; high userCount. Operators few. Confidence 0.51.",
+            "implementation": "reverse(ts_zscore(ts_delta(hedge_fund_ownership_percent,60),60))",
+            "confidence_level": 0.51
+        },
+        {
+            "idea": "Value neutralized by sentiment",
+            "description": "Long high value loading but penalize high sentiment to avoid momentum bubbles. Uses rsk70_mfm2_usfast_value and rsk70_mfm2_usfast_sentmt. SUGGESTION1 applied. Both high coverage. Operators minimal. Confidence 0.60.",
+            "implementation": "subtract(quantile(rsk70_mfm2_usfast_value), quantile(rsk70_mfm2_usfast_sentmt))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short names with rising prospect specret and negative momentum",
+            "description": "Short names where prospect_specret_daily rises but momentum is negative (possible short-squeeze rumor). Uses prospect_specret_daily and momentum. SUGGESTION1 applied. Coverage=1. Operators minimal. Confidence 0.46 due to speculative nature.",
+            "implementation": "multiply(quantile(rsk70_mfm2_usfast_prospect_specret_daily), reverse(quantile(rsk70_mfm2_usfast_momentum)))",
+            "confidence_level": 0.46
+        },
+        {
+            "idea": "Low residual vol dividend longs",
+            "description": "Long high dividend yield and low residual volatility names to capture defensive income returns. Uses rsk70_mfm2_usfast_divyild and rsk70_mfm2_usfast_resvol. SUGGESTION1 used. Coverage high. Operators few. Confidence 0.60.",
+            "implementation": "divide(quantile(rsk70_mfm2_usfast_divyild), quantile(rsk70_mfm2_usfast_resvol))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-interest x negative prospect monthly",
+            "description": "Short names with high short interest and negative prospect_specret_monthly as they may be structurally weak. Uses short_interest_factor_score and prospect_specret_monthly. SUGGESTION1 applied. Coverage=1. Operators minimal. Confidence 0.52.",
+            "implementation": "multiply(quantile(short_interest_factor_score), reverse(quantile(rsk70_mfm2_usfast_prospect_specret_monthly)))",
+            "confidence_level": 0.52
+        },
+        {
+            "idea": "Momentum x low-specific-risk in biotech",
+            "description": "Within biotech exposure (biotechnology_life_sciences_exposure_score) favor names with momentum but low specific risk to avoid binary risk. Uses two fields. SUGGESTION1 applied. Coverage=1. Operators minimal. Confidence 0.54.",
+            "implementation": "multiply(quantile(biotechnology_life_sciences_exposure_score), divide(quantile(rsk70_mfm2_usfast_momentum), quantile(specific_risk_value_2)))",
+            "confidence_level": 0.54
+        },
+        {
+            "idea": "Value weighted by hedge-fund ownership",
+            "description": "Prefer value names with low hedge-fund ownership to avoid crowded value trades. Uses rsk70_mfm2_usfast_value and hedge_fund_ownership_percent (SUGGESTION1). Coverage=1. Operators simple. Confidence 0.59.",
+            "implementation": "multiply(quantile(rsk70_mfm2_usfast_value), reverse(quantile(hedge_fund_ownership_percent)))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Short extreme specific_return spikes",
+            "description": "Short names showing extreme positive daily_specific_return spikes (ts_zscore) which often mean-revert. Single field used. Coverage=1; userCount 22. Operators minimal. Confidence 0.53.",
+            "implementation": "reverse(ts_zscore(daily_specific_return, 3))",
+            "confidence_level": 0.53
+        },
+        {
+            "idea": "Prospect-specret hedged by market beta",
+            "description": "Long positive prospect_specret_daily but hedge by market loading rsk70_mfm2_usfast_market to reduce market exposure. Uses two fields. Coverage=1. Operators limited. Confidence 0.60.",
+            "implementation": "subtract(quantile(rsk70_mfm2_usfast_prospect_specret_daily), quantile(rsk70_mfm2_usfast_market))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Long low shortinterest, low residual-volatility",
+            "description": "Combine low short_interest_factor_score and low rsk70_mfm2_usfast_resvol for defensive longs. Two fields used. Coverage=1. Operators minimal. Confidence 0.58.",
+            "implementation": "multiply(reverse(quantile(short_interest_factor_score)), inverse(quantile(rsk70_mfm2_usfast_resvol)))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Momentum filtered by specific risk variance threshold",
+            "description": "Apply momentum only if specific_risk_variance below threshold by multiplying momentum with inverse variance. Two fields used. Coverage=1. Operators minimal. Confidence 0.60.",
+            "implementation": "multiply(quantile(rsk70_mfm2_usfast_momentum), inverse(quantile(specific_risk_variance)))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short extreme hedge-fund crowded speculative names",
+            "description": "Short names with very high hedge_fund_ownership_percent and low profit to target crowded low-quality equities. Two fields used. Coverage=1. Operators minimal. Confidence 0.52.",
+            "implementation": "multiply(quantile(hedge_fund_ownership_percent), reverse(quantile(rsk70_mfm2_usfast_profit)))",
+            "confidence_level": 0.52
+        },
+        {
+            "idea": "Momentum with winsorized specific returns",
+            "description": "Use winsorized daily_specific_return ts_zscore to reduce outlier influence, then apply momentum ranking. Single datafield used with winsorize and ts_zscore. SUGGESTION1 minimal; no backfill needed. Keeps ops low. Confidence 0.61.",
+            "implementation": "ts_zscore(winsorize(daily_specific_return, std=4), 20)",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "High-management-quality dividend longs",
+            "description": "Long names with high management quality and decent dividend yield loading. Uses rsk70_mfm2_usfast_mgmtqlty and rsk70_mfm2_usfast_divyild (SUGGESTION1). Coverage high; no backfill. Operators minimal. Confidence 0.57.",
+            "implementation": "multiply(quantile(rsk70_mfm2_usfast_mgmtqlty), quantile(rsk70_mfm2_usfast_divyild))",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Short midcap high residual vol",
+            "description": "Short midcap stocks (rsk70_mfm2_usfast_midcap) with high residual volatility to capture risk premium. Uses midcap and resvol. SUGGESTION1 applied. Coverage=1. Operators minimal. Confidence 0.50.",
+            "implementation": "multiply(quantile(rsk70_mfm2_usfast_midcap), quantile(rsk70_mfm2_usfast_resvol))",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "Earnings-quality minus sentiment",
+            "description": "Long stocks with high earnqlty but low sentiment to avoid frothy names. Uses rsk70_mfm2_usfast_earnqlty and rsk70_mfm2_usfast_sentmt. earnqlty coverage 0.9512 but >0.6 so no ts_backfill. Operators minimal. Confidence 0.62.",
+            "implementation": "subtract(quantile(rsk70_mfm2_usfast_earnqlty), quantile(rsk70_mfm2_usfast_sentmt))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Short-term reversal in 1-day reversal within industries",
+            "description": "Use rsk70_mfm2_usfast_1drevrsl reversed to capture one-day mean reversion, optionally weighted by industry exposure; here single field used for simplicity (SUGGESTION1). Coverage=1; userCount very high. Operators minimal. Confidence 0.64.",
+            "implementation": "reverse(ts_zscore(rsk70_mfm2_usfast_1drevrsl, 3))",
+            "confidence_level": 0.64
+        }
+    ]
+}
