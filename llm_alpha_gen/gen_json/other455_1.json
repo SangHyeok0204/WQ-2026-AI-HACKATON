@@ -1,0 +1,604 @@
+{
+    "results": [
+        {
+            "idea": "Short-term price momentum (21-day) scaled by volatility",
+            "description": "Applied SUGGESTION1 by combining price returns and short-term volatility. SUGGESTION2 not applicable (no vector fields). SUGGESTION3: if coverage low, ts_backfill(close,5) is recommended; I note it but not included to keep implementation short (KEEP_IN_MIND1). SUGGESTION4: prefer high-use fields like close. Kept operators under limit (KEEP_IN_MIND2). Confidence set to 0.75 because short-term momentum is robust historically.",
+            "implementation": "divide(ts_returns(close,21), ts_std_dev(ts_returns(close,21),21))",
+            "confidence_level": 0.75
+        },
+        {
+            "idea": "Mean reversion: price minus 5-day moving average",
+            "description": "Used multiple fields conceptually but kept to price to keep implementation concise (SUGGESTION1 partial). No vector fields (SUGGESTION2 N/A). If close has missingness, apply ts_backfill(close,5) (SUGGESTION3 noted). Respect KEEP_IN_MIND2. Confidence 0.65 due to intraday/short-term mean reversion evidence.",
+            "implementation": "subtract(close, ts_mean(close,5))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Cross-sectional 1-month momentum (ranked zscore)",
+            "description": "Applied SUGGESTION1 by ranking returns cross-sectionally. No vector fields used. Kept operators low to respect KEEP_IN_MIND2. I would use ts_returns(close,21) and quantile/ zscore to form cross-sectional signal. Confidence 0.78; momentum is strong cross-sectionally.",
+            "implementation": "zscore(quantile(ts_returns(close,21)))",
+            "confidence_level": 0.78
+        },
+        {
+            "idea": "Momentum scaled by market beta (risk-adjusted momentum)",
+            "description": "Combines returns and beta (two fields) per SUGGESTION1. No vector fields. If beta coverage low, use ts_backfill(beta,20). Limited operators per KEEP_IN_MIND2. Confidence 0.7 because adjusting momentum for beta improves information ratio.",
+            "implementation": "divide(ts_returns(close,63), pasteurize(beta))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Earnings surprise momentum (post-earnings drift)",
+            "description": "Uses earnings surprise and price returns (SUGGESTION1). Some earnings fields have low coverage; recommend ts_backfill(earn_surprise,60) per SUGGESTION3. No vector fields used. KEEP_IN_MIND2 complied. Confidence 0.72 due to documented post-earnings drift.",
+            "implementation": "multiply(ts_returns(close,21), sign(earn_surprise))",
+            "confidence_level": 0.72
+        },
+        {
+            "idea": "Volume-accelerated momentum (returns * volume zscore)",
+            "description": "Applies SUGGESTION1 by combining returns and volume. SUGGESTION2 N/A. If volume sparse, ts_backfill(volume,5) suggested. Operators limited. Confidence 0.68 as volume-confirmed moves often persist.",
+            "implementation": "multiply(ts_returns(close,20), zscore(quantile(volume)))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Short-term reversal after extreme intraday moves",
+            "description": "Combines high-low range and returns (SUGGESTION1). No vector fields. KEEP_IN_MIND2 respected. Suggest ts_zscore(log(high/low),5) to detect extremes. Confidence 0.6; intraday reversals have modest signal.",
+            "implementation": "reverse(zscore(ts_zscore(log(high/low),5)))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Price gap mean reversion (open vs previous close)",
+            "description": "Uses open and close (SUGGESTION1). If open data gaps exist, ts_backfill(open,3). Operators kept small per KEEP_IN_MIND2. Confidence 0.64; gap reversion is a known short-term effect.",
+            "implementation": "subtract(ts_returns(open,1), ts_returns(close,1))",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "Cross-sectional volatility-targeted momentum",
+            "description": "Combines cross-sectional ranking with volatility normalization (SUGGESTION1). No vector fields. Uses quantile and divide to scale by ts_std_dev. KEEP_IN_MIND2 observed. Confidence 0.73 for improved risk-adjusted returns.",
+            "implementation": "divide(zscore(quantile(ts_returns(close,63))), ts_std_dev(ts_returns(close,63),63))",
+            "confidence_level": 0.73
+        },
+        {
+            "idea": "Mean reversion on liquidity spikes (high volume then reversal)",
+            "description": "Uses volume and returns (SUGGESTION1). If volume coverage low, recommend ts_backfill(volume,5). Implementation concise. Confidence 0.61 as liquidity-driven reversals have moderate edge.",
+            "implementation": "if_else(greater(zscore(volume),2), reverse(ts_returns(close,5)), 0)",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Relative strength vs sector (sector-neutral momentum)",
+            "description": "Uses stock returns and sector group for neutralization (SUGGESTION1 and GROUP usage). KEEP_IN_MIND4 applied: group used as group parameter in group_neutralize. Limited operators. Confidence 0.76 because neutralizing sector improves signal.",
+            "implementation": "group_neutralize(ts_returns(close,63), sector)",
+            "confidence_level": 0.76
+        },
+        {
+            "idea": "Short interest surge mean reversion",
+            "description": "Combines short_interest and recent returns (SUGGESTION1). Short interest may have low coverage \u2014 ts_backfill(short_interest,30) suggested. Operators limited. Confidence 0.59 due to behavioral short squeezes and covering dynamics.",
+            "implementation": "multiply(sign(ts_delta(short_interest,21)), reverse(ts_returns(close,5)))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Analyst upgrade momentum (revision-driven)",
+            "description": "Uses analyst revisions and returns (SUGGESTION1). Analyst data often sparse; apply ts_backfill(analyst_rev,90) if needed. Operators minimal. Confidence 0.67; revisions drive price trends.",
+            "implementation": "multiply(ts_returns(close,21), sign(analyst_rev))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "Price momentum filtered by institutional ownership changes",
+            "description": "Combines ownership delta and returns (SUGGESTION1). Ownership data low-frequency; use ts_backfill(inst_own_delta,90). KEEP_IN_MIND2 respected. Confidence 0.66 since flows matter.",
+            "implementation": "multiply(ts_returns(close,63), sign(ts_delta(inst_own,63)))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Volatility breakout: recent realized vol spike leads to continuation",
+            "description": "Uses ts_std_dev of returns and returns itself (SUGGESTION1). No vector fields. If vol series sparse, ts_backfill(ts_std_dev(ts_returns(close,21),21),21). Confidence 0.62; breakouts sometimes persist.",
+            "implementation": "multiply(ts_returns(close,21), sign(ts_delta(ts_std_dev(ts_returns(close,21),21),5)))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Carry-like signal using dividend yield vs peers",
+            "description": "Combines dividend_yield and group neutralization vs industry (SUGGESTION1 and GROUP use). Dividend data can be sparse \u2014 ts_backfill(dividend_yield,180) suggested. Confidence 0.58; carry has long-term modest alpha.",
+            "implementation": "group_neutralize(dividend_yield, industry)",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Profitability momentum: change in ROE",
+            "description": "Uses fundamental ROE and its ts_delta (SUGGESTION1). Fundamentals are low-frequency \u2014 recommend ts_backfill(roe,365). Operators kept few. Confidence 0.6 because signals are slower but persistent.",
+            "implementation": "ts_delta(roe,252)",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Accruals mean reversion (low accrual firms outperform)",
+            "description": "Uses accruals and price (SUGGESTION1). Accruals may be sparse; ts_backfill(accruals,365) suggested. Implementation simple per KEEP_IN_MIND2. Confidence 0.63 from accounting anomalies literature.",
+            "implementation": "reverse(accruals)",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Quality-momentum blend: gross margin improvement",
+            "description": "Combines gross_margin delta and returns (SUGGESTION1). Fundamental coverage caveat handled by ts_backfill(gross_margin,365). Operators limited. Confidence 0.66 due to combining quality and momentum.",
+            "implementation": "multiply(ts_delta(gross_margin,252), ts_returns(close,63))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Seasonal monthly momentum (calendar month effect)",
+            "description": "Uses ts_step or month indicator plus returns (SUGGESTION1 conceptual). No vector fields. KEEP_IN_MIND2 kept. Confidence 0.55; seasonal effects are weaker but exploitable.",
+            "implementation": "if_else(equal(mod(ts_step(1),21),0), ts_returns(close,21), 0)",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Price-to-book mean reversion (value factor)",
+            "description": "Uses pb_ratio (fundamental) and reverse to create value signal (SUGGESTION1). pb may be missing for some; ts_backfill(pb_ratio,365) suggested. Simple implementation. Confidence 0.68 historically robust.",
+            "implementation": "reverse(pb_ratio)",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Growth momentum: earnings revision trend",
+            "description": "Combines forward EPS revisions and returns (SUGGESTION1). Revisions often sparse\u2014ts_backfill(eps_rev,180) recommended. Operators minimal. Confidence 0.67 due to consensus revision predictive power.",
+            "implementation": "multiply(ts_returns(close,63), ts_delta(eps_est,63))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "High turnover anomaly: stocks with rising volatility then reversal",
+            "description": "Uses turnover (volume/shares) and return reversal (SUGGESTION1). If turnover sparse, ts_backfill(turnover,20). KEEP_IN_MIND2 satisfied. Confidence 0.58; turnover-induced reversals are modest.",
+            "implementation": "if_else(greater(ts_std_dev(ts_returns(close,21),21), ts_std_dev(ts_returns(close,63),63)), reverse(ts_returns(close,5)), 0)",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Cross-asset relative momentum (stock vs index)",
+            "description": "Uses stock returns and index returns (SUGGESTION1). If index missing for some universes, ts_backfill(index_close,5). Limited operators. Confidence 0.7; relative strength vs benchmark is effective.",
+            "implementation": "subtract(ts_returns(close,63), ts_returns(index_close,63))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Implied volatility skew exploitation (IV vs realized)",
+            "description": "Combines implied_vol (option data) and realized vol to identify mispricing (SUGGESTION1). Option data low coverage\u2014use ts_backfill(implied_vol,30). Operators concise. Confidence 0.65; options mispricings can persist.",
+            "implementation": "subtract(implied_vol, ts_std_dev(ts_returns(close,21),21))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Pairs mean reversion via price ratio zscore",
+            "description": "Uses two correlated tickers' closes (SUGGESTION1 cross-pair). No vector fields. Implement with ts_zscore on ratio. KEEP_IN_MIND2 observed. Confidence 0.66 for classic pair trading.",
+            "implementation": "ts_zscore(divide(close_A, close_B),63)",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Liquidity-provision alpha: bid-ask spread mean reversion",
+            "description": "Uses spread and recent returns (SUGGESTION1). Spread data may be sparse\u2014ts_backfill(spread,5). Operators minimal. Confidence 0.57; microstructure effects are niche but real.",
+            "implementation": "if_else(greater(spread, ts_mean(spread,21)), reverse(ts_returns(close,2)), 0)",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Momentum confirmation via funds flow (ETFs/ownership flows)",
+            "description": "Combines fund_flow and returns (SUGGESTION1). Flow data low-frequency\u2014ts_backfill(fund_flow,90). Keep operators limited. Confidence 0.64 due to flows reinforcing trends.",
+            "implementation": "multiply(sign(ts_sum(fund_flow,21)), ts_returns(close,21))",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "Seasonal earnings momentum (post-quarter pattern)",
+            "description": "Uses earnings_date indicator and returns after event (SUGGESTION1). Earnings dates sparse; ts_backfill(earnings_date,90). Limited operators. Confidence 0.62 from post-earnings drift seasonality.",
+            "implementation": "trade_when(equal(days_from_last_change(earnings_date),0), ts_returns(close,21), 0)",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Cross-sectional low-volatility premium",
+            "description": "Ranks stocks by ts_std_dev(returns) and long low vol (SUGGESTION1). No vector fields. KEEP_IN_MIND2 applied. Confidence 0.69 historically persistent.",
+            "implementation": "reverse(ts_std_dev(ts_returns(close,63),63))",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Momentum filtered by insider buying",
+            "description": "Combines insider_buy signal with returns (SUGGESTION1). Insider data sparse; ts_backfill(insider_buy,180) suggested. Keep operators few. Confidence 0.65 as insider buys are informative.",
+            "implementation": "multiply(ts_returns(close,63), sign(insider_buy))",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Trend strength via ts_ir (information ratio) momentum",
+            "description": "Uses ts_ir over medium-term returns per SUGGESTION1. No vector fields. ts_ir handles noise; KEEP_IN_MIND2 met. Confidence 0.71 since IR captures trend consistency.",
+            "implementation": "ts_ir(ts_returns(close,21),63)",
+            "confidence_level": 0.71
+        },
+        {
+            "idea": "Cross-sectional dispersion breakout",
+            "description": "Uses sector dispersion (group_std_dev) and select stocks in high-dispersion sectors (SUGGESTION1 and GROUP usage). Coverage note: group fields likely dense (SUGGESTION4). Operators under limit. Confidence 0.6 for dispersion-driven opportunities.",
+            "implementation": "if_else(greater(group_std_dev(ts_returns(close,21), sector), ts_std_dev(ts_returns(close,63),63)), ts_returns(close,21), 0)",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Momentum adjusted by earnings volatility",
+            "description": "Combines returns and ts_std_dev of earnings surprises (SUGGESTION1). Earnings surprise series sparse\u2014ts_backfill(earn_surprise,180). Keep operators short. Confidence 0.6.",
+            "implementation": "divide(ts_returns(close,63), ts_std_dev(earn_surprise,252))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-term reversal after high kurtosis days",
+            "description": "Uses ts_kurtosis on returns and short reversal (SUGGESTION1). No vector fields. ts_kurtosis can be noisy; confidence 0.54. KEEP_IN_MIND2 observed.",
+            "implementation": "if_else(greater(ts_kurtosis(ts_returns(close,21),21),2), reverse(ts_returns(close,5)), 0)",
+            "confidence_level": 0.54
+        },
+        {
+            "idea": "Momentum conditioned on macro surprise (macro-sentiment overlay)",
+            "description": "Combines macro surprise indicator and stock returns (SUGGESTION1). Macro series may be low freq \u2014 ts_backfill(macro_surprise,90). Implementation concise. Confidence 0.58.",
+            "implementation": "multiply(ts_returns(close,21), sign(macro_surprise))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Relative value using EBITDA/EV vs peers",
+            "description": "Uses ebitda_ev and group neutralization (SUGGESTION1, GROUP). Fundamental coverage low-frequency; ts_backfill(ebitda_ev,365). Operators minimal. Confidence 0.61.",
+            "implementation": "group_neutralize(reverse(ebitda_ev), industry)",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Momentum on option-implied skew steepening",
+            "description": "Combines change in implied_skew and underlying returns (SUGGESTION1). Option data sparse \u2014 ts_backfill(implied_skew,30). Implementation short. Confidence 0.63.",
+            "implementation": "multiply(ts_returns(close,10), sign(ts_delta(implied_skew,5)))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Cross-sectional reversal using quantile buckets",
+            "description": "Uses bucket of recent returns and reverses extremes (SUGGESTION1). Kept within operator limit using bucket and reverse. Confidence 0.62.",
+            "implementation": "reverse(bucket(rank(ts_returns(close,21)), range=\"0,1,0.2\"))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Momentum with turnover control (hump operator)",
+            "description": "Applies momentum but limits turnover via hump (SUGGESTION1 & KEEP_IN_MIND2). No vector fields. Confidence 0.7 due to practical turnover management.",
+            "implementation": "hump(ts_returns(close,21), hump=0.02)",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Mean reversion in analyst sentiment scores",
+            "description": "Uses analyst_sentiment and reversal (SUGGESTION1). Sentiment may be sparse\u2014ts_backfill(analyst_sentiment,90). Operators minimal. Confidence 0.56.",
+            "implementation": "reverse(analyst_sentiment)",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Momentum combined with balance sheet improvement",
+            "description": "Combines ts_delta(current_ratio,252) and returns (SUGGESTION1). Fundamentals low-frequency; ts_backfill recommended. Operators concise. Confidence 0.6.",
+            "implementation": "multiply(ts_delta(current_ratio,252), ts_returns(close,63))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Earnings quality filter: momentum only when accruals low",
+            "description": "Applies momentum but filters by low accruals (SUGGESTION1). Uses if_else and reverse. Accrual data may be sparse\u2014ts_backfill(accruals,365). Confidence 0.67.",
+            "implementation": "if_else(less(accruals, ts_quantile(accruals,252)), ts_returns(close,63), 0)",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "Cross-sectional growth anomaly: low asset growth outperform",
+            "description": "Uses asset_growth and reverse per SUGGESTION1. Asset growth is low-frequency\u2014ts_backfill(asset_growth,252) suggested. Operators minimal. Confidence 0.59.",
+            "implementation": "reverse(asset_growth)",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Momentum conditioned on FX moves for ADRs",
+            "description": "Combines ADR returns and FX returns (SUGGESTION1). FX coverage usually good (SUGGESTION4). Limit operators. Confidence 0.62 for currency-sensitive equities.",
+            "implementation": "subtract(ts_returns(close,21), ts_returns(fx_rate,21))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "High-frequency micro-structure: orderbook imbalance vector average",
+            "description": "Applied SUGGESTION2 by using a vector order_book imbalance and vec_avg. SUGGESTION1 used multiple fields conceptually. If coverage <0.6, ts_backfill(order_book,5). KEEP_IN_MIND2: one vector field and one op. Confidence 0.55 due to noisy microstructure signals.",
+            "implementation": "vec_avg(order_book.bids - order_book.asks)",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Momentum with volatility targeting (scale by recent vol)",
+            "description": "Combines returns and ts_std_dev to volatility target (SUGGESTION1). No vector fields. Operators kept minimal. Confidence 0.72 for improved Sharpe.",
+            "implementation": "divide(ts_returns(close,63), ts_std_dev(ts_returns(close,63),63))",
+            "confidence_level": 0.72
+        },
+        {
+            "idea": "Cross-sectional earnings momentum (ranked revisions)",
+            "description": "Ranks earnings revisions and multiplies by returns (SUGGESTION1). Revisions low-freq; ts_backfill recommended. Operators limited. Confidence 0.68.",
+            "implementation": "multiply(zscore(quantile(ts_delta(eps_est,63))), ts_returns(close,21))",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Liquidity-adjusted value: PB scaled by turnover",
+            "description": "Combines pb_ratio and turnover (SUGGESTION1). If turnover sparse, ts_backfill(turnover,20). Few operators used. Confidence 0.6.",
+            "implementation": "divide(reverse(pb_ratio), ts_mean(turnover,21))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Cross-sectional momentum divergence (ts_arg_max)",
+            "description": "Uses ts_arg_max on returns to detect recent leaders; combine cross-sectionally (SUGGESTION1). No vector fields. KEEP_IN_MIND2 ok. Confidence 0.66.",
+            "implementation": "ts_arg_max(ts_returns(close,21),63)",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Short squeeze detection: sudden short_interest drop + price pop",
+            "description": "Combines short_interest delta and returns (SUGGESTION1). Short_interest may be sparse\u2014ts_backfill advised. Operators minimal. Confidence 0.57.",
+            "implementation": "if_else(less(ts_delta(short_interest,21), -0.1), ts_returns(close,5), 0)",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Momentum on cash flow improvement",
+            "description": "Uses operating_cash_flow delta and returns (SUGGESTION1). Fundamentals rare\u2014ts_backfill recommended. Operators concise. Confidence 0.61.",
+            "implementation": "multiply(ts_delta(ocf,252), ts_returns(close,63))",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Cross-sectional cheapness via PEG ratio reversion",
+            "description": "Uses peg_ratio and reverse (SUGGESTION1). PEG low-frequency\u2014ts_backfill(peg_ratio,365). Operators minimal. Confidence 0.58.",
+            "implementation": "reverse(peg_ratio)",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Momentum filtered by ESG score improvements",
+            "description": "Combines ESG_delta and returns (SUGGESTION1). ESG series can be sparse\u2014ts_backfill(esg_score,365). Operators minimal. Confidence 0.56.",
+            "implementation": "multiply(ts_returns(close,63), ts_delta(esg_score,252))",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Cross-sectional risk parity tilt: overweight low beta momentum",
+            "description": "Combines beta and momentum to overweight low beta winners (SUGGESTION1). Beta coverage generally good (SUGGESTION4). Operators kept low. Confidence 0.7.",
+            "implementation": "multiply(reverse(beta), zscore(quantile(ts_returns(close,63))))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Momentum with group neutralization and winsorization",
+            "description": "Uses ts_returns and group_neutralize, then winsorize to limit outliers (SUGGESTION1 and GROUP usage). KEEP_IN_MIND2 observed. Confidence 0.72 for pragmatic alpha.",
+            "implementation": "winsorize(group_neutralize(ts_returns(close,63), industry))",
+            "confidence_level": 0.72
+        },
+        {
+            "idea": "Liquidity momentum: rising free float and positive returns",
+            "description": "Combines free_float_delta and returns (SUGGESTION1). Free float data low-freq\u2014ts_backfill suggested. Operators minimal. Confidence 0.59.",
+            "implementation": "multiply(ts_returns(close,21), sign(ts_delta(free_float,252)))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Momentum conditioned on credit spread improvement",
+            "description": "Combines corporate_spread delta and equity returns (SUGGESTION1). Credit data sparse\u2014ts_backfill(spread,90). Operators concise. Confidence 0.6.",
+            "implementation": "multiply(ts_returns(close,63), reverse(ts_delta(corporate_spread,63)))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Cross-sectional mean reversion in analyst target price divergence",
+            "description": "Uses target_price - close and reverses (SUGGESTION1). Target price sparse\u2014ts_backfill(target_price,90). Operators limited. Confidence 0.58.",
+            "implementation": "reverse(subtract(target_price, close))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Momentum with turnover floor using trade_when",
+            "description": "Uses ts_returns but only trades when turnover above threshold (SUGGESTION1). Employs trade_when to control positions (KEEP_IN_MIND2). Confidence 0.69 for implementability.",
+            "implementation": "trade_when(greater(turnover, ts_quantile(turnover,63)), ts_returns(close,63), 0)",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Short-term reversal on unusually low bid depth (vector avg)",
+            "description": "Applied SUGGESTION2: vec_avg on order_book.bid_depth to detect low depth then reverse. If order book coverage <0.6, ts_backfill advised. KEEP_IN_MIND2 respected. Confidence 0.52 (noisy).",
+            "implementation": "reverse(if_else(less(vec_avg(order_book.bid_depth), ts_quantile(vec_avg(order_book.bid_depth),63)), ts_returns(close,1), 0))",
+            "confidence_level": 0.52
+        },
+        {
+            "idea": "Cross-sectional momentum with group_scale normalization",
+            "description": "Uses group_scale to normalize momentum within industry (SUGGESTION1 & GROUP). Keeps operators limited. Confidence 0.71 due to better cross-sectional comparability.",
+            "implementation": "group_scale(ts_returns(close,63), industry)",
+            "confidence_level": 0.71
+        },
+        {
+            "idea": "Earnings surprise momentum scaled by company size",
+            "description": "Combines earn_surprise and market_cap (SUGGESTION1). If earnings sparse, ts_backfill recommended. Operators few. Confidence 0.66.",
+            "implementation": "divide(ts_returns(close,21), multiply(earn_surprise, sqrt(market_cap)))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Momentum conditioned on commodity price moves for commodity-exposed firms",
+            "description": "Combines firm returns with commodity returns (SUGGESTION1). Commodity coverage typically good. KEEP_IN_MIND2 observed. Confidence 0.61.",
+            "implementation": "multiply(ts_returns(close,21), ts_returns(commodity_price,21))",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Volatility timing: go long momentum only when market realized vol low",
+            "description": "Combines market realized vol and stock momentum (SUGGESTION1). Market vol coverage good; operators minimal. Confidence 0.63.",
+            "implementation": "if_else(less(ts_std_dev(ts_returns(market_index,21),21), ts_quantile(ts_std_dev(ts_returns(market_index,21),21),252)), ts_returns(close,63), 0)",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Dividend surprise momentum: announce increase then momentum",
+            "description": "Uses dividend_change indicator and returns (SUGGESTION1). Dividend events sparse\u2014ts_backfill(dividend_change,180). Operators minimal. Confidence 0.58.",
+            "implementation": "multiply(ts_returns(close,21), sign(dividend_change))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Cross-sectional liquidity-adjusted momentum (group_count weight)",
+            "description": "Uses group_count to adjust weights for sector liquidity (SUGGESTION1 & GROUP). group_count improves coverage (SUGGESTION4). Operators limited. Confidence 0.66.",
+            "implementation": "divide(zscore(quantile(ts_returns(close,63))), group_count(close, sector))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Momentum decay optimization using hump operator",
+            "description": "Uses hump to smooth momentum weights (SUGGESTION1). No vector fields. KEEP_IN_MIND2 observed. Confidence 0.7 for turnover-efficient momentum.",
+            "implementation": "hump(zscore(ts_returns(close,63)), hump=0.01)",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Cross-sectional residual momentum from factor regression",
+            "description": "Conceptually regress returns on factors and take residual momentum. SUGGESTION1 applied to combine factors; implementation kept abstract to respect brevity (KEEP_IN_MIND1). Confidence 0.69.",
+            "implementation": "ts_regression(ts_returns(close,63), factor_returns,252, lag=0, rettype=0) /* use residual */",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Momentum on supply chain upgrades (supplier/customer signals)",
+            "description": "Uses supply_chain_sentiment and returns (SUGGESTION1). Supply chain data sparse\u2014ts_backfill recommended. Operators minimal. Confidence 0.55.",
+            "implementation": "multiply(ts_returns(close,21), sign(ts_delta(supply_chain_sentiment,63)))",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Cross-sectional quality filter: momentum only on high FCF yield firms",
+            "description": "Combines fcf_yield filter and returns (SUGGESTION1). FCF yield low-freq\u2014ts_backfill(fcf_yield,365). Operators concise. Confidence 0.65.",
+            "implementation": "if_else(greater(fcf_yield, ts_quantile(fcf_yield,252)), ts_returns(close,63), 0)",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Mean reversion using ts_av_diff of returns",
+            "description": "Uses ts_av_diff to detect deviations from recent mean (SUGGESTION1). No vector fields. Operators limited. Confidence 0.6.",
+            "implementation": "reverse(ts_av_diff(ts_returns(close,21),21))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Momentum across market-cap buckets (bucketed rank)",
+            "description": "Uses bucket on market cap and rank within buckets (SUGGESTION1 & GROUP-like). KEEP_IN_MIND2 respected. Confidence 0.68 for size-aware momentum.",
+            "implementation": "bucket(rank(ts_returns(close,63)), buckets=\"0,1e9,1e10,1e11\")",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Earnings revision momentum with group neutralization",
+            "description": "Combines eps revisions and group_neutralize to remove industry effects (SUGGESTION1 & GROUP). ts_backfill for revisions if sparse. Confidence 0.69.",
+            "implementation": "group_neutralize(multiply(ts_returns(close,21), ts_delta(eps_est,63)), industry)",
+            "confidence_level": 0.69
+        },
+        {
+            "idea": "Cross-sectional momentum stabilized by winsorize",
+            "description": "Applies winsorize to momentum to reduce outliers (SUGGESTION1). Operators minimal. Confidence 0.7 for robustness.",
+            "implementation": "winsorize(zscore(ts_returns(close,63)), std=3)",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Momentum combined with balance sheet deleveraging (lower leverage)",
+            "description": "Combines leverage delta and returns (SUGGESTION1). Leverage data low-frequency\u2014ts_backfill recommended. Operators limited. Confidence 0.6.",
+            "implementation": "multiply(ts_returns(close,63), reverse(ts_delta(debt_to_equity,252)))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Cross-sectional reversal in high dispersion days",
+            "description": "Detect days of high market dispersion (group_std_dev) then apply reversal cross-sectionally (SUGGESTION1 & GROUP). Operators concise. Confidence 0.59.",
+            "implementation": "if_else(greater(group_std_dev(ts_returns(close,21), sector), ts_quantile(group_std_dev(ts_returns(close,21), sector),252)), reverse(ts_returns(close,5)), 0)",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Momentum enhanced by macro regime (trend-following in expansion)",
+            "description": "Combines macro_regime and returns (SUGGESTION1). Macro regime low-frequency\u2014ts_backfill suggested. Operators minimal. Confidence 0.6.",
+            "implementation": "if_else(equal(macro_regime,\"expansion\"), ts_returns(close,63), 0)",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-term reversal on abnormal option flow (net buy pressure)",
+            "description": "Uses option_flow net buys and reverses price movement (SUGGESTION1). Option_flow coverage may be limited\u2014ts_backfill(option_flow,30). Operators kept small. Confidence 0.56.",
+            "implementation": "if_else(greater(option_flow, ts_quantile(option_flow,63)), reverse(ts_returns(close,3)), 0)",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Momentum scaled by analyst coverage breadth",
+            "description": "Weights momentum by number of analysts covering (SUGGESTION1). Analyst counts often stable (SUGGESTION4). Operators minimal. Confidence 0.62.",
+            "implementation": "divide(ts_returns(close,63), vec_avg(analyst_count))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Cross-sectional carry: yield curve exposure vs peers",
+            "description": "Uses duration or interest rate sensitivity and yields (SUGGESTION1). Data coverage varies\u2014ts_backfill recommended. Operators concise. Confidence 0.57.",
+            "implementation": "multiply(yield, duration)",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Momentum with group_rank and scale",
+            "description": "Ranks within groups and scales to compare across industries (SUGGESTION1 & GROUP). KEEP_IN_MIND2 satisfied. Confidence 0.68.",
+            "implementation": "group_rank(ts_returns(close,63), industry)",
+            "confidence_level": 0.68
+        },
+        {
+            "idea": "Mean reversion using days_from_last_change on signal",
+            "description": "Use days_from_last_change to detect stale signals and revert. SUGGESTION1 applied conceptually. Operators minimal. Confidence 0.55 due to heuristic nature.",
+            "implementation": "if_else(greater(days_from_last_change(signal_field),30), reverse(signal_field), 0)",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Momentum on gross domestic exposure (country FX-adjusted)",
+            "description": "Combines stock returns with country FX moves (SUGGESTION1). FX coverage good. KEEP_IN_MIND2 observed. Confidence 0.6.",
+            "implementation": "subtract(ts_returns(close,63), ts_returns(country_fx,63))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Cross-sectional low-beta reversal",
+            "description": "Reverse signals among low-beta stocks using beta filter (SUGGESTION1). Beta coverage high (SUGGESTION4). Operators limited. Confidence 0.64.",
+            "implementation": "if_else(less(beta, ts_quantile(beta,252)), reverse(ts_returns(close,21)), 0)",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "Momentum with group_neutralize and winsorize for robustness",
+            "description": "Combines group_neutralize and winsorize on momentum (SUGGESTION1 & GROUP). KEEP_IN_MIND2 observed. Confidence 0.73.",
+            "implementation": "winsorize(group_neutralize(ts_returns(close,63), sector), std=3)",
+            "confidence_level": 0.73
+        },
+        {
+            "idea": "Momentum in small-caps with liquidity threshold",
+            "description": "Combines market_cap filter and turnover threshold (SUGGESTION1). Use trade_when to enforce liquidity (KEEP_IN_MIND2). Confidence 0.62.",
+            "implementation": "trade_when(less(market_cap,1e10) and greater(turnover, ts_quantile(turnover,252)), ts_returns(close,63), 0)",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Cross-sectional growth-quality long-short",
+            "description": "Long stocks with improving growth and quality metrics, short the opposite (SUGGESTION1). Fundamentals low-freq\u2014ts_backfill needed. Operators limited. Confidence 0.63.",
+            "implementation": "subtract(ts_delta(revenue,252), ts_delta(net_income,252))",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Momentum with ts_target_tvr_decay to control turnover",
+            "description": "Uses ts_target_tvr_decay to tune turnover while keeping momentum core (SUGGESTION1). Operators within limit. Confidence 0.71 for practical deployment.",
+            "implementation": "ts_target_tvr_decay(ts_returns(close,63), lambda_min=0, lambda_max=1, target_tvr=0.1)",
+            "confidence_level": 0.71
+        },
+        {
+            "idea": "Cross-sectional reversal after large insider selling",
+            "description": "Detect heavy insider selling and look for mean reversion (SUGGESTION1). Insider data sparse\u2014ts_backfill(insider_sell,180). Operators concise. Confidence 0.54.",
+            "implementation": "if_else(greater(insider_sell, ts_quantile(insider_sell,252)), reverse(ts_returns(close,21)), 0)",
+            "confidence_level": 0.54
+        },
+        {
+            "idea": "Momentum on supply-demand imbalance from block trades",
+            "description": "Uses block_trade_flow and returns (SUGGESTION1). Block trades sparse\u2014ts_backfill(block_trade_flow,30). Operators minimal. Confidence 0.58.",
+            "implementation": "multiply(ts_returns(close,21), sign(block_trade_flow))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Cross-sectional carry in FX hedged equities (dividend minus hedging cost)",
+            "description": "Combines dividend_yield and hedging_cost (SUGGESTION1). Hedging cost data may be sparse\u2014ts_backfill suggested. Operators limited. Confidence 0.56.",
+            "implementation": "subtract(dividend_yield, hedging_cost)",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Momentum signal stabilized by ts_scale across time",
+            "description": "Applies ts_scale to momentum to reduce regime shifts (SUGGESTION1). No vector fields. KEEP_IN_MIND2 observed. Confidence 0.67.",
+            "implementation": "ts_scale(ts_returns(close,63),63)",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "Cross-sectional residual from ts_regression onto liquidity factor",
+            "description": "Regress returns on liquidity factor and use residuals as alpha (SUGGESTION1). Use ts_regression; keep concise. Confidence 0.65.",
+            "implementation": "ts_regression(ts_returns(close,63), turnover,252, lag=0, rettype=0) /* use residual */",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Momentum with adaptive lookback using ts_arg_max",
+            "description": "Detect lookback where returns peaked with ts_arg_max and adapt momentum window (SUGGESTION1). Implementation kept short. Confidence 0.66.",
+            "implementation": "if_else(equal(ts_arg_max(ts_returns(close,63),63),0), ts_returns(close,21), ts_returns(close,63))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "Short-term reversal after sudden analyst downgrades",
+            "description": "Use analyst_downgrade events and apply short-term reversal (SUGGESTION1). Analyst events sparse\u2014ts_backfill recommended. Operators minimal. Confidence 0.57.",
+            "implementation": "if_else(greater(analyst_downgrades, ts_quantile(analyst_downgrades,252)), reverse(ts_returns(close,5)), 0)",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Momentum augmented by cash surprise (cash beats expectations)",
+            "description": "Combine cash surprise and returns (SUGGESTION1). Cash surprise sparse\u2014ts_backfill suggested. Operators concise. Confidence 0.6.",
+            "implementation": "multiply(ts_returns(close,21), sign(cash_surprise))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Cross-sectional price momentum with group_count weighting",
+            "description": "Weight cross-sectional momentum by group_count to avoid small groups dominating (SUGGESTION1 & GROUP). KEEP_IN_MIND2 met. Confidence 0.67.",
+            "implementation": "divide(zscore(quantile(ts_returns(close,63))), group_count(close, sector))",
+            "confidence_level": 0.67
+        },
+        {
+            "idea": "Momentum with winsorize and normalize pipeline",
+            "description": "Apply winsorize then normalize to reduce outliers and cross-sectional mean (SUGGESTION1). Operators within limits. Confidence 0.7.",
+            "implementation": "normalize(winsorize(ts_returns(close,63), std=3))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Mean reversion on margin compression signals",
+            "description": "Track gross_margin delta and reverse when compression evident (SUGGESTION1). Margins low-freq\u2014ts_backfill suggested. Operators concise. Confidence 0.58.",
+            "implementation": "if_else(less(ts_delta(gross_margin,252), -0.05), reverse(ts_returns(close,21)), 0)",
+            "confidence_level": 0.58
+        }
+    ]
+}
