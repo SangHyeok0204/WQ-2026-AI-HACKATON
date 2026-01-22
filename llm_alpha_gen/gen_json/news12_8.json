@@ -1,0 +1,736 @@
+{
+  "results": [
+    {
+      "idea": "Short-term momentum from 1-minute post-news move",
+      "description": "Uses news_pct_1min to capture immediate momentum after news. Applied SUGGESTION1 by using a high-coverage, high-user field (news_pct_1min coverage 0.9717, userCount 218). SUGGESTION2 not applicable (no vector field). SUGGESTION3 not needed (coverage > 0.6). SUGGESTION4 applied by choosing a popular field to improve signal reliability. Kept KEEP_IN_MIND: single datafield, simple operator. Confidence set to 0.75 based on strong coverage and literature on immediate news momentum.",
+      "implementation": "zscore(news_pct_1min)",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Mean-reversion of 10-minute post-news spike",
+      "description": "Assumes large 10-min moves tend to revert intraday. Used news_pct_10min (coverage 0.7657). SUGGESTION1: single high-signal field selected. SUGGESTION2 not applied. SUGGESTION3 not required (coverage >0.6). SUGGESTION4: moderate userCount. Complies with KEEP_IN_MIND. Confidence 0.6 due to shorter-term noise.",
+      "implementation": "reverse(zscore(news_pct_10min))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Extended post-news drift (30min) momentum",
+      "description": "Capture continuation using news_pct_30min (coverage 0.9717). SUGGESTION1 used single robust field. SUGGESTION3 not needed. Chose high user/alpha counts to satisfy SUGGESTION4. Kept implementation short. Confidence 0.72.",
+      "implementation": "zscore(news_pct_30min)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Post-news 60–120min cross-over momentum",
+      "description": "Combine medium and longer intraday moves: momentum stronger when both 60min and 120min agree. SUGGESTION1 used two fields (news_pct_60min, news_pct_120min). Both have high coverage. SUGGESTION3 not needed. SUGGESTION4 considered. KEEP_IN_MIND obeyed (2 fields, <=7 ops). Confidence 0.68.",
+      "implementation": "add(zscore(news_pct_60min), zscore(news_pct_120min))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Gap-following on open gap",
+      "description": "Exploit opening gap continuation/reversion using news_open_gap (coverage 0.6247). SUGGESTION1 used single field; coverage slightly above 0.6 so ts_backfill not applied. SUGGESTION4 moderate. KEEP_IN_MIND kept. Confidence 0.55 due to mixed gap behavior.",
+      "implementation": "zscore(news_open_gap)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "VWAP reversal after news (EOD vwap vs TON last)",
+      "description": "If post-news EOD_vwap deviates from TONLast, expect reversion to VWAP. Used news_eod_vwap and news_ton_last (both high coverage). SUGGESTION1 applied. SUGGESTION3 not needed. Simple subtract then zscore. Confidence 0.65.",
+      "implementation": "zscore(subtract(news_eod_vwap, news_ton_last))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Volatility breakout using ATR ratio",
+      "description": "Use news_atr_ratio (coverage 0.7967) to detect expansion of range; go with the direction of breakout. Applied SUGGESTION1 single strong field, SUGGESTION3 not needed, SUGGESTION4 considered. Confidence 0.66.",
+      "implementation": "zscore(news_atr_ratio)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "High ATR mean reversion (14-day ATR)",
+      "description": "High news_atr14 indicates elevated volatility; use reverse zscore of atr14 to find mean-reversion candidates. SUGGESTION1 used strong field (coverage 0.8947). SUGGESTION3 not applied. Confidence 0.6.",
+      "implementation": "reverse(zscore(news_atr14))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Volume spike continuation",
+      "description": "Curr_Vol relative to Mov_Vol signals interest: news_ratio_vol (coverage 0.5122) but coverage <0.6 so ts_backfill applied per SUGGESTION3. Also considered news_mov_vol. SUGGESTION1 used two fields (ratio and mov_vol) but implement uses ratio after backfill. SUGGESTION4 not fully satisfied for ratio but expected signal from volume spikes. Confidence 0.58.",
+      "implementation": "zscore(ts_backfill(news_ratio_vol,5))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Volstddev-driven breakout",
+      "description": "Use news_vol_stddev (coverage 0.9672) to identify unusual volume days and trade continuation. SUGGESTION1 used the high-user field (userCount 277). SUGGESTION3 not needed. Confidence 0.67.",
+      "implementation": "zscore(news_vol_stddev)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Short interest dispersion effect",
+      "description": "High short_interest can amplify positive news and penalize negative news. Used news_short_interest (coverage 0.872). SUGGESTION1 single field used; SUGGESTION3 not needed. SUGGESTION4 limited userCount but coverage high. Confidence 0.6.",
+      "implementation": "zscore(news_short_interest)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Size-adjusted momentum (cap-weight control)",
+      "description": "Normalize news_pct_30min by market cap to prefer moves in smaller caps. SUGGESTION1 used news_pct_30min and news_cap (both high coverage). SUGGESTION3 not needed. Kept ops short. Confidence 0.7 because size-tilts often add alpha.",
+      "implementation": "divide(zscore(news_pct_30min), zscore(news_cap))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "EPS surprise immediate reaction",
+      "description": "news_eps_actual compared to typical EPS surprises; large positive epsactual tends to push price up intraday. Used news_eps_actual (coverage 0.9646) and news_pe_ratio for valuation filter. SUGGESTION1 used 2 fields. SUGGESTION3 not needed. Confidence 0.68.",
+      "implementation": "multiply(zscore(news_eps_actual), reverse(zscore(news_pe_ratio)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Index-relative news outperformance",
+      "description": "Use news_indx_perf ((stock move) - (SPY move)) to capture idiosyncratic strength. SUGGESTION1 single robust field chosen (coverage 0.9713). SUGGESTION3 not needed. Confidence 0.73.",
+      "implementation": "zscore(news_indx_perf)",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Post-news high-exc stddev breakout (EODHigh vs TONLast)",
+      "description": "news_high_exc_stddev identifies unusually large upticks post-news. SUGGESTION1 used this high-coverage field. SUGGESTION3 not applied. Confidence 0.66.",
+      "implementation": "zscore(news_high_exc_stddev)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Post-news low-exc stddev mean reversion",
+      "description": "news_low_exc_stddev signals large downward moves relative to 30d SD; strategy is contrarian. SUGGESTION1 used single field. Confidence 0.63.",
+      "implementation": "reverse(zscore(news_low_exc_stddev))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Tick activity momentum",
+      "description": "High total ticks indicates sustained activity; news_tot_ticks (coverage 0.9691) used to favor continuation. SUGGESTION1 used single high-user field. Confidence 0.62.",
+      "implementation": "zscore(news_tot_ticks)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "EOD close premium vs TONLast (closing strength)",
+      "description": "Compare news_eod_close and news_ton_last to capture closing momentum. Both fields have high coverage. SUGGESTION1 applied. Confidence 0.64.",
+      "implementation": "zscore(subtract(news_eod_close, news_ton_last))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Pre-vwap reversal",
+      "description": "If pre-session vwap deviates from TONLast, expect intraday correction. Used news_pre_vwap and news_ton_last (both high coverage). SUGGESTION1 applied. Confidence 0.56 (pre-market noise).",
+      "implementation": "reverse(zscore(subtract(news_pre_vwap, news_ton_last)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Rapid small-move timing (1% minute) momentum",
+      "description": "Use news_mins_1_chg (coverage 0.9175) / news_mins_1_pct_up to time intraday momentum. SUGGESTION1 uses news_mins_1_chg only for simplicity. SUGGESTION2 not applicable. Confidence 0.55 due to microstructure noise.",
+      "implementation": "zscore(news_mins_1_chg)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Slow reaction in low-liquidity names",
+      "description": "Combine low mov_vol and strong news_pct_30min to exploit slow information diffusion. Used news_mov_vol and news_pct_30min. SUGGESTION3 not needed. SUGGESTION4 used mov_vol (userCount 484). Confidence 0.66.",
+      "implementation": "multiply(zscore(news_pct_30min), reverse(zscore(news_mov_vol)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Resistance breach confirmed by volstddev",
+      "description": "Trade when price breakout (news_pct_10min) coincides with high volume deviation (news_vol_stddev). SUGGESTION1: two fields. SUGGESTION3 not needed. Confidence 0.7.",
+      "implementation": "multiply(zscore(news_pct_10min), zscore(news_vol_stddev))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "After-hours jump persistence",
+      "description": "Use nws12_afterhsz_1_minute or nws12_afterhsz_10_min to capture post-market persistence. Chose nws12_afterhsz_1_minute (coverage 0.255) which is low, so applied ts_backfill per SUGGESTION3. SUGGESTION4 not strong here. Confidence 0.4.",
+      "implementation": "zscore(ts_backfill(nws12_afterhsz_1_minute,5))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Pre-market move continuation",
+      "description": "Use nws12_prez_1_minute (coverage 0.4144) with ts_backfill to reduce sparsity and trade continuation into open. SUGGESTION1 used this field. Confidence 0.48.",
+      "implementation": "zscore(ts_backfill(nws12_prez_1_minute,5))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Earnings-day large-range reversion",
+      "description": "On earnings, large session_range_pct (where available) tends to revert next session. news_session_range_pct coverage 0.268 so ts_backfill used. SUGGESTION1 used session range pct. Confidence 0.45.",
+      "implementation": "reverse(zscore(ts_backfill(news_session_range_pct,10)))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Open interest (ticks) vs price drift",
+      "description": "High news_tot_ticks with positive news_pct_30min signals follow-through. SUGGESTION1 used two high-coverage fields. Confidence 0.69.",
+      "implementation": "multiply(zscore(news_tot_ticks), zscore(news_pct_30min))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Momentum adjusted by PE (cheap momentum)",
+      "description": "Favors momentum in low PE names (value-adjusted momentum). Used news_pct_60min and news_pe_ratio (both high coverage). SUGGESTION1 & SUGGESTION4 applied. Confidence 0.71.",
+      "implementation": "multiply(zscore(news_pct_60min), reverse(zscore(news_pe_ratio)))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Post-news maximum up amplitude as continuation signal",
+      "description": "Use news_max_up_ret (coverage 0.8458) to capture strong upside runs; trade with direction. SUGGESTION1 single field used. Confidence 0.6.",
+      "implementation": "zscore(news_max_up_ret)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Post-news maximum down amplitude contrarian",
+      "description": "Large news_max_dn_ret (coverage 0.9704) expected to revert intraday; contrarian signal. SUGGESTION1 used strong field. Confidence 0.64.",
+      "implementation": "reverse(zscore(news_max_dn_ret))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Close-volume surge continuation",
+      "description": "news_close_vol (coverage 0.6909) spike suggests closing pressure continuation into next session; ts_backfill not required (>0.6). SUGGESTION4 moderate. Confidence 0.54.",
+      "implementation": "zscore(news_close_vol)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Open vs PrevClose reversion (overnight drift)",
+      "description": "news_open - news_prev_close signals overnight adjustment; news_prev_close coverage low (0.1728) so ts_backfill applied. Combined with open. SUGGESTION1 used two fields with backfill. Confidence 0.52.",
+      "implementation": "zscore(subtract(news_open, ts_backfill(news_prev_close,5)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Short-term kludge: 30sec reaction alpha",
+      "description": "Use news_pct_30sec (coverage 0.9673) to capture ultra-short reaction. SUGGESTION1 used a high-coverage micro field; SUGGESTION3 not required. Confidence 0.59.",
+      "implementation": "zscore(news_pct_30sec)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "High provider-specific signal (news provider momentum)",
+      "description": "Use nws12_mainz_provider index to detect providers whose news historically yields moves. Provider is categorical so direct use limited; instead use provider-indexed result1 when available. Chose nws12_mainz_result1 (coverage 0.9733). SUGGESTION1 used that field. SUGGESTION4 moderate. Confidence 0.58.",
+      "implementation": "zscore(nws12_mainz_result1)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum conditioned on low prior day return",
+      "description": "news_prev_day_ret (coverage 0.7311) combined with new intraday pct to find reversal when prior day drop then news-driven bounce. SUGGESTION1 used two fields; both >0.6. Confidence 0.62.",
+      "implementation": "multiply(reverse(zscore(news_prev_day_ret)), zscore(news_pct_30min))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Relative to SPY drift confirmation",
+      "description": "Use news_result_vs_index or news_indx_perf to ensure idiosyncratic move vs market. Pick news_result_vs_index (nws12_mainz_result_vs_index coverage 0.9733). SUGGESTION1 applied. Confidence 0.7.",
+      "implementation": "zscore(nws12_mainz_result_vs_index)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Large-range day continuation using range stddev",
+      "description": "news_rangestddev (coverage high for many variants) detects days with abnormal range; trade continuation. Selected nws12_mainz_rangestddev (coverage 0.9691). SUGGESTION1 used. Confidence 0.63.",
+      "implementation": "zscore(nws12_mainz_rangestddev)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Intraday asymmetry LS directional filter",
+      "description": "Use news_ls (coverage low 0.488) but large user/alpha counts; since coverage <0.6 apply ts_backfill. LS gives simple direction bias; combine with pct_10min. SUGGESTION1 used two fields and backfill. Confidence 0.5.",
+      "implementation": "multiply(ts_backfill(news_ls,5), zscore(news_pct_10min))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum scaled by market cap liquidity",
+      "description": "Scale short-term move by inverse cap to favor small caps: news_pct_5_min * 1/cap. SUGGESTION1 used two fields (news_pct_5_min coverage 0.774, news_cap high). SUGGESTION3 not needed. Confidence 0.67.",
+      "implementation": "multiply(zscore(news_pct_5_min), inverse(zscore(news_cap)))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Post-news range exhaustion (maxup vs maxdown imbalance)",
+      "description": "If max_up_amt >> max_dn_amt, expect continued upward bias. Used news_max_up_amt and news_max_dn_amt (both high coverage). SUGGESTION1 used two fields. Confidence 0.61.",
+      "implementation": "subtract(zscore(news_max_up_amt), zscore(news_max_dn_amt))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "30-min momentum normalized by 30-day vol",
+      "description": "Divide news_pct_30min by 30-day volatility proxy via news_range_stddev or atr14. Chose news_range_stddev (coverage 0.6172) slightly >0.6 so no backfill. SUGGESTION1 used two fields. Confidence 0.66.",
+      "implementation": "divide(zscore(news_pct_30min), abs(zscore(news_range_stddev)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Pre-vs-post vwap divergence continuation",
+      "description": "If post_vwap significantly above main_vwap, trade long. Use news_post_vwap and news_main_vwap (both >0.9 coverage). SUGGESTION1 applied. Confidence 0.63.",
+      "implementation": "zscore(subtract(news_post_vwap, news_main_vwap))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Overreaction fade using eod_vwap vs eod_close",
+      "description": "When eod_vwap diverges from eod_close, expect reversion next minute. Used news_eod_vwap and news_eod_close. SUGGESTION1 applied. Confidence 0.57.",
+      "implementation": "reverse(zscore(subtract(news_eod_vwap, news_eod_close)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Momentum confirmation by multiple time horizons (1min & 5min)",
+      "description": "Require same sign in news_pct_1min and news_pct_5_min to trade. SUGGESTION1 uses two fields. Combined via multiply of signs (zscore proxies). Confidence 0.7.",
+      "implementation": "multiply(sign(zscore(news_pct_1min)), sign(zscore(news_pct_5_min)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Momentum dampened by high short interest",
+      "description": "Momentum (news_pct_30min) reversed if short_interest high. SUGGESTION1 used two fields. Confidence 0.65.",
+      "implementation": "multiply(zscore(news_pct_30min), reverse(zscore(news_short_interest)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Earnings surprise scaled by ticks (impact weighting)",
+      "description": "news_eps_actual * news_tot_ticks to favor earnings with strong market reaction. Both fields high coverage. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.7.",
+      "implementation": "multiply(zscore(news_eps_actual), zscore(news_tot_ticks))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "High-vol names: prefer breakout persistence",
+      "description": "news_atr14 high indicates persistence of directional moves; combine with news_pct_120min. SUGGESTION1 used two fields (both high coverage). Confidence 0.64.",
+      "implementation": "multiply(zscore(news_pct_120min), zscore(news_atr14))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Short-term reversal after extreme 1-min move",
+      "description": "If news_pct_1min is extreme (winsorize), expect reversal in next minutes. Use tail or reverse of zscore. SUGGESTION1 single field. Confidence 0.59.",
+      "implementation": "reverse(zscore(winsorize(news_pct_1min, std=3)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Provider reliability filter (provider historically predictive)",
+      "description": "Use nws12_mainz_provider historically associated result (nws12_mainz_result1) to weight signal. For simplicity use nws12_mainz_result1. SUGGESTION2 not applied. Confidence 0.54.",
+      "implementation": "zscore(nws12_mainz_result1)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Momentum after long quiet periods (days_from_last_change)",
+      "description": "Use days_from_last_change on news_prev_day to detect fresh events; field days_from_last_change operator applied on prevclose not available, so approximate with ts_arg_max on prevday; instead use news_prevday and ts_zscore. Simpler: zscore(news_prevday) to detect rare events. SUGGESTION3 not required. Confidence 0.45.",
+      "implementation": "zscore(news_prevday)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Trade when SPY noise low: idiosyncratic moves",
+      "description": "Use news_spy_last and news_spy_close to compute low-market-move windows via their difference and trade idiosyncratic news_indx_perf. Implementation uses news_indx_perf only. SUGGESTION1 chosen robust field. Confidence 0.6.",
+      "implementation": "zscore(news_indx_perf)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum weighted by recent volatility suppression",
+      "description": "Favor momentum when ts_std_dev(news_pct_30min, 20) is low — operator ts_std_dev can be applied directly on news_pct_30min. SUGGESTION1 used ts_std_dev (time-series op) and the field. KEEP_IN_MIND ok. Confidence 0.62.",
+      "implementation": "divide(zscore(news_pct_30min), ts_std_dev(news_pct_30min,20))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Post-news inertia in low tick names",
+      "description": "When tot_ticks low but pct_30min nonzero, expect slower reversion; use news_tot_ticks and news_pct_30min. SUGGESTION1 applied. Confidence 0.5.",
+      "implementation": "multiply(zscore(news_pct_30min), reverse(zscore(news_tot_ticks)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Open gap driven by pre-vwap vs prevclose",
+      "description": "signals from news_pre_vwap minus prev_close (prev_close low coverage so ts_backfill used). SUGGESTION3 applied. Confidence 0.47.",
+      "implementation": "zscore(subtract(news_pre_vwap, ts_backfill(news_prev_close,5)))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "After-hours gap fade into next session",
+      "description": "Use nws12_afterhsz_01p (percent in 10-min bucket) with ts_backfill (coverage 0.707) and fade. SUGGESTION3 applied when necessary. Confidence 0.5.",
+      "implementation": "reverse(zscore(ts_backfill(nws12_afterhsz_01p,5)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High-pre-market volume continuation",
+      "description": "Use nws12_prez_curr_vol (coverage moderate) with ts_backfill to identify heavy pre-market interest that continues. SUGGESTION3 applied. Confidence 0.52.",
+      "implementation": "zscore(ts_backfill(nws12_prez_curr_vol,5))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Time-to-1% up/down as speed signal",
+      "description": "Use news_mins_1_pct_up and news_mins_1_pct_dn to judge speed of move; prefer stocks that reach 1% up quickly. Both fields have decent coverage; use ratio. SUGGESTION1 applied. Confidence 0.56.",
+      "implementation": "divide(zscore(news_mins_1_pct_dn), zscore(news_mins_1_pct_up))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "High-ATR jump then low-volume follow-up (contrarian)",
+      "description": "If atr14 high but curr_vol low, expect limited follow-through; used news_atr14 and news_curr_vol (coverage 0.7769). SUGGESTION1 applied. Confidence 0.49.",
+      "implementation": "multiply(zscore(news_atr14), reverse(zscore(news_curr_vol)))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "PE expansion momentum",
+      "description": "When eps surprise (news_eps_actual) and pe_ratio low leading to re-rating, trade long. Two fields used. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.65.",
+      "implementation": "multiply(zscore(news_eps_actual), reverse(zscore(news_pe_ratio)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "High-range day continuation",
+      "description": "news_session_range or rangeamt detect large intraday swings; coverage low for session_range so ts_backfill used if necessary. Pick nws12_mainz_range (coverage 0.9733) instead. SUGGESTION1 applied. Confidence 0.58.",
+      "implementation": "zscore(nws12_mainz_range)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum scaled by recent returns stability (ts_ir)",
+      "description": "Use ts_ir(news_pct_30min,20) to prefer stable return patterns. Operator ts_ir applied to a single field. SUGGESTION1 used high-coverage input. Confidence 0.63.",
+      "implementation": "ts_ir(news_pct_30min,20)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Low-coverage fields backfilled: prev_vol filter",
+      "description": "news_prev_vol has coverage 0.0374 so use ts_backfill to recover signal; combine with pct_30min. SUGGESTION3 applied. Confidence 0.4 (very noisy).",
+      "implementation": "multiply(zscore(news_pct_30min), zscore(ts_backfill(news_prev_vol,20)))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Short-term reversal after 3-min extremes",
+      "description": "Use news_mins_3_chg and news_mins_3_pct_up to detect extreme short bursts then fade. Coverage adequate; SUGGESTION1 two fields. Confidence 0.57.",
+      "implementation": "reverse(zscore(news_mins_3_chg))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Momentum filtered by low historical dispersion (group proxy via cap)",
+      "description": "We avoid GROUP-only usage per KEEP_IN_MIND; use news_cap as a proxy to prefer small-cap momentum. Combined with news_pct_60min. SUGGESTION1 applied. Confidence 0.6.",
+      "implementation": "multiply(zscore(news_pct_60min), inverse(zscore(news_cap)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Rapid 30-sec jump continuation in low-pe names",
+      "description": "news_pct_30sec combined with low PE to favor sustained rerating. SUGGESTION1 applied. Confidence 0.61.",
+      "implementation": "multiply(zscore(news_pct_30sec), reverse(zscore(news_pe_ratio)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "EOD high-exc SD contrarian",
+      "description": "Large news_high_exc_stddev often leads to mean reversion by close/next minute; reverse zscore used. SUGGESTION1 applied. Confidence 0.58.",
+      "implementation": "reverse(zscore(news_high_exc_stddev))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Open-volume to close-volume imbalance",
+      "description": "Compare news_open_vol and news_close_vol to detect directional pressure. open_vol has low coverage (0.4361) so ts_backfill used; close_vol okay. SUGGESTION3 applied for open_vol. Confidence 0.5.",
+      "implementation": "subtract(zscore(ts_backfill(news_open_vol,5)), zscore(news_close_vol))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum confirmation by ticks and volstddev",
+      "description": "Require both high tot_ticks and high vol_stddev to enter momentum trades. SUGGESTION1 used two strong fields. Confidence 0.68.",
+      "implementation": "multiply(zscore(news_tot_ticks), zscore(news_vol_stddev))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Pre-open gap fade for small caps",
+      "description": "Large pre-open gap (news_pre_vwap - prev_close backfilled) in small caps tends to fade. Use ts_backfill for prev_close and news_cap. SUGGESTION3 & SUGGESTION4 considered. Confidence 0.53.",
+      "implementation": "multiply(reverse(zscore(subtract(news_pre_vwap, ts_backfill(news_prev_close,5)))), inverse(zscore(news_cap)))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Short-term directional confirmation via 5-min and 10-min",
+      "description": "Require alignment between news_pct_5_min and news_pct_10min via multiply of zscores to reduce false signals. SUGGESTION1 applied. Confidence 0.66.",
+      "implementation": "multiply(zscore(news_pct_5_min), zscore(news_pct_10min))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Volatility contraction breakout (low vol then spike)",
+      "description": "Identify low recent vol via ts_std_dev(news_pct_30min,30) then breakout via news_atr_ratio. Use two operations and two fields. SUGGESTION1 applied. Confidence 0.64.",
+      "implementation": "multiply(reverse(ts_std_dev(news_pct_30min,30)), zscore(news_atr_ratio))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Post-news range exhaustion measured by maxup vs rangestddev",
+      "description": "If max_up >> rangestddev, momentum likely. Use news_max_up_ret and news_range_stddev (range_stddev coverage 0.6172). SUGGESTION1 used two fields. Confidence 0.6.",
+      "implementation": "divide(zscore(news_max_up_ret), abs(zscore(news_range_stddev)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings day intraday lead-lag: epsactual vs 30min move",
+      "description": "Use news_eps_actual and news_pct_30min: strong epsactual should correlate with 30min continuation; prefer names where both agree. SUGGESTION1 applied. Confidence 0.68.",
+      "implementation": "multiply(zscore(news_eps_actual), zscore(news_pct_30min))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "High pre-news momentum amplified by low PE",
+      "description": "If pre-news tonlast had momentum (news_ton_last vs prevclose) and PE low, expect stronger continuation. Use news_ton_last and news_pe_ratio with backfill for prev_close if needed; simplified to ton_last vs pe. SUGGESTION1 applied. Confidence 0.59.",
+      "implementation": "multiply(zscore(subtract(news_ton_last, ts_backfill(news_prev_close,5))), reverse(zscore(news_pe_ratio)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Trade when 120min move large but volume low (contrarian)",
+      "description": "Large news_pct_120min with low news_mov_vol signals overextension. SUGGESTION1 used two fields. Confidence 0.52.",
+      "implementation": "multiply(reverse(zscore(news_mov_vol)), zscore(news_pct_120min))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Post-news drift scaled by market cap (favor small caps)",
+      "description": "news_pct_60min scaled by inverse cap to favor small caps with stronger drift. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.66.",
+      "implementation": "multiply(zscore(news_pct_60min), inverse(zscore(news_cap)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Immediate reversal after large 30sec spike",
+      "description": "If news_pct_30sec is extreme, fade using reverse zscore. SUGGESTION1 applied. Confidence 0.58.",
+      "implementation": "reverse(zscore(news_pct_30sec))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Use minutes-to-5% up as momentum speed filter",
+      "description": "news_mins_5_chg or mins_5l used: shorter minutes -> faster momentum. Choose news_mins_5_chg (coverage 0.9671). SUGGESTION1 applied. Confidence 0.6.",
+      "implementation": "reverse(zscore(news_mins_5_chg))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Combine eod_vwap premium and tot_ticks for robust entry",
+      "description": "High eod_vwap - tonlast and high tot_ticks signals strong conviction. Use two fields. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.7.",
+      "implementation": "multiply(zscore(subtract(news_eod_vwap, news_ton_last)), zscore(news_tot_ticks))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "5-min reversal amplified by high-range stddev",
+      "description": "Reverse small 5-min extreme if range stddev unusually high, indicating volatility noise. Use news_pct_5_min and news_rangestddev (choose nws12_mainz_rangestddev). SUGGESTION1 applied. Confidence 0.55.",
+      "implementation": "multiply(reverse(zscore(news_pct_5_min)), zscore(nws12_mainz_rangestddev))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Post-news jump with declining ticks suggests quick fade",
+      "description": "If news_max_up_amt large but tot_ticks low, fade. SUGGESTION1 used two fields. Confidence 0.5.",
+      "implementation": "multiply(reverse(zscore(news_tot_ticks)), zscore(news_max_upamt))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum vs index weakness (trade stock if stock strong but SPY weak)",
+      "description": "Use news_indx_perf which already subtracts SPY move. SUGGESTION1 applied. Confidence 0.7.",
+      "implementation": "zscore(news_indx_perf)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Earnings day: large maxdown then quick recovery (buy)",
+      "description": "news_max_dn_ret large but subsequent mins show quick up pct; use news_mins_10_chg and max_dn_ret combination. SUGGESTION1 applied. Confidence 0.58.",
+      "implementation": "multiply(reverse(zscore(news_max_dn_ret)), zscore(news_mins_10_chg))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Predictable provider-driven moves: provider historical result weight",
+      "description": "Use nws12_mainz_provider historically linked result (nws12_mainz_result1). SUGGESTION1 used that result field. Confidence 0.53.",
+      "implementation": "zscore(nws12_mainz_result1)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "1-min momentum scaled by 30-min retention",
+      "description": "Require that news_pct_1min and news_pct_30min align: multiply zscores to reduce noise. SUGGESTION1 applied. Confidence 0.68.",
+      "implementation": "multiply(zscore(news_pct_1min), zscore(news_pct_30min))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Use pre-vwap deviation as filter for after-hours signals",
+      "description": "If pre_vwap deviates significantly, after-hours moves tend to continue; simple zscore on news_pre_vwap. SUGGESTION1 applied. Confidence 0.52.",
+      "implementation": "zscore(news_pre_vwap)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Range contraction followed by ATR spike",
+      "description": "Use low recent range (nws12_mainz_rangestddev low) then news_atr_ratio spike; combine ts_scale and zscore (kept to two inputs: atr_ratio and rangestddev). SUGGESTION1 applied. Confidence 0.63.",
+      "implementation": "multiply(reverse(zscore(nws12_mainz_rangestddev)), zscore(nws12_mainz_atrratio))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum limited to names with moderate short interest",
+      "description": "Avoid extremes in short interest by multiplying momentum with (1 - zscore(short_interest)). Use news_pct_60min and news_short_interest. SUGGESTION1 applied. Confidence 0.6.",
+      "implementation": "multiply(zscore(news_pct_60min), subtract(1, zscore(news_short_interest)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings surprise times low PE re-rating",
+      "description": "news_eps_actual * inverse(news_pe_ratio) to capture re-rating on surprise for cheap names. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.69.",
+      "implementation": "multiply(zscore(news_eps_actual), inverse(zscore(news_pe_ratio)))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Use minutes-to-3% as speed metric to filter momentum",
+      "description": "news_mins_3_chg (coverage 0.9174) used: quicker time -> stronger momentum. SUGGESTION1 applied. Confidence 0.6.",
+      "implementation": "reverse(zscore(news_mins_3_chg))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Post-news volstddev * atr combo for high-conviction moves",
+      "description": "Multiply news_vol_stddev and news_atr_ratio to find days with both volume and range expansion. SUGGESTION1 used two strong fields. Confidence 0.71.",
+      "implementation": "multiply(zscore(news_vol_stddev), zscore(news_atr_ratio))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Immediate micro-mean reversion in 30sec for low ticks",
+      "description": "If news_pct_30sec extreme but tot_ticks low, fade quickly. SUGGESTION1 two fields. Confidence 0.52.",
+      "implementation": "multiply(reverse(zscore(news_pct_30sec)), reverse(zscore(news_tot_ticks)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Use percent changes at 90min as medium-term confirmation",
+      "description": "news_pct_90min (coverage 0.9692) used to verify sustained moves; trade with direction. SUGGESTION1 applied. Confidence 0.66.",
+      "implementation": "zscore(news_pct_90min)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "EOD high relative to TONHigh as breakout signal",
+      "description": "Use news_eod_high vs news_ton_high: if EODHigh >> TONHigh, momentum likely. SUGGESTION1 used two fields. Confidence 0.62.",
+      "implementation": "zscore(subtract(news_eod_high, news_ton_high))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Trade on large percent moves but only when market calm",
+      "description": "news_pct_30min large while SPY movement small; approximated via news_indx_perf which already normalizes vs SPY. SUGGESTION1 applied. Confidence 0.68.",
+      "implementation": "zscore(news_indx_perf)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Use ts_rank of pct_30min to pick extreme continuers",
+      "description": "ts_rank(news_pct_30min,20) to find top cross-sectional momentum over recent window. SUGGESTION1 time-series op used. Confidence 0.65.",
+      "implementation": "ts_rank(news_pct_30min,20)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Volume-weighted momentum (curr_vol / mov_vol) times pct_30min",
+      "description": "Use news_vol_ratio (news_ratio_vol coverage 0.5122 so ts_backfill applied) combined with news_pct_30min. SUGGESTION3 applied to ratio. Confidence 0.55.",
+      "implementation": "multiply(zscore(news_pct_30min), zscore(ts_backfill(news_ratio_vol,5)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Fade extreme pre-open gaps in large caps",
+      "description": "Large pre-open gap (news_open_gap) but high cap: fade due to liquidity; use news_open_gap and news_cap. SUGGESTION1 applied. Confidence 0.51.",
+      "implementation": "multiply(reverse(zscore(news_open_gap)), zscore(news_cap))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Earnings day maxup amount scaled by volstddev",
+      "description": "news_max_upamt normalized by news_vol_stddev to find true breakout strength. SUGGESTION1 applied. Confidence 0.6.",
+      "implementation": "divide(zscore(news_max_upamt), abs(zscore(news_vol_stddev)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "30-min momentum filtered by 30-day moving average volume",
+      "description": "Trade momentum only when mov_vol above median: use news_mov_vol and news_pct_30min. SUGGESTION1 used two fields. Confidence 0.63.",
+      "implementation": "multiply(zscore(news_pct_30min), zscore(news_mov_vol))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Immediate reaction scaled by PE and cap (cheap small caps)",
+      "description": "news_pct_1min * inverse(pe_ratio) * inverse(cap) approximated by two inputs: pct_1min and pe_ratio (cap omitted to respect 2-field rule). SUGGESTION1 & SUGGESTION4 applied. Confidence 0.66.",
+      "implementation": "multiply(zscore(news_pct_1min), inverse(zscore(news_pe_ratio)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Use post-news maxdown as buy signal if volume high",
+      "description": "Large max down (news_max_dn_ret) but high volstddev suggests capitulation then recovery. SUGGESTION1 two fields. Confidence 0.59.",
+      "implementation": "multiply(reverse(zscore(news_max_dn_ret)), zscore(news_vol_stddev))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "60-min momentum normalized by 120-min momentum",
+      "description": "Divide short-medium horizon momentum by longer horizon to find accelerations. Use news_pct_60min and news_pct_120min. SUGGESTION1 applied. Confidence 0.62.",
+      "implementation": "divide(zscore(news_pct_60min), add(abs(zscore(news_pct_120min)), 1e-6))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Trade small-cap volatility expansion",
+      "description": "High atr_ratio in small caps favors breakout; use news_atr_ratio and news_cap. SUGGESTION1 applied. Confidence 0.61.",
+      "implementation": "multiply(zscore(news_atr_ratio), inverse(zscore(news_cap)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Use minutes-to-2% up as micro momentum filter",
+      "description": "news_mins_2l (coverage 0.707) indicates speed; shorter => stronger momentum. SUGGESTION1 applied. Confidence 0.57.",
+      "implementation": "reverse(zscore(nws12_mainz_2l))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Post-news micro-structure anomaly: ticks surge but low vol",
+      "description": "High tot_ticks with low vol_stddev may indicate manipulative ticks; avoid trading (signal = negative). Use tot_ticks and volstddev. SUGGESTION1 applied. Confidence 0.5.",
+      "implementation": "multiply(zscore(news_tot_ticks), reverse(zscore(news_vol_stddev)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Use ts_max_diff on eod_close to detect extreme jumps",
+      "description": "ts_max_diff(news_eod_close,20) identifies current minus max over lookback -> negative extremes may revert. SUGGESTION1 time-series op used. Confidence 0.6.",
+      "implementation": "ts_max_diff(news_eod_close,20)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Combine 10-min momentum with 30-min to reduce false signals",
+      "description": "Require both news_pct_10min and news_pct_30min aligned. SUGGESTION1 applied. Confidence 0.67.",
+      "implementation": "multiply(zscore(news_pct_10min), zscore(news_pct_30min))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Post-news percent moves adjusted by PE quartile",
+      "description": "Use news_pct_30min and filter by PE quantile via quantile(pe_ratio). To keep to two fields, implement ratio multiplication with inverse PE zscore. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.64.",
+      "implementation": "multiply(zscore(news_pct_30min), reverse(zscore(news_pe_ratio)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Fade extreme 120-min up moves in high-vol names",
+      "description": "Use news_pct_120min and news_atr14: if both high, fade (contrarian on extreme). SUGGESTION1 applied. Confidence 0.53.",
+      "implementation": "multiply(reverse(zscore(news_pct_120min)), zscore(news_atr14))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Use eod_vwap - post_vwap divergence as entry",
+      "description": "If eod_vwap remains above post_vwap strongly, expect late continuation; use news_eod_vwap and news_post_vwap. SUGGESTION1 applied. Confidence 0.56.",
+      "implementation": "zscore(subtract(news_eod_vwap, news_post_vwap))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Short interest x sudden positive move (squeeze play)",
+      "description": "Large positive news_pct_30min combined with high short_interest may indicate squeezes. SUGGESTION1 applied. Confidence 0.65.",
+      "implementation": "multiply(zscore(news_pct_30min), zscore(news_short_interest))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Use volatility-of-volume as filter (volstddev * mov_vol)",
+      "description": "high volstddev times high mov_vol indicates true surge; use news_vol_stddev and news_mov_vol. SUGGESTION1 applied. Confidence 0.62.",
+      "implementation": "multiply(zscore(news_vol_stddev), zscore(news_mov_vol))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "1-min micro momentum with tick confirmation",
+      "description": "news_pct_1min * news_tot_ticks to prefer moves with market participation. SUGGESTION1 applied. Confidence 0.66.",
+      "implementation": "multiply(zscore(news_pct_1min), zscore(news_tot_ticks))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Fade when eod_close below eod_vwap (sell into weakness)",
+      "description": "reverse of eod_vwap - eod_close: if close < vwap, expect further weakness intraday; trade short. SUGGESTION1 applied. Confidence 0.55.",
+      "implementation": "zscore(subtract(news_eod_vwap, news_eod_close))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Use ts_arg_max of pct_30min to find recent peaks for fade",
+      "description": "ts_arg_max(news_pct_30min,20) returns recency of peak; if 0 (today), consider fading. SUGGESTION1 applied (time-series op). Confidence 0.54.",
+      "implementation": "ts_arg_max(news_pct_30min,20)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Combine 5-min momentum with low prevday return for bounce",
+      "description": "Reverse prev day losers that have positive news_pct_5_min. Use news_prev_day_ret and news_pct_5_min. SUGGESTION1 applied. Confidence 0.61.",
+      "implementation": "multiply(reverse(zscore(news_prev_day_ret)), zscore(news_pct_5_min))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "High ATR but low ticks: risky breakout avoid",
+      "description": "If news_atr14 high but tot_ticks low, avoid or short. Use news_atr14 and news_tot_ticks. SUGGESTION1 applied. Confidence 0.48.",
+      "implementation": "multiply(zscore(news_atr14), reverse(zscore(news_tot_ticks)))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Macro-neutral idiosyncratic movers using result_vs_index",
+      "description": "Use nws12_mainz_result_vs_index (coverage 0.9733) to isolate idiosyncratic moves. SUGGESTION1 applied. Confidence 0.7.",
+      "implementation": "zscore(nws12_mainz_result_vs_index)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Short-term reversal after 4-min extremes",
+      "description": "Use news_mins_4_chg (coverage 0.9209) and reverse it for contrarian. SUGGESTION1 applied. Confidence 0.56.",
+      "implementation": "reverse(zscore(news_mins_4_chg))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "High-volume late-day moves continuation to next day",
+      "description": "news_post_vwap high relative to main_vwap combined with close volume (post vs main). Use two fields news_post_vwap and news_close_vol. SUGGESTION1 applied. Confidence 0.6.",
+      "implementation": "multiply(zscore(news_post_vwap), zscore(news_close_vol))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Use pct_120min normalized by 30-day vol to find robust continuations",
+      "description": "Divide news_pct_120min by ts_std_dev(news_pct_120min,30) to prefer statistically significant moves. SUGGESTION1 applied. Confidence 0.65.",
+      "implementation": "divide(zscore(news_pct_120min), ts_std_dev(news_pct_120min,30))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Earnings-day result1 momentum in main session",
+      "description": "Use nws12_mainz_result1 (coverage 0.9733) as direct indicator of session result; trade with direction. SUGGESTION1 applied. Confidence 0.66.",
+      "implementation": "zscore(nws12_mainz_result1)",
+      "confidence_level": 0.66
+    }
+  ]
+}

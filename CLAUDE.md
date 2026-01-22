@@ -4,75 +4,92 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-LLM Alpha Generator is a Python tool that uses LLMs (OpenAI GPT models) to generate and backtest quantitative trading alpha expressions for the WorldQuant BRAIN platform. The system automates the process of discovering, validating, and simulating trading signals.
+LLM Alpha Generation Pipeline for WorldQuant Brain - an automated system that uses OpenAI GPT models to generate quantitative trading alpha formulas (FASTEXPR syntax), validates them via sanity checking, and simulates their performance on the WorldQuant Brain platform.
+
+## Key Commands
+
+```bash
+# Start Jupyter notebook (main entry point)
+jupyter notebook llm_alpha_gen/llm_alpha_guide.ipynb
+
+# Run automated pipeline (from llm_alpha_gen directory)
+python my_research.py
+```
 
 ## Architecture
 
+### 5-Stage Pipeline Flow
+
 ```
-llm_alpha_gen/
-├── ace_lib.py         # Core API client for WorldQuant BRAIN platform
-├── llm_functions.py   # OpenAI LLM integration for alpha generation
-├── parser.py          # Expression parser and AST tree builder
-├── helpful_functions.py # Result formatting and file I/O utilities
-├── AAF.py             # Datafield downloading with whitelist filtering
-├── my_research.py     # Main orchestration script (entry point)
+[1. Initialize]        [2. LLM Generate]     [3. Sanity Check]    [4. Simulate]      [5. Analyze]
+AAF.initiate_       →  generate_expressions  →  sanity_checker()  →  multi_simulate   →  results/*.csv
+datafield()            _from_dataset()          parser.tree_node()    _alphas_map()
 ```
 
-### Key Components
+### Core Modules
 
-**ace_lib.py** - WorldQuant BRAIN API wrapper:
-- `SingleSession`: Thread-safe singleton session with auto-relogin
-- `generate_alpha()`: Creates alpha configuration dict for simulation
-- `simulate_alpha_list()` / `simulate_alpha_list_multi()`: Concurrent simulation runners
-- `get_datafields()` / `get_datasets()`: Data discovery APIs
+| Module | Purpose |
+|--------|---------|
+| `llm_alpha_guide.ipynb` | Main executable notebook with resume support |
+| `ace_lib.py` | WorldQuant Brain API wrapper (auth, datafields, simulation) |
+| `llm_functions.py` | OpenAI API calls, prompt construction, JSON parsing |
+| `parser.py` | FASTEXPR expression parsing to TreeNode, operator I/O type validation |
+| `AAF.py` | Datafield initialization, whitelist enforcement (ALLOWED_DATASETS) |
+| `my_research.py` | Sanity checker implementation, pipeline orchestration |
 
-**parser.py** - Expression tree parser:
-- `parse_expression()`: Converts infix notation to function calls (e.g., `a + b` → `add(a,b)`)
-- `build_tree()` / `tree_node()`: Builds AST from alpha expressions
-- `TreeNode`: Node class with depth calculation, type classification, graph visualization
+### Data Flow
 
-**llm_functions.py** - LLM integration:
-- `call_llm_stream()`: Streaming OpenAI API call with JSON schema enforcement
-- `generate_expressions_from_dataset()`: Generates alpha ideas from datafield metadata
+- **Input**: `datafield/{delay}/{region}/{universe}/*.json` - cached metadata from Brain API
+- **LLM Output**: `gen_json/{dataset}_{batch}.json` - generated alpha candidates with idea/description/implementation/confidence
+- **Final Output**: `results/{region}_{universe}_{category}.csv` - simulation results
 
-**my_research.py** - Main workflow:
-- Iterates through datasets, generates alphas via LLM, validates with `sanity_checker()`, simulates via BRAIN API
-- Results saved to `./results/{region}_{universe}_{category}.csv`
+## Critical Validation Rules
 
-## Environment Setup
+### Sanity Check (parser.py + my_research.py)
+- Expression must parse to valid TreeNode structure
+- Operator input/output types must match (MATRIX, VECTOR, NUMBER, SPECIAL_ARGUMENT)
+- Final output type must be MATRIX
+- Uses `operators_list.json` for type definitions
 
-Required environment variables (in `.env.local`):
-- `OPENAI_API_KEY`: For LLM alpha generation
-- `BRAIN_CREDENTIAL_EMAIL` / `BRAIN_CREDENTIAL_PASSWORD`: Optional, otherwise prompts for login
+### Submission Requirements (all must PASS)
+- `LOW_SHARPE`: Sharpe >= 1.58
+- `LOW_FITNESS`: Fitness >= 1.0
+- `LOW_TURNOVER`: Turnover >= 0.01
+- `HIGH_TURNOVER`: Turnover <= 0.7
+- `SELF_CORRELATION`: < 0.7
+- `PROD_CORRELATION`: <= 0.7
 
-Credentials are cached in `~/secrets/platform-brain.json` after first login.
+### Soft Criteria (for prioritization)
+- Fitness >= 1.5, Sharpe >= 2.0
+- Turnover in 0.1-0.5 range
 
-## Common Commands
+## Key Design Patterns
 
-```bash
-# Run main alpha generation pipeline
-python llm_alpha_gen/my_research.py
+- **Whitelist Enforcement**: Only datasets in `AAF.ALLOWED_DATASETS` are processed (competition requirement)
+- **Resume Support**: Checks `gen_json/{dataset}_*.json` before regenerating
+- **Session Singleton**: Thread-safe WorldQuant Brain connection via `ace.start_session()`
+- **Parallel Simulation**: 8-alpha concurrent ThreadPool execution
 
-# Initialize datafield cache for a region
-python -c "import ace_lib as ace; import AAF; s = ace.start_session(); AAF.initiate_datafield(s, {'region': 'USA', 'universe': 'TOP3000', 'delay': 1})"
+## Important Files to Understand
+
+1. `PIPELINE_GUIDE.md` - Comprehensive technical documentation (Korean)
+2. `for_gpt.txt` - Context guide for LLM prompt construction
+3. `operators_list.json` - Operator definitions with I/O types (72KB)
+4. `operator_inputs.json` - Additional operator type info
+
+## Known Limitations
+
+1. Sanity Checker validates types only - may miss syntax errors or runtime failures
+2. `rank` operator excluded from LLM suggestions (overuse tendency)
+3. Coverage < 0.6 fields may fail simulation despite passing sanity check
+4. Some operators may be missing from `operators_list.json`
+
+## Session Management
+
+```python
+# Check session timeout before batch operations
+if ace.check_session_timeout(s) < 1000:
+    s = ace.start_session()  # Re-authenticate
 ```
 
-## Key Data Flows
-
-1. **Alpha Generation**: Dataset → `get_datafields()` → LLM prompt → JSON response → `sanity_checker()` validation
-2. **Simulation**: `generate_alpha()` dict → `simulate_alpha_list()` → BRAIN API → results DataFrame
-3. **Expression Parsing**: Infix string → `parse_expression()` → `build_tree()` → AST for validation
-
-## Important Constraints
-
-- **Whitelist Filtering**: `AAF.ALLOWED_DATASETS` restricts which datasets can be downloaded per region (competition rules)
-- **Rate Limiting**: Session timeout check (`check_session_and_relogin`) runs before API calls; concurrent simulation limited to 3-8 threads
-- **Expression Validation**: `sanity_checker()` validates operator input/output types against datafield types before simulation
-
-## File Output Locations
-
-- `./datafield/{delay}/{region}/{universe}/`: Cached datafield JSON files
-- `./gen_json/`: Raw LLM-generated alpha JSONs
-- `./results/`: Simulation results CSVs
-- `./simulation_results/`: Individual alpha result JSONs
-- `ace.log`: Debug/info logging output
+WorldQuant Brain authentication may require biometrics - follow URL prompts when session starts.

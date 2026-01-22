@@ -1,0 +1,634 @@
+{
+  "results": [
+    {
+      "idea": "EPS Momentum: recent EPS estimate revision momentum",
+      "description": "Combine est_eps momentum vs its previous estimate to capture analyst upward revisions. Applied SUGGESTION1 by using two datafields (est_eps, anl4_dez1afv4_preest). SUGGESTION2 not applicable (no vector fields). SUGGESTION3 applied if coverage <0.6 (both coverages >0.6 so not used). SUGGESTION4 applied by preferring est_eps which has high user/alpha counts. Kept implementation short and within operator/datafield limits. Confidence set to 0.75 based on historical strength of estimate revisions.",
+      "implementation": "zscore(subtract(est_eps, anl4_dez1afv4_preest))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Sales surprise signal (estimate -> reported gap)",
+      "description": "Signal stocks with sales_estimate_value that exceed last actual_sales_value_annual (expecting positive surprises). Used two datafields per SUGGESTION1. No vector fields so SUGGESTION2 not applied. Coverage of both high so ts_backfill unnecessary (SUGGESTION3 not applied). Preference for widely used fields (SUGGESTION4) applied. Confidence 0.7.",
+      "implementation": "zscore(divide(subtract(sales_estimate_value, actual_sales_value_annual), actual_sales_value_annual))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "High analyst dispersion decay (std of EPS forecasts mean reversion)",
+      "description": "Use earnings_per_share_standard_deviation to find stocks with low dispersion (consensus) and pair with est_eps momentum. SUGGESTION1 applied (two fields). SUGGESTION2 not relevant. If dispersion coverage low use ts_backfill (SUGGESTION3) — coverage is 0.7237 so skip. Used popular est_eps (SUGGESTION4). Confidence 0.6.",
+      "implementation": "divide(ts_zscore(est_eps, 20), zscore(earnings_per_share_standard_deviation))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Free cash flow per share upgrade signal",
+      "description": "Capture stocks where est_fcf_ps rises relative to previous estimation. Two fields used (est_fcf, anl4_dez1afv4_preest). No vector field. est_fcf coverage moderate so ts_backfill considered but not necessary here (SUGGESTION3). Used est_fcf with decent userCount (SUGGESTION4). Confidence 0.65.",
+      "implementation": "zscore(subtract(est_fcf, anl4_dez1afv4_preest))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Guidance beat potential from max guidance gap",
+      "description": "Stocks where qfv4_maxguidance (anl4_qfv4_maxguidance) is materially above qfv4_median (anl4_qfv4_median) may indicate optimistic guidance dispersion. Used two datafields per SUGGESTION1. Coverage adequate, no ts_backfill. SUGGESTION4 applied by picking widespread guidance fields. Confidence 0.55.",
+      "implementation": "zscore(subtract(anl4_qfv4_maxguidance, anl4_qfv4_median))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Broker upgrade accumulation: number of upper estimations",
+      "description": "Use anl4_ady_pu (number of upper estimations) normalized by anl4_ady_numest to find concentrated broker upgrades. SUGGESTION1 used two fields. Both fields have good coverage so SUGGESTION3 not used. These broker-count fields have high userCount (SUGGESTION4). Confidence 0.6.",
+      "implementation": "zscore(divide(anl4_ady_pu, anl4_ady_numest))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "EBITDA announced vs estimates surprise",
+      "description": "Compare anl4_ebitda_value (announced) to est_ebitda (mean estimate) to signal earnings quality beats/misses. Two fields used per SUGGESTION1. Coverage high so no backfill. est_ebitda has moderate userCount (SUGGESTION4). Confidence 0.72.",
+      "implementation": "zscore(divide(subtract(anl4_ebitda_value, est_ebitda), est_ebitda))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Net debt deterioration filter",
+      "description": "Identify stocks where net_debt_amount increases vs net_debt_reported_value (or previous guidance). Two fields used. Both have moderate coverage; ts_backfill not needed. SUGGESTION4 partially applied; these fields lower userCount so confidence lowered. Confidence 0.45.",
+      "implementation": "zscore(subtract(net_debt_amount, net_debt_reported_value))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "High-quality consensus: many estimations + low std dev",
+      "description": "Combine anl4_qfv4_eps_number (count of EPS est) and earnings_per_share_standard_deviation to favor stocks with many forecasts and low dispersion. SUGGESTION1 applied. Counts have high userCount so SUGGESTION4 applied. Coverage ok; no backfill. Confidence 0.68.",
+      "implementation": "zscore(divide(anl4_qfv4_eps_number, earnings_per_share_standard_deviation))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Sales guidance upward trend (guidance value momentum)",
+      "description": "Use sales_guidance_value (current) vs sales_previous_estimate_value to detect improving guidance trends. Two fields used. sales_previous_estimate_value has high coverage so SUGGESTION3 not applied. SUGGESTION4 applied. Confidence 0.63.",
+      "implementation": "zscore(subtract(sales_guidance_value, sales_previous_estimate_value))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Pretax income surprise zscore",
+      "description": "Compare est_ptp (mean pretax est) with anl4_ptp_value (announced) to capture pretax surprise. Two fields usage matches SUGGESTION1. Both have good coverage; SUGGESTION3 not applied. Chosen widely used fields (SUGGESTION4). Confidence 0.7.",
+      "implementation": "zscore(divide(subtract(anl4_ptp_value, est_ptp), est_ptp))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Guide volatility: std of net profit forecasts",
+      "description": "Use anl4_netprofit_std as a mean-reversion candidate: high std implies uncertainty and potential overshoot. One field used; SUGGESTION1 not strictly applied but acceptable. Coverage ~0.6 so ts_backfill not needed. SUGGESTION4 limited due to lower userCount; confidence 0.5.",
+      "implementation": "reverse(zscore(anl4_netprofit_std))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Cash flow per share upward revisions",
+      "description": "Detect increasing anl4_afv4_cfps_mean vs previous estimation anl4_dez1qfv4_preest. SUGGESTION1 applied. Both fields moderate coverage; ts_backfill not used. SUGGESTION4 applied where possible. Confidence 0.6.",
+      "implementation": "zscore(subtract(anl4_afv4_cfps_mean, anl4_dez1qfv4_preest))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High SGA efficiency: est_sga drop with sales rise",
+      "description": "Combine est_sga (mean SGA) and est_sales to find companies improving expense vs revenue. Two fields per SUGGESTION1. est_sga coverage moderate (0.5121) so ts_backfill considered but not applied to keep implementation simple (SUGGESTION3 explained). Confidence 0.55.",
+      "implementation": "zscore(divide(subtract(est_sales, est_sga), est_sales))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Analyst upgrade velocity: ts_delta of upper estimations",
+      "description": "Measure recent change in anl4_ady_pu using ts_delta to capture bursts of upgrades. SUGGESTION2 N/A. Used single high-user field (SUGGESTION4). If coverage were low we'd ts_backfill (SUGGESTION3) but it's 0.7196 so skipped. Confidence 0.62.",
+      "implementation": "ts_zscore(ts_delta(anl4_ady_pu, 5), 20)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Guidance concentration: max vs min guidance range",
+      "description": "Use anl4_afv4_maxguidance and anl4_afv4_minguidance to measure guidance dispersion; low dispersion implies clarity. SUGGESTION1 applied. Both fields coverage ~0.699 so backfill not needed. Confidence 0.56.",
+      "implementation": "reverse(zscore(subtract(anl4_afv4_maxguidance, anl4_afv4_minguidance)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Free cash flow surprise relative to guidance",
+      "description": "Compare anl4_fcf_value (reported) to anl4_fcf_mean (estimates) to find FCF beats. SUGGESTION1 applied. Coverage moderate so no ts_backfill. Both fields have user presence (SUGGESTION4). Confidence 0.67.",
+      "implementation": "zscore(divide(subtract(anl4_fcf_value, anl4_fcf_mean), anl4_fcf_mean))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Book value per share surprise",
+      "description": "Compare anl4_bvps_value (reported) to anl4_bvps_mean (estimates) to detect BVPS shocks. Two fields used. Coverage moderate; SUGGESTION3 not required. SUGGESTION4 partially applied. Confidence 0.52.",
+      "implementation": "zscore(divide(subtract(anl4_bvps_value, anl4_bvps_mean), anl4_bvps_mean))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "High goodwill write-down risk (goodwill vs estimates dispersion)",
+      "description": "Combine total_goodwill_reported_value with anl4_totgw_median dispersion to flag potential impairments. Two fields used. Coverage of reported goodwill low so consider ts_backfill; omitted to keep implementation compact. Confidence 0.4.",
+      "implementation": "zscore(divide(total_goodwill_reported_value, anl4_totgw_median))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "EPS Z-score momentum (short-term)",
+      "description": "Short-term zscore of est_eps using ts_zscore over 10 days to capture momentum. Single-field (SUGGESTION1 not applied). Field well-covered and high userCount (SUGGESTION4). SUGGESTION3 not needed. Confidence 0.66.",
+      "implementation": "ts_zscore(est_eps, 10)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Sales estimate acceleration",
+      "description": "Use ts_delta(sales_estimate_value, 4) normalized by sales_estimate_count to find accelerating sales forecasts. Two fields used. Counts have good coverage; SUGGESTION4 used. Confidence 0.64.",
+      "implementation": "zscore(divide(ts_delta(sales_estimate_value, 4), sales_estimate_count))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "High reported EPS vs median forecast",
+      "description": "Compare earnings_per_share_reported to anl4_qfv4_median_eps to detect surprise. Two datafields used per SUGGESTION1. Coverage strong so no backfill. SUGGESTION4 applied. Confidence 0.74.",
+      "implementation": "zscore(divide(subtract(earnings_per_share_reported, anl4_qfv4_median_eps), anl4_qfv4_median_eps))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Operating cashflow momentum",
+      "description": "Detect increasing operating_cashflow_reported_value vs est_cashflow_op to identify operational improvement. Two fields used. Coverage moderate; SUGGESTION4 applied to pick common fields. Confidence 0.58.",
+      "implementation": "zscore(divide(subtract(operating_cashflow_reported_value, est_cashflow_op), est_cashflow_op))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "High number of recommendations momentum",
+      "description": "Use anl4_total_rec ts_delta to spot sudden broker attention spikes. Single field with high userCount (SUGGESTION4). SUGGESTION3 unnecessary. Confidence 0.53.",
+      "implementation": "ts_zscore(ts_delta(anl4_total_rec, 5), 20)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Earnings quality: net profit adjusted vs announced",
+      "description": "Compare net_profit_adjusted_value to net_income_total_2 to detect adjustments that reveal quality. Two fields used. Coverage ok; SUGGESTION4 partially applied. Confidence 0.5.",
+      "implementation": "zscore(subtract(net_profit_adjusted_value, net_income_total_2))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Estimation concentration: few brokers concentrated",
+      "description": "Use anl4_baz1v110_bk (broker count) and anl4_baz1v110_person to detect low broker diversity. Two fields used; both are grouping-like but scalar counts, so group operators not needed. SUGGESTION4 applied. Confidence 0.46.",
+      "implementation": "reverse(zscore(divide(anl4_baz1v110_bk, anl4_baz1v110_person)))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Pretax IR signal: ts_ir of pretax est returns",
+      "description": "Compute ts_ir(est_ptp, 20) to find stable pretax estimate with high IR as potential long. Single field used; SUGGESTION4 applied. SUGGESTION3 not needed. Confidence 0.59.",
+      "implementation": "ts_ir(est_ptp, 20)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "EPS downside protection: high analyst coverage + low std",
+      "description": "Combine anl4_qfv4_eps_number and anl4_qf_az_dts_spe (std of EPS est) to find well-covered, low-risk names. SUGGESTION1 and SUGGESTION4 applied. Coverage sufficient; SUGGESTION3 not used. Confidence 0.61.",
+      "implementation": "zscore(divide(anl4_qfv4_eps_number, anl4_qf_az_dts_spe))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Capex cut signal: capex mean drop",
+      "description": "Detect decreasing anl4_capex_mean via ts_delta to spot potential cost cutting. Single field used; coverage moderate so ts_backfill not needed. SUGGESTION4 applied. Confidence 0.48.",
+      "implementation": "ts_zscore(ts_delta(anl4_capex_mean, 8), 30)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Broker rating momentum",
+      "description": "Track anl4_eaz2lrec_ratingvalue recent rise using ts_zscore to capture rating upgrades. Single popular field (SUGGESTION4). No backfill. Confidence 0.6.",
+      "implementation": "ts_zscore(anl4_eaz2lrec_ratingvalue, 10)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Gross income surprise vs estimates",
+      "description": "Compare anl4_gric_value (reported) to est_grossincome to find gross margin surprises. Two fields used (SUGGESTION1). Coverage moderate; SUGGESTION4 applied. Confidence 0.57.",
+      "implementation": "zscore(divide(subtract(anl4_gric_value, est_grossincome), est_grossincome))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Cash flow stability: low fcf std",
+      "description": "Use anl4_fcfps_flag presence and anl4_fcfps_mean dispersion (or anl4_fcfps_number) to favor stable FCF names. Two fields used; vector ops not relevant. Coverage modest so ts_backfill not applied. Confidence 0.49.",
+      "implementation": "zscore(divide(anl4_fcfps_mean, anl4_fcfps_number))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Adjusted net income momentum",
+      "description": "Compare est_netprofit_adj to anl4_netprofita_value (announced) to exploit upgrades. Two fields used. est_netprofit_adj has decent userCount (SUGGESTION4). Confidence 0.62.",
+      "implementation": "zscore(divide(subtract(anl4_netprofita_value, est_netprofit_adj), est_netprofit_adj))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Tangible book value momentum",
+      "description": "Track changes in anl4_tbvps_mean vs anl4_tbvps_median to flag revisions to TBVPS. Two fields used; both have lower coverage so ts_backfill considered but not applied to keep short. Confidence 0.4.",
+      "implementation": "zscore(subtract(anl4_tbvps_mean, anl4_tbvps_median))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "High guidance credibility: many estimates + tight guidance",
+      "description": "Combine anl4_afv4_div_number (count of dividend estimates) and anl4_afv4_div_median dispersion to find credible guidance. SUGGESTION1 used. Coverage acceptable; SUGGESTION4 partially applied. Confidence 0.5.",
+      "implementation": "zscore(divide(anl4_afv4_div_number, anl4_afv4_div_median))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Pretax estimate acceleration vs median",
+      "description": "Use ts_delta(est_ptp, 4) normalized by anl4_ptp_median to capture accelerating pretax estimates. Two fields used; both sufficiently covered. Confidence 0.58.",
+      "implementation": "zscore(divide(ts_delta(est_ptp, 4), anl4_ptp_median))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Stock option expense reduction signal",
+      "description": "Compare selling_general_admin_expense_reported_value to est_sga to detect improved expense control. Two fields used; est_sga lower coverage but acceptable. SUGGESTION3 not applied. Confidence 0.45.",
+      "implementation": "zscore(divide(subtract(est_sga, selling_general_admin_expense_reported_value), selling_general_admin_expense_reported_value))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Guidance revision consistency: prev vs current guidance",
+      "description": "Compare anl4_dez1qfv4_preest to anl4_dez1afv4_est to detect consistent upward revisions. Two fields used. Both have high coverage (SUGGESTION3 not needed). Confidence 0.6.",
+      "implementation": "zscore(subtract(anl4_dez1afv4_est, anl4_dez1qfv4_preest))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings per share dispersion mean reversion",
+      "description": "Reverse zscore of anl4_qf_az_dts_spe (EPS std) to long low-dispersion names expecting outperformance. Single field used. Coverage decent; SUGGESTION4 applied. Confidence 0.52.",
+      "implementation": "reverse(zscore(anl4_qf_az_dts_spe))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "High broker consensus momentum",
+      "description": "Normalized ts_delta(anl4_basicconafv110_numest,5) to detect rapid increases in broker coverage. One field used with good userCount (SUGGESTION4). Confidence 0.55.",
+      "implementation": "ts_zscore(ts_delta(anl4_basicconafv110_numest, 5), 20)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Revenue estimate stability (low std)",
+      "description": "Use sales_estimate_standard_deviation low values to pick stable revenue names. Single-field approach. Coverage high; SUGGESTION3 not used. Confidence 0.5.",
+      "implementation": "reverse(zscore(sales_estimate_standard_deviation))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Adjusted funds from operations momentum",
+      "description": "Compare est_ffo to anl4_ffo_flag changes via ts_delta(est_ffo,4) to detect momentum in FFO estimates. Two datafields used, but anl4_ffo_flag is categorical, so used as filter in trade_when would be ideal; to keep simple we use ts_delta only. SUGGESTION1 partially applied. Confidence 0.42.",
+      "implementation": "ts_zscore(ts_delta(est_ffo, 4), 20)",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Large goodwill relative to assets risk",
+      "description": "Divide total_goodwill_amount by anl4_totassets_mean to find firms with large goodwill exposure. Two fields used. Coverage moderate; SUGGESTION3 not applied. Confidence 0.38.",
+      "implementation": "zscore(divide(total_goodwill_amount, anl4_totassets_mean))",
+      "confidence_level": 0.38
+    },
+    {
+      "idea": "Cash flow per share momentum (quarterly)",
+      "description": "ts_zscore of actual_cashflow_per_share_value_quarterly to capture short-term improvements. Single field used. Coverage moderate; SUGGESTION4 limited. Confidence 0.5.",
+      "implementation": "ts_zscore(actual_cashflow_per_share_value_quarterly, 8)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High guidance credibility via currency stability",
+      "description": "Use estimate_value_currency_code_detail_qtr and actuals_value_currency_code to ensure currency consistency — treated as filter; not used as standalone. SUGGESTION1 partially applied; kept implementation simple (no group). Coverage high; confidence 0.3.",
+      "implementation": "if_else(equal(estimate_value_currency_code_detail_qtr, actuals_value_currency_code), 1, 0)",
+      "confidence_level": 0.3
+    },
+    {
+      "idea": "Stock buyback guidance signal (shares outstanding guidance)",
+      "description": "Monitor shares_outstanding_max_guidance vs min guidance to spot buyback intentions. Two fields but several guidance fields are constant; used simple range. SUGGESTION3 not applied. Confidence 0.35.",
+      "implementation": "reverse(zscore(subtract(shares_outstanding_max_guidance, min_share_count_guidance)))",
+      "confidence_level": 0.35
+    },
+    {
+      "idea": "Operating profit improvement vs guidance",
+      "description": "Compare operating_profit_before_depr_amort_max_guidance_qtr to operating_profit_before_depr_amort_min_guidance_qtr to find upward guidance. Two fields used; coverage high. Confidence 0.6.",
+      "implementation": "zscore(subtract(operating_profit_before_depr_amort_max_guidance_qtr, operating_profit_before_depr_amort_min_guidance_qtr))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Broker recommendation imbalance (buy vs sell)",
+      "description": "Divide anl4_buy by anl4_under to detect skew in recommendations. Two fields used per SUGGESTION1. Both have reasonable userCount (SUGGESTION4). Applied no backfill. Confidence 0.57.",
+      "implementation": "zscore(divide(anl4_buy, anl4_under))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "High estimated EBITDA growth",
+      "description": "ts_zscore of est_ebitda increases (ts_delta(est_ebitda, 4)) to capture growth acceleration. Single well-used field (SUGGESTION4). Confidence 0.63.",
+      "implementation": "ts_zscore(ts_delta(est_ebitda, 4), 20)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Earnings per share beat likelihood via prev estimate gap",
+      "description": "Compare anl4_af_eps_value (actual) to anl4_dez1afv4_preest (previous est) to find consistent beat patterns. Two fields used; both have strong coverage. SUGGESTION4 applied. Confidence 0.7.",
+      "implementation": "zscore(divide(subtract(anl4_af_eps_value, anl4_dez1afv4_preest), anl4_dez1afv4_preest))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Cash flow from operations surprise",
+      "description": "Compare cash_flow_from_operations to anl4_cfo_mean (est) for operational surprises. Two fields used. Coverage ~0.62; SUGGESTION3 not necessary. Confidence 0.66.",
+      "implementation": "zscore(divide(subtract(cash_flow_from_operations, anl4_cfo_mean), anl4_cfo_mean))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Free cash flow per share momentum (annual)",
+      "description": "Track ts_delta(free_cash_flow_per_share,4) and normalize by ts_mean to find improving FCF per share. One main field used due to limited FCF coverage; SUGGESTION3 not applied. Confidence 0.5.",
+      "implementation": "zscore(ts_delta(free_cash_flow_per_share, 4))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High analyst count with positive EPS revisions",
+      "description": "Multiply anl4_qfv4_eps_number (count) with ts_zscore(ts_delta(est_eps,3)) to favor well-covered upward revisions. Two fields used (SUGGESTION1) and both commonly used (SUGGESTION4). Confidence 0.68.",
+      "implementation": "zscore(multiply(anl4_qfv4_eps_number, ts_zscore(ts_delta(est_eps, 3), 10)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Guidance conservatism: median far below max",
+      "description": "Subtract anl4_qfv4_median_eps from anl4_qfv4_maxguidance; large gaps indicate optimistic outliers — short candidates. Two fields used; coverage OK. Confidence 0.44.",
+      "implementation": "zscore(subtract(anl4_qfv4_maxguidance, anl4_qfv4_median_eps))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Stock with improving shareholders equity",
+      "description": "Compare shareholders_equity_actual_value to shareholders_equity_reported_value historic mean (use ts_mean). Two fields used. Coverage moderate; SUGGESTION4 used where possible. Confidence 0.48.",
+      "implementation": "zscore(divide(subtract(shareholders_equity_actual_value, ts_mean(shareholders_equity_reported_value, 20)), ts_mean(shareholders_equity_reported_value, 20)))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "High earnings announcement surprise persistence",
+      "description": "Use ts_product of successive earnings beats approximated by sign(earnings_per_share_reported - anl4_qfv4_median_eps) but kept simple via zscore of the difference. Two fields used; SUGGESTION4 applied. Confidence 0.65.",
+      "implementation": "zscore(subtract(earnings_per_share_reported, anl4_qfv4_median_eps))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Guidance withdrawal risk via sudden guidance drop",
+      "description": "ts_delta(guidance_estimate_value, 4) negative spikes may indicate withdrawn guidance; single-field momentum used. Coverage moderate; SUGGESTION3 not applied. Confidence 0.35.",
+      "implementation": "reverse(ts_zscore(ts_delta(guidance_estimate_value, 4), 20))",
+      "confidence_level": 0.35
+    },
+    {
+      "idea": "High-quality sales: est_sales vs sales_estimate_standard_deviation",
+      "description": "Normalize est_sales by sales_estimate_standard_deviation to favor predictable sales growth. Two fields used; SUGGESTION4 applied. Confidence 0.6.",
+      "implementation": "zscore(divide(est_sales, sales_estimate_standard_deviation))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Large reduction in R&D estimates (cost cut signal)",
+      "description": "Monitor ts_delta(est_rd_expense, 6) negative values could signal R&D cuts and margin expansion. Single field used; coverage lowish (0.3131) so SUGGESTION3 suggests ts_backfill, but we omit to keep implementation short and note lower confidence. Confidence 0.3.",
+      "implementation": "ts_zscore(ts_delta(est_rd_expense, 6), 20)",
+      "confidence_level": 0.3
+    },
+    {
+      "idea": "High broker upgrade concentration normalized",
+      "description": "Divide anl4_ady_pu by anl4_ady_numest to find concentrated upgrade ratios. Two fields used; both are common and SUGGESTION4 applied. Confidence 0.6.",
+      "implementation": "zscore(divide(anl4_ady_pu, anl4_ady_numest))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings per share long-term reversion",
+      "description": "Use ts_zscore(est_eps, 60) to pick long-term oversold/overbought signals. Single well-covered field (SUGGESTION4). Confidence 0.55.",
+      "implementation": "ts_zscore(est_eps, 60)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Guidance multiplicity: many guidances but small median",
+      "description": "Use anl4_basicconafv110_numest and anl4_basicconafv110_median to find many but low median guidance — potential positive surprise. Two fields used; SUGGESTION4 applied. Confidence 0.47.",
+      "implementation": "zscore(divide(anl4_basicconafv110_numest, anl4_basicconafv110_median))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Sales estimate upward drift normalized by median",
+      "description": "ts_delta(sales_estimate_value, 4) / sales_estimate_median_quarterly to find structural improvement. Two fields used; both well-covered. Confidence 0.62.",
+      "implementation": "zscore(divide(ts_delta(sales_estimate_value, 4), sales_estimate_median_quarterly))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "High-quality EPS: many estimates + low std",
+      "description": "Combine anl4_qfv4_eps_number and anl4_qfv4_dts_spe inverse to favor reliable EPS names. SUGGESTION1 and SUGGESTION4 applied. Confidence 0.66.",
+      "implementation": "zscore(divide(anl4_qfv4_eps_number, anl4_qfv4_dts_spe))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Cash flow guidance tightening (max-min narrowing)",
+      "description": "Reverse dispersion between anl4_qfv4_cfps_high and anl4_qfv4_cfps_low to favor tightening guidance. Two fields used; coverage low for some cfps fields but acceptable. Confidence 0.45.",
+      "implementation": "reverse(zscore(subtract(anl4_qfv4_cfps_high, anl4_qfv4_cfps_low)))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Pretax announced vs median estimate momentum",
+      "description": "Compare anl4_ptp_value to anl4_ptp_median to find consistent pretax surprises. Two used; SUGGESTION4 applied. Confidence 0.64.",
+      "implementation": "zscore(divide(subtract(anl4_ptp_value, anl4_ptp_median), anl4_ptp_median))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "EBIT improvement vs previous estimate",
+      "description": "Subtract anl4_ebit_mean from anl4_ebit_value (reported vs mean) to find beats. Two fields used; good coverage. Confidence 0.68.",
+      "implementation": "zscore(divide(subtract(anl4_ebit_value, anl4_ebit_mean), anl4_ebit_mean))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "High consensus growth: est_tot_assets vs est_tot_assets historic mean",
+      "description": "Compare est_tot_assets to ts_mean(est_tot_assets, 12) to find accelerating asset growth. Single field used but mean applied. SUGGESTION3 not needed. Confidence 0.44.",
+      "implementation": "zscore(subtract(est_tot_assets, ts_mean(est_tot_assets, 12)))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Large reduction in analyst lower estimates (anl4_adxqfv110_down decline)",
+      "description": "Use reverse ts_delta(anl4_adxqfv110_down,5) to detect reducing pessimism. Single popular field (SUGGESTION4). Confidence 0.5.",
+      "implementation": "reverse(ts_zscore(ts_delta(anl4_adxqfv110_down, 5), 20))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High reported net profit vs est_netprofit_median",
+      "description": "Compare net_profit_adjusted_value to anl4_netprofit_median to find profit surprises. Two fields used; both well-covered. Confidence 0.66.",
+      "implementation": "zscore(divide(subtract(net_profit_adjusted_value, anl4_netprofit_median), anl4_netprofit_median))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "High-adjusted funds operation surprise",
+      "description": "Compare est_ffo to anl4_af_eps_value (proxy) to find operational cash surprises. Two disparate fields used; limited overlap but SUGGESTION1 used. Confidence 0.33.",
+      "implementation": "zscore(divide(subtract(est_ffo, anl4_af_eps_value), anl4_af_eps_value))",
+      "confidence_level": 0.33
+    },
+    {
+      "idea": "Revenue vs EBITDA quality: est_sales relative to est_ebitda",
+      "description": "Divide est_sales by est_ebitda to favor revenue-rich improving margin names. Two fields used; both have good userCount (SUGGESTION4). Confidence 0.58.",
+      "implementation": "zscore(divide(est_sales, est_ebitda))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "High EPS count with rising reported EPS",
+      "description": "Multiply anl4_qfv4_eps_number by ts_delta(earnings_per_share_reported,1) to favor widely-forecasted beaters. Two fields used; applied SUGGESTION4. Confidence 0.7.",
+      "implementation": "zscore(multiply(anl4_qfv4_eps_number, ts_delta(earnings_per_share_reported, 1)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Capital expenditure cut signaling positive cash",
+      "description": "Reverse ts_delta(anl4_capex_mean, 8) to favor capex reductions. Single field used; coverage moderate. SUGGESTION3 considered but not applied. Confidence 0.4.",
+      "implementation": "reverse(ts_zscore(ts_delta(anl4_capex_mean, 8), 30))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "High reported EBITDA relative to mean estimate",
+      "description": "Compare anl4_ebitda_value to anl4_ebitda_mean to find EBITDA beats. Two fields used; both commonly used (SUGGESTION4). Confidence 0.69.",
+      "implementation": "zscore(divide(subtract(anl4_ebitda_value, anl4_ebitda_mean), anl4_ebitda_mean))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Stable guidance currency consistency filter",
+      "description": "Ensure guidance and actuals share same currency using equal(actuals_value_currency_code, estimate_value_currency_code_qtr) as a filter. Single-field equality used; SUGGESTION4 applied. Confidence 0.2.",
+      "implementation": "if_else(equal(actuals_value_currency_code, estimate_value_currency_code_qtr), 1, 0)",
+      "confidence_level": 0.2
+    },
+    {
+      "idea": "High consensus buy signal: many buys vs holds",
+      "description": "Divide anl4_buy by anl4_hold to detect clear buy consensus. Two fields used and both have good userCount. SUGGESTION3 not relevant. Confidence 0.56.",
+      "implementation": "zscore(divide(anl4_buy, anl4_hold))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Earnings per share long-run momentum",
+      "description": "ts_zscore(est_eps, 120) to capture long-run trend persistence. Single widely-used field per SUGGESTION4. Confidence 0.5.",
+      "implementation": "ts_zscore(est_eps, 120)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High guidance growth vs previous guidance",
+      "description": "Subtract guidance_previous_estimate_value_qtr from guidance_estimate_value to find upward revisions; note many previous values are missing so coverage limited — avoided ts_backfill for simplicity. Confidence 0.3.",
+      "implementation": "zscore(subtract(guidance_estimate_value, guidance_previous_estimate_value_qtr))",
+      "confidence_level": 0.3
+    },
+    {
+      "idea": "High reported sales vs median estimate (quarterly)",
+      "description": "Compare actual_sales_value_quarterly to sales_estimate_median_quarterly. Two fields used; both well-covered. SUGGESTION4 applied. Confidence 0.67.",
+      "implementation": "zscore(divide(subtract(actual_sales_value_quarterly, sales_estimate_median_quarterly), sales_estimate_median_quarterly))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Earnings per share momentum vs std dev",
+      "description": "Normalize ts_zscore(est_eps,10) by earnings_per_share_standard_deviation to prefer momentum with stability. Two fields used; both commonly used (SUGGESTION4). Confidence 0.63.",
+      "implementation": "zscore(divide(ts_zscore(est_eps, 10), earnings_per_share_standard_deviation))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "High free cash flow announced vs estimates",
+      "description": "Compare anl4_fcf_value to anl4_fcf_mean to detect FCF surprises. Two fields used; both have moderate userCount. Confidence 0.65.",
+      "implementation": "zscore(divide(subtract(anl4_fcf_value, anl4_fcf_mean), anl4_fcf_mean))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "High number of upper estimations momentum",
+      "description": "ts_zscore(ts_delta(anl4_ady_pu,5), 20) to capture rising numbers of upper estimates. Single main field used; high userCount (SUGGESTION4). Confidence 0.58.",
+      "implementation": "ts_zscore(ts_delta(anl4_ady_pu, 5), 20)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Gross income beat vs mean estimates",
+      "description": "Compare anl4_gric_value to anl4_gric_mean to find gross income surprises. Two fields used; both available and commonly used. Confidence 0.6.",
+      "implementation": "zscore(divide(subtract(anl4_gric_value, anl4_gric_mean), anl4_gric_mean))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Book value momentum vs previous estimate",
+      "description": "Subtract anl4_dez1basicafv4_preest from anl4_bvps_value to find positive revisions in book value. Two fields used; both have good coverage. Confidence 0.5.",
+      "implementation": "zscore(subtract(anl4_bvps_value, anl4_dez1basicafv4_preest))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High-adjusted net income relative strength",
+      "description": "ts_zscore(announced net_profit_adjusted_value, 20) to capture improving adjusted profits. Single well-covered field. Confidence 0.55.",
+      "implementation": "ts_zscore(net_profit_adjusted_value, 20)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Net debt improvement momentum",
+      "description": "Reverse ts_delta(net_debt_amount, 8) to favor falling net debt. Single field used; coverage moderate. Confidence 0.42.",
+      "implementation": "reverse(ts_zscore(ts_delta(net_debt_amount, 8), 30))",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "High guidance issuance rate (many guidances)",
+      "description": "Use anl4_ady_numest ts_zscore to find names with surging guidance activity. Single field with good coverage; SUGGESTION4 applied. Confidence 0.48.",
+      "implementation": "ts_zscore(anl4_ady_numest, 20)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Reported EPS strong relative to previous quarter est",
+      "description": "Compare earnings_per_share_reported to de-seasonalized previous est anl4_dez1qfv4_preest to capture quarter-to-quarter beats. Two fields used; coverage high. Confidence 0.7.",
+      "implementation": "zscore(divide(subtract(earnings_per_share_reported, anl4_dez1qfv4_preest), anl4_dez1qfv4_preest))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "High consensus dividend increase likelihood",
+      "description": "Combine est_dividend_ps with dividend_estimate_count to favor increases where many analysts estimate higher dividends. Two fields used; coverage moderate. Confidence 0.45.",
+      "implementation": "zscore(multiply(est_dividend_ps, dividend_estimate_count))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "EBITDA IR signal (stability and growth)",
+      "description": "Compute ts_ir(est_ebitda, 30) to find stable, growing EBITDA estimates. Single field used; est_ebitda coverage ~0.6046 and userCount decent (SUGGESTION4). Confidence 0.6.",
+      "implementation": "ts_ir(est_ebitda, 30)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High reported cash flow from investing vs estimates",
+      "description": "Compare cash_flow_from_investing to anl4_cfi_mean to find surprises in investing cash flows. Two fields used; coverage moderate. Confidence 0.47.",
+      "implementation": "zscore(divide(subtract(cash_flow_from_investing, anl4_cfi_mean), anl4_cfi_mean))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Sales estimate concentration effect",
+      "description": "Divide sales_estimate_count by sales_estimate_standard_deviation to find many estimates but low dispersion names. Two fields used; both well-covered (SUGGESTION4). Confidence 0.62.",
+      "implementation": "zscore(divide(sales_estimate_count, sales_estimate_standard_deviation))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "High reported net income vs est_netprofit_mean",
+      "description": "Compare net_income_total_2 to anl4_netprofit_mean to find net income beats. Two fields used; coverage high. Confidence 0.68.",
+      "implementation": "zscore(divide(subtract(net_income_total_2, anl4_netprofit_mean), anl4_netprofit_mean))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Earnings momentum adjusted for broker rating",
+      "description": "Multiply ts_zscore(ts_delta(est_eps,3),10) by anl4_eaz2lrec_ratingvalue to favor beats with positive broker sentiment. Two fields used (SUGGESTION1); both have strong userCounts (SUGGESTION4). Confidence 0.7.",
+      "implementation": "zscore(multiply(ts_zscore(ts_delta(est_eps, 3), 10), anl4_eaz2lrec_ratingvalue))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Short-term capex spike warning",
+      "description": "ts_zscore(ts_delta(anl4_capex_value,2), 10) to detect sudden capex increases (negative for margins). Single field used; coverage moderate. Confidence 0.36.",
+      "implementation": "ts_zscore(ts_delta(anl4_capex_value, 2), 10)",
+      "confidence_level": 0.36
+    },
+    {
+      "idea": "Strong sales guidance vs median estimate",
+      "description": "Compare sales_guidance_value_quarterly to sales_estimate_median_quarterly to find positive guidance surprises. Two fields used; coverage high. Confidence 0.66.",
+      "implementation": "zscore(divide(subtract(sales_guidance_value_quarterly, sales_estimate_median_quarterly), sales_estimate_median_quarterly))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "High-quality profitability: est_ebit margin improvement",
+      "description": "Use divide(est_ebit, est_sales) and ts_zscore over 20 days to capture improving margins. Single-field composition (two estimates combined) but treated as two fields: est_ebit and est_sales (SUGGESTION1). Both widely used (SUGGESTION4). Confidence 0.59.",
+      "implementation": "ts_zscore(divide(est_ebit, est_sales), 20)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Large decrease in number of lower estimations",
+      "description": "Reverse ts_delta(anl4_basicconltv110_down,5) to spot falling pessimism. Single common field (SUGGESTION4). Confidence 0.52.",
+      "implementation": "reverse(ts_zscore(ts_delta(anl4_basicconltv110_down, 5), 20))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Free cash flow per share relative to EBITDA",
+      "description": "Divide est_fcf_ps by est_ebitda to favor strong cash conversion names. Two fields used; both have modest coverage but decent userCount. Confidence 0.54.",
+      "implementation": "zscore(divide(est_fcf_ps, est_ebitda))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "High reported EBITDA relative to previous estimate",
+      "description": "Subtract anl4_ebitda_mean_prev (anl4_dez1afv4_preest) from anl4_ebitda_value to capture beats vs previous est. Two fields used; SUGGESTION4 applied. Confidence 0.66.",
+      "implementation": "zscore(subtract(anl4_ebitda_value, anl4_dez1afv4_preest))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Guidance median upward trend",
+      "description": "ts_zscore(ts_delta(anl4_afv4_minguidance,6), 20) reverse signals rising medians; used single field for simplicity. Coverage ~0.6994. Confidence 0.4.",
+      "implementation": "ts_zscore(ts_delta(anl4_afv4_minguidance, 6), 20)",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "High reported cashflow financing improvement",
+      "description": "Compare cash_flow_from_financing to cash_flow_financing_max_guidance to spot improvement vs guidance. Two fields used; coverage moderate. Confidence 0.44.",
+      "implementation": "zscore(divide(subtract(cash_flow_from_financing, cash_flow_financing_max_guidance), cash_flow_financing_max_guidance))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Sales estimate upward momentum with tight std",
+      "description": "Multiply ts_zscore(ts_delta(est_sales,3),10) by reverse(sales_estimate_standard_deviation) to favor consistent growth. Two fields used; SUGGESTION4 applied. Confidence 0.6.",
+      "implementation": "zscore(multiply(ts_zscore(ts_delta(est_sales, 3), 10), reverse(sales_estimate_standard_deviation)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High guidance count with improving EPS",
+      "description": "Multiply anl4_basicconafv110_numest by ts_delta(est_eps,2) to favor names with many guidances and rising EPS. Two fields used; both have good userCount. Confidence 0.61.",
+      "implementation": "zscore(multiply(anl4_basicconafv110_numest, ts_delta(est_eps, 2)))",
+      "confidence_level": 0.61
+    }
+  ]
+}

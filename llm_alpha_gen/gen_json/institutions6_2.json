@@ -1,0 +1,712 @@
+{
+  "results": [
+    {
+      "idea": "Net institutional buy momentum",
+      "description": "Uses two high-coverage fields to capture momentum in net institutional flows. S1: used multiple fields (bought and sold). S2: no vector fields present so vec_* not applied. S3: coverage=1.0 so ts_backfill not needed. S4: chose inst6_value_of_institutional_shares_bought/sold (high userCount). Confidence set to 0.72 because institutional flow momentum is a common predictive signal but can be noisy.",
+      "implementation": "ts_zscore(ts_returns(subtract(inst6_value_of_institutional_shares_bought, inst6_value_of_institutional_shares_sold), 5))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Institutional buyers acceleration",
+      "description": "Detect accelerating institutional buyer counts. S1: used buyer count and its time delta. S2: no vector fields. S3: coverage=1.0 so no backfill. S4: used inst6_num_of_institutional_buyers (very high userCount). Confidence 0.65 — acceleration is meaningful but count data noisy.",
+      "implementation": "ts_zscore(ts_delta(inst6_num_of_institutional_buyers, 5), 5)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "High buyers to holders ratio (crowding shift)",
+      "description": "Capture sudden increases in buyer activity relative to existing holders. S1: two fields used (buyers and holders). S2: no vector fields. S3: coverage ok. S4: used inst6 fields with high userCount. Confidence 0.68 because ratio often predicts re-rating.",
+      "implementation": "zscore(divide(inst6_num_of_institutional_buyers, inst6_num_of_institutional_holders))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Value-weighted net institutional inflow",
+      "description": "Net dollar inflow scaled by holdings to prioritize meaningful flows. S1: two fields (value bought, value held). S2: no vector. S3: coverage=1.0. S4: using inst6_value_of_institutional_shares_bought and inst6_value_held_by_institutions (good userCount). Confidence 0.7 — value flows tend to be informative.",
+      "implementation": "zscore(divide(subtract(inst6_value_of_institutional_shares_bought, inst6_value_of_institutional_shares_sold), inst6_value_held_by_institutions))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Net share flow ratio (shares bought / shares sold)",
+      "description": "Cross-sectional signal of buying pressure in share counts. S1: two fields used. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_shares_bought/sold used (high alphaCount). Confidence 0.66 — share flows informative but affected by corporate events.",
+      "implementation": "quantile(divide(inst6_num_of_institutional_shares_bought, inst6_num_of_institutional_shares_sold))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Short-term institutional flow volatility",
+      "description": "High stddev of recent institutional share purchases indicates unstable demand. S1: single field used with ts_std_dev. S2: no vector. S3: coverage 1.0. S4: inst6_num_of_institutional_shares_bought chosen for userCount. Confidence 0.55 — volatility is noisy but useful for risk timing.",
+      "implementation": "ts_zscore(ts_std_dev(inst6_num_of_institutional_shares_bought, 10), 10)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Persistent net buying (multi-week)",
+      "description": "Look for sustained net institutional buying over a month. S1: two fields (bought, sold) and ts_sum. S2: no vector fields. S3: coverage ok. S4: inst6_value_of_institutional_shares_bought/sold used. Confidence 0.73 — persistent flows have higher predictive power.",
+      "implementation": "zscore(ts_sum(subtract(inst6_value_of_institutional_shares_bought, inst6_value_of_institutional_shares_sold), 20))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Buyer count divergence vs shares bought",
+      "description": "Compare change in buyer count vs dollar volume bought to detect large players. S1: two fields used. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_buyers and inst6_value_of_institutional_shares_bought selected. Confidence 0.62 — divergence hints at concentration risk.",
+      "implementation": "zscore(subtract(ts_returns(inst6_value_of_institutional_shares_bought,5), ts_returns(inst6_num_of_institutional_buyers,5)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Sellers spike mean-reversion",
+      "description": "Identify extreme spikes in institutional sellers and trade contrarian. S1: single field inst6_num_of_institutional_sellers, S2: no vector. S3: coverage ok. S4: used count with ts_arg_max to detect recent peaks. Confidence 0.6 — contrarian works but timing matters.",
+      "implementation": "reverse(ts_arg_max(inst6_num_of_institutional_sellers, 10))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Buy-to-sell dollar imbalance zrank",
+      "description": "Cross-sectional rank of buy-sell dollar imbalance to pick longs. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_value_of_institutional_shares_bought and sold used. Confidence 0.71 — imbalance is strong directional signal.",
+      "implementation": "quantile(subtract(inst6_value_of_institutional_shares_bought, inst6_value_of_institutional_shares_sold))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Institutional holdings growth rate",
+      "description": "Growth in shares held by institutions predicts demand trends. S1: single field inst6_total_shares_held_by_institutions. S2: no vector. S3: coverage ok. S4: used ts_returns to capture growth. Confidence 0.67 — holdings growth is durable.",
+      "implementation": "zscore(ts_returns(inst6_total_shares_held_by_institutions, 20))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Relative institutional attention (buyers normalized by holders)",
+      "description": "Normalize buyer activity by holder base to detect disproportional interest. S1: two fields. S2: no vector. S3: coverage ok. S4: used inst6_num_of_institutional_buyers and inst6_num_of_institutional_holders (high userCount). Confidence 0.69.",
+      "implementation": "zscore(divide(inst6_num_of_institutional_buyers, inst6_num_of_institutional_holders))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Dollar-flow momentum adjusted by market cap proxy",
+      "description": "Scale dollar flows by aggregate equity value to prioritize impactful flows. S1: two fields used. S2: no vector. S3: coverage=1.0. S4: inst6_value_of_institutional_shares_bought and aggregate_equity_value_institutions used. Confidence 0.7.",
+      "implementation": "zscore(divide(ts_returns(inst6_value_of_institutional_shares_bought,5), aggregate_equity_value_institutions))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Institutional buying IR (mean/std of recent flows)",
+      "description": "Use information ratio of buy flows to identify consistent buyers. S1: single field inst6_value_of_institutional_shares_bought with ts_ir. S2: no vector. S3: coverage ok. S4: high userCount field. Confidence 0.64 — IR is stable filter for persistent flows.",
+      "implementation": "ts_ir(inst6_value_of_institutional_shares_bought, 20)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Buyers concentration (buyers per share held)",
+      "description": "High buyers per share indicates fragmentation of ownership shifts. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_buyers and inst6_total_shares_held_by_institutions used. Confidence 0.58 — indirect measure with modest confidence.",
+      "implementation": "zscore(divide(inst6_num_of_institutional_buyers, inst6_total_shares_held_by_institutions))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Net value flow persistence (smoothed)",
+      "description": "Smooth net dollar flows to reduce noise using ts_mean. S1: two fields (bought,sold). S2: no vector. S3: coverage ok. S4: inst6 value fields. Confidence 0.71 — smoothing improves signal/noise.",
+      "implementation": "zscore(ts_mean(subtract(inst6_value_of_institutional_shares_bought, inst6_value_of_institutional_shares_sold), 10))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Rapid reduction in institutional holders (bearish)",
+      "description": "Detect fast declines in institutional holder counts. S1: single field inst6_num_of_institutional_holders with ts_delta. S2: no vector. S3: coverage ok. S4: high userCount. Confidence 0.63 — holder declines often precede pressure.",
+      "implementation": "ts_zscore(ts_delta(inst6_num_of_institutional_holders, 10), 10)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Buyer-seller count spread momentum",
+      "description": "Momentum of difference between buyer and seller counts. S1: two fields used. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_buyers/sellers used (high counts). Confidence 0.66.",
+      "implementation": "zscore(ts_returns(subtract(inst6_num_of_institutional_buyers, inst6_num_of_institutional_sellers), 5))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Institutional shares bought per buyer (size per buyer)",
+      "description": "Detect whether buying is driven by larger players (shares bought / buyer count). S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_buyers and inst6_num_of_institutional_shares_bought selected. Confidence 0.6.",
+      "implementation": "zscore(divide(inst6_num_of_institutional_shares_bought, inst6_num_of_institutional_buyers))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Recent maximal institutional buy day (timing)",
+      "description": "Identify when today's buys are local maxima (implying momentum may persist). S1: single field using ts_arg_max. S2: no vector. S3: coverage ok. S4: inst6_value_of_institutional_shares_bought used. Confidence 0.59.",
+      "implementation": "if_else(equal(ts_arg_max(inst6_value_of_institutional_shares_bought, 10), 0), 1, 0)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Institutional seller spike scaled by holdings",
+      "description": "Seller dollar spikes relative to holdings highlight real supply shocks. S1: two fields used. S2: no vector. S3: coverage ok. S4: inst6_value_of_institutional_shares_sold and inst6_value_held_by_institutions used. Confidence 0.62.",
+      "implementation": "zscore(divide(inst6_value_of_institutional_shares_sold, inst6_value_held_by_institutions))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Net flow zscore cross-sectionally",
+      "description": "Cross-sectional zscore of net buy dollar flow to pick extremes. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6 value bought/sold. Confidence 0.7.",
+      "implementation": "zscore(subtract(inst6_value_of_institutional_shares_bought, inst6_value_of_institutional_shares_sold))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Buy growth vs sell growth divergence",
+      "description": "If buy growth outpaces sell growth, expect positive pressure. S1: two fields with ts_returns. S2: no vector. S3: coverage ok. S4: inst6 value fields. Confidence 0.65.",
+      "implementation": "zscore(subtract(ts_returns(inst6_value_of_institutional_shares_bought,10), ts_returns(inst6_value_of_institutional_shares_sold,10)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Fractional change in institutional value held",
+      "description": "Fractional increase in value held signals positive reallocation. S1: inst6_value_held_by_institutions used. S2: no vector. S3: coverage ok. S4: picked for alphaCount. Confidence 0.66.",
+      "implementation": "zscore(ts_returns(inst6_value_held_by_institutions, 20))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "High buyer-count but low buy value (retail-like activity among institutions)",
+      "description": "Many buyers but small aggregate buy value may indicate fragmented small bets. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_buyers and inst6_value_of_institutional_shares_bought used. Confidence 0.54 — speculative signal.",
+      "implementation": "zscore(divide(inst6_num_of_institutional_buyers, inst6_value_of_institutional_shares_bought))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Dollar-flow momentum normalized by shares outstanding proxy",
+      "description": "Normalize flow by aggregate_share_count_institutions to control for size. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_value_of_institutional_shares_bought and aggregate_share_count_institutions used. Confidence 0.61.",
+      "implementation": "zscore(divide(ts_returns(inst6_value_of_institutional_shares_bought,5), aggregate_share_count_institutions))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Concentration of selling (sellers per holder)",
+      "description": "High sellers relative to holders indicates concentrated exits. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_sellers and inst6_num_of_institutional_holders used. Confidence 0.6.",
+      "implementation": "zscore(divide(inst6_num_of_institutional_sellers, inst6_num_of_institutional_holders))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum of quantity of shares acquired",
+      "description": "Detect rising demand via quantity_institutional_shares_acquired momentum. S1: single field. S2: no vector. S3: coverage ok. S4: quantity_institutional_shares_acquired chosen. Confidence 0.62.",
+      "implementation": "zscore(ts_returns(quantity_institutional_shares_acquired, 5))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Large institutional purchases relative to market_value_acquired",
+      "description": "Compare number of shares acquired to market value acquired to detect unit-price shifts. S1: two fields. S2: no vector. S3: coverage ok. S4: quantity_institutional_shares_acquired and market_value_institutional_shares_acquired used. Confidence 0.57.",
+      "implementation": "zscore(divide(quantity_institutional_shares_acquired, market_value_institutional_shares_acquired))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Net flows scaled by owners' aggregate value",
+      "description": "Scale net institutional flow by aggregate_equity_value_all_owners to adjust for firm size. S1: two fields. S2: no vector. S3: coverage=1.0. S4: aggregate_equity_value_all_owners used with buy/sell flows. Confidence 0.68.",
+      "implementation": "quantile(divide(subtract(inst6_value_of_institutional_shares_bought, inst6_value_of_institutional_shares_sold), aggregate_equity_value_all_owners))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Spike detection in institutional share disposals",
+      "description": "Detect unusually large disposal days using ts_max_diff on disposal value. S1: single field market_value_institutional_shares_disposed. S2: no vector. S3: coverage ok. S4: chosen for alphaCount. Confidence 0.58.",
+      "implementation": "ts_max_diff(market_value_institutional_shares_disposed, 10)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Buy/Sell dollar momentum zscore",
+      "description": "Cross-sectional zscore of buy momentum vs sell momentum. S1: two fields with ts_returns. S2: no vector. S3: coverage ok. S4: inst6 value fields. Confidence 0.7.",
+      "implementation": "zscore(subtract(ts_returns(inst6_value_of_institutional_shares_bought,5), ts_returns(inst6_value_of_institutional_shares_sold,5)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Institutional shares sold per seller (size per seller)",
+      "description": "Large average size per seller signals large players exiting. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_sellers and inst6_num_of_institutional_shares_sold used. Confidence 0.6.",
+      "implementation": "zscore(divide(inst6_num_of_institutional_shares_sold, inst6_num_of_institutional_sellers))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Rapid change in market value held by owners",
+      "description": "Look for ts_delta in inst6_value_held_by_owners showing sudden reallocations. S1: single field. S2: no vector. S3: coverage ok. S4: inst6_value_held_by_owners used. Confidence 0.63.",
+      "implementation": "ts_zscore(ts_delta(inst6_value_held_by_owners, 10), 10)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Buy concentration by value (value bought per buyer)",
+      "description": "High value bought per buyer suggests large institutional commitment. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_buyers and inst6_value_of_institutional_shares_bought used. Confidence 0.66.",
+      "implementation": "zscore(divide(inst6_value_of_institutional_shares_bought, inst6_num_of_institutional_buyers))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Sustained sellers dominance (multi-week net outflows)",
+      "description": "Sum net flows over 20 days to detect sustained selling. S1: two fields with ts_sum. S2: no vector. S3: coverage ok. S4: inst6 value fields. Confidence 0.68.",
+      "implementation": "quantile(ts_sum(subtract(inst6_value_of_institutional_shares_sold, inst6_value_of_institutional_shares_bought), 20))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Volume-weighted buyer count trend",
+      "description": "Weight buyer count by recent buy value to favor influential buyers. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_buyers and inst6_value_of_institutional_shares_bought used. Confidence 0.6.",
+      "implementation": "zscore(multiply(inst6_num_of_institutional_buyers, ts_mean(inst6_value_of_institutional_shares_bought,5)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Sellers-leading momentum (sell growth predicts shorting)",
+      "description": "Rising seller counts predict future negative moves. S1: single field inst6_num_of_institutional_sellers with ts_returns. S2: no vector. S3: coverage ok. S4: high alphaCount. Confidence 0.59.",
+      "implementation": "zscore(ts_returns(inst6_num_of_institutional_sellers, 5))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Net share flow ratio vs historical (ts_av_diff)",
+      "description": "Compare current net shares bought to recent mean to find deviations. S1: two fields with ts_av_diff. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_shares_bought/sold used. Confidence 0.64.",
+      "implementation": "zscore(ts_av_diff(subtract(inst6_num_of_institutional_shares_bought, inst6_num_of_institutional_shares_sold), 10))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Low holder base with rising buys (re-rating candidate)",
+      "description": "Rising buys with small holder base implies significant reallocation. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_buyers and inst6_num_of_institutional_holders. Confidence 0.67.",
+      "implementation": "zscore(divide(ts_returns(inst6_num_of_institutional_buyers,5), inst6_num_of_institutional_holders))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "High buy IR normalized cross-sectionally",
+      "description": "Cross-sectional score of buy IR identifies consistent buyers across universe. S1: single field with ts_ir then quantile. S2: no vector. S3: coverage ok. S4: inst6_value_of_institutional_shares_bought chosen. Confidence 0.63.",
+      "implementation": "quantile(ts_ir(inst6_value_of_institutional_shares_bought, 20))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Buy-sell volatility ratio",
+      "description": "Compare stddev of buys vs sells to find imbalanced activity. S1: two fields with ts_std_dev. S2: no vector. S3: coverage ok. S4: inst6 value bought/sold. Confidence 0.56.",
+      "implementation": "divide(ts_std_dev(inst6_value_of_institutional_shares_bought, 20), ts_std_dev(inst6_value_of_institutional_shares_sold, 20))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Recent max holder addition day (momentum)",
+      "description": "If today is local max of holders, may indicate continued accumulation. S1: single field with ts_arg_max. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_holders. Confidence 0.58.",
+      "implementation": "if_else(equal(ts_arg_max(inst6_num_of_institutional_holders, 15), 0), 1, 0)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Net quote: buys per outstanding shares proxy",
+      "description": "Use buys scaled by aggregate_share_count_all_owners as normalization. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_shares_bought and aggregate_share_count_all_owners used. Confidence 0.6.",
+      "implementation": "zscore(divide(inst6_num_of_institutional_shares_bought, aggregate_share_count_all_owners))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Cross-sectional zrank of buyer growth",
+      "description": "Rank recent buyer growth across stocks. S1: single field inst6_num_of_institutional_buyers with ts_returns then quantile. S2: no vector. S3: coverage ok. S4: high userCount. Confidence 0.66.",
+      "implementation": "quantile(ts_returns(inst6_num_of_institutional_buyers, 5))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Holder churn (buyers + sellers relative to holders)",
+      "description": "High combined activity vs holders indicates churn and potential volatility. S1: three inputs combined into two-field expression via add and divide. S2: no vector. S3: coverage ok. S4: inst6 counts used. Confidence 0.55.",
+      "implementation": "zscore(divide(add(inst6_num_of_institutional_buyers, inst6_num_of_institutional_sellers), inst6_num_of_institutional_holders))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Dollar sell pressure momentum",
+      "description": "Momentum of dollar sells to identify accelerating supply. S1: single field inst6_value_of_institutional_shares_sold with ts_returns. S2: no vector. S3: coverage ok. S4: chosen for alphaCount. Confidence 0.61.",
+      "implementation": "zscore(ts_returns(inst6_value_of_institutional_shares_sold, 5))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Net buyer fraction (buyers / (buyers+sellers))",
+      "description": "Fractional buyers measure market sentiment among institutions. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6 buyer/seller counts used. Confidence 0.6.",
+      "implementation": "zscore(divide(inst6_num_of_institutional_buyers, add(inst6_num_of_institutional_buyers, inst6_num_of_institutional_sellers)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Value bought relative to owners' value (reallocation intensity)",
+      "description": "Scale buys by total owner value; high ratio implies reallocation. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_value_of_institutional_shares_bought and aggregate_equity_value_all_owners used. Confidence 0.67.",
+      "implementation": "quantile(divide(inst6_value_of_institutional_shares_bought, aggregate_equity_value_all_owners))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Seller count normalized by share count",
+      "description": "Find outsized seller counts for small-share names. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_sellers and aggregate_share_count_all_owners used. Confidence 0.56.",
+      "implementation": "zscore(divide(inst6_num_of_institutional_sellers, aggregate_share_count_all_owners))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Sustained buyer growth IR",
+      "description": "Information ratio of buyer count over 20 days to find consistent buyer accumulation. S1: single field inst6_num_of_institutional_buyers with ts_ir. S2: no vector. S3: coverage ok. S4: high userCount. Confidence 0.62.",
+      "implementation": "ts_ir(inst6_num_of_institutional_buyers, 20)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Buy-sell timing divergence (argmax difference)",
+      "description": "If the max of buys is more recent than sells, momentum may continue. S1: two fields with ts_arg_max and subtract. S2: no vector. S3: coverage ok. S4: inst6 value fields. Confidence 0.6.",
+      "implementation": "subtract(ts_arg_max(inst6_value_of_institutional_shares_bought, 20), ts_arg_max(inst6_value_of_institutional_shares_sold, 20))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Average dollar bought per holder",
+      "description": "Dollar bought divided by holders indicates per-holder buying intensity. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6 fields chosen. Confidence 0.61.",
+      "implementation": "zscore(divide(inst6_value_of_institutional_shares_bought, inst6_num_of_institutional_holders))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Rapid drop in institutional value held (risk signal)",
+      "description": "Large recent negative ts_delta in inst6_value_held_by_institutions indicates divestment. S1: single field. S2: no vector. S3: coverage ok. S4: inst6_value_held_by_institutions used. Confidence 0.64.",
+      "implementation": "reverse(ts_zscore(ts_delta(inst6_value_held_by_institutions, 10), 10))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Buy flow skew (buys >> sells) relative to history",
+      "description": "Compare net buys to recent mean using ts_scale to capture skew. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6 value fields. Confidence 0.69.",
+      "implementation": "ts_scale(subtract(inst6_value_of_institutional_shares_bought, inst6_value_of_institutional_shares_sold), 20)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "High buyer variability (vec proxy via ts_std_dev)",
+      "description": "Use time-series stddev of buyer counts as proxy for fragmented attention. S1: single field with ts_std_dev. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_buyers. Confidence 0.53.",
+      "implementation": "ts_std_dev(inst6_num_of_institutional_buyers, 10)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Buyers surge vs holders mean (zscore of deviation)",
+      "description": "Compute deviation of buyer count from its recent mean, normalized by holders. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_buyers and holders. Confidence 0.62.",
+      "implementation": "zscore(divide(ts_av_diff(inst6_num_of_institutional_buyers, 10), inst6_num_of_institutional_holders))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Cross-sectional rank of net shares acquired (quantity)",
+      "description": "Rank quantity_institutional_shares_acquired to find relative accumulation. S1: single field. S2: no vector. S3: coverage ok. S4: quantity_institutional_shares_acquired chosen. Confidence 0.6.",
+      "implementation": "quantile(quantity_institutional_shares_acquired)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Buy-sell amplitude (range) over short window",
+      "description": "Measure the range between buys and sells over last 10 days to detect swings. S1: two fields with ts_max_diff behavior approximated via ts_max/min not available; use ts_std_dev ratio. S2: no vector. S3: coverage ok. S4: inst6 value fields. Confidence 0.52.",
+      "implementation": "divide(ts_std_dev(inst6_value_of_institutional_shares_bought,10), ts_std_dev(inst6_value_of_institutional_shares_sold,10))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Sudden increase in institutions holding (buy accumulation)",
+      "description": "Detect when count_institutional_holders_security jumps vs recent mean. S1: single field count_institutional_holders_security with ts_av_diff. S2: no vector. S3: coverage ok. S4: count_institutional_holders_security used. Confidence 0.6.",
+      "implementation": "zscore(ts_av_diff(count_institutional_holders_security, 10))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Inst. sellers leading price pressure (proxy)",
+      "description": "Use count_institutional_sellers_security momentum as a short signal. S1: single field with ts_returns. S2: no vector. S3: coverage ok. S4: count_institutional_sellers_security. Confidence 0.57.",
+      "implementation": "zscore(ts_returns(count_institutional_sellers_security, 5))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Net bought value per total holdings (intensity)",
+      "description": "Assess buying intensity: net bought dollar / inst6_value_held_by_institutions. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6 value fields. Confidence 0.68.",
+      "implementation": "zscore(divide(subtract(inst6_value_of_institutional_shares_bought, inst6_value_of_institutional_shares_sold), inst6_value_held_by_institutions))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Buy-sell turn-over proxy (shares bought + sold) / shares held",
+      "description": "High turnover among institutional holders signals reallocation. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_total_shares_held_by_institutions and inst6_num_of_institutional_shares_bought/sold used via add. Confidence 0.56.",
+      "implementation": "zscore(divide(add(inst6_num_of_institutional_shares_bought, inst6_num_of_institutional_shares_sold), inst6_total_shares_held_by_institutions))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Value-disparity signal (buyers value >> holders value growth)",
+      "description": "If buy value growth exceeds holdings growth, indicates fresh demand. S1: two fields with ts_returns. S2: no vector. S3: coverage ok. S4: inst6_value_of_institutional_shares_bought and inst6_value_held_by_institutions. Confidence 0.65.",
+      "implementation": "zscore(subtract(ts_returns(inst6_value_of_institutional_shares_bought,10), ts_returns(inst6_value_held_by_institutions,10)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Cross-sectional z of sellers per share outstanding",
+      "description": "Find stocks with outsized selling relative to outstanding shares. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_shares_sold and aggregate_share_count_all_owners used. Confidence 0.58.",
+      "implementation": "zscore(divide(inst6_num_of_institutional_shares_sold, aggregate_share_count_all_owners))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Weighted buyer count by recent IR",
+      "description": "Weight buyer counts by recent consistency (IR) of buy value to favor steady accumulation. S1: two fields (buyer count and buy value IR). S2: no vector. S3: coverage ok. S4: inst6 fields. Confidence 0.63.",
+      "implementation": "multiply(inst6_num_of_institutional_buyers, ts_ir(inst6_value_of_institutional_shares_bought, 20))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Buy-sell dollar skewness via ts_zscore",
+      "description": "Zscore of net dollar flow relative to recent history to detect extreme skew. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6 value fields. Confidence 0.68.",
+      "implementation": "ts_zscore(subtract(inst6_value_of_institutional_shares_bought, inst6_value_of_institutional_shares_sold), 15)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Rapid change in institutional acquisition quantity",
+      "description": "Detect sudden increases in quantity_institutional_shares_acquired using ts_delta. S1: single field. S2: no vector. S3: coverage ok. S4: quantity_institutional_shares_acquired used. Confidence 0.59.",
+      "implementation": "ts_zscore(ts_delta(quantity_institutional_shares_acquired, 5), 5)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Buy count normalized by aggregate equity value (attention per $)",
+      "description": "Normalize buyer counts by firm equity to find relative attention. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_buyers and aggregate_equity_value_institutions used. Confidence 0.6.",
+      "implementation": "zscore(divide(inst6_num_of_institutional_buyers, aggregate_equity_value_institutions))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Sellers per holder momentum (increasing pressure)",
+      "description": "Rising sellers per holder signals growing supply; use ts_returns. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6 counts. Confidence 0.58.",
+      "implementation": "zscore(ts_returns(divide(inst6_num_of_institutional_sellers, inst6_num_of_institutional_holders), 5))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Persistent buyer concentration (buyers in top recent days)",
+      "description": "Sum buyer counts over 20 days to detect persistent attention. S1: single field ts_sum. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_buyers. Confidence 0.61.",
+      "implementation": "zscore(ts_sum(inst6_num_of_institutional_buyers, 20))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Buy value per holder growth (accumulation intensity)",
+      "description": "Track growth in buy value per holder using ts_returns of the ratio. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6 value and holder count. Confidence 0.64.",
+      "implementation": "zscore(ts_returns(divide(inst6_value_of_institutional_shares_bought, inst6_num_of_institutional_holders), 10))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Cross-sectional quantile of market value acquired",
+      "description": "Rank market_value_institutional_shares_acquired to find relative buying pressure. S1: single field. S2: no vector. S3: coverage ok. S4: market_value_institutional_shares_acquired. Confidence 0.62.",
+      "implementation": "quantile(market_value_institutional_shares_acquired)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Buy-sell ratio momentum across weeks",
+      "description": "Track week-over-week change in buy/sell ratio to capture shifting sentiment. S1: two fields with ts_returns. S2: no vector. S3: coverage ok. S4: inst6 share counts. Confidence 0.6.",
+      "implementation": "zscore(ts_returns(divide(inst6_num_of_institutional_shares_bought, inst6_num_of_institutional_shares_sold), 5))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Seller value relative to institution holdings growth",
+      "description": "If sells exceed holdings growth, risk of price pressure. S1: two fields with ts_returns. S2: no vector. S3: coverage ok. S4: inst6_value_of_institutional_shares_sold and inst6_value_held_by_institutions. Confidence 0.59.",
+      "implementation": "zscore(subtract(ts_returns(inst6_value_of_institutional_shares_sold,10), ts_returns(inst6_value_held_by_institutions,10)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Buy concentration index (value bought / total value held by owners)",
+      "description": "Identify stocks where buy value is a large fraction of owners' holdings. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_value_of_institutional_shares_bought and inst6_value_held_by_owners used. Confidence 0.67.",
+      "implementation": "quantile(divide(inst6_value_of_institutional_shares_bought, inst6_value_held_by_owners))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Buy-sell momentum normalized (winsorized)",
+      "description": "Use winsorize to limit outliers in net flow momentum. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6 value fields. Confidence 0.66.",
+      "implementation": "winsorize(zscore(subtract(ts_returns(inst6_value_of_institutional_shares_bought,5), ts_returns(inst6_value_of_institutional_shares_sold,5))))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Rapid change in institutional shares disposed quantity",
+      "description": "Detect sudden jumps in quantity_institutional_shares_disposed with ts_delta. S1: single field. S2: no vector. S3: coverage ok. S4: quantity_institutional_shares_disposed. Confidence 0.58.",
+      "implementation": "ts_zscore(ts_delta(quantity_institutional_shares_disposed, 5), 5)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Buyers growth relative to total institutional shares held",
+      "description": "Rising buyer count divided by total shares held highlights new entrants. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_buyers and inst6_total_shares_held_by_institutions. Confidence 0.63.",
+      "implementation": "zscore(divide(ts_returns(inst6_num_of_institutional_buyers,5), inst6_total_shares_held_by_institutions))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Persistent low selling IR (contrarian long)",
+      "description": "Low IR of selling activity implies absence of sustained selling; possible contrarian long. S1: single field inst6_value_of_institutional_shares_sold with ts_ir then reverse. S2: no vector. S3: coverage ok. S4: inst6. Confidence 0.55.",
+      "implementation": "reverse(ts_ir(inst6_value_of_institutional_shares_sold, 20))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Buyers momentum vs holders momentum divergence",
+      "description": "If buyer count accelerates faster than holders, new interest may be forming. S1: two fields with ts_returns difference. S2: no vector. S3: coverage ok. S4: inst6 fields. Confidence 0.62.",
+      "implementation": "zscore(subtract(ts_returns(inst6_num_of_institutional_buyers,5), ts_returns(inst6_num_of_institutional_holders,5)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Cross-sectional quantile of net institutional share count",
+      "description": "Rank net shares bought (count basis) across universe. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6 share count fields. Confidence 0.6.",
+      "implementation": "quantile(subtract(inst6_num_of_institutional_shares_bought, inst6_num_of_institutional_shares_sold))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Buyers per institution value (attention per $ held)",
+      "description": "Number of buyers scaled by inst6_value_held_by_institutions to detect marginal interest. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6 fields. Confidence 0.59.",
+      "implementation": "zscore(divide(inst6_num_of_institutional_buyers, inst6_value_held_by_institutions))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Large market_value_acquired relative to historical (momentum)",
+      "description": "Detect stocks with market_value_institutional_shares_acquired significantly above recent mean. S1: single field with ts_av_diff. S2: no vector. S3: coverage ok. S4: market_value_institutional_shares_acquired. Confidence 0.63.",
+      "implementation": "zscore(ts_av_diff(market_value_institutional_shares_acquired, 20))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Buy-sell ratio stability (low stddev indicates steady bias)",
+      "description": "Low stddev of buy/sell ratio suggests steady directional pressure. S1: two fields with ts_std_dev on their ratio. S2: no vector. S3: coverage ok. S4: inst6 share counts. Confidence 0.54.",
+      "implementation": "ts_std_dev(divide(inst6_num_of_institutional_shares_bought, inst6_num_of_institutional_shares_sold), 20)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Net institutional inflow per share outstanding",
+      "description": "Scale net value inflow by aggregate_share_count_institutions to identify impactful flows. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6 value fields and aggregate_share_count_institutions. Confidence 0.66.",
+      "implementation": "zscore(divide(subtract(inst6_value_of_institutional_shares_bought, inst6_value_of_institutional_shares_sold), aggregate_share_count_institutions))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Recent maximum sell day index (timing short)",
+      "description": "If sells peaked recently, further pressure may follow. S1: single field with ts_arg_max. S2: no vector. S3: coverage ok. S4: inst6_value_of_institutional_shares_sold. Confidence 0.57.",
+      "implementation": "if_else(less(ts_arg_max(inst6_value_of_institutional_shares_sold, 10), 3), 1, 0)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Buyers growth relative to aggregate equity value",
+      "description": "Detect disproportionate buyer growth relative to firm size. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_buyers and aggregate_equity_value_institutions. Confidence 0.6.",
+      "implementation": "zscore(divide(ts_returns(inst6_num_of_institutional_buyers,5), aggregate_equity_value_institutions))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Holder base shrinkage with rising sells (risk signal)",
+      "description": "If holders decline while sells increase, expect pressure. S1: two fields with ts_returns difference. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_holders and inst6_value_of_institutional_shares_sold. Confidence 0.62.",
+      "implementation": "zscore(subtract(ts_returns(inst6_value_of_institutional_shares_sold,5), ts_returns(inst6_num_of_institutional_holders,5)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Net buyer growth percentile",
+      "description": "Cross-sectional quantile of recent net buyer count growth. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_buyers and sellers. Confidence 0.61.",
+      "implementation": "quantile(ts_returns(subtract(inst6_num_of_institutional_buyers, inst6_num_of_institutional_sellers), 10))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Institutional holdings share of owner base (concentration)",
+      "description": "Relative size of institutional holdings vs all owners to detect institutional dominance. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_value_held_by_institutions and inst6_value_held_by_owners. Confidence 0.63.",
+      "implementation": "zscore(divide(inst6_value_held_by_institutions, inst6_value_held_by_owners))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Buy-sell sudden ratio shift (short-term)",
+      "description": "If buy/sell ratio changes rapidly, use ts_delta to capture. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6 counts. Confidence 0.59.",
+      "implementation": "zscore(ts_delta(divide(inst6_num_of_institutional_shares_bought, inst6_num_of_institutional_shares_sold), 3))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "High buys but falling holders (redistribution)",
+      "description": "If buys increase but holders fall, may indicate rotation among institutions. S1: two fields with ts_returns difference. S2: no vector. S3: coverage ok. S4: inst6 value bought and holder count. Confidence 0.57.",
+      "implementation": "zscore(subtract(ts_returns(inst6_value_of_institutional_shares_bought,5), ts_returns(inst6_num_of_institutional_holders,5)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Cross-sectional rank of inst6_value_held_by_institutions",
+      "description": "Rank absolute institutional holdings to find heavily owned names for possible mean reversion. S1: single field. S2: no vector. S3: coverage ok. S4: inst6_value_held_by_institutions. Confidence 0.56.",
+      "implementation": "quantile(inst6_value_held_by_institutions)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Buyers surge vs historical max (ts_max_diff)",
+      "description": "How far today's buyer count is from recent max—detect breakout of attention. S1: single field with ts_max_diff-like behavior approximated via ts_arg_max threshold. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_buyers. Confidence 0.58.",
+      "implementation": "if_else(equal(ts_arg_max(inst6_num_of_institutional_buyers, 20), 0), 1, 0)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Institutional shares sold momentum normalized",
+      "description": "Cross-sectional zscore of recent sells to identify pressure. S1: single field inst6_num_of_institutional_shares_sold with ts_returns then zscore. S2: no vector. S3: coverage ok. S4: inst6. Confidence 0.6.",
+      "implementation": "zscore(ts_returns(inst6_num_of_institutional_shares_sold, 5))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Buy-to-holders momentum ranking",
+      "description": "Rank stocks where buy momentum per holder is highest. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_value_of_institutional_shares_bought and inst6_num_of_institutional_holders. Confidence 0.64.",
+      "implementation": "quantile(divide(ts_returns(inst6_value_of_institutional_shares_bought,5), inst6_num_of_institutional_holders))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Persistent low selling (contrarian fade)",
+      "description": "If selling activity has low variance and low magnitude, prefer fade of transient shocks. S1: single field inst6_value_of_institutional_shares_sold with ts_std_dev then reverse. S2: no vector. S3: coverage ok. Confidence 0.52.",
+      "implementation": "reverse(ts_std_dev(inst6_value_of_institutional_shares_sold, 20))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Recent buyers lead price pressure (timing)",
+      "description": "If buyers peaked earlier than sellers, expect continued upward pressure. S1: two fields with ts_arg_min/max difference. S2: no vector. S3: coverage ok. S4: inst6 value fields. Confidence 0.58.",
+      "implementation": "subtract(ts_arg_max(inst6_value_of_institutional_shares_bought, 15), ts_arg_max(inst6_value_of_institutional_shares_sold, 15))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Net dollar flows over month per holder",
+      "description": "Aggregate month net flows divided by holder count to measure per-holder impact. S1: two fields with ts_sum. S2: no vector. S3: coverage ok. S4: inst6 value flows and holders. Confidence 0.65.",
+      "implementation": "zscore(divide(ts_sum(subtract(inst6_value_of_institutional_shares_bought, inst6_value_of_institutional_shares_sold), 20), inst6_num_of_institutional_holders))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Quantile of sellers per owner value",
+      "description": "Rank selling intensity relative to owners' value to detect impactful disposals. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_value_of_institutional_shares_sold and aggregate_equity_value_all_owners. Confidence 0.6.",
+      "implementation": "quantile(divide(inst6_value_of_institutional_shares_sold, aggregate_equity_value_all_owners))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Buy value growth vs historical volatility (ts_ir)",
+      "description": "Use IR of buy values pairing growth and volatility to find stable accumulation. S1: single field inst6_value_of_institutional_shares_bought with ts_ir. S2: no vector. S3: coverage ok. S4: chosen for alphaCount. Confidence 0.63.",
+      "implementation": "ts_ir(inst6_value_of_institutional_shares_bought, 30)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Buyers per outstanding shares quantile",
+      "description": "Rank buyers adjusted by aggregate_share_count_institutions to detect relative attention. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_buyers and aggregate_share_count_institutions. Confidence 0.59.",
+      "implementation": "quantile(divide(inst6_num_of_institutional_buyers, aggregate_share_count_institutions))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Net institutional flow zscore short horizon",
+      "description": "Short-horizon net flow zscore (5-day) for short-term signals. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6 value fields. Confidence 0.66.",
+      "implementation": "zscore(ts_sum(subtract(inst6_value_of_institutional_shares_bought, inst6_value_of_institutional_shares_sold), 5))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Buyers spike with low holder change (speculative influx)",
+      "description": "If buyer count spikes but holder base unchanged, new short-term speculators may drive moves. S1: two fields with ts_delta comparison. S2: no vector. S3: coverage ok. S4: inst6 buyers and holders. Confidence 0.55.",
+      "implementation": "subtract(ts_delta(inst6_num_of_institutional_buyers,5), ts_delta(inst6_num_of_institutional_holders,5))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Sell value per seller growth (large exits)",
+      "description": "Rising sell value per seller indicates big players exiting. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_value_of_institutional_shares_sold and inst6_num_of_institutional_sellers. Confidence 0.61.",
+      "implementation": "zscore(ts_returns(divide(inst6_value_of_institutional_shares_sold, inst6_num_of_institutional_sellers), 10))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Cross-sectional rank of buyers per holder over month",
+      "description": "Rank stocks where month-long buyers per holder is highest to find accumulation. S1: two fields with ts_sum then divide then quantile. S2: no vector. S3: coverage ok. S4: inst6 buyers and holders. Confidence 0.63.",
+      "implementation": "quantile(divide(ts_sum(inst6_num_of_institutional_buyers,20), inst6_num_of_institutional_holders))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Recent increase in market value disposed vs acquired",
+      "description": "If disposed value growth exceeds acquired value growth, net distribution is occurring. S1: two fields with ts_returns difference. S2: no vector. S3: coverage ok. S4: market_value_institutional_shares_disposed and acquired. Confidence 0.6.",
+      "implementation": "zscore(subtract(ts_returns(market_value_institutional_shares_disposed,10), ts_returns(market_value_institutional_shares_acquired,10)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Buyers growth normalized by total shares held",
+      "description": "Rising buyer counts per share held highlight increasing per-share demand. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_buyers and inst6_total_shares_held_by_institutions. Confidence 0.62.",
+      "implementation": "zscore(divide(ts_returns(inst6_num_of_institutional_buyers,10), inst6_total_shares_held_by_institutions))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Cross-sectional z of net flows scaled by owners' value (robust)",
+      "description": "Robust cross-sectional ranking of net flows after scaling by owners' total value. S1: two fields. S2: no vector. S3: coverage ok. S4: subtract(inst6_value_of_institutional_shares_bought, inst6_value_of_institutional_shares_sold) and aggregate_equity_value_all_owners used. Confidence 0.69.",
+      "implementation": "quantile(divide(subtract(inst6_value_of_institutional_shares_bought, inst6_value_of_institutional_shares_sold), aggregate_equity_value_all_owners))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Buy/sell count momentum divergence (short vs medium)",
+      "description": "Difference between 5-day and 20-day momentum of buyer count highlights acceleration. S1: single field with two ts_returns. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_buyers. Confidence 0.6.",
+      "implementation": "subtract(ts_returns(inst6_num_of_institutional_buyers,5), ts_returns(inst6_num_of_institutional_buyers,20))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Value bought per buyer zscore across universe",
+      "description": "Rank per-buyer dollar commitment to find serious buying. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_value_of_institutional_shares_bought and inst6_num_of_institutional_buyers. Confidence 0.65.",
+      "implementation": "quantile(divide(inst6_value_of_institutional_shares_bought, inst6_num_of_institutional_buyers))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Persistent sellers IR (short signal)",
+      "description": "High IR of selling activity suggests systematic distribution. S1: single field inst6_value_of_institutional_shares_sold with ts_ir. S2: no vector. S3: coverage ok. S4: inst6. Confidence 0.57.",
+      "implementation": "ts_ir(inst6_value_of_institutional_shares_sold, 20)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Buyers surge vs holders percentile (relative attention spike)",
+      "description": "Rank the ratio of buyer spike to holder base to capture sudden interest. S1: two fields with ts_delta and quantile. S2: no vector. S3: coverage ok. S4: inst6 buyers and holders. Confidence 0.61.",
+      "implementation": "quantile(divide(ts_delta(inst6_num_of_institutional_buyers,5), inst6_num_of_institutional_holders))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Net buyer count zscore after winsorizing",
+      "description": "Winsorize net buyer counts to reduce outlier-driven noise then zscore. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_num_of_institutional_buyers and sellers. Confidence 0.58.",
+      "implementation": "winsorize(zscore(subtract(inst6_num_of_institutional_buyers, inst6_num_of_institutional_sellers)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Buy value acceleration relative to holders",
+      "description": "If buy value acceleration per holder is positive, accumulation intensity is increasing. S1: two fields. S2: no vector. S3: coverage ok. S4: inst6_value_of_institutional_shares_bought and inst6_num_of_institutional_holders. Confidence 0.64.",
+      "implementation": "zscore(divide(ts_delta(inst6_value_of_institutional_shares_bought,5), inst6_num_of_institutional_holders))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Cross-sectional rank of holder additions (count_institutional_holders_security)",
+      "description": "Rank increases in institutional holders across stocks to find buying pressure. S1: single field count_institutional_holders_security with ts_returns and quantile. S2: no vector. S3: coverage ok. Confidence 0.62.",
+      "implementation": "quantile(ts_returns(count_institutional_holders_security, 10))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Sustained net buying per buyer (persistance)",
+      "description": "Sum net value bought over month divided by buyer counts to find persistent per-buyer accumulation. S1: two fields with ts_sum. S2: no vector. S3: coverage ok. S4: inst6 fields. Confidence 0.66.",
+      "implementation": "zscore(divide(ts_sum(subtract(inst6_value_of_institutional_shares_bought, inst6_value_of_institutional_shares_sold), 20), inst6_num_of_institutional_buyers))",
+      "confidence_level": 0.66
+    }
+  ]
+}

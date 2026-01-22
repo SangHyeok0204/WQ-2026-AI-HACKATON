@@ -19,6 +19,7 @@ def call_llm_stream(prompt, json_schema,
     """
     스트리밍으로 중간 토큰을 실시간 출력하고, 최종 응답 전체 문자열을 반환.
     """
+    load_dotenv(".env.local")
 
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 

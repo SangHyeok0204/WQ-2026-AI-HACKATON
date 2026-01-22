@@ -1,0 +1,586 @@
+{
+  "results": [
+    {
+      "idea": "Earnings momentum (quarterly EPS acceleration)",
+      "description": "Uses EPS momentum to capture stocks with accelerating earnings. Applied SUGGESTION1 by combining time-series momentum and cross-sectional ranking. SUGGESTION2: no vector fields detected so not applied. SUGGESTION3: coverage=0.5 so ts_backfill applied to EPS. SUGGESTION4: EPS has high userCount/alphaCount so used. Kept implementation short (<=7 operators, 1 datafield) per KEEP_IN_MINDs. Confidence set to 0.65 because EPS momentum is historically predictive but noisy.",
+      "implementation": "quantile(zscore(ts_zscore(ts_delta(ts_backfill(eps,8),4),8)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Accruals quality (earnings vs cashflow)",
+      "description": "High accruals often predict mean reversion. SUGGESTION1: used income and operating cashflow to compute accruals. SUGGESTION2: no vector fields. SUGGESTION3: ts_backfill on all three low-coverage fields. SUGGESTION4: income and cashflow_op have high userCount so signal robust. Implementation respects operator/datafield limits. Confidence 0.6.",
+      "implementation": "zscore(divide(subtract(ts_backfill(income,8), ts_backfill(cashflow_op,8)), ts_backfill(assets,8)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Value via EV/Sales (cheap relative to sales)",
+      "description": "Cheap EV/Sales often outperforms. SUGGESTION1: combined enterprise_value and sales. SUGGESTION2: no vector. SUGGESTION3: ts_backfill applied to both fields. SUGGESTION4: enterprise_value and sales have high userCount. Kept implementation compact. Confidence 0.7.",
+      "implementation": "quantile(zscore(divide(ts_backfill(enterprise_value,8), ts_backfill(sales,8))))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Return on invested capital (ROIC) re-ranking trend",
+      "description": "Capture improving capital efficiency: change in invested_capital-adjusted return_equity proxy. SUGGESTION1: used return_equity and invested_capital. SUGGESTION2: none. SUGGESTION3: ts_backfill both fields. SUGGESTION4: invested_capital has high counts. Kept <=2 fields and operators. Confidence 0.6.",
+      "implementation": "zscore(ts_zscore(divide(ts_backfill(return_equity,8), ts_backfill(invested_capital,8)),4))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Free cash flow strength (cashflow vs capex)",
+      "description": "High operating cashflow minus capex signals quality. SUGGESTION1: combined cashflow_op and capex. SUGGESTION2: none. SUGGESTION3: ts_backfill both fields. SUGGESTION4: cashflow_op and capex have high userCounts. Implementation concise. Confidence 0.68.",
+      "implementation": "quantile(zscore(subtract(ts_backfill(cashflow_op,8), ts_backfill(capex,8))))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Leverage reduction (declining long-term debt)",
+      "description": "Firms reducing long-term debt may outperform. SUGGESTION1: used debt_lt and equity to scale. SUGGESTION2: none. SUGGESTION3: ts_backfill both fields. SUGGESTION4: debt_lt and equity have high counts. Implementation small. Confidence 0.55.",
+      "implementation": "zscore(subtract(divide(ts_backfill(debt_lt,8), ts_backfill(equity,8)), ts_delay(divide(ts_backfill(debt_lt,8), ts_backfill(equity,8)),4)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Operating margin expansion (operating_income / sales improvement)",
+      "description": "Capture firms with improving operating profitability. SUGGESTION1: used operating_income and sales. SUGGESTION2: none. SUGGESTION3: ts_backfill both fields. SUGGESTION4: operating_income and sales have high userCounts. Confident moderate at 0.62.",
+      "implementation": "quantile(zscore(ts_delta(divide(ts_backfill(operating_income,8), ts_backfill(sales,8)),4)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Inventory efficiency (inventory_turnover vs peers)",
+      "description": "Rising inventory_turnover signals operational improvement. SUGGESTION1: single field inventory_turnover. SUGGESTION2: not vector. SUGGESTION3: ts_backfill applied. SUGGESTION4: field has high userCount. Implementation short. Confidence 0.5.",
+      "implementation": "quantile(zscore(ts_zscore(ts_backfill(inventory_turnover,8),8)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Short-term liquidity improvement (current_ratio increase)",
+      "description": "Improvements in current_ratio suggest balance sheet strengthening. SUGGESTION1: used current_ratio. SUGGESTION2: none. SUGGESTION3: ts_backfill applied. SUGGESTION4: current_ratio has high userCount. Confidence 0.52.",
+      "implementation": "zscore(ts_delta(ts_backfill(current_ratio,8),4))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Buyback intensity (recent repurchases)",
+      "description": "Firms repurchasing shares often generate alpha. SUGGESTION1: used total shares repurchased (quarter). SUGGESTION2: none. SUGGESTION3: ts_backfill applied to repurchase field. SUGGESTION4: repurchase field userCount moderate. Implementation respects limits. Confidence 0.57.",
+      "implementation": "quantile(zscore(ts_sum(ts_backfill(fnd6_newqeventv110_cshopq,8),4)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Low stock compensation expense (quality)",
+      "description": "Lower stock compensation relative to income suggests higher cash profitability. SUGGESTION1: used stock compensation (fnd6_newa2v1300_stkco) and income. SUGGESTION2: none. SUGGESTION3: ts_backfill both fields. SUGGESTION4: stock comp moderate userCount but acceptable. Kept concise. Confidence 0.48.",
+      "implementation": "zscore(divide(ts_backfill(fnd6_newa2v1300_stkco,8), ts_backfill(income,8)))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "High cash relative to liabilities",
+      "description": "Cash-rich firms with low liabilities are safer and may outperform. SUGGESTION1: used cash and liabilities. SUGGESTION2: none. SUGGESTION3: ts_backfill applied. SUGGESTION4: both fields high userCount. Implementation simple. Confidence 0.6.",
+      "implementation": "quantile(zscore(divide(ts_backfill(cash,8), ts_backfill(liabilities,8))))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Capex efficiency (sales / capex spike)",
+      "description": "Rising sales per unit capex indicates efficient investment. SUGGESTION1: used sales and capex. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: both have high userCount. Confidence 0.58.",
+      "implementation": "zscore(ts_delta(divide(ts_backfill(sales,8), ts_backfill(capex,8)),4))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Operating cashflow momentum (ts_returns of cashflow)",
+      "description": "Momentum in operating cashflow signals improving fundamentals. SUGGESTION1: single field cashflow_op. SUGGESTION2: none. SUGGESTION3: ts_backfill applied. SUGGESTION4: cashflow_op high userCount. Confidence 0.6.",
+      "implementation": "quantile(zscore(ts_returns(ts_backfill(cashflow_op,8),4)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings surprise proxy (op_eps vs eps)",
+      "description": "Compare earnings per share from operations vs reported EPS to find improving core profitability. SUGGESTION1: used fnd6_mfma2_opeps and eps. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: both have decent userCounts. Implementation respects operator/data limits. Confidence 0.56.",
+      "implementation": "zscore(subtract(ts_backfill(fnd6_mfma2_opeps,8), ts_backfill(eps,8)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Declining receivables (improving collections)",
+      "description": "Falling receivables relative to sales signals better cash conversion. SUGGESTION1: used fnd6_recd and sales. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: sales high userCount; receivables moderate. Confidence 0.5.",
+      "implementation": "zscore(ts_delta(divide(ts_backfill(fnd6_recd,8), ts_backfill(sales,8)),4))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "R&D intensity increase with revenue growth (growth quality)",
+      "description": "Rising R&D spend with rising revenue suggests sustainable growth. SUGGESTION1: used fnd6_rds and sales. SUGGESTION2: none. SUGGESTION3: ts_backfill applied. SUGGESTION4: sales high userCount; R&D lower but meaningful. Confidence 0.45.",
+      "implementation": "zscore(multiply(ts_zscore(ts_backfill(fnd6_rds,8),8), ts_zscore(ts_backfill(sales,8),8)))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "High gross margin stability (low cogs volatility)",
+      "description": "Low volatility in COGS relative to sales implies stable margins. SUGGESTION1: used fnd6_cogss and sales. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: sales high userCount. Implementation uses ts_std_dev. Confidence 0.54.",
+      "implementation": "zscore(divide(ts_std_dev(divide(ts_backfill(fnd6_cogss,8), ts_backfill(sales,8)),8), ts_mean(divide(ts_backfill(fnd6_cogss,8), ts_backfill(sales,8)),8)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Earnings quality (operating income > net income trend)",
+      "description": "Discrepancies between operating_income and net income trends can flag accounting noise. SUGGESTION1: used operating_income and income. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: both have high counts. Confidence 0.5.",
+      "implementation": "quantile(zscore(subtract(ts_zscore(ts_backfill(operating_income,8),8), ts_zscore(ts_backfill(income,8),8))))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High enterprise value to invested capital (overvaluation of capital)",
+      "description": "High EV / invested_capital may mean overvaluation; short candidate. SUGGESTION1: used enterprise_value and invested_capital. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: invested_capital high userCount. Confidence 0.5.",
+      "implementation": "quantile(zscore(divide(ts_backfill(enterprise_value,8), ts_backfill(invested_capital,8))))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High depreciation but low capex (aging asset base risk)",
+      "description": "High depre_amort with low capex may signal underinvestment. SUGGESTION1: used depre_amort and capex. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: both fields moderate userCount. Confidence 0.42.",
+      "implementation": "zscore(divide(ts_backfill(depre_amort,8), ts_backfill(capex,8)))",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Low payout but rising earnings (reinvestment signal)",
+      "description": "Firms retaining earnings while EPS rises may reinvest well. SUGGESTION1: used eps and dividends (fnd6_newa1v1300_ebitda? insufficient), fallback to eps and cash dividends field fnd6_divd (low userCount). SUGGESTION2: none. SUGGESTION3: ts_backfill applied. SUGGESTION4: EPS high userCount; divd low userCount but still used. Note: lower confidence due to dividend coverage. Confidence 0.4.",
+      "implementation": "zscore(subtract(ts_zscore(ts_backfill(eps,8),8), ts_zscore(ts_backfill(fnd6_divd,8),8)))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Rapid working capital improvement (declining wcap / sales)",
+      "description": "Declining working capital needs per sales indicates efficiency. SUGGESTION1: used fnd6_newa2v1300_wcap and sales. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: sales high userCount. Confidence 0.53.",
+      "implementation": "zscore(ts_delta(divide(ts_backfill(fnd6_newa2v1300_wcap,8), ts_backfill(sales,8)),4))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "High market-to-book re-rating (market value vs equity increases)",
+      "description": "Rising mkvalt relative to equity suggests re-rating. SUGGESTION1: used fnd6_mkvalt and equity. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: mkvalt moderate userCount; equity high. Confidence 0.52.",
+      "implementation": "quantile(zscore(ts_delta(divide(ts_backfill(fnd6_mkvalt,8), ts_backfill(equity,8)),4)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Earnings stability (low eps volatility)",
+      "description": "Low EPS volatility often correlates with lower downside; used ts_std_dev on eps. SUGGESTION1: single field eps. SUGGESTION2: none. SUGGESTION3: ts_backfill applied. SUGGESTION4: eps high userCount. Confidence 0.5.",
+      "implementation": "quantile(zscore(inverse(ts_std_dev(ts_backfill(eps,8),8))))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High operating leverage improvement (sales up, opex flat)",
+      "description": "If sales rise while operating_expense remains flat, margins expand. SUGGESTION1: used sales and operating_expense. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: both have good userCounts. Confidence 0.55.",
+      "implementation": "zscore(subtract(ts_zscore(ts_backfill(sales,8),8), ts_zscore(ts_backfill(operating_expense,8),8)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Net income surprise persistence (ts_ir of income)",
+      "description": "Use information ratio of recent net income to detect persistent beats. SUGGESTION1: used income. SUGGESTION2: none. SUGGESTION3: ts_backfill applied. SUGGESTION4: income high userCount. Confidence 0.59.",
+      "implementation": "quantile(zscore(ts_ir(ts_backfill(income,8),8)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Cash conversion acceleration (cashflow_op / income trend)",
+      "description": "Improving cash conversion (cashflow_op rising faster than income) is positive. SUGGESTION1: used cashflow_op and income. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: both high userCounts. Confidence 0.63.",
+      "implementation": "zscore(subtract(ts_zscore(ts_backfill(cashflow_op,8),8), ts_zscore(ts_backfill(income,8),8)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Declining goodwill (write-down signal avoidance)",
+      "description": "Falling goodwill may indicate impairment risk; avoid falling goodwill. SUGGESTION1: used goodwill. SUGGESTION2: none. SUGGESTION3: ts_backfill applied. SUGGESTION4: goodwill has strong userCount. Confidence 0.45.",
+      "implementation": "reverse(zscore(ts_delta(ts_backfill(goodwill,8),8)))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Short-term debt spike (deterioration signal)",
+      "description": "Rising current liabilities debt component may precede trouble. SUGGESTION1: used fnd6_dlcq or liabilities_curr; used liabilities_curr. SUGGESTION2: none. SUGGESTION3: ts_backfill applied. SUGGESTION4: liabilities_curr has high userCount. Confidence 0.47.",
+      "implementation": "zscore(ts_delta(ts_backfill(liabilities_curr,8),4))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Earnings acceleration adjusted for share count (EPS growth / shares)",
+      "description": "EPS growth normalized by share dilution captures real per-share improvement. SUGGESTION1: used eps and common shares outstanding (fnd6_newqv1300_cshoq). SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: eps high userCount; shares moderate. Confidence 0.58.",
+      "implementation": "quantile(zscore(divide(ts_delta(ts_backfill(eps,8),4), ts_backfill(fnd6_newqv1300_cshoq,8))))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "High cashflow to enterprise value (cheap cashflow)",
+      "description": "High operating cashflow relative to EV suggests undervaluation. SUGGESTION1: used cashflow_op and enterprise_value. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: both have good counts. Confidence 0.66.",
+      "implementation": "quantile(zscore(divide(ts_backfill(cashflow_op,8), ts_backfill(enterprise_value,8))))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Rising operating income with stable debt (credit-strengthened growth)",
+      "description": "Operating income up while debt stays constant is healthy. SUGGESTION1: used operating_income and debt_lt. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: operating_income high userCount. Confidence 0.54.",
+      "implementation": "zscore(subtract(ts_zscore(ts_backfill(operating_income,8),8), ts_zscore(ts_backfill(debt_lt,8),8)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Low enterprise value to assets (value tilt)",
+      "description": "EV/assets low indicates potential undervaluation. SUGGESTION1: used enterprise_value and assets. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: assets high userCount. Confidence 0.6.",
+      "implementation": "quantile(zscore(divide(ts_backfill(enterprise_value,8), ts_backfill(assets,8))))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Improving gross profit after R&D (core margin improvement)",
+      "description": "Sales minus COGS less R&D improving implies sustainable margin expansion. SUGGESTION1: used sales and fnd6_cogss; R&D excluded to keep 2-field limit by approximating margin change using sales and cogs. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: sales high userCount. Confidence 0.52.",
+      "implementation": "zscore(ts_delta(subtract(ts_backfill(sales,8), ts_backfill(fnd6_cogss,8)),4))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "High operating income relative to enterprise value (profitability yield)",
+      "description": "Operating_income / EV identifies profitable cheap firms. SUGGESTION1: used operating_income and enterprise_value. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: operating_income and EV high userCount. Confidence 0.67.",
+      "implementation": "quantile(zscore(divide(ts_backfill(operating_income,8), ts_backfill(enterprise_value,8))))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Improving accounts payable (supplier payment efficiency)",
+      "description": "Declining accounts payable relative to sales may indicate faster payments; use fnd6_cptnewqeventv110_apq (accounts payable) and sales. SUGGESTION1: used AP and sales. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: sales high userCount; AP moderate. Confidence 0.46.",
+      "implementation": "zscore(ts_delta(divide(ts_backfill(fnd6_cptnewqeventv110_apq,8), ts_backfill(sales,8)),4))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Rising operating income per employee (productivity)",
+      "description": "Operating_income divided by employees indicates productivity gains. SUGGESTION1: used operating_income and fnd6_newa1v1300_emp. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: employee count moderate userCount. Confidence 0.49.",
+      "implementation": "quantile(zscore(divide(ts_backfill(operating_income,8), ts_backfill(fnd6_newa1v1300_emp,8))))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Profit margin tick-down reversal (mean-revert margins)",
+      "description": "Short-term drops in margins that revert can be traded. SUGGESTION1: used operating_income and sales. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: used high-count fields. Confidence 0.5.",
+      "implementation": "zscore(ts_arg_min(divide(ts_backfill(operating_income,8), ts_backfill(sales,8)),8))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High tangible equity growth (equity growth excluding goodwill)",
+      "description": "Rising tangible equity (equity - goodwill) signals real capital accumulation. SUGGESTION1: used equity and goodwill. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: equity and goodwill high userCount. Confidence 0.53.",
+      "implementation": "quantile(zscore(ts_delta(subtract(ts_backfill(equity,8), ts_backfill(goodwill,8)),8)))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "High operating income growth volatility (momentum exploit)",
+      "description": "Exploit firms with persistent high recent operating_income growth (ts_quantile). SUGGESTION1: used operating_income. SUGGESTION2: none. SUGGESTION3: ts_backfill applied. SUGGESTION4: field strong userCount. Confidence 0.57.",
+      "implementation": "quantile(zscore(ts_quantile(ts_backfill(operating_income,8),8)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Improving tax position (declining income taxes vs income)",
+      "description": "Declining income taxes relative to income may indicate tax efficiency gains. SUGGESTION1: used income_tax and income. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: income_tax moderate userCount. Confidence 0.44.",
+      "implementation": "zscore(ts_delta(divide(ts_backfill(income_tax,8), ts_backfill(income,8)),8))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "High net income persistence vs peers (cross-sectional zscore of ts_ir)",
+      "description": "Persistent net income (high ts_ir) signals quality. SUGGESTION1: used fnd6_newa2v1300_ni. SUGGESTION2: none. SUGGESTION3: ts_backfill applied. SUGGESTION4: net income moderate userCount. Confidence 0.58.",
+      "implementation": "quantile(zscore(ts_ir(ts_backfill(fnd6_newa2v1300_ni,8),8)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Low deferred tax asset accumulation (red flag avoidance)",
+      "description": "Rising deferred tax assets relative to equity may signal issues. SUGGESTION1: used fnd6_txdba and equity. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: equity high userCount; txdba low but used. Confidence 0.4.",
+      "implementation": "reverse(zscore(divide(ts_backfill(fnd6_txdba,8), ts_backfill(equity,8))))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Increasing short-term investments (liquidity build)",
+      "description": "Rising short-term investments may indicate strong balance sheet. SUGGESTION1: used fnd6_newqv1300_ivstq or cash_st; used cash_st. SUGGESTION2: none. SUGGESTION3: ts_backfill applied. SUGGESTION4: cash_st good userCount. Confidence 0.52.",
+      "implementation": "zscore(ts_delta(ts_backfill(cash_st,8),4))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Rising marketable securities adjustments (fnd6_msa)",
+      "description": "Growing marketable securities adjustments can signal accumulation of liquid assets. SUGGESTION1: used fnd6_msa. SUGGESTION2: none. SUGGESTION3: ts_backfill applied. SUGGESTION4: moderate userCount. Confidence 0.4.",
+      "implementation": "quantile(zscore(ts_zscore(ts_backfill(fnd6_msa,8),8)))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Improving interest coverage (income / interest_expense)",
+      "description": "Rising pretax income relative to interest expense indicates credit improvement. SUGGESTION1: used fnd6_mfmq_piq (pretax income) and interest_expense. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: interest_expense moderate userCount. Confidence 0.56.",
+      "implementation": "zscore(ts_delta(divide(ts_backfill(fnd6_mfmq_piq,8), ts_backfill(interest_expense,8)),4))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Stable cash with rising liabilities (warning)",
+      "description": "If liabilities rise faster than cash, that's negative. SUGGESTION1: used cash and liabilities. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: cash high userCount. Confidence 0.46.",
+      "implementation": "reverse(zscore(ts_delta(subtract(ts_zscore(ts_backfill(liabilities,8),8), ts_zscore(ts_backfill(cash,8),8)),4)))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "High operating income margin vs industry (cross-sectional zscore)",
+      "description": "Cross-sectional zscore of operating margin identifies margin leaders. SUGGESTION1: used operating_income and sales. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: both high userCounts. Confidence 0.61.",
+      "implementation": "quantile(zscore(divide(ts_backfill(operating_income,8), ts_backfill(sales,8))))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Earnings acceleration excluding special items (core earnings momentum)",
+      "description": "Use S&P core earnings (fnd6_spce) for cleaner earnings momentum. SUGGESTION1: used fnd6_spce. SUGGESTION2: none. SUGGESTION3: ts_backfill since coverage=0.5. SUGGESTION4: spce has lower userCount so lower confidence. Confidence 0.48.",
+      "implementation": "quantile(zscore(ts_zscore(ts_backfill(fnd6_spce,8),8)))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "High asset turnover improvement (sales / assets change)",
+      "description": "Rising sales per asset signals better utilization. SUGGESTION1: used sales and assets. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: assets and sales have high userCounts. Confidence 0.59.",
+      "implementation": "zscore(ts_delta(divide(ts_backfill(sales,8), ts_backfill(assets,8)),4))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Declining restructuring costs as positive signal",
+      "description": "Falling restructuring costs (fnd6_newqv1300_rcpq) may indicate stabilization. SUGGESTION1: used rcpq. SUGGESTION2: none. SUGGESTION3: ts_backfill applied. SUGGESTION4: moderate userCount. Confidence 0.43.",
+      "implementation": "reverse(zscore(ts_delta(ts_backfill(fnd6_newqv1300_rcpq,8),8)))",
+      "confidence_level": 0.43
+    },
+    {
+      "idea": "Low option dilution (options exercised/exercisable trend)",
+      "description": "Rising options exercisable could dilute; use fnd6_optex and fnd6_optdrq fields. SUGGESTION1: used fnd6_optex and fnd6_optex? limited to 2 fields; used fnd6_optex only as proxy. SUGGESTION2: none. SUGGESTION3: ts_backfill applied. SUGGESTION4: option fields have decent userCounts. Confidence 0.38.",
+      "implementation": "reverse(zscore(ts_delta(ts_backfill(fnd6_optex,8),8)))",
+      "confidence_level": 0.38
+    },
+    {
+      "idea": "High sales growth consistency (low ts_kurtosis of sales growth)",
+      "description": "Consistent sales growth (low kurtosis) signals predictability. SUGGESTION1: used sales. SUGGESTION2: none. SUGGESTION3: ts_backfill applied. SUGGESTION4: sales strong userCount. Confidence 0.55.",
+      "implementation": "quantile(zscore(inverse(ts_kurtosis(ts_backfill(sales,8),8))))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Rising retained earnings vs equity (internal funding)",
+      "description": "Growth in retained earnings relative to equity indicates reinvestment. SUGGESTION1: used fnd6_newa2v1300_re and equity. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: equity high userCount. Confidence 0.47.",
+      "implementation": "zscore(ts_delta(divide(ts_backfill(fnd6_newa2v1300_re,8), ts_backfill(equity,8)),8))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Declining cost of interest (interest_expense decline vs income)",
+      "description": "Falling interest expense burden vs income is positive. SUGGESTION1: used interest_expense and income. SUGGESTION2: none. SUGGESTION3: ts_backfill used. SUGGESTION4: both fields moderate to high userCounts. Confidence 0.5.",
+      "implementation": "zscore(ts_delta(divide(ts_backfill(interest_expense,8), ts_backfill(income,8)),8))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Improving operating cashflow margin (cashflow_op / sales)",
+      "description": "Higher cashflow margin signals quality. SUGGESTION1: used cashflow_op and sales. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: both high userCounts. Confidence 0.64.",
+      "implementation": "quantile(zscore(divide(ts_backfill(cashflow_op,8), ts_backfill(sales,8))))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Low accruals to assets (conservative accounting)",
+      "description": "Lower accruals/assets indicates earnings quality. SUGGESTION1: used income and cashflow_op and assets. SUGGESTION2: none. SUGGESTION3: ts_backfill used. SUGGESTION4: all have good userCounts. Confidence 0.61.",
+      "implementation": "zscore(divide(subtract(ts_backfill(income,8), ts_backfill(cashflow_op,8)), ts_backfill(assets,8)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Rising operating income relative to invested capital (ROIC momentum)",
+      "description": "ROIC improvement signals value creation. SUGGESTION1: used operating_income and invested_capital. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: invested_capital high userCount. Confidence 0.63.",
+      "implementation": "quantile(zscore(ts_delta(divide(ts_backfill(operating_income,8), ts_backfill(invested_capital,8)),4)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Declining arrears (fnd6_txpd Income Taxes Paid drop vs income)",
+      "description": "Tax paid declining vs income may reflect efficiency or one-offs; treat cautiously. SUGGESTION1: used fnd6_txpd and income. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: txpd moderate userCount. Confidence 0.35.",
+      "implementation": "zscore(subtract(ts_zscore(ts_backfill(income,8),8), ts_zscore(ts_backfill(fnd6_txpd,8),8)))",
+      "confidence_level": 0.35
+    },
+    {
+      "idea": "Improving EBITDA proxy (op_income + depre_amort growth)",
+      "description": "EBITDA trend indicates operating strength. SUGGESTION1: used operating_income and depre_amort. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: depre_amort and operating_income moderate/high userCounts. Confidence 0.55.",
+      "implementation": "zscore(ts_delta(add(ts_backfill(operating_income,8), ts_backfill(depre_amort,8)),4))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Improving capital turnover (sales / invested_capital)",
+      "description": "Rising sales per invested capital shows better returns. SUGGESTION1: used sales and invested_capital. SUGGESTION2: none. SUGGESTION3: ts_backfill. SUGGESTION4: invested_capital strong userCount. Confidence 0.6.",
+      "implementation": "quantile(zscore(ts_delta(divide(ts_backfill(sales,8), ts_backfill(invested_capital,8)),4)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Avoid firms with sudden large writedowns (fnd6_wdapq proxy)",
+      "description": "Large writedowns can precede underperformance. SUGGESTION1: used fnd6_wdaq or fnd6_wdapq; used fnd6_wdaq. SUGGESTION2: none. SUGGESTION3: ts_backfill applied. SUGGESTION4: moderate userCount. Confidence 0.36.",
+      "implementation": "reverse(zscore(ts_delta(ts_backfill(fnd6_newqeventv110_wdaq,8),8)))",
+      "confidence_level": 0.36
+    },
+    {
+      "idea": "Strong operating cashflow relative to debt (deleverage via cash)",
+      "description": "Cashflow_op / debt_lt rising is positive. SUGGESTION1: used cashflow_op and debt_lt. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: both have good userCounts. Confidence 0.62.",
+      "implementation": "quantile(zscore(divide(ts_backfill(cashflow_op,8), ts_backfill(debt_lt,8))))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Low intangible assets growth (avoid capitalization risk)",
+      "description": "Rapid intangible growth may be risky; prefer stable intangibles. SUGGESTION1: used fnd6_intan. SUGGESTION2: none. SUGGESTION3: ts_backfill. SUGGESTION4: intan moderate userCount. Confidence 0.4.",
+      "implementation": "reverse(zscore(ts_delta(ts_backfill(fnd6_intan,8),8)))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "High operating_income / equity (return-focused)",
+      "description": "Operating return on equity identifies efficient operators. SUGGESTION1: used operating_income and equity. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: equity high userCount. Confidence 0.6.",
+      "implementation": "quantile(zscore(divide(ts_backfill(operating_income,8), ts_backfill(equity,8))))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Declining treasury stock (share repurchases on balance sheet)",
+      "description": "Decreasing treasury stock balance can signal buybacks. SUGGESTION1: used fnd6_newqv1300_tstknq. SUGGESTION2: none. SUGGESTION3: ts_backfill applied. SUGGESTION4: moderate userCount. Confidence 0.48.",
+      "implementation": "reverse(zscore(ts_delta(ts_backfill(fnd6_newqv1300_tstknq,8),8)))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Improving deferred revenue coverage (growing recurring revenue)",
+      "description": "Rising deferred revenue relative to sales signals recurring revenue growth. SUGGESTION1: used fnd6_newqv1300_drcq and sales. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: deferred revenue moderate userCount. Confidence 0.49.",
+      "implementation": "zscore(ts_delta(divide(ts_backfill(fnd6_newqv1300_drcq,8), ts_backfill(sales,8)),4))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Profitability vs leverage spread (return_equity vs debt_lt)",
+      "description": "High returns with low leverage favorable. SUGGESTION1: used return_equity and debt_lt. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: return_equity high userCount. Confidence 0.6.",
+      "implementation": "zscore(subtract(ts_zscore(ts_backfill(return_equity,8),8), ts_zscore(ts_backfill(debt_lt,8),8)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Strong cashflow per share growth (cashflow_op / shares)",
+      "description": "Per-share cashflow growth is a shareholder-friendly metric. SUGGESTION1: used cashflow_op and fnd6_newqv1300_cshoq. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: cashflow_op high userCount. Confidence 0.59.",
+      "implementation": "quantile(zscore(ts_delta(divide(ts_backfill(cashflow_op,8), ts_backfill(fnd6_newqv1300_cshoq,8)),4)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Sales acceleration vs capex (growth without heavy reinvestment)",
+      "description": "Sales rising faster than capex can indicate operating leverage. SUGGESTION1: used sales and capex. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: sales/capex high userCounts. Confidence 0.54.",
+      "implementation": "zscore(subtract(ts_zscore(ts_backfill(sales,8),8), ts_zscore(ts_backfill(capex,8),8)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Improving receivables turnover (sales / receivables)",
+      "description": "Rising sales per receivable means faster collection. SUGGESTION1: used sales and fnd6_recd. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: sales strong userCount. Confidence 0.51.",
+      "implementation": "quantile(zscore(ts_delta(divide(ts_backfill(sales,8), ts_backfill(fnd6_recd,8)),4)))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Low deferred tax liability growth (tax risk reduction)",
+      "description": "Falling deferred tax liabilities may be positive. SUGGESTION1: used fnd6_txdbcl and income. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: txdbcl moderate userCount. Confidence 0.38.",
+      "implementation": "reverse(zscore(ts_delta(ts_backfill(fnd6_txdbclq,8),8)))",
+      "confidence_level": 0.38
+    },
+    {
+      "idea": "High operating income per asset (asset efficiency)",
+      "description": "Operating_income / assets rising indicates better efficiency. SUGGESTION1: used operating_income and assets. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: assets high userCount. Confidence 0.6.",
+      "implementation": "quantile(zscore(ts_delta(divide(ts_backfill(operating_income,8), ts_backfill(assets,8)),4)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Improving net working capital (declining wcap / assets)",
+      "description": "Declining working capital needs relative to assets signals efficiency. SUGGESTION1: used fnd6_newa2v1300_wcap and assets. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: assets high userCount. Confidence 0.53.",
+      "implementation": "zscore(ts_delta(divide(ts_backfill(fnd6_newa2v1300_wcap,8), ts_backfill(assets,8)),8))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "High operating income growth vs shares outstanding (per-share op income)",
+      "description": "Per-share operating income growth isolates shareholder benefit. SUGGESTION1: used operating_income and fnd6_newqv1300_cshoq. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: op income high userCount. Confidence 0.58.",
+      "implementation": "quantile(zscore(ts_delta(divide(ts_backfill(operating_income,8), ts_backfill(fnd6_newqv1300_cshoq,8)),4)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Declining stock-based compensation trend (improving cash EPS)",
+      "description": "Falling stock comp vs EPS is positive for cash EPS. SUGGESTION1: used fnd6_newa2v1300_stkco and eps. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: eps high userCount; stock comp moderate. Confidence 0.46.",
+      "implementation": "zscore(subtract(ts_zscore(ts_backfill(eps,8),8), ts_zscore(ts_backfill(fnd6_newa2v1300_stkco,8),8)))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Improving operating cashflow relative to operating expense (efficiency)",
+      "description": "Higher cashflow_op / operating_expense suggests operational efficiency. SUGGESTION1: used cashflow_op and operating_expense. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: both high userCounts. Confidence 0.62.",
+      "implementation": "quantile(zscore(divide(ts_backfill(cashflow_op,8), ts_backfill(operating_expense,8))))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Low volatility cashflow leaders (stable cash providers)",
+      "description": "Inverse of cashflow_op ts_std_dev selects stable cash generators. SUGGESTION1: used cashflow_op. SUGGESTION2: none. SUGGESTION3: ts_backfill. SUGGESTION4: cashflow_op high userCount. Confidence 0.56.",
+      "implementation": "quantile(zscore(inverse(ts_std_dev(ts_backfill(cashflow_op,8),8))))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "High operating income to capex (investment efficiency)",
+      "description": "High operating income per capex indicates efficient investments. SUGGESTION1: used operating_income and capex. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: both high userCounts. Confidence 0.61.",
+      "implementation": "quantile(zscore(divide(ts_backfill(operating_income,8), ts_backfill(capex,8))))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Earnings growth persistence (ts_count_nans to detect data gaps & momentum)",
+      "description": "Prefer companies with consistent reporting (low NaNs) and momentum. SUGGESTION1: used ts_count_nans on eps (single datafield operator). SUGGESTION2: none. SUGGESTION3: ts_backfill on eps before counting NaNs. SUGGESTION4: eps high userCount. Confidence 0.42.",
+      "implementation": "reverse(zscore(ts_count_nans(ts_backfill(eps,8),8)))",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Rising operating_income correlation with sales (ts_corr)",
+      "description": "Rising correlation implies healthier revenue-driven profit. SUGGESTION1: used operating_income and sales. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: both strong userCounts. Confidence 0.5.",
+      "implementation": "quantile(zscore(ts_corr(ts_backfill(operating_income,8), ts_backfill(sales,8),8)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Low payout ratio with rising income (retained earnings growth)",
+      "description": "Low dividends vs income while income rises indicates retained funding for growth. SUGGESTION1: used income and fnd6_divd. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: divd low userCount reduces confidence. Confidence 0.4.",
+      "implementation": "zscore(subtract(ts_zscore(ts_backfill(income,8),8), ts_zscore(ts_backfill(fnd6_divd,8),8)))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "High operating income growth in low leverage firms",
+      "description": "Combine operating income growth with low debt_lt for safer growth. SUGGESTION1: used operating_income and debt_lt. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: both fields high userCounts. Confidence 0.62.",
+      "implementation": "zscore(subtract(ts_zscore(ts_delta(ts_backfill(operating_income,8),4),8), ts_zscore(divide(ts_backfill(debt_lt,8), ts_backfill(equity,8)),8)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Improving cash per share (cash / shares)",
+      "description": "Rising cash per share is shareholder-friendly. SUGGESTION1: used cash and fnd6_newqv1300_cshoq. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: cash strong userCount. Confidence 0.6.",
+      "implementation": "quantile(zscore(ts_delta(divide(ts_backfill(cash,8), ts_backfill(fnd6_newqv1300_cshoq,8)),4)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Rising operating income relative to market cap (efficiency vs market)",
+      "description": "Operating_income / mkvalt rising suggests earnings re-rating potential. SUGGESTION1: used operating_income and fnd6_mkvalt. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: mkvalt moderate userCount. Confidence 0.58.",
+      "implementation": "quantile(zscore(ts_delta(divide(ts_backfill(operating_income,8), ts_backfill(fnd6_mkvalt,8)),4)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Low extraordinary items (exclude one-offs)",
+      "description": "Low extraordinary items (fnd6_xidos) indicates cleaner earnings. SUGGESTION1: used fnd6_xidos. SUGGESTION2: none. SUGGESTION3: ts_backfill applied. SUGGESTION4: low userCount -> cautious. Confidence 0.35.",
+      "implementation": "reverse(zscore(ts_zscore(ts_backfill(fnd6_xidos,8),8)))",
+      "confidence_level": 0.35
+    },
+    {
+      "idea": "Improving operating income per employee trend (momentum)",
+      "description": "Similar to per-employee metric but using ts_zscore momentum. SUGGESTION1: used operating_income and employees. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: moderate userCounts. Confidence 0.5.",
+      "implementation": "quantile(zscore(ts_zscore(divide(ts_backfill(operating_income,8), ts_backfill(fnd6_newa1v1300_emp,8)),8)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Rising sales per common share (sales growth per share)",
+      "description": "Per-share sales growth supports per-share earnings. SUGGESTION1: used sales and shares outstanding. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: sales high userCount. Confidence 0.57.",
+      "implementation": "zscore(ts_delta(divide(ts_backfill(sales,8), ts_backfill(fnd6_newqv1300_cshoq,8)),4))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Improving operating cashflow vs long-term liabilities",
+      "description": "Rising cashflow relative to long-term liabilities signals deleveraging capacity. SUGGESTION1: used cashflow_op and dltt (fnd6_cptnewqv1300_dlttq). SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: dltt moderate userCount. Confidence 0.6.",
+      "implementation": "quantile(zscore(divide(ts_backfill(cashflow_op,8), ts_backfill(fnd6_cptnewqv1300_dlttq,8))))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Low seasonal sales volatility (inverse ts_std_dev of sales growth)",
+      "description": "Stable sales growth reduces downside. SUGGESTION1: used sales. SUGGESTION2: none. SUGGESTION3: ts_backfill. SUGGESTION4: sales high userCount. Confidence 0.54.",
+      "implementation": "quantile(zscore(inverse(ts_std_dev(ts_returns(ts_backfill(sales,8),8),8))))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Rising operating income share of total assets (ROA trend)",
+      "description": "Rising operating_income / assets indicates ROA improvement. SUGGESTION1: used operating_income and assets. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: both high userCounts. Confidence 0.61.",
+      "implementation": "quantile(zscore(ts_delta(divide(ts_backfill(operating_income,8), ts_backfill(assets,8)),4)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Declining nonoperating income reliance (nonoperating vs total income fall)",
+      "description": "Firms less reliant on nonoperating income preferred. SUGGESTION1: used fnd6_newa2v1300_nopi and income. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: nopi moderate userCount. Confidence 0.45.",
+      "implementation": "reverse(zscore(divide(ts_backfill(fnd6_newa2v1300_nopi,8), ts_backfill(income,8))))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Improving working capital to sales (wcap / sales decline)",
+      "description": "Lower wcap per sales indicates efficiency. SUGGESTION1: used fnd6_newqv1300_wcapq and sales. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: sales strong userCount. Confidence 0.52.",
+      "implementation": "zscore(ts_delta(divide(ts_backfill(fnd6_newqv1300_wcapq,8), ts_backfill(sales,8)),8))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "High operating_income relative to liabilities (solvency-adjusted profitability)",
+      "description": "Operating returns relative to liabilities indicates solvency strength. SUGGESTION1: used operating_income and liabilities. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: liabilities high userCount. Confidence 0.58.",
+      "implementation": "quantile(zscore(divide(ts_backfill(operating_income,8), ts_backfill(liabilities,8))))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Improving payable days (declining payables / cogs)",
+      "description": "Shorter payable days may indicate stronger supplier terms but also cash use; treat with caution. SUGGESTION1: used fnd6_cptnewqeventv110_apq and fnd6_cogss. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: cogs moderate userCount. Confidence 0.4.",
+      "implementation": "zscore(ts_delta(divide(ts_backfill(fnd6_cptnewqeventv110_apq,8), ts_backfill(fnd6_cogss,8)),8))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Stable share count with rising income (anti-dilution signal)",
+      "description": "Rising income without dilution is positive. SUGGESTION1: used income and shares outstanding. SUGGESTION2: none. SUGGESTION3: ts_backfill both. SUGGESTION4: income high userCount. Confidence 0.59.",
+      "implementation": "zscore(subtract(ts_zscore(ts_backfill(income,8),8), ts_zscore(ts_backfill(fnd6_newqv1300_cshoq,8),8)))",
+      "confidence_level": 0.59
+    }
+  ]
+}

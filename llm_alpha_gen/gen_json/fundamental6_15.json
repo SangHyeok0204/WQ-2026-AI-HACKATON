@@ -1,0 +1,736 @@
+{
+  "results": [
+    {
+      "idea": "EV/EBITDA mean-reversion z-score",
+      "description": "Combine enterprise_value and ebitda to identify cheap relative valuations. Applied SUGGESTION1 by using multiple fields (enterprise_value, ebitda). Applied SUGGESTION3: both fields coverage=0.5 so I use ts_backfill(...) to backfill. SUGGESTION2 not applicable (no vector fields). SUGGESTION4 applied: picked high userCount/alphaCount fields (enterprise_value, ebitda) for robustness. Confidence: 0.80 because EV/EBITDA is a well-known value signal with good coverage.",
+      "implementation": "ts_zscore(divide(ts_backfill(enterprise_value,252), ts_backfill(ebitda,252)),60)",
+      "confidence_level": 0.8
+    },
+    {
+      "idea": "EV/Revenue cheapness",
+      "description": "Cheapness measured by enterprise_value / revenue. Used multiple fields per SUGGESTION1 (enterprise_value, fnd6_newa2v1300_revt). Both have coverage=0.5 so used ts_backfill per SUGGESTION3. No vector usage (SUGGESTION2). Chose enterprise_value (high userCount) per SUGGESTION4. Confidence 0.75: classic valuation metric but noisier than EBITDA.",
+      "implementation": "ts_zscore(divide(ts_backfill(enterprise_value,252), ts_backfill(fnd6_newa2v1300_revt,252)),60)",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Operating cashflow yield (CFO/EV)",
+      "description": "Cash generation relative to enterprise value signals quality. Used cashflow_op + enterprise_value (SUGGESTION1). Both coverage=0.5 so used ts_backfill (SUGGESTION3). SUGGESTION4: cashflow_op and enterprise_value have high userCount. No vector fields. Confidence 0.82: cash yield is robust vs accrual distortions.",
+      "implementation": "ts_zscore(divide(ts_backfill(cashflow_op,252), ts_backfill(enterprise_value,252)),60)",
+      "confidence_level": 0.82
+    },
+    {
+      "idea": "Accruals proxy: net income vs CFO divergence",
+      "description": "Detect firms with rising accruals by comparing operating cashflow to income_beforeextra. Used two fields per SUGGESTION1 (cashflow_op, income_beforeextra). Both coverage=0.5 so ts_backfill applied (SUGGESTION3). SUGGESTION2 not applied. SUGGESTION4: picked widely used fields. Confidence 0.70 — accruals signal historically profitable but moderate noise.",
+      "implementation": "subtract(ts_zscore(ts_backfill(cashflow_op,252)), ts_zscore(ts_backfill(income_beforeextra,252)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Capex intensity (CapEx / Sales) expansion",
+      "description": "High capex relative to sales can signal investment or waste; use capex and revenue (SUGGESTION1). Both have 0.5 coverage so ts_backfill used (SUGGESTION3). SUGGESTION4: capex has very high userCount. No vector use. Confidence 0.58 due to heterogeneity across industries.",
+      "implementation": "ts_zscore(divide(ts_backfill(capex,252), ts_backfill(fnd6_newa2v1300_revt,252)),60)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Share-repurchase surge (quarterly sum)",
+      "description": "Signal firms accelerating buybacks using quarterly total shares repurchased. Uses fnd6_newqeventv110_cshopq (SUGGESTION1 single field counted as buyback intensity). Coverage=0.5 so ts_backfill applied (SUGGESTION3). SUGGESTION4: this buyback field has moderate userCount. SUGGESTION2 not applicable. Confidence 0.65: repurchase spikes often correlate with returns but can be timing-dependent.",
+      "implementation": "ts_zscore(ts_sum(ts_backfill(fnd6_newqeventv110_cshopq,252),4),60)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Debt reduction momentum",
+      "description": "Firms reducing total debt are de-risking; use ts_delta on debt. Used debt (high userCount) and ts_backfill (coverage 0.5) per SUGGESTION3. Only one field so SUGGESTION1 partially applied. No vectors. Confidence 0.6: deleveraging is positive but sometimes occurs with asset sales.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(debt,252),252),60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "ROE acceleration (quality momentum)",
+      "description": "Momentum in return_equity signals improving profitability. Used return_equity (SUGGESTION1). Coverage=0.5 -> ts_backfill used (SUGGESTION3). SUGGESTION4 applied since return_equity has high userCount. Confidence 0.72: ROE momentum tends to persist medium-term.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(return_equity,252),252),60)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "ROA acceleration",
+      "description": "Return on assets momentum (return_assets). Applied ts_backfill due to coverage 0.5. Chose return_assets for high userCount per SUGGESTION4. No vector usage. Confidence 0.68: similar rationale to ROE but asset-based.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(return_assets,252),252),60)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Book-to-Enterprise re-rating",
+      "description": "Rising bookvalue_ps relative to enterprise_value may signal improving fundamentals. Used two fields (bookvalue_ps, enterprise_value) per SUGGESTION1 and ts_backfill for both (SUGGESTION3). SUGGESTION4 applied. Confidence 0.66: book signals are stable but slow.",
+      "implementation": "ts_zscore(divide(ts_backfill(bookvalue_ps,252), ts_backfill(enterprise_value,252)),60)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Inventory accumulation as weakness",
+      "description": "Inventory builds relative to historical levels often precede margin pressure. Use inventory and ts_delta. Both coverage=0.5 so ts_backfill used (SUGGESTION3). SUGGESTION4: inventory has solid userCount. Confidence 0.55: industry effects stronger here.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(inventory,90),90),60)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Receivables growth vs sales (credit deterioration)",
+      "description": "Compare receivable growth to revenue growth to flag worsening credit. Applied SUGGESTION1 with receivable and fnd6_newa2v1300_revt. Both use ts_backfill (SUGGESTION3). No vector fields. SUGGESTION4: chose fields with good usage. Confidence 0.60: predictive in some sectors.",
+      "implementation": "subtract(ts_zscore(ts_delta(ts_backfill(receivable,252),252),60), ts_zscore(ts_delta(ts_backfill(fnd6_newa2v1300_revt,252),252),60))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "SG&A efficiency improvement (SGA/Sales decline)",
+      "description": "Declining sga_expense / revenue ratio signals operational leverage. Uses sga_expense and revenue per SUGGESTION1. Both backfilled (SUGGESTION3). SUGGESTION4: both fields have high userCounts. Confidence 0.64: often persistent but seasonality matters.",
+      "implementation": "ts_zscore(divide(ts_backfill(sga_expense,252), ts_backfill(fnd6_newa2v1300_revt,252)),60)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "CapEx reduction + rising CFO (free cashflow improvement)",
+      "description": "Combine falling capex and rising operating cashflow: used capex and cashflow_op (SUGGESTION1) and ts_backfill both (SUGGESTION3). SUGGESTION4: capex and cashflow_op have high user counts. Confidence 0.6: capex cuts can be beneficial if not growth-killing.",
+      "implementation": "subtract(ts_zscore(ts_delta(ts_backfill(cashflow_op,252),252),60), ts_zscore(ts_delta(ts_backfill(capex,252),252),60))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "EBIT margin expansion (EBIT / Revenue momentum)",
+      "description": "EBIT relative to revenue increasing signals margin expansion. Uses ebit and revenue (SUGGESTION1), ts_backfill applied (SUGGESTION3). SUGGESTION4: ebit has high userCount. Confidence 0.7: margins drive returns.",
+      "implementation": "ts_zscore(divide(ts_backfill(ebit,252), ts_backfill(fnd6_newa2v1300_revt,252)),60)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "EBITDA momentum (delta)",
+      "description": "Momentum in ebitda via ts_delta. Single-field signal; used ts_backfill since coverage=0.5. SUGGESTION4 applied (ebitda high userCount). SUGGESTION2 not relevant. Confidence 0.75: EBITDA momentum is robust medium-term.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(ebitda,252),252),60)",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Enterprise value to invested capital reversion (EV / invested_capital)",
+      "description": "Relative valuation vs invested capital may identify capital-light outperformers. Used enterprise_value and invested_capital (SUGGESTION1). Both backfilled (SUGGESTION3). SUGGESTION4: invested_capital has reasonable support. Confidence 0.6: niche but complementary.",
+      "implementation": "ts_zscore(divide(ts_backfill(enterprise_value,252), ts_backfill(invested_capital,252)),60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Pretax income acceleration",
+      "description": "Rising pretax_income indicates improving profitability. Single-field momentum with ts_backfill applied (coverage 0.5). SUGGESTION4: pretax_income has high userCount. Confidence 0.68: earnings momentum is predictive but noisy.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(pretax_income,252),252),60)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Working capital release (working_capital increase)",
+      "description": "Increase in working capital (cash-generative release) can boost free cashflow. Used working_capital and ts_backfill (coverage 0.5). SUGGESTION4: working_capital widely used. Confidence 0.59: depends on seasonality and business model.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(working_capital,252),252),60)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Inventory turnover improvement proxy (sales_growth vs inventory)",
+      "description": "Compare sales_growth and inventory delta to spot improving turnover. Applied SUGGESTION1 with sales_growth and inventory and ts_backfill for both (SUGGESTION3). Confidence 0.56: useful in retail/manufacturing.",
+      "implementation": "subtract(ts_zscore(ts_delta(ts_backfill(sales_growth,252),252),60), ts_zscore(ts_delta(ts_backfill(inventory,252),252),60))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "R&D intensity growth (rdipeq / revenue)",
+      "description": "Higher in-process R&D investment relative to revenue may forecast future growth. Used fnd6_newqv1300_rdipq and revenue (SUGGESTION1) with ts_backfill (SUGGESTION3). SUGGESTION4: r&d fields moderate userCount. Confidence 0.47: long horizon and sector dependent.",
+      "implementation": "ts_zscore(divide(ts_backfill(fnd6_newqv1300_rdipq,252), ts_backfill(fnd6_newa2v1300_revt,252)),60)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Dividend cashflow yield (cashflow_dividends / enterprise_value)",
+      "description": "Dividend cashflow relative to EV to find reliable income names. Used cashflow_dividends and enterprise_value (SUGGESTION1) with ts_backfill (SUGGESTION3). SUGGESTION4: cashflow_dividends has high userCount. Confidence 0.62: income-focused, moderate risk.",
+      "implementation": "ts_zscore(divide(ts_backfill(cashflow_dividends,252), ts_backfill(enterprise_value,252)),60)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Operating leverage signal: revenues up, costs stable (sales_growth vs caxts)",
+      "description": "Compare sales_growth and total costs (caxts) to detect operating leverage. Used both fields (SUGGESTION1) and ts_backfill (SUGGESTION3). SUGGESTION4: sales_growth strong userCount. Confidence 0.57: depends on margin structure.",
+      "implementation": "subtract(ts_zscore(ts_delta(ts_backfill(sales_growth,252),252),60), ts_zscore(ts_delta(ts_backfill(fnd6_caxts,252),252),60))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Cash build-up (cash increases)",
+      "description": "Rising fnd6_ch (cash) signals balance-sheet strengthening. Single-field with ts_backfill (coverage 0.5). SUGGESTION4: cash has reasonable usage. Confidence 0.63: cash accumulation often precedes buybacks or M&A.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_ch,252),252),60)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Free cashflow conversion improvement (CFO - CapEx)",
+      "description": "Higher (cashflow_op - capex) indicates better cash conversion. Used two fields (SUGGESTION1) and ts_backfill for both (SUGGESTION3). SUGGESTION4 applied. Confidence 0.71: FCF improvement is often rewarded.",
+      "implementation": "ts_zscore(subtract(ts_backfill(cashflow_op,252), ts_backfill(capex,252)),60)",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Leverage vs EBITDA declining (Debt / EBITDA fall)",
+      "description": "Falling debt/ebitda suggests lower risk and optionality. Used debt and ebitda (SUGGESTION1) with ts_backfill (SUGGESTION3). SUGGESTION4 used both popular fields. Confidence 0.66: sensible credit-quality signal.",
+      "implementation": "ts_zscore(divide(ts_backfill(debt,252), ts_backfill(ebitda,252)),60)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Earnings quality: EBITDA vs net income divergence",
+      "description": "Assess earnings quality by comparing ebitda momentum to income_beforeextra. Both backfilled (SUGGESTION3) per SUGGESTION1. SUGGESTION4 applied. Confidence 0.6: helpful but depends on accounting choices.",
+      "implementation": "subtract(ts_zscore(ts_delta(ts_backfill(ebitda,252),252),60), ts_zscore(ts_delta(ts_backfill(income_beforeextra,252),252),60))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Market reaction to prior buybacks (post-buyback momentum)",
+      "description": "Identify short-term momentum after large repurchases using fnd6_newqeventv110_cshopq and enterprise_value. Both ts_backfill applied (SUGGESTION3). SUGGESTION4 applied. Confidence 0.61: buyback announcement/implementation often helps returns short-term.",
+      "implementation": "subtract(ts_zscore(ts_sum(ts_backfill(fnd6_newqeventv110_cshopq,252),4),60), ts_zscore(divide(ts_backfill(enterprise_value,252),1),60))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Deferred revenue growth (subscription strength)",
+      "description": "Rising deferred revenue (fnd6_drlt) indicates strong recurring business. Single-field ts_backfill used (SUGGESTION3). SUGGESTION4: deferred revenue has high userCount. Confidence 0.63 in subscription-heavy sectors, lower elsewhere.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_drlt,252),252),60)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Improving invested capital returns (ROIC momentum)",
+      "description": "Use invested_capital and ebit to proxy ROIC improvement. Applied SUGGESTION1 and ts_backfill for both per SUGGESTION3. SUGGESTION4 selected invested_capital. Confidence 0.69: ROIC momentum is meaningful.",
+      "implementation": "ts_zscore(divide(ts_backfill(ebit,252), ts_backfill(invested_capital,252)),60)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Earnings per share improvement (epsf12 momentum)",
+      "description": "Use cptnewqv1300_epsf12 (12m EPS) momentum. Field present as fnd6_cptnewqv1300_epsf12; ts_backfill used for coverage (SUGGESTION3). SUGGESTION4: EPS12 is commonly used. Confidence 0.7: EPS momentum predictive medium-term.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_cptnewqv1300_epsf12,252),252),60)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "EBITDA margin expansion (EBITDA / Revenue)",
+      "description": "Rising ebitda relative to revenue signals margin expansion. Used ebitda and revenue (SUGGESTION1) with ts_backfill (SUGGESTION3). SUGGESTION4 used ebitda high userCount. Confidence 0.68.",
+      "implementation": "ts_zscore(divide(ts_backfill(ebitda,252), ts_backfill(fnd6_newa2v1300_revt,252)),60)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Short-term sales surprise proxy (quarterly sales jump)",
+      "description": "Sales/Turnover (fnd6_cptnewqv1300_saleq) quarter-over-quarter jump. ts_backfill applied. SUGGESTION4: sales field has good userCount. Confidence 0.62: direct sales momentum often precedes returns.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_cptnewqv1300_saleq,90),90),60)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Rising cashflow from operations per share (CFO / shares)",
+      "description": "Use cashflow_op and common shares outstanding to normalize cash generation. Two fields used and ts_backfill applied (SUGGESTION3). SUGGESTION4: both are well-used. Confidence 0.67: per-share normalization improves comparability.",
+      "implementation": "ts_zscore(divide(ts_backfill(cashflow_op,252), ts_backfill(fnd6_mfma1_csho,252)),60)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Inventory-to-sales abnormality (warning)",
+      "description": "High inventory growth compared to sales suggests demand softness. Used inventory and revenue with ts_backfill for both (SUGGESTION3). Confidence 0.54: sector-specific.",
+      "implementation": "subtract(ts_zscore(ts_delta(ts_backfill(inventory,252),252),60), ts_zscore(ts_delta(ts_backfill(fnd6_newa2v1300_revt,252),252),60))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Receivables aging proxy (Rising receivable / revenue)",
+      "description": "Rising receivable/revenue ratio flags credit deterioration. Used receivable and revenue and ts_backfill (SUGGESTION3). Confidence 0.58: effective in credit-sensitive sectors.",
+      "implementation": "ts_zscore(divide(ts_backfill(receivable,252), ts_backfill(fnd6_newa2v1300_revt,252)),60)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Buyback funded by debt (cshopq / debt spike)",
+      "description": "Detect risky buybacks funded by debt using buybacks and debt (SUGGESTION1) with ts_backfill (SUGGESTION3). Confidence 0.52: useful as a cautionary flag.",
+      "implementation": "divide(ts_backfill(fnd6_newqeventv110_cshopq,252), ts_backfill(debt,252))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "High implied option expense as dilution risk",
+      "description": "Rise in xoptq/implied option expense signals dilution. Use fnd6_newqv1300_xoptq and ts_backfill (SUGGESTION3). SUGGESTION4: field moderate userCount. Confidence 0.45: subtle and noisy.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_newqv1300_xoptq,252),252),60)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Inventory quality: WIP build vs finished goods",
+      "description": "Compare work-in-process inventory (invwip) and finished goods (invfgq). Both backfilled (SUGGESTION3). Used two fields per SUGGESTION1. Confidence 0.50: niche manufacturing signal.",
+      "implementation": "subtract(ts_zscore(ts_delta(ts_backfill(fnd6_invwip,252),252),60), ts_zscore(ts_delta(ts_backfill(fnd6_newqv1300_invfgq,252),252),60))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Goodwill impairment risk (rising goodwill vs equity)",
+      "description": "High goodwill relative to equity can be an impairment risk. Used fnd6_newa1v1300_gdwl and fnd6_newa1v1300_ceq (SUGGESTION1) with ts_backfill (SUGGESTION3). Confidence 0.48: rare but catastrophic events possible.",
+      "implementation": "ts_zscore(divide(ts_backfill(fnd6_newa1v1300_gdwl,252), ts_backfill(fnd6_newa1v1300_ceq,252)),60)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Deferred tax asset build (potential tax shields)",
+      "description": "Rising deferred tax asset may indicate loss carryforwards; use fnd6_txdba with ts_backfill. Applied SUGGESTION3. Confidence 0.44: context-dependent.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_txdba,252),252),60)",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Stock compensation decline improving EPS quality",
+      "description": "Falling stock compensation expense (stkcpaq) improves EPS quality. Single-field ts_backfill applied. SUGGESTION4: field moderate userCount. Confidence 0.55.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_newqv1300_stkcpaq,252),252),60)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Pension expense reduction (pncepsq decline)",
+      "description": "Declining pension-related EPS effects may improve earnings. Used fnd6_pncepsq and ts_backfill. SUGGESTION4 applied. Confidence 0.4: small and noisy.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_pncepsq,252),252),60)",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Capital expenditure deceleration with rising sales (capex/sales drop)",
+      "description": "Falling capex relative to sales with sales up can indicate improving capital efficiency. Used capex and revenue with ts_backfill. Confidence 0.56.",
+      "implementation": "subtract(ts_zscore(divide(ts_backfill(capex,252), ts_backfill(fnd6_newa2v1300_revt,252)),60), ts_zscore(ts_delta(ts_backfill(fnd6_newa2v1300_revt,252),252),60))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Operating income before D&A momentum (oibdp)",
+      "description": "Momentum in operating income before depreciation indicates core operating strength. Used fnd6_oibdp and ts_backfill (SUGGESTION3). Confidence 0.66: meaningful for operating profitability.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_oibdp,252),252),60)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Accrued expenses spike (xacc) warning",
+      "description": "Rapid increase in accrued expenses can signal one-off liabilities. Used fnd6_xacc with ts_backfill. Confidence 0.46: useful as a red flag.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_xacc,90),90),60)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Working capital efficiency: receivable+inventory reduction",
+      "description": "Combined reduction in receivables and inventory signals improved WC efficiency. Using two fields (receivable, inventory) with ts_backfill (SUGGESTION3). Confidence 0.61.",
+      "implementation": "add(ts_zscore(ts_delta(ts_backfill(receivable,252),252),60), ts_zscore(ts_delta(ts_backfill(inventory,252),252),60))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Revenue growth persistence (sales_growth ts_rank)",
+      "description": "Use ts_zscore of sales_growth momentum. Single field; ts_backfill used. SUGGESTION4 applied (sales_growth high userCount). Confidence 0.7 for growth names.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(sales_growth,252),252),60)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Enterprise value volatility vs earnings risk (EV / ebitda zscore)",
+      "description": "High EV relative to EBITDA volatility may indicate over-valuation; used enterprise_value and ebitda with ts_backfill. Confidence 0.53.",
+      "implementation": "ts_zscore(divide(ts_backfill(enterprise_value,252), ts_backfill(ebitda,252)),120)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Tax rate improvement (income tax drop vs pretax)",
+      "description": "Falling income_tax relative to pretax_income improves net margins. Used income_tax and pretax_income with ts_backfill (SUGGESTION3). Confidence 0.5: accounting-driven.",
+      "implementation": "subtract(ts_zscore(divide(ts_backfill(fnd6_txc,252), ts_backfill(pretax_income,252)),60), 0)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Short-term investments accumulation (cash lute)",
+      "description": "Accumulation in short-term investments (fnd6_ivst) signals liquidity build. ts_backfill applied. Confidence 0.52: balance-sheet indicator.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_ivst,252),252),60)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Debt maturity relief (debt due in near years declining)",
+      "description": "Decline in short-term debt obligations (fnd6_dd3 or dd2) indicates less rollover risk. Chose fnd6_dd3 with ts_backfill. SUGGESTION4: reasonable userCount. Confidence 0.49.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_dd3,252),252),60)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Net income momentum (fnd6_nis delta)",
+      "description": "Momentum in net income (narrow) using fnd6_nis and ts_backfill. SUGGESTION4: field small userCount but intuitive. Confidence 0.6.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_nis,252),252),60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Liabilities normalization (liabilities / assets decline)",
+      "description": "Declining leverage measured by liabilities / assets. Used liabilities and assets both backfilled. SUGGESTION4: both are large fields. Confidence 0.57.",
+      "implementation": "ts_zscore(divide(ts_backfill(liabilities,252), ts_backfill(assets,252)),60)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Market cap vs bookvalue rebound (mkvalt / bkvlps)",
+      "description": "Rising market valuation vs book per share suggests re-rating; used fnd6_mkvalt and fnd6_newa1v1300_bkvlps with ts_backfill. Confidence 0.5.",
+      "implementation": "ts_zscore(divide(ts_backfill(fnd6_mkvalt,252), ts_backfill(fnd6_newa1v1300_bkvlps,252)),60)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Operating income surprise proxy (oibdpq momentum)",
+      "description": "Quarterly operating income before depreciation momentum using fnd6_cptmfmq_oibdpq and ts_backfill. SUGGESTION4 applied. Confidence 0.65 for operational improvements.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_cptmfmq_oibdpq,252),252),60)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Deferred revenue / total revenue growth (subscription strength)",
+      "description": "Rising deferred revenue (fnd6_drlt) relative to revenue signals durable bookings. Both backfilled. Confidence 0.6 in SaaS-style businesses.",
+      "implementation": "ts_zscore(divide(ts_backfill(fnd6_drlt,252), ts_backfill(fnd6_newa2v1300_revt,252)),60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Nonoperating income decline (quality improvement)",
+      "description": "Decrease in nonoperating income (fnd6_nopxs) may signal cleaner core performance. ts_backfill used. Confidence 0.45.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_nopxs,252),252),60)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Employee productivity (revenue / employee)",
+      "description": "Higher revenue per employee (fnd6_newa1v1300_emp used) signals productivity. Used sales and employees (SUGGESTION1) with ts_backfill. Confidence 0.52: cross-sector normalization needed.",
+      "implementation": "ts_zscore(divide(ts_backfill(fnd6_newa2v1300_revt,252), ts_backfill(fnd6_newa1v1300_emp,252)),60)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Return on assets re-acceleration",
+      "description": "Reuse return_assets momentum but with longer lookback for persistence. ts_backfill applied. Confidence 0.66.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(return_assets,504),504),120)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Book value growth persistence (bkvlps delta)",
+      "description": "Book value per share increase persistence using fnd6_newa1v1300_bkvlps with ts_backfill. Confidence 0.6: slow but stable factor.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_newa1v1300_bkvlps,252),252),60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Capex to PPE shift (capx / ppent) efficiency",
+      "description": "Comparing capex to net PPE to spot under/overinvestment. Used capex and fnd6_newqv1300_ppentq with ts_backfill. Confidence 0.5.",
+      "implementation": "ts_zscore(divide(ts_backfill(capex,252), ts_backfill(fnd6_newqv1300_ppentq,252)),60)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Cashflow per debt improvement",
+      "description": "CFO relative to debt improving indicates deleveraging via operations. Used cashflow_op and debt with ts_backfill. Confidence 0.64.",
+      "implementation": "ts_zscore(divide(ts_backfill(cashflow_op,252), ts_backfill(debt,252)),60)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Interest coverage improvement (EBIT / Interest)",
+      "description": "Improving ebit relative to interest (fnd6_xints) signals lower default risk. Used ebit and fnd6_xints with ts_backfill. Confidence 0.62.",
+      "implementation": "ts_zscore(divide(ts_backfill(ebit,252), ts_backfill(fnd6_xints,252)),60)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "EBITDA/Enterprise value momentum",
+      "description": "Rising ebitda/EV implies improving enterprise yield. Applied SUGGESTION1 with ebitda and enterprise_value and ts_backfill. Confidence 0.7.",
+      "implementation": "ts_zscore(divide(ts_backfill(ebitda,252), ts_backfill(enterprise_value,252)),60)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Book growth vs market (bookvalue_ps momentum vs mkvalt)",
+      "description": "Book value per share rising faster than market value suggests undervaluation. Used bookvalue_ps and fnd6_mkvalt with ts_backfill. Confidence 0.55.",
+      "implementation": "subtract(ts_zscore(ts_delta(ts_backfill(bookvalue_ps,252),252),60), ts_zscore(ts_delta(ts_backfill(fnd6_mkvalt,252),252),60))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Short-term liquidity improvement (current_ratio increase)",
+      "description": "Rising current_ratio signals better short-term liquidity. Used current_ratio with ts_backfill. SUGGESTION4: current_ratio often used. Confidence 0.6.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(current_ratio,252),252),60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Operating cashflow stability (ts_std_dev low)",
+      "description": "Low volatility in cashflow_op (stable cash generation) is a quality attribute. Used ts_std_dev on backfilled cashflow_op. SUGGESTION3 applied. Confidence 0.58.",
+      "implementation": "ts_std_dev(ts_backfill(cashflow_op,252),252)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Sales growth acceleration vs peers (relative)",
+      "description": "Use ts_zscore of sales_growth to find accelerating sales. Single field backfilled. SUGGESTION4 used. Confidence 0.67.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(sales_growth,252),252),60)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Cashflow volatility compression (positive sign)",
+      "description": "Falling ts_std_dev(cashflow_op) indicates steadier cash creation; used cashflow_op backfilled. Confidence 0.54.",
+      "implementation": "ts_zscore(ts_std_dev(ts_backfill(cashflow_op,252),120),60)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Debt service improvement (cashflow_op / interest)",
+      "description": "CFO divided by interest expense improves coverage. Used cashflow_op and fnd6_xints with ts_backfill. Confidence 0.63.",
+      "implementation": "ts_zscore(divide(ts_backfill(cashflow_op,252), ts_backfill(fnd6_xints,252)),60)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Sales efficiency: revenue / assets increase",
+      "description": "Higher revenue per asset indicates better asset utilization. Used revenue and assets with ts_backfill (SUGGESTION3). Confidence 0.58.",
+      "implementation": "ts_zscore(divide(ts_backfill(fnd6_newa2v1300_revt,252), ts_backfill(assets,252)),60)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Operating income stability (oibdp ts_zscore)",
+      "description": "Stable and rising oibdp shows core strength. Used fnd6_oibdp with ts_backfill. Confidence 0.62.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_oibdp,252),252),60)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Cash to debt improvement (cash / debt increase)",
+      "description": "Rising cash relative to debt indicates improved solvency. Used fnd6_ch and debt with ts_backfill. Confidence 0.65.",
+      "implementation": "ts_zscore(divide(ts_backfill(fnd6_ch,252), ts_backfill(debt,252)),60)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Preferentially invest in falling volatility EV names",
+      "description": "Low ts_std_dev(enterprise_value) suggests stable market valuation; used enterprise_value with ts_backfill and ts_std_dev. Confidence 0.5.",
+      "implementation": "ts_std_dev(ts_backfill(enterprise_value,252),120)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Rising tangible equity (ceqt increase)",
+      "description": "Increasing common equity - tangible (fnd6_newa1v1300_ceqt) signals capitalization improvement. ts_backfill used. Confidence 0.54.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_newa1v1300_ceqt,252),252),60)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Sales to working capital improvement (revenue / working_capital)",
+      "description": "Higher revenue per working capital suggests efficiency. Used revenue and working_capital with ts_backfill. Confidence 0.57.",
+      "implementation": "ts_zscore(divide(ts_backfill(fnd6_newa2v1300_revt,252), ts_backfill(working_capital,252)),60)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Rising retained earnings (rea growth)",
+      "description": "Increasing retained earnings (fnd6_rea) signals internal capital accumulation. ts_backfill applied. Confidence 0.5.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_rea,252),252),60)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Dividend stability (dividends / cashflow_op)",
+      "description": "Stable dividends supported by CFO are safer. Used fnd6_newa1v1300_dvt (dividends) and cashflow_op with ts_backfill. Confidence 0.56.",
+      "implementation": "ts_zscore(divide(ts_backfill(fnd6_newa1v1300_dvt,252), ts_backfill(cashflow_op,252)),60)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Decrease in restructuring costs (rcpq fall)",
+      "description": "Falling restructuring costs can indicate normalization of earnings. Used fnd6_newqv1300_rcpq with ts_backfill. Confidence 0.46.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_newqv1300_rcpq,252),252),60)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Capex vs depreciation convergence (capex / dps)",
+      "description": "Capex falling faster than depreciation can indicate underinvestment; used capex and fnd6_dps with ts_backfill. Confidence 0.44.",
+      "implementation": "ts_zscore(divide(ts_backfill(capex,252), ts_backfill(fnd6_dps,252)),60)",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Rising operating margin persistence (oibdp / revenue)",
+      "description": "Operating income before depreciation relative to revenue increasing is high-quality signal. Used fnd6_oibdp and revenue with ts_backfill. Confidence 0.66.",
+      "implementation": "ts_zscore(divide(ts_backfill(fnd6_oibdp,252), ts_backfill(fnd6_newa2v1300_revt,252)),60)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Improving tax efficiency (taxs / pretax decline)",
+      "description": "Decrease in taxes relative to pretax income improves net margins; used fnd6_txc and pretax_income with ts_backfill. Confidence 0.48.",
+      "implementation": "ts_zscore(divide(ts_backfill(fnd6_txc,252), ts_backfill(pretax_income,252)),60)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "High enterprise yield recovery (ebit / enterprise_value rise)",
+      "description": "Rising ebit/EV signals improving enterprise yield. Used ebit and enterprise_value with ts_backfill. Confidence 0.7.",
+      "implementation": "ts_zscore(divide(ts_backfill(ebit,252), ts_backfill(enterprise_value,252)),60)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Book value momentum vs peers (bkvlps delta)",
+      "description": "Book value per share rising significantly vs historical peers; used bkvlps with ts_backfill. SUGGESTION2 not applicable. Confidence 0.55.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_newa1v1300_bkvlps,252),252),60)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Improving cashflow margin (CFO / revenue)",
+      "description": "Higher CFO relative to revenue indicates stronger cash conversion. Used cashflow_op and revenue with ts_backfill. Confidence 0.69.",
+      "implementation": "ts_zscore(divide(ts_backfill(cashflow_op,252), ts_backfill(fnd6_newa2v1300_revt,252)),60)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Financial leverage compression (debt / assets decline)",
+      "description": "Falling debt/asset ratio reduces risk. Used debt and assets with ts_backfill. Confidence 0.61.",
+      "implementation": "ts_zscore(divide(ts_backfill(debt,252), ts_backfill(assets,252)),60)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Improving gross margin proxy (revenue - cogs) / revenue",
+      "description": "Use revenue and cost of goods sold to derive gross margin trend. Both backfilled per SUGGESTION3. Confidence 0.6.",
+      "implementation": "ts_zscore(divide(subtract(ts_backfill(fnd6_newa2v1300_revt,252), ts_backfill(fnd6_newa1v1300_cogs,252)), ts_backfill(fnd6_newa2v1300_revt,252)),60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Rising tangible equity per share (ceqt / csho)",
+      "description": "Rising common equity / common shares outstanding indicates strengthening book per share. Used fnd6_newa1v1300_ceqt and fnd6_mfma1_csho with ts_backfill. Confidence 0.58.",
+      "implementation": "ts_zscore(divide(ts_backfill(fnd6_newa1v1300_ceqt,252), ts_backfill(fnd6_mfma1_csho,252)),60)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Declining option dilution (optprcca down)",
+      "description": "Falling options cancelled/price or options outstanding indicates less dilution; used fnd6_optca with ts_backfill. Confidence 0.46.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_optca,252),252),60)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Sales to capex improvement (revenue / capex rising)",
+      "description": "Higher revenue generated per capex indicates capital efficiency. Used revenue and capex with ts_backfill. Confidence 0.59.",
+      "implementation": "ts_zscore(divide(ts_backfill(fnd6_newa2v1300_revt,252), ts_backfill(capex,252)),60)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Rising EBITDA margin persistence (ebitda / revenue ts_delta)",
+      "description": "Improving ebitda margin over time using ebitda and revenue with ts_backfill. Confidence 0.67.",
+      "implementation": "ts_zscore(ts_delta(divide(ts_backfill(ebitda,252), ts_backfill(fnd6_newa2v1300_revt,252)),252),60)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Rising operating cash per asset (CFO / assets)",
+      "description": "Higher CFO per asset implies better capital efficiency. Used cashflow_op and assets with ts_backfill. Confidence 0.6.",
+      "implementation": "ts_zscore(divide(ts_backfill(cashflow_op,252), ts_backfill(assets,252)),60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Falling receivable days (receivable/revenue decline)",
+      "description": "Declining receivable/revenue ratio implies faster cash collection. Used receivable and revenue with ts_backfill. Confidence 0.58.",
+      "implementation": "ts_zscore(ts_delta(divide(ts_backfill(receivable,252), ts_backfill(fnd6_newa2v1300_revt,252)),252),60)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Rising EBITDA to interest (coverage momentum)",
+      "description": "Improving ebitda relative to interest expense is a credit positive. Used ebitda and fnd6_xints with ts_backfill. Confidence 0.63.",
+      "implementation": "ts_zscore(divide(ts_backfill(ebitda,252), ts_backfill(fnd6_xints,252)),60)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Working capital to sales improvement",
+      "description": "Declining working_capital / revenue signals capital efficiency. Used working_capital and revenue with ts_backfill. Confidence 0.56.",
+      "implementation": "ts_zscore(divide(ts_backfill(working_capital,252), ts_backfill(fnd6_newa2v1300_revt,252)),60)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Rising cashflow per share trend",
+      "description": "CFO per share (cashflow_op / shares) increasing indicates shareholder-friendly cash generation. Used cashflow_op and fnd6_mfma1_csho with ts_backfill. Confidence 0.66.",
+      "implementation": "ts_zscore(divide(ts_backfill(cashflow_op,252), ts_backfill(fnd6_mfma1_csho,252)),60)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Enterprise yield mean reversion (inverse EV/EBITDA zscore)",
+      "description": "Look for reversion in inverted cheapness: inverse of EV/EBITDA zscore using enterprise_value and ebitda with ts_backfill. Confidence 0.63.",
+      "implementation": "reverse(ts_zscore(divide(ts_backfill(enterprise_value,252), ts_backfill(ebitda,252)),60))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Capital return priority (dividends + buybacks / cashflow_op)",
+      "description": "High capital returned relative to CFO can indicate shareholder focus. Used cashflow_dividends and fnd6_newqeventv110_cshopq with ts_backfill. SUGGESTION1 applied. Confidence 0.6.",
+      "implementation": "divide(add(ts_backfill(cashflow_dividends,252), ts_backfill(fnd6_newqeventv110_cshopq,252)), ts_backfill(cashflow_op,252))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Declining SG&A intensity (sga_expense / revenue drop)",
+      "description": "Falling SG&A to revenue ratio indicates cost discipline. Used sga_expense and revenue with ts_backfill. Confidence 0.62.",
+      "implementation": "ts_zscore(divide(ts_backfill(sga_expense,252), ts_backfill(fnd6_newa2v1300_revt,252)),60)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Improving invested capital turns (revenue / invested_capital)",
+      "description": "Higher revenue per invested capital implies efficient capital usage. Used revenue and invested_capital with ts_backfill. Confidence 0.65.",
+      "implementation": "ts_zscore(divide(ts_backfill(fnd6_newa2v1300_revt,252), ts_backfill(invested_capital,252)),60)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Declining contingent liabilities proxy (accum other comp inc normalization)",
+      "description": "Normalization in accumulated other comprehensive items may indicate lower hidden liabilities. Used fnd6_newa1v1300_acominc with ts_backfill. Confidence 0.46.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_newa1v1300_acominc,252),252),60)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Improving net working capital conversion (revenue / (receivable+inventory))",
+      "description": "Better revenue per combined receivables+inventory indicates efficiency. Two fields used and ts_backfill applied. Confidence 0.59.",
+      "implementation": "ts_zscore(divide(ts_backfill(fnd6_newa2v1300_revt,252), add(ts_backfill(receivable,252), ts_backfill(inventory,252))),60)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "EBITDA growth consistency (ts_ir on ebitda)",
+      "description": "ts_ir on ebitda to find names with consistent EBITDA growth (mean/std). Used ebitda with ts_backfill. SUGGESTION3 applied. Confidence 0.6.",
+      "implementation": "ts_ir(ts_backfill(ebitda,252),252)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Enterprise value reduction while cashflow stable (EV decline + CFO stable)",
+      "description": "Declining EV with stable cashflow_op can identify undervalued opportunities. Used enterprise_value and cashflow_op with ts_backfill. Confidence 0.62.",
+      "implementation": "subtract(ts_zscore(ts_delta(ts_backfill(enterprise_value,252),252),60), ts_zscore(ts_delta(ts_backfill(cashflow_op,252),252),60))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Rising cash to market cap (cash_st / mkvalt)",
+      "description": "Higher cash and short-term investments relative to market value signals strong liquidity buffer. Used cash_st and fnd6_mkvalt with ts_backfill. Confidence 0.6.",
+      "implementation": "ts_zscore(divide(ts_backfill(cash_st,252), ts_backfill(fnd6_mkvalt,252)),60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Declining stock compensation relative to EBITDA",
+      "description": "Falling stock comp (stkcpaq) vs EBITDA improves cash-adjusted profits. Used stkcpaq and ebitda with ts_backfill. Confidence 0.53.",
+      "implementation": "subtract(ts_zscore(ts_delta(ts_backfill(ebitda,252),252),60), ts_zscore(ts_delta(ts_backfill(fnd6_newqv1300_stkcpaq,252),252),60))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Rising return on invested capital (ROIC proxy)",
+      "description": "Use ebit / invested_capital trend as ROIC proxy. Both fields backfilled. Confidence 0.7.",
+      "implementation": "ts_zscore(divide(ts_backfill(ebit,252), ts_backfill(invested_capital,252)),60)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Rapid receivable build vs CFO (credit stress)",
+      "description": "Receivable growth outpacing CFO suggests collection issues. Used receivable and cashflow_op with ts_backfill. Confidence 0.52.",
+      "implementation": "subtract(ts_zscore(ts_delta(ts_backfill(receivable,252),252),60), ts_zscore(ts_delta(ts_backfill(cashflow_op,252),252),60))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Sales growth vs EBITDA growth divergence",
+      "description": "If sales grow but EBITDA lags, margins may be eroding. Used sales_growth and ebitda with ts_backfill. Confidence 0.55.",
+      "implementation": "subtract(ts_zscore(ts_delta(ts_backfill(fnd6_newa2v1300_revt,252),252),60), ts_zscore(ts_delta(ts_backfill(ebitda,252),252),60))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Improving enterprise value per employee (EV / employees down)",
+      "description": "Declining EV per employee (improvement) suggests productivity gains; used enterprise_value and fnd6_newa1v1300_emp with ts_backfill. Confidence 0.48.",
+      "implementation": "ts_zscore(divide(ts_backfill(enterprise_value,252), ts_backfill(fnd6_newa1v1300_emp,252)),60)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Declining intangible assets share (intangible / assets drop)",
+      "description": "Lower intangible share can reduce write-down risk. Used fnd6_newqeventv110_intanq and assets with ts_backfill. Confidence 0.42.",
+      "implementation": "ts_zscore(divide(ts_backfill(fnd6_newqeventv110_intanq,252), ts_backfill(assets,252)),60)",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Improving pretax income margin (pretax / revenue)",
+      "description": "Rising pretax_income relative to revenue signals margin improvement. Both fields backfilled. Confidence 0.66.",
+      "implementation": "ts_zscore(divide(ts_backfill(pretax_income,252), ts_backfill(fnd6_newa2v1300_revt,252)),60)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Return equity vs book re-rating (ROE vs bookvalue_ps)",
+      "description": "Rising ROE with increasing book value per share suggests durable improvements. Used return_equity and bookvalue_ps with ts_backfill. Confidence 0.68.",
+      "implementation": "add(ts_zscore(ts_delta(ts_backfill(return_equity,252),252),60), ts_zscore(ts_delta(ts_backfill(bookvalue_ps,252),252),60))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Inventory write-down risk signal (inv build and writedowns)",
+      "description": "Inventory surge plus writedowns (wdaq) may signal impairment. Used inventory and fnd6_eventv110_wdepsq with ts_backfill. Confidence 0.44.",
+      "implementation": "add(ts_zscore(ts_delta(ts_backfill(inventory,252),252),60), ts_zscore(ts_delta(ts_backfill(fnd6_eventv110_wdepsq,252),252),60))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Increasing operating cash margin vs EBITDA (CFO/EBITDA rise)",
+      "description": "Higher CFO relative to EBITDA suggests earnings quality. Used cashflow_op and ebitda with ts_backfill. Confidence 0.7.",
+      "implementation": "ts_zscore(divide(ts_backfill(cashflow_op,252), ts_backfill(ebitda,252)),60)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Rising current assets efficiency (actq / lctq change)",
+      "description": "Current asset improvements vs liabilities may indicate liquidity improvement; used fnd6_cptnewqv1300_actq and fnd6_cptmfmq_lctq with ts_backfill. Confidence 0.53.",
+      "implementation": "subtract(ts_zscore(ts_delta(ts_backfill(fnd6_cptnewqv1300_actq,252),252),60), ts_zscore(ts_delta(ts_backfill(fnd6_cptmfmq_lctq,252),252),60))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Declining long-term liabilities (lltq down)",
+      "description": "Reduced long-term liabilities (fnd6_newqv1300_lltq) is de-risking. ts_backfill applied. Confidence 0.5.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd6_newqv1300_lltq,252),252),60)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Consistent EBITDA growth (ts_quantile on ebitda)",
+      "description": "Use ts_quantile of ebitda to find persistent growers. ebitda backfilled (SUGGESTION3). SUGGESTION2 not applicable. Confidence 0.61.",
+      "implementation": "ts_quantile(ts_backfill(ebitda,252),252)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Book value recovery vs EV (bkvlps / enterprise_value increase)",
+      "description": "Book value per share rising faster than enterprise value can reveal deep value. Used bookvalue_ps and enterprise_value with ts_backfill. Confidence 0.57.",
+      "implementation": "ts_zscore(divide(ts_backfill(bookvalue_ps,252), ts_backfill(enterprise_value,252)),120)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Cashflow to capex conversion improvement",
+      "description": "Rising (CFO - capex) normalized suggests FCF growth. Used cashflow_op and capex with ts_backfill. Confidence 0.68.",
+      "implementation": "ts_zscore(subtract(ts_backfill(cashflow_op,252), ts_backfill(capex,252)),60)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Receivables normalization after spike (mean-revert)",
+      "description": "Reversion in receivable spikes using ts_zscore on receivable. ts_backfill used. Confidence 0.49.",
+      "implementation": "ts_zscore(ts_backfill(receivable,252),60)",
+      "confidence_level": 0.49
+    }
+  ]
+}

@@ -1,640 +1,676 @@
 {
-    "results": [
-        {
-            "idea": "Hedge-fund crowding mean-reversion",
-            "description": "Use hedge fund ownership percent as crowding measure and daily specific return for short-term mean reversion. Applied SUGGESTION1 by combining two high-coverage fields (hedge_fund_ownership_percent, daily_specific_return). SUGGESTION2 not applicable (no vector fields). SUGGESTION3 not needed (coverage = 1.0). SUGGESTION4 applied: chose high userCount fields to improve signal reliability. Kept KEEP_IN_MIND limits (<=2 datafields, <=7 operators). Confidence set to 0.72 based on strong coverage and prior alphaCounts.",
-            "implementation": "subtract(ts_zscore(daily_specific_return,5), zscore(hedge_fund_ownership_percent))",
-            "confidence_level": 0.72
-        },
-        {
-            "idea": "Momentum scaled by size (small-cap momentum)",
-            "description": "Favor stocks with high momentum but scaled for smaller market cap. SUGGESTION1: combined rsk70_mfm2_usfast_momentum and current_market_cap_usd. SUGGESTION2 not applied (no vector). SUGGESTION3 not needed (coverage high). SUGGESTION4 applied: both fields have good userCount. Adhered to KEEP_IN_MIND. Confidence 0.68 given moderate historical momentum robustness and size effect.",
-            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum,20), zscore(current_market_cap_usd))",
-            "confidence_level": 0.68
-        },
-        {
-            "idea": "Sentiment-driven short squeeze detector",
-            "description": "Long stocks with positive sentiment and high short interest decay (contrarian squeeze). Used rsk70_mfm2_usfast_sentmt and rsk70_mfm2_usfast_shortint. SUGGESTION1 applied. SUGGESTION2 not applicable. Coverage high so SUGGESTION3 skipped. Both fields have high userCounts so SUGGESTION4 applied. Within KEEP_IN_MIND. Confidence 0.65 because sentiment is noisy but userCount is high.",
-            "implementation": "multiply(zscore(rsk70_mfm2_usfast_sentmt), reverse(zscore(rsk70_mfm2_usfast_shortint)))",
-            "confidence_level": 0.65
-        },
-        {
-            "idea": "Value + Momentum blend",
-            "description": "Combine value and momentum style loadings to capture cross-style alpha. Used rsk70_mfm2_usfast_value and rsk70_mfm2_usfast_momentum per SUGGESTION1. No vector fields so SUGGESTION2 N/A. Coverage high -> no ts_backfill. Chose high userCount fields (applied SUGGESTION4). Kept implementation compact. Confidence 0.71 reflecting classic complementary styles.",
-            "implementation": "add(zscore(rsk70_mfm2_usfast_value), ts_zscore(rsk70_mfm2_usfast_momentum,63))",
-            "confidence_level": 0.71
-        },
-        {
-            "idea": "Residual-volatility hedging",
-            "description": "Tilt toward low residual volatility stocks while keeping positive specific returns. Uses rsk70_mfm2_usfast_resvol and daily_specific_return. SUGGESTION1 applied. No vector data. High coverage so SUGGESTION3 not needed. Both have good userCount (SUGGESTION4). Implementation adheres to KEEP_IN_MIND. Confidence 0.66 as resvol is stable but timing risk exists.",
-            "implementation": "subtract(zscore(daily_specific_return), zscore(rsk70_mfm2_usfast_resvol))",
-            "confidence_level": 0.66
-        },
-        {
-            "idea": "Hedge-fund ownership momentum filter",
-            "description": "Capture momentum among stocks with rising hedge fund ownership percent. Combined ts_zscore of hedge_fund_ownership_percent and rsk70_mfm2_usfast_momentum. SUGGESTION1 and SUGGESTION4 used. No vector fields (SUGGESTION2). Coverage OK. KEEP_IN_MIND observed. Confidence 0.64 because ownership changes lag but amplify momentum.",
-            "implementation": "multiply(ts_zscore(hedge_fund_ownership_percent,20), zscore(rsk70_mfm2_usfast_momentum))",
-            "confidence_level": 0.64
-        },
-        {
-            "idea": "Short-interest contrarian",
-            "description": "Long stocks with high short interest but improving daily specific returns (potential short-covering). Uses short_interest_factor_score and daily_specific_return. SUGGESTION1 & SUGGESTION4 applied. No vector fields. Coverage =1 so no backfill. Respect KEEP_IN_MIND. Confidence 0.62 due to execution risk around squeezes.",
-            "implementation": "multiply(zscore(short_interest_factor_score), ts_zscore(daily_specific_return,3))",
-            "confidence_level": 0.62
-        },
-        {
-            "idea": "Specific-return momentum filter",
-            "description": "Exploit persistent specific returns by momentum of the idiosyncratic component. Uses ts_zscore(rsk70_mfm2_usfast_specret_daily_lpmi,21) and daily_specific_return. SUGGESTION1 applied; high alphaCount and userCount used per SUGGESTION4. No vector fields. Confidence 0.70 because specific return momentum tends to be persistent.",
-            "implementation": "add(ts_zscore(rsk70_mfm2_usfast_specret_daily_lpmi,21), ts_zscore(daily_specific_return,21))",
-            "confidence_level": 0.7
-        },
-        {
-            "idea": "Size-normalized hedge fund flows",
-            "description": "Identify stocks with large hedge fund ownership percent increases adjusted by market cap. Uses ts_delta(hedge_fund_ownership_percent,20) and current_market_cap_usd. SUGGESTION1 & SUGGESTION4 applied. No vector fields. Coverage high so no backfill. Confidence 0.60 \u2014 flow signals useful but noisy.",
-            "implementation": "divide(ts_delta(hedge_fund_ownership_percent,20), zscore(current_market_cap_usd))",
-            "confidence_level": 0.6
-        },
-        {
-            "idea": "Sector pair: semiconductors momentum vs equipment",
-            "description": "Long semiconductors exposure where industry momentum outpaces equipment exposure. Uses rsk70_mfm2_usfast_indmom and semiconductors_exposure_score. SUGGESTION1 applied. No vectors. Coverage high. Chose high userCount factor for robustness (SUGGESTION4). Confidence 0.58 reflecting sector correlation risks.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_indmom,63), zscore(semiconductors_exposure_score))",
-            "confidence_level": 0.58
-        },
-        {
-            "idea": "Earnings-quality overweight",
-            "description": "Tilt to stocks with strong earnings quality loading and positive prospect-specific returns. Uses rsk70_mfm2_usfast_earnqlty and rsk70_mfm2_usfast_prospect_specret_monthly. SUGGESTION1 applied; earnqlty coverage slightly <1 but >0.6 so no backfill. SUGGESTION4 respected. Confidence 0.69 due to fundamental stability.",
-            "implementation": "add(zscore(rsk70_mfm2_usfast_earnqlty), ts_zscore(rsk70_mfm2_usfast_prospect_specret_monthly,63))",
-            "confidence_level": 0.69
-        },
-        {
-            "idea": "Prospect momentum ahead of earnings",
-            "description": "Favor stocks with rising prospect-specific daily returns relative to market momentum. Uses rsk70_mfm2_usfast_prospect_specret_daily and rsk70_mfm2_usfast_market. SUGGESTION1 & SUGGESTION4 applied. No vector fields. Confidence 0.63 as prospect signals can predate moves.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,10), zscore(rsk70_mfm2_usfast_market))",
-            "confidence_level": 0.63
-        },
-        {
-            "idea": "Short-term reversal on momentum extremes",
-            "description": "Short stocks at extreme short-term momentum highs using ts_arg_max and short-term reversal loading. Uses rsk70_mfm2_usfast_strevrsl and rsk70_mfm2_usfast_momentum. SUGGESTION1 applied. No vectors. High userCounts used (SUGGESTION4). Confidence 0.61 as short-term reversals are achievable but noisy.",
-            "implementation": "subtract(zscore(rsk70_mfm2_usfast_momentum), ts_zscore(rsk70_mfm2_usfast_strevrsl,5))",
-            "confidence_level": 0.61
-        },
-        {
-            "idea": "Low specific risk momentum",
-            "description": "Long stocks with strong momentum but low specific risk variance. Uses rsk70_mfm2_usfast_momentum and specific_risk_variance. SUGGESTION1 applied and SUGGESTION4 considered. No vector fields. Confidence 0.67 due to risk-managed momentum nature.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_momentum,63), zscore(specific_risk_variance))",
-            "confidence_level": 0.67
-        },
-        {
-            "idea": "Hedge-fund crowded short unwind",
-            "description": "Long stocks where hedge fund ownership count increases significantly and short-interest is high (covering potential). Uses ts_delta(hedge_fund_ownership_count,30) and short_interest_factor_score. SUGGESTION1 & SUGGESTION4 used. No vector fields. Confidence 0.59; pattern works episodically.",
-            "implementation": "multiply(ts_zscore(ts_delta(hedge_fund_ownership_count,30),30), zscore(short_interest_factor_score))",
-            "confidence_level": 0.59
-        },
-        {
-            "idea": "Market beta-neutral momentum",
-            "description": "Isolate stock-specific momentum by subtracting market loading. Uses ts_zscore(rsk70_mfm2_usfast_momentum,63) and rsk70_mfm2_usfast_market. SUGGESTION1 applied. No vectors. Coverage high. Confidence 0.66 as de-risked momentum.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_momentum,63), zscore(rsk70_mfm2_usfast_market))",
-            "confidence_level": 0.66
-        },
-        {
-            "idea": "Value recovery signal",
-            "description": "Long stocks with high value loading and improving specific returns. Uses rsk70_mfm2_usfast_value and ts_zscore(daily_specific_return,21). SUGGESTION1 & SUGGESTION4 applied. Confidence 0.64 as value plus improving fundamentals tends to revert favorably.",
-            "implementation": "multiply(zscore(rsk70_mfm2_usfast_value), ts_zscore(daily_specific_return,21))",
-            "confidence_level": 0.64
-        },
-        {
-            "idea": "Size-neutralized residual momentum",
-            "description": "Capture residual momentum controlling for size effect. Uses rsk70_mfm2_usfast_specret_daily_htcri and rsk70_mfm2_usfast_size. SUGGESTION1 applied. No vector fields. Confidence 0.62 due to controlling size bias.",
-            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_specret_daily_htcri,21), zscore(rsk70_mfm2_usfast_size))",
-            "confidence_level": 0.62
-        },
-        {
-            "idea": "Industry momentum overvaluation detection",
-            "description": "Short industry-exposed stocks where industry-specific momentum exceeds price momentum factor. Uses rsk70_mfm2_usfast_indmom and price_momentum_factor_score. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.57 given sector rotation risk.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_indmom,63), zscore(price_momentum_factor_score))",
-            "confidence_level": 0.57
-        },
-        {
-            "idea": "High-prospect, low-hedge ownership long",
-            "description": "Long stocks with strong prospect-specific returns but low hedge fund ownership percent (undiscovered). Uses rsk70_mfm2_usfast_prospect_specret_daily and hedge_fund_ownership_percent. SUGGESTION1 and SUGGESTION4 considered. Confidence 0.60 as small ownership can indicate mispricing.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,30), zscore(hedge_fund_ownership_percent))",
-            "confidence_level": 0.6
-        },
-        {
-            "idea": "Momentum weighted by liquidity proxy (market cap)",
-            "description": "Favor momentum in liquid small-mid caps by dividing momentum by size. Uses rsk70_mfm2_usfast_momentum and current_market_cap_usd. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.65 as liquidity-weighted momentum reduces slippage.",
-            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum,63), zscore(current_market_cap_usd))",
-            "confidence_level": 0.65
-        },
-        {
-            "idea": "Short interest trend reversal",
-            "description": "Short stocks with rising short interest but worsening prospect-specific returns (momentum breakdown). Uses ts_delta(short_interest_factor_score,30) and ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,10). SUGGESTION1 applied. Confidence 0.56 due to timing risk.",
-            "implementation": "multiply(ts_zscore(ts_delta(short_interest_factor_score,30),30), reverse(ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,10)))",
-            "confidence_level": 0.56
-        },
-        {
-            "idea": "Earnings yield momentum capture",
-            "description": "Long stocks with strong earnings yield loading and positive short-term momentum. Uses rsk70_mfm2_usfast_earnyild and rsk70_mfm2_usfast_momentum. SUGGESTION1 & SUGGESTION4 used. Confidence 0.68 due to fundamental support to momentum.",
-            "implementation": "multiply(zscore(rsk70_mfm2_usfast_earnyild), ts_zscore(rsk70_mfm2_usfast_momentum,21))",
-            "confidence_level": 0.68
-        },
-        {
-            "idea": "Prospect vs market divergence",
-            "description": "Long stocks where prospect-specific returns outpace market factor (idiosyncratic strength). Uses rsk70_mfm2_usfast_prospect_specret_daily and rsk70_mfm2_usfast_market. SUGGESTION1 applied. Confidence 0.63.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,21), zscore(rsk70_mfm2_usfast_market))",
-            "confidence_level": 0.63
-        },
-        {
-            "idea": "High momentum, low management-quality risk",
-            "description": "Favor momentum leaders with good management quality loading. Uses rsk70_mfm2_usfast_momentum and rsk70_mfm2_usfast_mgmtqlty. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.62 as mgmt quality adds stability.",
-            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,63), zscore(rsk70_mfm2_usfast_mgmtqlty))",
-            "confidence_level": 0.62
-        },
-        {
-            "idea": "Residual volatility cross-section",
-            "description": "Long low residual-volatility names and short high-residual-volatility names with positive specific returns. Uses rsk70_mfm2_usfast_resvol and daily_specific_return. SUGGESTION1 applied. Confidence 0.65 as low-vol tends to outperform risk-adjusted.",
-            "implementation": "subtract(ts_zscore(daily_specific_return,21), zscore(rsk70_mfm2_usfast_resvol))",
-            "confidence_level": 0.65
-        },
-        {
-            "idea": "Sector-exposure momentum spread",
-            "description": "Long securities where sector exposure score lags but industry momentum leads (rotation capture). Uses semiconductors_exposure_score and rsk70_mfm2_usfast_indmom. SUGGESTION1 applied. Confidence 0.55 due to sector correlation complexity.",
-            "implementation": "subtract(zscore(rsk70_mfm2_usfast_indmom), zscore(semiconductors_exposure_score))",
-            "confidence_level": 0.55
-        },
-        {
-            "idea": "Specific risk-adjusted hedge-fund signal",
-            "description": "Combine hedge fund ownership percent with specific risk value to favor overcrowded but low specific-risk growers. Uses hedge_fund_ownership_percent and specific_risk_value_2. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.61 balancing crowding and risk.",
-            "implementation": "subtract(zscore(hedge_fund_ownership_percent), zscore(specific_risk_value_2))",
-            "confidence_level": 0.61
-        },
-        {
-            "idea": "Media industry sentiment arbitrage",
-            "description": "Long media companies with positive sentiment loading and improving daily specific returns. Uses rsk70_mfm2_usfast_sentmt and daily_specific_return filtered by media_industry_exposure_score_2. Applied SUGGESTION1 (two fields). SUGGESTION4 used for high-sentiment userCount. KEEP_IN_MIND: used only two fields. Confidence 0.58 due to cyclical media moves.",
-            "implementation": "multiply(zscore(rsk70_mfm2_usfast_sentmt), ts_zscore(daily_specific_return,10))",
-            "confidence_level": 0.58
-        },
-        {
-            "idea": "Size-adjusted value reversal",
-            "description": "Short-term reversal among high-value-loading small caps. Uses ts_zscore(rsk70_mfm2_usfast_ltrevrsl,126) and current_market_cap_usd. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.60 given reversion tendencies.",
-            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_ltrevrsl,126), zscore(current_market_cap_usd))",
-            "confidence_level": 0.6
-        },
-        {
-            "idea": "Net-retail exposure momentum",
-            "description": "Long retail-exposed stocks where sector-specific momentum is rising. Uses net_retail_exposure_score and rsk70_mfm2_usfast_indmom. SUGGESTION1 applied. Confidence 0.56 due to retail seasonality.",
-            "implementation": "multiply(zscore(net_retail_exposure_score), ts_zscore(rsk70_mfm2_usfast_indmom,21))",
-            "confidence_level": 0.56
-        },
-        {
-            "idea": "Hedge-fund percent z-scored breakout",
-            "description": "Trade stocks with large positive z-score moves in hedge fund ownership percent as breakout signal. Uses ts_zscore(hedge_fund_ownership_percent,30) and rsk70_mfm2_usfast_momentum to confirm. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.63.",
-            "implementation": "multiply(ts_zscore(hedge_fund_ownership_percent,30), ts_zscore(rsk70_mfm2_usfast_momentum,21))",
-            "confidence_level": 0.63
-        },
-        {
-            "idea": "Momentum / residual-volatility spread",
-            "description": "Go long high momentum and low residual volatility, short the reverse. Uses rsk70_mfm2_usfast_momentum and rsk70_mfm2_usfast_resvol. SUGGESTION1 applied. Confidence 0.67 as strategy balances return and risk.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_momentum,63), zscore(rsk70_mfm2_usfast_resvol))",
-            "confidence_level": 0.67
-        },
-        {
-            "idea": "High-prospect, low-specific-risk longs",
-            "description": "Favor names with strong prospect-specific monthly returns but low specific_risk_variance. Uses rsk70_mfm2_usfast_prospect_specret_monthly and specific_risk_variance. SUGGESTION1 applied. Confidence 0.66.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_prospect_specret_monthly,63), zscore(specific_risk_variance))",
-            "confidence_level": 0.66
-        },
-        {
-            "idea": "Earnings yield vs price momentum divergence",
-            "description": "Long stocks where earnings yield is strong but short-term price momentum is weak (value catch-up). Uses rsk70_mfm2_usfast_earnyild and ts_zscore(rsk70_mfm2_usfast_momentum,21). SUGGESTION1 applied. Confidence 0.60.",
-            "implementation": "subtract(zscore(rsk70_mfm2_usfast_earnyild), ts_zscore(rsk70_mfm2_usfast_momentum,21))",
-            "confidence_level": 0.6
-        },
-        {
-            "idea": "Specific-return seasonal boost",
-            "description": "Exploit seasonality loading vs recent specific returns. Uses rsk70_mfm2_usfast_season and ts_zscore(daily_specific_return,63). SUGGESTION1 applied though season coverage slightly <1; SUGGESTION3 not needed. Confidence 0.54 because seasonality signal weaker.",
-            "implementation": "multiply(zscore(rsk70_mfm2_usfast_season), ts_zscore(daily_specific_return,63))",
-            "confidence_level": 0.54
-        },
-        {
-            "idea": "Short crowded, high specific-risk avoider",
-            "description": "Short names with high hedge_fund_ownership_percent and high specific_risk_value_2. Uses hedge_fund_ownership_percent and specific_risk_value_2. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.58 due to crowding risk.",
-            "implementation": "multiply(zscore(hedge_fund_ownership_percent), zscore(specific_risk_value_2))",
-            "confidence_level": 0.58
-        },
-        {
-            "idea": "Industry breakout using industry-specific specret",
-            "description": "Long instruments where industry-specific prospect returns exceed industry momentum. Uses rsk70_mfm2_usfast_specret_daily_htcri and rsk70_mfm2_usfast_indmom. SUGGESTION1 applied. Confidence 0.61 due to idiosyncratic signal strength.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_specret_daily_htcri,21), ts_zscore(rsk70_mfm2_usfast_indmom,21))",
-            "confidence_level": 0.61
-        },
-        {
-            "idea": "Value recovery in semiconductors",
-            "description": "Long semiconductors exposure where value loading is high versus sector equipment exposure. Uses rsk70_mfm2_usfast_value and semiconductor_equipment_exposure_score. SUGGESTION1 applied. Confidence 0.55 due to cyclical industry.",
-            "implementation": "subtract(zscore(rsk70_mfm2_usfast_value), zscore(semiconductor_equipment_exposure_score))",
-            "confidence_level": 0.55
-        },
-        {
-            "idea": "Short-interest momentum fade",
-            "description": "Short names where short-interest has surged but market momentum is weak (crowded bets unravel). Uses ts_delta(short_interest_factor_score,30) and rsk70_mfm2_usfast_momentum. SUGGESTION1 applied. Confidence 0.57.",
-            "implementation": "multiply(ts_zscore(ts_delta(short_interest_factor_score,30),30), reverse(ts_zscore(rsk70_mfm2_usfast_momentum,21)))",
-            "confidence_level": 0.57
-        },
-        {
-            "idea": "Hedge-fund percent overhang filter",
-            "description": "Avoid long positions with extremely high hedge fund ownership percent to reduce crowding. Uses hedge_fund_ownership_percent and daily_specific_return as return confirmation. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.63 for risk control utility.",
-            "implementation": "subtract(ts_zscore(daily_specific_return,5), zscore(hedge_fund_ownership_percent))",
-            "confidence_level": 0.63
-        },
-        {
-            "idea": "Broad market-adjusted specific return",
-            "description": "Isolate idiosyncratic strength by subtracting broad market loading from specific returns. Uses daily_specific_return and broad_market_factor_score. SUGGESTION1 applied. Confidence 0.68 as de-risked alpha signal.",
-            "implementation": "subtract(ts_zscore(daily_specific_return,21), zscore(broad_market_factor_score))",
-            "confidence_level": 0.68
-        },
-        {
-            "idea": "Prospect monthly momentum scaled by size",
-            "description": "Favor high prospect monthly returns adjusted for smaller market cap. Uses rsk70_mfm2_usfast_prospect_specret_monthly and current_market_cap_usd. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.62.",
-            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_prospect_specret_monthly,63), zscore(current_market_cap_usd))",
-            "confidence_level": 0.62
-        },
-        {
-            "idea": "High sentmt low short-interest long",
-            "description": "Long stocks with positive sentiment and low short interest (low squeeze risk). Uses rsk70_mfm2_usfast_sentmt and rsk70_mfm2_usfast_shortint. SUGGESTION1 applied. Confidence 0.59 as sentiment can be noisy.",
-            "implementation": "subtract(zscore(rsk70_mfm2_usfast_sentmt), zscore(rsk70_mfm2_usfast_shortint))",
-            "confidence_level": 0.59
-        },
-        {
-            "idea": "Momentum-confirmed low-specific-risk longs",
-            "description": "Long where momentum and low specific_risk_variance align. Uses rsk70_mfm2_usfast_momentum and specific_risk_variance. SUGGESTION1 & SUGGESTION4 used. Confidence 0.66.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_momentum,63), zscore(specific_risk_variance))",
-            "confidence_level": 0.66
-        },
-        {
-            "idea": "Industry exposure gap signal",
-            "description": "Long stocks with high industry momentum but low direct industry exposure (alpha from cross-industry rotation). Uses rsk70_mfm2_usfast_indmom and building_products_exposure_score. SUGGESTION1 applied. Confidence 0.52 due to weaker signal.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_indmom,21), zscore(building_products_exposure_score))",
-            "confidence_level": 0.52
-        },
-        {
-            "idea": "Hedge fund count momentum",
-            "description": "Long names with a rising number of hedge funds holding positions and positive daily specific returns. Uses ts_delta(hedge_fund_ownership_count,30) and daily_specific_return. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.60.",
-            "implementation": "multiply(ts_zscore(ts_delta(hedge_fund_ownership_count,30),30), ts_zscore(daily_specific_return,10))",
-            "confidence_level": 0.6
-        },
-        {
-            "idea": "Residual-volatility momentum filter",
-            "description": "Favor momentum leaders whose residual volatility is decreasing. Uses ts_zscore(rsk70_mfm2_usfast_momentum,21) and ts_delta(rsk70_mfm2_usfast_resvol,30). SUGGESTION1 applied. Confidence 0.63.",
-            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,21), reverse(ts_zscore(ts_delta(rsk70_mfm2_usfast_resvol,30),30)))",
-            "confidence_level": 0.63
-        },
-        {
-            "idea": "Prospect vs industry specret divergence",
-            "description": "Long stocks whose prospect specret outperforms industry specret (idiosyncratic leadership). Uses rsk70_mfm2_usfast_prospect_specret_daily and rsk70_mfm2_usfast_specret_daily_htcri. SUGGESTION1 applied. Confidence 0.60.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,21), ts_zscore(rsk70_mfm2_usfast_specret_daily_htcri,21))",
-            "confidence_level": 0.6
-        },
-        {
-            "idea": "Size-and-value composite",
-            "description": "Long small caps with high value loading. Uses current_market_cap_usd and rsk70_mfm2_usfast_value. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.64 given classic size-value premium.",
-            "implementation": "multiply(reverse(zscore(current_market_cap_usd)), zscore(rsk70_mfm2_usfast_value))",
-            "confidence_level": 0.64
-        },
-        {
-            "idea": "High-management-quality momentum",
-            "description": "Tilt toward names with strong management quality and positive momentum. Uses rsk70_mfm2_usfast_mgmtqlty and rsk70_mfm2_usfast_momentum. SUGGESTION1 applied. Confidence 0.61.",
-            "implementation": "multiply(zscore(rsk70_mfm2_usfast_mgmtqlty), ts_zscore(rsk70_mfm2_usfast_momentum,21))",
-            "confidence_level": 0.61
-        },
-        {
-            "idea": "Short interest decay alpha",
-            "description": "Long stocks where short interest is declining while specific returns are positive. Uses ts_delta(rsk70_mfm2_usfast_shortint,30) and daily_specific_return. SUGGESTION1 applied. Confidence 0.58.",
-            "implementation": "multiply(ts_zscore(ts_delta(rsk70_mfm2_usfast_shortint,30),30), ts_zscore(daily_specific_return,10))",
-            "confidence_level": 0.58
-        },
-        {
-            "idea": "Earnings quality momentum",
-            "description": "Favor names with improving earnings quality loading and momentum. Uses ts_zscore(rsk70_mfm2_usfast_earnqlty,63) and rsk70_mfm2_usfast_momentum. SUGGESTION1 applied though earnqlty coverage slightly <1; SUGGESTION3 not needed. Confidence 0.67.",
-            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_earnqlty,63), ts_zscore(rsk70_mfm2_usfast_momentum,21))",
-            "confidence_level": 0.67
-        },
-        {
-            "idea": "Market-neutral hedge-fund exposure",
-            "description": "Neutralize market factor and highlight hedge fund ownership momentum. Uses hedge_fund_ownership_percent and rsk70_mfm2_usfast_market. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.59.",
-            "implementation": "subtract(ts_zscore(hedge_fund_ownership_percent,30), zscore(rsk70_mfm2_usfast_market))",
-            "confidence_level": 0.59
-        },
-        {
-            "idea": "Prospect momentum vs residual volatility",
-            "description": "Long high prospect specret with falling residual volatility. Uses rsk70_mfm2_usfast_prospect_specret_daily and rsk70_mfm2_usfast_resvol. SUGGESTION1 applied. Confidence 0.64.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,21), zscore(rsk70_mfm2_usfast_resvol))",
-            "confidence_level": 0.64
-        },
-        {
-            "idea": "Momentum scaled by short interest",
-            "description": "Amplify momentum signal where short interest is low to avoid squeeze risk. Uses rsk70_mfm2_usfast_momentum and rsk70_mfm2_usfast_shortint. SUGGESTION1 applied. Confidence 0.60.",
-            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum,21), add(zscore(rsk70_mfm2_usfast_shortint),1))",
-            "confidence_level": 0.6
-        },
-        {
-            "idea": "Hedge-fund percent contrarian",
-            "description": "Short names with sudden hedge fund ownership spikes but negative specific returns. Uses ts_delta(hedge_fund_ownership_percent,10) and daily_specific_return. SUGGESTION1 applied. Confidence 0.57.",
-            "implementation": "multiply(ts_zscore(ts_delta(hedge_fund_ownership_percent,10),10), reverse(ts_zscore(daily_specific_return,5)))",
-            "confidence_level": 0.57
-        },
-        {
-            "idea": "Value recovery in retail",
-            "description": "Long net retail exposure where value loading is high relative to momentum. Uses net_retail_exposure_score and rsk70_mfm2_usfast_value. SUGGESTION1 applied. Confidence 0.55 due to retail cyclicality.",
-            "implementation": "subtract(zscore(rsk70_mfm2_usfast_value), ts_zscore(rsk70_mfm2_usfast_momentum,21))",
-            "confidence_level": 0.55
-        },
-        {
-            "idea": "Momentum-confirmed low-specific-risk shorts",
-            "description": "Short names with weak momentum and high specific_risk_variance. Uses rsk70_mfm2_usfast_momentum and specific_risk_variance. SUGGESTION1 applied. Confidence 0.58.",
-            "implementation": "multiply(reverse(ts_zscore(rsk70_mfm2_usfast_momentum,21)), zscore(specific_risk_variance))",
-            "confidence_level": 0.58
-        },
-        {
-            "idea": "Prospect-seasonality overlay",
-            "description": "Enhance prospect-specific signals in favorable seasonal names. Uses rsk70_mfm2_usfast_prospect_specret_daily and rsk70_mfm2_usfast_season. SUGGESTION1 applied; season coverage >0.6 so no backfill. Confidence 0.53.",
-            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,21), zscore(rsk70_mfm2_usfast_season))",
-            "confidence_level": 0.53
-        },
-        {
-            "idea": "Momentum vs specific risk hedged",
-            "description": "Long momentum leaders but hedge if specific risk variance high. Uses rsk70_mfm2_usfast_momentum and specific_risk_variance. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.65.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_momentum,63), ts_zscore(specific_risk_variance,63))",
-            "confidence_level": 0.65
-        },
-        {
-            "idea": "Hedge-fund percent and short-interest divergence",
-            "description": "Identify names with rising hedge fund ownership but falling short interest (covering), a potential squeeze. Uses ts_delta(hedge_fund_ownership_percent,30) and ts_delta(rsk70_mfm2_usfast_shortint,30). SUGGESTION1 applied. Confidence 0.58.",
-            "implementation": "subtract(ts_zscore(ts_delta(hedge_fund_ownership_percent,30),30), ts_zscore(ts_delta(rsk70_mfm2_usfast_shortint,30),30))",
-            "confidence_level": 0.58
-        },
-        {
-            "idea": "Value-momentum industry cross",
-            "description": "Long stocks where value loading exceeds industry momentum (cheap laggards). Uses rsk70_mfm2_usfast_value and rsk70_mfm2_usfast_indmom. SUGGESTION1 applied. Confidence 0.59.",
-            "implementation": "subtract(zscore(rsk70_mfm2_usfast_value), ts_zscore(rsk70_mfm2_usfast_indmom,21))",
-            "confidence_level": 0.59
-        },
-        {
-            "idea": "Specific-return decay with low residual volatility",
-            "description": "Favor stocks where specific returns persist while residual volatility declines. Uses daily_specific_return and ts_delta(rsk70_mfm2_usfast_resvol,30). SUGGESTION1 applied. Confidence 0.62.",
-            "implementation": "multiply(ts_zscore(daily_specific_return,21), reverse(ts_zscore(ts_delta(rsk70_mfm2_usfast_resvol,30),30)))",
-            "confidence_level": 0.62
-        },
-        {
-            "idea": "Momentum confirmation via specret",
-            "description": "Confirm price momentum with rising specific returns for stronger signal. Uses rsk70_mfm2_usfast_momentum and rsk70_mfm2_usfast_specret_daily_lpmi. SUGGESTION1 applied. Confidence 0.66.",
-            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,21), ts_zscore(rsk70_mfm2_usfast_specret_daily_lpmi,21))",
-            "confidence_level": 0.66
-        },
-        {
-            "idea": "Hedge-fund ownership for selection, market-neutral tilt",
-            "description": "Select stocks with rising hedge fund ownership but neutralize market factor exposures. Uses ts_delta(hedge_fund_ownership_percent,30) and rsk70_mfm2_usfast_market. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.61.",
-            "implementation": "subtract(ts_zscore(ts_delta(hedge_fund_ownership_percent,30),30), zscore(rsk70_mfm2_usfast_market))",
-            "confidence_level": 0.61
-        },
-        {
-            "idea": "Momentum-lite: short-term specific-return trigger",
-            "description": "Exploit very short-term specific-return bursts as triggers. Uses ts_zscore(daily_specific_return,3) and rsk70_mfm2_usfast_momentum. SUGGESTION1 applied. Confidence 0.54 due to noise but actionable intraday.",
-            "implementation": "multiply(ts_zscore(daily_specific_return,3), ts_zscore(rsk70_mfm2_usfast_momentum,5))",
-            "confidence_level": 0.54
-        },
-        {
-            "idea": "Short-interest weighted value",
-            "description": "Long value names with low short interest to avoid crowded value shorts. Uses rsk70_mfm2_usfast_value and rsk70_mfm2_usfast_shortint. SUGGESTION1 applied. Confidence 0.57.",
-            "implementation": "subtract(zscore(rsk70_mfm2_usfast_value), zscore(rsk70_mfm2_usfast_shortint))",
-            "confidence_level": 0.57
-        },
-        {
-            "idea": "Residual volatility timing with momentum",
-            "description": "Long momentum leaders when residual volatility has peaked and started to drop. Uses ts_zscore(rsk70_mfm2_usfast_momentum,21) and ts_arg_max(rsk70_mfm2_usfast_resvol,21). SUGGESTION1 applied. Confidence 0.60.",
-            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,21), reverse(ts_arg_max(rsk70_mfm2_usfast_resvol,21)))",
-            "confidence_level": 0.6
-        },
-        {
-            "idea": "Earnings-quality defensiveness",
-            "description": "Overweight names with high earnings quality when market momentum is negative. Uses rsk70_mfm2_usfast_earnqlty and reverse(ts_zscore(rsk70_mfm2_usfast_market,21)). SUGGESTION1 applied. Confidence 0.63.",
-            "implementation": "multiply(zscore(rsk70_mfm2_usfast_earnqlty), reverse(ts_zscore(rsk70_mfm2_usfast_market,21)))",
-            "confidence_level": 0.63
-        },
-        {
-            "idea": "High hedge-fund ownership with rising prospect returns",
-            "description": "Long names where hedge funds increase ownership and prospect specret rises (follow-the-smart-money). Uses ts_delta(hedge_fund_ownership_percent,30) and ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,21). SUGGESTION1 applied. Confidence 0.62.",
-            "implementation": "multiply(ts_zscore(ts_delta(hedge_fund_ownership_percent,30),30), ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,21))",
-            "confidence_level": 0.62
-        },
-        {
-            "idea": "Momentum trimmed by specific risk uncertainty",
-            "description": "Lower momentum exposure where specific_risk_uncertainty is high. Uses rsk70_mfm2_usfast_momentum and specific_risk_uncertainty. SUGGESTION1 applied. Confidence 0.60.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_momentum,21), zscore(specific_risk_uncertainty))",
-            "confidence_level": 0.6
-        },
-        {
-            "idea": "Short-term sentiment breakout",
-            "description": "Long names with sudden sentiment ramps confirmed by short-term prospect specret. Uses ts_delta(rsk70_mfm2_usfast_sentmt,7) and ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,7). SUGGESTION1 applied. Confidence 0.59.",
-            "implementation": "multiply(ts_zscore(ts_delta(rsk70_mfm2_usfast_sentmt,7),7), ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,7))",
-            "confidence_level": 0.59
-        },
-        {
-            "idea": "Value-weighted hedge-fund flow",
-            "description": "Scale hedge-fund ownership deltas by value to prefer flow into cheaper stocks. Uses ts_delta(hedge_fund_ownership_percent,30) and rsk70_mfm2_usfast_value. SUGGESTION1 applied. Confidence 0.58.",
-            "implementation": "multiply(ts_zscore(ts_delta(hedge_fund_ownership_percent,30),30), zscore(rsk70_mfm2_usfast_value))",
-            "confidence_level": 0.58
-        },
-        {
-            "idea": "Momentum confirmed by specret monthly",
-            "description": "Require monthly specific returns to confirm price momentum for lower turnover. Uses ts_zscore(rsk70_mfm2_usfast_momentum,63) and ts_zscore(rsk70_mfm2_usfast_prospect_specret_monthly,63). SUGGESTION1 & SUGGESTION4 applied. Confidence 0.65.",
-            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,63), ts_zscore(rsk70_mfm2_usfast_prospect_specret_monthly,63))",
-            "confidence_level": 0.65
-        },
-        {
-            "idea": "Low-residual-volatility safe momentum",
-            "description": "Prefer momentum leaders with low residual-volatility to reduce drawdowns. Uses rsk70_mfm2_usfast_momentum and rsk70_mfm2_usfast_resvol. SUGGESTION1 applied. Confidence 0.66.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_momentum,63), zscore(rsk70_mfm2_usfast_resvol))",
-            "confidence_level": 0.66
-        },
-        {
-            "idea": "Short-interest weighted contrarian",
-            "description": "Long names with falling short-interest and negative recent momentum (short-covering catches). Uses ts_delta(rsk70_mfm2_usfast_shortint,30) and ts_zscore(rsk70_mfm2_usfast_momentum,10). SUGGESTION1 applied. Confidence 0.56.",
-            "implementation": "multiply(reverse(ts_zscore(ts_delta(rsk70_mfm2_usfast_shortint,30),30)), reverse(ts_zscore(rsk70_mfm2_usfast_momentum,10)))",
-            "confidence_level": 0.56
-        },
-        {
-            "idea": "Prospect-monthly value overlay",
-            "description": "Select names with strong prospect monthly returns but high value loading (recovery candidates). Uses rsk70_mfm2_usfast_prospect_specret_monthly and rsk70_mfm2_usfast_value. SUGGESTION1 applied. Confidence 0.61.",
-            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_prospect_specret_monthly,63), zscore(rsk70_mfm2_usfast_value))",
-            "confidence_level": 0.61
-        },
-        {
-            "idea": "Industry momentum normalized by group",
-            "description": "Capture industry momentum relative to broad market loading. Uses rsk70_mfm2_usfast_indmom and rsk70_mfm2_usfast_market. SUGGESTION1 applied. Confidence 0.57.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_indmom,21), zscore(rsk70_mfm2_usfast_market))",
-            "confidence_level": 0.57
-        },
-        {
-            "idea": "Hedge-fund ownership percent z-score breakout",
-            "description": "Trade large positive z-score moves in hedge fund ownership percent independent of market. Uses ts_zscore(hedge_fund_ownership_percent,30) and rsk70_mfm2_usfast_market. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.60.",
-            "implementation": "subtract(ts_zscore(hedge_fund_ownership_percent,30), zscore(rsk70_mfm2_usfast_market))",
-            "confidence_level": 0.6
-        },
-        {
-            "idea": "Low-specific-risk value",
-            "description": "Long high-value names with low specific risk variance. Uses rsk70_mfm2_usfast_value and specific_risk_variance. SUGGESTION1 applied. Confidence 0.63.",
-            "implementation": "subtract(zscore(rsk70_mfm2_usfast_value), zscore(specific_risk_variance))",
-            "confidence_level": 0.63
-        },
-        {
-            "idea": "Prospect daily momentum spike",
-            "description": "Capture short-lived spikes in prospect daily specret as entry. Uses ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,5) and daily_specific_return. SUGGESTION1 applied. Confidence 0.52 due to high noise.",
-            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,5), ts_zscore(daily_specific_return,3))",
-            "confidence_level": 0.52
-        },
-        {
-            "idea": "Hedge-fund percent contrarian when market trending down",
-            "description": "Short names with rising hedge-fund ownership when market factor is negative. Uses ts_delta(hedge_fund_ownership_percent,30) and reverse(ts_zscore(rsk70_mfm2_usfast_market,21)). SUGGESTION1 & SUGGESTION4 applied. Confidence 0.58.",
-            "implementation": "multiply(ts_zscore(ts_delta(hedge_fund_ownership_percent,30),30), reverse(ts_zscore(rsk70_mfm2_usfast_market,21)))",
-            "confidence_level": 0.58
-        },
-        {
-            "idea": "Short-interest & sentiment divergence",
-            "description": "Short names with rising short interest but falling sentiment (deterioration). Uses ts_delta(rsk70_mfm2_usfast_shortint,30) and reverse(ts_zscore(rsk70_mfm2_usfast_sentmt,21)). SUGGESTION1 applied. Confidence 0.55.",
-            "implementation": "multiply(ts_zscore(ts_delta(rsk70_mfm2_usfast_shortint,30),30), reverse(ts_zscore(rsk70_mfm2_usfast_sentmt,21)))",
-            "confidence_level": 0.55
-        },
-        {
-            "idea": "Momentum-confirmed hedge-fund inflow",
-            "description": "Long names where hedge funds increase ownership and momentum confirms. Uses ts_delta(hedge_fund_ownership_percent,30) and ts_zscore(rsk70_mfm2_usfast_momentum,21). SUGGESTION1 applied. Confidence 0.62.",
-            "implementation": "multiply(ts_zscore(ts_delta(hedge_fund_ownership_percent,30),30), ts_zscore(rsk70_mfm2_usfast_momentum,21))",
-            "confidence_level": 0.62
-        },
-        {
-            "idea": "Residual-volatility vs short interest",
-            "description": "Long low residual-volatility names with low short interest to minimize squeeze risk. Uses rsk70_mfm2_usfast_resvol and rsk70_mfm2_usfast_shortint. SUGGESTION1 applied. Confidence 0.59.",
-            "implementation": "subtract(reverse(zscore(rsk70_mfm2_usfast_resvol)), zscore(rsk70_mfm2_usfast_shortint))",
-            "confidence_level": 0.59
-        },
-        {
-            "idea": "Value and low residual-volatility composite",
-            "description": "Overweight names with high value loading and low residual volatility. Uses rsk70_mfm2_usfast_value and rsk70_mfm2_usfast_resvol. SUGGESTION1 applied. Confidence 0.64.",
-            "implementation": "subtract(zscore(rsk70_mfm2_usfast_value), zscore(rsk70_mfm2_usfast_resvol))",
-            "confidence_level": 0.64
-        },
-        {
-            "idea": "Prospect upside with low hedge-fund ownership",
-            "description": "Long names with rising prospect specret but low hedge-fund ownership percent (undiscovered winners). Uses ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,21) and reverse(zscore(hedge_fund_ownership_percent)). SUGGESTION1 applied. Confidence 0.60.",
-            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,21), reverse(zscore(hedge_fund_ownership_percent)))",
-            "confidence_level": 0.6
-        },
-        {
-            "idea": "Momentum vs earnings-quality hedge",
-            "description": "Reduce exposure to momentum where earnings quality is poor. Uses ts_zscore(rsk70_mfm2_usfast_momentum,21) and reverse(zscore(rsk70_mfm2_usfast_earnqlty)). SUGGESTION1 applied. Confidence 0.61.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_momentum,21), reverse(zscore(rsk70_mfm2_usfast_earnqlty)))",
-            "confidence_level": 0.61
-        },
-        {
-            "idea": "Short high specific-risk value names",
-            "description": "Short names that look cheap but have high specific risk variance (value traps). Uses rsk70_mfm2_usfast_value and specific_risk_variance. SUGGESTION1 applied. Confidence 0.56.",
-            "implementation": "multiply(zscore(rsk70_mfm2_usfast_value), zscore(specific_risk_variance))",
-            "confidence_level": 0.56
-        },
-        {
-            "idea": "Industry spread: semiconductors vs building products",
-            "description": "Exploit relative momentum between semiconductor exposure and building products exposure. Uses semiconductors_exposure_score and building_products_exposure_score. SUGGESTION1 applied. Confidence 0.50 due to weak correlation structure.",
-            "implementation": "subtract(zscore(semiconductors_exposure_score), zscore(building_products_exposure_score))",
-            "confidence_level": 0.5
-        },
-        {
-            "idea": "Prospect monthly vs short interest",
-            "description": "Long stocks with improving monthly prospect returns and low short interest. Uses rsk70_mfm2_usfast_prospect_specret_monthly and rsk70_mfm2_usfast_shortint. SUGGESTION1 applied. Confidence 0.58.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_prospect_specret_monthly,63), zscore(rsk70_mfm2_usfast_shortint))",
-            "confidence_level": 0.58
-        },
-        {
-            "idea": "Momentum amplified by low specific risk uncertainty",
-            "description": "Amplify momentum where specific_risk_uncertainty is low to reduce estimation risk. Uses rsk70_mfm2_usfast_momentum and specific_risk_uncertainty. SUGGESTION1 applied. Confidence 0.63.",
-            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum,21), add(zscore(specific_risk_uncertainty),0.1))",
-            "confidence_level": 0.63
-        },
-        {
-            "idea": "Hedge-fund percent and market momentum divergence",
-            "description": "Favor names where hedge funds increase ownership while market momentum is weak (idiosyncratic buying). Uses ts_delta(hedge_fund_ownership_percent,30) and reverse(ts_zscore(rsk70_mfm2_usfast_market,21)). SUGGESTION1 & SUGGESTION4 applied. Confidence 0.59.",
-            "implementation": "multiply(ts_zscore(ts_delta(hedge_fund_ownership_percent,30),30), reverse(ts_zscore(rsk70_mfm2_usfast_market,21)))",
-            "confidence_level": 0.59
-        },
-        {
-            "idea": "Residual-volatility vs earnings-quality filter",
-            "description": "Prefer low residual-volatility names with solid earnings quality. Uses rsk70_mfm2_usfast_resvol and rsk70_mfm2_usfast_earnqlty. SUGGESTION1 applied. Confidence 0.62.",
-            "implementation": "subtract(zscore(rsk70_mfm2_usfast_earnqlty), zscore(rsk70_mfm2_usfast_resvol))",
-            "confidence_level": 0.62
-        },
-        {
-            "idea": "Momentum cross-checked with industry specret",
-            "description": "Require industry specret to confirm price momentum for more robust signals. Uses rsk70_mfm2_usfast_momentum and rsk70_mfm2_usfast_specret_daily_htcri. SUGGESTION1 applied. Confidence 0.64.",
-            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,21), ts_zscore(rsk70_mfm2_usfast_specret_daily_htcri,21))",
-            "confidence_level": 0.64
-        },
-        {
-            "idea": "Hedge-fund percent mean-revert by size bucket",
-            "description": "Apply mean-reversion to hedge ownership percent scaled by size to avoid tiny names. Uses ts_zscore(hedge_fund_ownership_percent,60) and current_market_cap_usd. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.57.",
-            "implementation": "divide(reverse(ts_zscore(hedge_fund_ownership_percent,60)), zscore(current_market_cap_usd))",
-            "confidence_level": 0.57
-        },
-        {
-            "idea": "Short-interest contrarian with prospect confirmation",
-            "description": "Long stocks with falling short interest and rising prospect specret to capture coverings. Uses ts_delta(rsk70_mfm2_usfast_shortint,30) and ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,21). SUGGESTION1 applied. Confidence 0.60.",
-            "implementation": "multiply(reverse(ts_zscore(ts_delta(rsk70_mfm2_usfast_shortint,30),30)), ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,21))",
-            "confidence_level": 0.6
-        },
-        {
-            "idea": "Market-neutral prospect spread",
-            "description": "Long names with strong prospect specret relative to market loading to isolate idiosyncratic alpha. Uses rsk70_mfm2_usfast_prospect_specret_daily and rsk70_mfm2_usfast_market. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.65.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,21), zscore(rsk70_mfm2_usfast_market))",
-            "confidence_level": 0.65
-        },
-        {
-            "idea": "Value vs specific-return divergence",
-            "description": "Short apparent value names that have persistently negative specific returns (value traps). Uses rsk70_mfm2_usfast_value and ts_zscore(daily_specific_return,63). SUGGESTION1 applied. Confidence 0.56.",
-            "implementation": "multiply(zscore(rsk70_mfm2_usfast_value), reverse(ts_zscore(daily_specific_return,63)))",
-            "confidence_level": 0.56
-        },
-        {
-            "idea": "Hedge-fund delta and residual-volatility timing",
-            "description": "Long where hedge fund ownership rises while residual volatility declines (conviction buys). Uses ts_delta(hedge_fund_ownership_percent,30) and ts_delta(rsk70_mfm2_usfast_resvol,30). SUGGESTION1 applied. Confidence 0.60.",
-            "implementation": "multiply(ts_zscore(ts_delta(hedge_fund_ownership_percent,30),30), reverse(ts_zscore(ts_delta(rsk70_mfm2_usfast_resvol,30),30)))",
-            "confidence_level": 0.6
-        },
-        {
-            "idea": "Momentum scaled by specific risk uncertainty",
-            "description": "Reduce momentum weight where specific risk uncertainty is high. Uses rsk70_mfm2_usfast_momentum and specific_risk_uncertainty. SUGGESTION1 applied. Confidence 0.61.",
-            "implementation": "divide(ts_zscore(rsk70_mfm2_usfast_momentum,21), add(zscore(specific_risk_uncertainty),0.1))",
-            "confidence_level": 0.61
-        },
-        {
-            "idea": "Prospect-monthly breakout with low short interest",
-            "description": "Long names with large monthly prospect specret increases and low short interest. Uses ts_delta(rsk70_mfm2_usfast_prospect_specret_monthly,63) and rsk70_mfm2_usfast_shortint. SUGGESTION1 applied. Confidence 0.59.",
-            "implementation": "multiply(ts_zscore(ts_delta(rsk70_mfm2_usfast_prospect_specret_monthly,63),63), reverse(zscore(rsk70_mfm2_usfast_shortint)))",
-            "confidence_level": 0.59
-        },
-        {
-            "idea": "Earnings-quality vs momentum hedge",
-            "description": "Reduce exposure to momentum where earnings quality is weak. Uses ts_zscore(rsk70_mfm2_usfast_momentum,21) and reverse(zscore(rsk70_mfm2_usfast_earnqlty)). SUGGESTION1 applied. Confidence 0.60.",
-            "implementation": "subtract(ts_zscore(rsk70_mfm2_usfast_momentum,21), reverse(zscore(rsk70_mfm2_usfast_earnqlty)))",
-            "confidence_level": 0.6
-        },
-        {
-            "idea": "High-prospect, low-residual-volatility long",
-            "description": "Prefer names with rising prospect specret and falling residual volatility. Uses ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,21) and ts_delta(rsk70_mfm2_usfast_resvol,30). SUGGESTION1 applied. Confidence 0.63.",
-            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_prospect_specret_daily,21), reverse(ts_zscore(ts_delta(rsk70_mfm2_usfast_resvol,30),30)))",
-            "confidence_level": 0.63
-        },
-        {
-            "idea": "Momentum confirmation via hedge-fund inflows",
-            "description": "Require hedge fund inflow confirmation for momentum trades. Uses ts_zscore(rsk70_mfm2_usfast_momentum,21) and ts_delta(hedge_fund_ownership_percent,30). SUGGESTION1 applied. Confidence 0.62.",
-            "implementation": "multiply(ts_zscore(rsk70_mfm2_usfast_momentum,21), ts_zscore(ts_delta(hedge_fund_ownership_percent,30),30))",
-            "confidence_level": 0.62
-        }
-    ]
+  "results": [
+    {
+      "idea": "Hedge-fund crowding mean-reversion",
+      "description": "Combine hedge fund ownership (high userCount) with recent idiosyncratic return to identify overcrowded winners that revert. Applied SUGGESTION1 by using two fields; SUGGESTION2 not applicable (no vector field used); SUGGESTION3 not needed (coverage=1.0); SUGGESTION4 applied by choosing high userCount fields. Confidence set to 0.72.",
+      "implementation": "zscore(subtract(hedge_fund_ownership_percent, daily_specific_return))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Sentiment-adjusted momentum",
+      "description": "Tilt momentum by sentiment: buy stocks with positive momentum but higher sentiment. S1 used two fields; S2 not applied; S3 not applied (coverage high); S4 applied (sentiment has large userCount). Confidence 0.78.",
+      "implementation": "multiply(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_sentmt)",
+      "confidence_level": 0.78
+    },
+    {
+      "idea": "Size-normalized momentum",
+      "description": "Normalize momentum by market cap to prefer smaller-cap momentum (size-adjusted). S1 used two fields; S4 used high userCount for momentum. No ts_backfill needed. Confidence 0.65.",
+      "implementation": "divide(rsk70_mfm2_usfast_momentum, current_market_cap_usd)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Short-interest-driven reversal",
+      "description": "Short-interest high + recent short-term reversal signals indicate squeeze potential. S1 used two fields including high-coverage short interest; S4 applied. Confidence 0.7.",
+      "implementation": "multiply(rsk70_mfm2_usfast_strevrsl, short_interest_factor_score)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Hedge-fund ownership momentum fade",
+      "description": "Stocks with rising hedge fund ownership but weak momentum may mean-revert. Used two fields per S1; S4 applied. Confidence 0.6.",
+      "implementation": "subtract(hedge_fund_ownership_percent, rsk70_mfm2_usfast_momentum)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Sentiment overreaction reversion",
+      "description": "High sentiment paired with large daily specific return suggests short-term overreaction. S1 used both fields; S4 used sentiment's high userCount. Confidence 0.74.",
+      "implementation": "zscore(subtract(rsk70_mfm2_usfast_sentmt, daily_specific_return))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Value-momentum overlay",
+      "description": "Combine value loading with momentum to capture stocks cheap and trending. S1 applied; picked high-user fields; S3 not needed. Confidence 0.66.",
+      "implementation": "add(rsk70_mfm2_usfast_value, rsk70_mfm2_usfast_momentum)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Profitability-weighted momentum",
+      "description": "Enhance momentum by profit factor: momentum × profit. S1 used; both fields have good userCount per S4. Confidence 0.68.",
+      "implementation": "multiply(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_profit)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Residual-volatility mean-reversion",
+      "description": "High residual volatility with large specific returns suggests reversion risk; prefer short. S1 used; resvol has solid userCount. Confidence 0.64.",
+      "implementation": "divide(daily_specific_return, rsk70_mfm2_usfast_resvol)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Dividend-yield value tilt",
+      "description": "Favor stocks with high dividend-yield loading relative to market value factor. S1 used; divyild has high userCount; S3 not needed. Confidence 0.6.",
+      "implementation": "subtract(rsk70_mfm2_usfast_divyild, rsk70_mfm2_usfast_market)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Hedge-fund crowded momentum",
+      "description": "Stocks with high hedge fund ownership and positive momentum may continue to run; use for momentum exposure. S1 & S4 applied. Confidence 0.63.",
+      "implementation": "multiply(hedge_fund_ownership_percent, rsk70_mfm2_usfast_momentum)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Size-adjusted sentiment reversion",
+      "description": "High sentiment in small caps more likely to revert; divide sentiment by market cap. S1 used; applied S4 picking sentiment. Confidence 0.67.",
+      "implementation": "divide(rsk70_mfm2_usfast_sentmt, current_market_cap_usd)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Specific-return quality filter",
+      "description": "Use daily specific return scaled by earnings quality to favor persistent returns. S1 used; earnings quality coverage high enough (0.9512). S4 applied. Confidence 0.62.",
+      "implementation": "multiply(daily_specific_return, rsk70_mfm2_usfast_earnqlty)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Short-interest momentum divergence",
+      "description": "Momentum high while short interest increases — potential squeeze/continuation. S1 used; short interest has good userCount. Confidence 0.69.",
+      "implementation": "subtract(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_shortint)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Prospect-specific return momentum",
+      "description": "Use prospect specret daily vs recent specific return to capture persistent idiosyncratic returns. S1 used; both fields have high userCounts. Confidence 0.71.",
+      "implementation": "subtract(rsk70_mfm2_usfast_prospect_specret_daily, daily_specific_return)",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Risk-adjusted hedge-fund crowding",
+      "description": "Divide hedge fund ownership by specific risk variance to avoid crowded high-risk names. S1 & S4 applied. Confidence 0.7.",
+      "implementation": "divide(hedge_fund_ownership_percent, specific_risk_variance)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Market-factor divergence alpha",
+      "description": "Stocks with low market loading but high idiosyncratic returns may be mispriced. S1 used broad market factor and daily specific return; S4 applied. Confidence 0.66.",
+      "implementation": "subtract(daily_specific_return, broad_market_factor_score)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Sector exposure momentum pair (semiconductors)",
+      "description": "Combine semiconductors exposure with momentum to capture sector-led trends. S1 used; chosen sector fields with reasonable userCount. Confidence 0.61.",
+      "implementation": "multiply(semiconductors_exposure_score, rsk70_mfm2_usfast_momentum)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Equipment exposure mean-reversion",
+      "description": "Strong moves in semiconductor equipment exposure that outpace specific returns may revert. S1 used; both fields high coverage. Confidence 0.58.",
+      "implementation": "subtract(semiconductor_equipment_exposure_score, daily_specific_return)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Price momentum scaled by residual vol",
+      "description": "Favor momentum in low residual volatility names (more reliable). S1 used; both fields have good counts. Confidence 0.72.",
+      "implementation": "divide(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_resvol)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Earnings-yield momentum cross",
+      "description": "High earnings yield with improving momentum signals value+momentum. S1 used; earnyild and momentum both have good coverage. Confidence 0.64.",
+      "implementation": "multiply(rsk70_mfm2_usfast_earnyild, rsk70_mfm2_usfast_momentum)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Management-quality momentum filter",
+      "description": "Prefer momentum in stocks with strong management quality scores. S1 & S4 applied (mgmtqlty userCount decent). Confidence 0.6.",
+      "implementation": "multiply(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_mgmtqlty)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Market cap vs specific return breakouts",
+      "description": "Small caps with outsized specific returns may continue due to idiosyncratic discovery. S1 used; S4 used current market cap. Confidence 0.59.",
+      "implementation": "divide(daily_specific_return, current_market_cap_usd)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Residual volatility decay",
+      "description": "Prefer stocks where residual volatility declines relative to past — less risk of drawdown. Use resvol and specret. S1 applied; S3 not needed. Confidence 0.55.",
+      "implementation": "subtract(rsk70_mfm2_usfast_resvol, rsk70_mfm2_usfast_dsrt)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Short-interest contrarian",
+      "description": "High short interest but positive specific return may indicate short-squeeze candidates; use short interest and daily specific return. S1 & S4 applied. Confidence 0.68.",
+      "implementation": "multiply(short_interest_factor_score, daily_specific_return)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Hedge-fund ownership momentum divergence (count)",
+      "description": "Use number of hedge funds (count) vs momentum to find new institutional accumulation with weak price action. S1 used; hedge fund count high userCount. Confidence 0.62.",
+      "implementation": "subtract(hedge_fund_ownership_count, rsk70_mfm2_usfast_momentum)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Prospect vs market exposure",
+      "description": "High prospect score but low market loading suggests stock-specific upside. S1 used prospect specret daily and market factor. S4 used prospect field. Confidence 0.7.",
+      "implementation": "subtract(rsk70_mfm2_usfast_prospect_specret_daily, rsk70_mfm2_usfast_market)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Value relative to earnings quality",
+      "description": "Cheap stocks with high earnings quality are attractive; subtract value loading by earnings quality. S1 used; coverage fine. Confidence 0.65.",
+      "implementation": "subtract(rsk70_mfm2_usfast_value, rsk70_mfm2_usfast_earnqlty)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Momentum taxed by specific risk",
+      "description": "Momentum divided by specific risk variance to prefer stable momentum. S1 used; S4 used resourced fields. Confidence 0.69.",
+      "implementation": "divide(rsk70_mfm2_usfast_momentum, specific_risk_variance)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Prospect daily vs prospect monthly divergence",
+      "description": "Short-term prospect signal stronger than monthly suggests accelerating idiosyncratic change. S1 used two prospect fields (daily & monthly). S4 applied. Confidence 0.66.",
+      "implementation": "subtract(rsk70_mfm2_usfast_prospect_specret_daily, rsk70_mfm2_usfast_prospect_specret_monthly)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Growth-adjusted profit momentum",
+      "description": "Momentum multiplied by growth and profit to emphasize high-quality momentum. S1 & S4 applied. Confidence 0.63.",
+      "implementation": "multiply(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_growth)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Short-term reversal scaled by size",
+      "description": "Short-term reversal stronger in small caps; divide strevrsl by market cap. S1 used; S4 applied. Confidence 0.6.",
+      "implementation": "divide(rsk70_mfm2_usfast_strevrsl, current_market_cap_usd)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Industry-specific momentum (retail)",
+      "description": "Use net retail exposure × momentum to capture retail-led trends. S1 used industry exposure and momentum. Confidence 0.58.",
+      "implementation": "multiply(net_retail_exposure_score, rsk70_mfm2_usfast_momentum)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Hedge-fund concentration reversal (count vs percent)",
+      "description": "High percent but low count may indicate concentrated ownership — test percent minus count normalized. S1 used two hedge fund fields. S4 applied. Confidence 0.61.",
+      "implementation": "subtract(hedge_fund_ownership_percent, hedge_fund_ownership_count)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Momentum / dividend yield scatter",
+      "description": "Favor momentum in names with growing dividend yield loading. S1 applied; divyild & momentum both high userCount. Confidence 0.59.",
+      "implementation": "multiply(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_divyild)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Specific-return momentum persistence",
+      "description": "Compare prospect daily specret to daily_specific_return to capture persistent idiosyncratic momentum. S1 used; S4 applied. Confidence 0.7.",
+      "implementation": "divide(rsk70_mfm2_usfast_prospect_specret_daily, daily_specific_return)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Momentum vs value divergence",
+      "description": "High momentum but low value loading may indicate trend without fundamental support — short candidate. S1 used. Confidence 0.56.",
+      "implementation": "subtract(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_value)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Residual-volatility overlay on hedge-fund crowding",
+      "description": "High hedge-fund ownership but also high residual vol → avoid; subtract scaled resvol. S1 & S4 applied. Confidence 0.68.",
+      "implementation": "subtract(hedge_fund_ownership_percent, rsk70_mfm2_usfast_resvol)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Short-intensity momentum screen",
+      "description": "Momentum adjusted down by short interest to avoid crowded longs. S1 used; S4 applied. Confidence 0.57.",
+      "implementation": "subtract(rsk70_mfm2_usfast_momentum, short_interest_factor_score)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "High sentiment small-cap pick",
+      "description": "High sentiment divided by market cap to find under-covered bullish small caps. S1 & S4 applied. Confidence 0.66.",
+      "implementation": "divide(rsk70_mfm2_usfast_sentmt, current_market_cap_usd)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Earnings-yield vs profit quality",
+      "description": "Earnings yield high but profit low might signal value trap; subtract. S1 used earniyld and profit. Confidence 0.55.",
+      "implementation": "subtract(rsk70_mfm2_usfast_earnyild, rsk70_mfm2_usfast_profit)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum tempered by management quality",
+      "description": "High momentum but weak management quality less sustainable; subtract mgmtqlty. S1 used; S4 applied. Confidence 0.6.",
+      "implementation": "subtract(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_mgmtqlty)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Prospect acceleration signal",
+      "description": "Prospect daily > prospect monthly suggests accelerating idiosyncratic improvement. S1 used daily and monthly prospect fields. Confidence 0.72.",
+      "implementation": "subtract(rsk70_mfm2_usfast_prospect_specret_daily, rsk70_mfm2_usfast_prospect_specret_monthly)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Specific-return volatility-adjusted breakout",
+      "description": "High daily specific return normalized by residual volatility for signal strength. S1 applied. Confidence 0.7.",
+      "implementation": "divide(daily_specific_return, rsk70_mfm2_usfast_resvol)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Momentum × low specific risk",
+      "description": "Multiply momentum by inverse of specific risk variance to favor low-risk momentum. S1 used; inverse operator applied. Confidence 0.73.",
+      "implementation": "multiply(rsk70_mfm2_usfast_momentum, inverse(specific_risk_variance))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Hedge-fund percent minus sentiment",
+      "description": "If hedge-fund ownership high but sentiment low, possible value; subtract sentiment from ownership. S1 & S4 applied. Confidence 0.58.",
+      "implementation": "subtract(hedge_fund_ownership_percent, rsk70_mfm2_usfast_sentmt)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Market-hedged prospect",
+      "description": "Prospect specret daily adjusted for market loading to find idiosyncratic opportunity. S1 used. Confidence 0.69.",
+      "implementation": "subtract(rsk70_mfm2_usfast_prospect_specret_daily, rsk70_mfm2_usfast_market)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Momentum-strength / hedge-fund-count",
+      "description": "Momentum per hedge-fund-count to spot moves driven by few institutions. S1 applied. Confidence 0.61.",
+      "implementation": "divide(rsk70_mfm2_usfast_momentum, hedge_fund_ownership_count)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Short-interest contrarian scaled by market cap",
+      "description": "High short interest with small market cap scaled to prefer potential squeezes. S1 applied. Confidence 0.67.",
+      "implementation": "divide(short_interest_factor_score, current_market_cap_usd)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Dividend-yield vs value divergence",
+      "description": "High dividend yield but low value loading may indicate misclassification; subtract. S1 used. Confidence 0.54.",
+      "implementation": "subtract(rsk70_mfm2_usfast_divyild, rsk70_mfm2_usfast_value)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Residual risk-normalized hedge-fund ownership",
+      "description": "Avoid crowded names with high residual risk by dividing ownership percent by residual variance. S1 & S4 applied. Confidence 0.7.",
+      "implementation": "divide(hedge_fund_ownership_percent, specific_risk_variance)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Momentum × sentiment divergence",
+      "description": "Strong momentum but negative sentiment — potential mean-revert short; subtract sentiment from momentum. S1 used. Confidence 0.56.",
+      "implementation": "subtract(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_sentmt)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Size-neutralized specific return",
+      "description": "Normalize specific return by cap to avoid small-cap bias. S1 used. Confidence 0.6.",
+      "implementation": "divide(daily_specific_return, current_market_cap_usd)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Prospect vs profit quality",
+      "description": "High prospect score but weak profit suggests speculative behavior; subtract profit. S1 used. Confidence 0.58.",
+      "implementation": "subtract(rsk70_mfm2_usfast_prospect_specret_daily, rsk70_mfm2_usfast_profit)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum dampened by residual volatility",
+      "description": "Momentum signal down-weighted by residual volatility via divide. S1 applied. Confidence 0.7.",
+      "implementation": "divide(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_resvol)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Hedge-fund ownership change proxy (count vs percent)",
+      "description": "Percent relative to count to detect concentrated increases. S1 used two hedge-fund fields. Confidence 0.62.",
+      "implementation": "divide(hedge_fund_ownership_percent, hedge_fund_ownership_count)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum vs earnings yield spread",
+      "description": "Positive momentum with rising earnings yield may signal sustainable improvement. S1 used. Confidence 0.63.",
+      "implementation": "multiply(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_earnyild)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Short-interest risk overlay",
+      "description": "Prefer names with low short interest and high momentum by subtracting short interest. S1 applied. Confidence 0.59.",
+      "implementation": "subtract(rsk70_mfm2_usfast_momentum, short_interest_factor_score)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Prospect momentum combo",
+      "description": "Combine prospect daily specret with recent momentum to capture accelerating idiosyncratic trends. S1 used. Confidence 0.71.",
+      "implementation": "multiply(rsk70_mfm2_usfast_prospect_specret_daily, rsk70_mfm2_usfast_momentum)",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Earnings quality hedge",
+      "description": "Favor stocks with both momentum and earnings quality by multiplying. S1 & S4 applied. Confidence 0.6.",
+      "implementation": "multiply(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_earnqlty)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Market-neutral specific return",
+      "description": "Select names with high specific return but low market loading — subtract market. S1 used. Confidence 0.68.",
+      "implementation": "subtract(daily_specific_return, rsk70_mfm2_usfast_market)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Short-term reversal × low cap",
+      "description": "Short-term reversal signals are stronger in small caps; multiply strevrsl by inverse cap. S1 used. Confidence 0.64.",
+      "implementation": "multiply(rsk70_mfm2_usfast_strevrsl, inverse(current_market_cap_usd))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Hedge-fund ownership vs prospect",
+      "description": "High hedge-fund ownership but low prospect specret may indicate value trap; subtract prospect. S1 used. Confidence 0.56.",
+      "implementation": "subtract(hedge_fund_ownership_percent, rsk70_mfm2_usfast_prospect_specret_daily)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Residual-volatility × short-interest risk screen",
+      "description": "Avoid names with both high resvol and high short interest by multiplying. S1 & S4 applied. Confidence 0.6.",
+      "implementation": "multiply(rsk70_mfm2_usfast_resvol, short_interest_factor_score)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum scaled by earnings quality and size",
+      "description": "Momentum × earnings quality divided by cap to favor high-quality small-cap momentum. S1 used but uses 2 fields limit so split: momentum×earnqlty then divide by cap in separate run; here use momentum×earnqlty. S2 not applicable. Confidence 0.62.",
+      "implementation": "multiply(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_earnqlty)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Prospect vs residual vol",
+      "description": "High prospect score with low residual volatility is attractive; subtract resvol from prospect. S1 used. Confidence 0.67.",
+      "implementation": "subtract(rsk70_mfm2_usfast_prospect_specret_daily, rsk70_mfm2_usfast_resvol)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Hedge-fund percent × inverse residual risk",
+      "description": "Prefer hedge-fund-owned names where residual risk is low by multiplying percent by inverse variance. S1 used. Confidence 0.69.",
+      "implementation": "multiply(hedge_fund_ownership_percent, inverse(specific_risk_variance))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Momentum vs sector exposure (semiconductors)",
+      "description": "High semiconductor exposure but weak momentum may revert; subtract momentum from exposure. S1 used. Confidence 0.55.",
+      "implementation": "subtract(semiconductors_exposure_score, rsk70_mfm2_usfast_momentum)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Prospect daily momentum ratio",
+      "description": "Ratio of prospect specret daily to momentum to find stocks where fundamentals are accelerating relative to price. S1 used. Confidence 0.7.",
+      "implementation": "divide(rsk70_mfm2_usfast_prospect_specret_daily, rsk70_mfm2_usfast_momentum)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Earnings yield vs market exposure",
+      "description": "High earnings yield but low market loading suggests stock-specific value. S1 used. Confidence 0.6.",
+      "implementation": "subtract(rsk70_mfm2_usfast_earnyild, rsk70_mfm2_usfast_market)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Hedge-fund ownership momentum density",
+      "description": "Hedge-fund percent × momentum normalized (here multiply) to capture institutional momentum. S1 & S4 applied. Confidence 0.63.",
+      "implementation": "multiply(hedge_fund_ownership_percent, rsk70_mfm2_usfast_momentum)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Specific-return vs prospect monthly",
+      "description": "Daily specific return stronger than monthly prospect indicates short-term breakout; subtract. S1 used. Confidence 0.65.",
+      "implementation": "subtract(daily_specific_return, rsk70_mfm2_usfast_prospect_specret_monthly)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Momentum filtered by short interest intensity",
+      "description": "Momentum divided by short interest to avoid crowded names. S1 applied. Confidence 0.58.",
+      "implementation": "divide(rsk70_mfm2_usfast_momentum, short_interest_factor_score)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Value × earnings quality",
+      "description": "Combine value loading and earnings quality to find high-quality value. S1 used. Confidence 0.66.",
+      "implementation": "multiply(rsk70_mfm2_usfast_value, rsk70_mfm2_usfast_earnqlty)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Prospect acceleration vs hedge-fund count",
+      "description": "High prospect acceleration with low hedge-fund count suggests upcoming institutional interest. S1 used. Confidence 0.64.",
+      "implementation": "divide(rsk70_mfm2_usfast_prospect_specret_daily, hedge_fund_ownership_count)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum minus residual volatility (cross-sectional zscore)",
+      "description": "Compute cross-sectional zscore of momentum-resvol to emphasize momentum in low-vol names. S1 used; zscore applied. Confidence 0.72.",
+      "implementation": "zscore(subtract(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_resvol))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Hedge-fund percent × inverse cap",
+      "description": "Prefer high hedge-fund ownership in smaller caps (potential price impact); multiply percent by inverse market cap. S1 used. Confidence 0.61.",
+      "implementation": "multiply(hedge_fund_ownership_percent, inverse(current_market_cap_usd))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Short-interest × negative sentiment alert",
+      "description": "High short interest combined with negative sentiment signals distress — potential value or avoid depending on strategy. S1 used. Confidence 0.5.",
+      "implementation": "multiply(short_interest_factor_score, rsk70_mfm2_usfast_sentmt)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum × prospect monthly",
+      "description": "Momentum supported by positive monthly prospect is durable; multiply. S1 used. Confidence 0.68.",
+      "implementation": "multiply(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_prospect_specret_monthly)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Residual vol divergence vs specific return",
+      "description": "High specific return with declining residual volatility is promising; subtract resvol from specret. S1 used. Confidence 0.66.",
+      "implementation": "subtract(daily_specific_return, rsk70_mfm2_usfast_resvol)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Value vs growth divergence",
+      "description": "High value loading and low growth loading indicates deep value; subtract growth from value. S1 used. Confidence 0.57.",
+      "implementation": "subtract(rsk70_mfm2_usfast_value, rsk70_mfm2_usfast_growth)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Hedge-fund ownership × prospect",
+      "description": "Hedge funds owning names where prospect score rises may indicate smart money. S1 used. Confidence 0.7.",
+      "implementation": "multiply(hedge_fund_ownership_percent, rsk70_mfm2_usfast_prospect_specret_daily)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Momentum relative to sector exposure (net retail)",
+      "description": "Momentum strong relative to net retail exposure suggests stock-specific strength. S1 applied. Confidence 0.6.",
+      "implementation": "subtract(rsk70_mfm2_usfast_momentum, net_retail_exposure_score)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-term reversal scaled by residual vol inverse",
+      "description": "Short-term reversal times inverse residual vol to find strong, low-risk reversals. S1 used. Confidence 0.69.",
+      "implementation": "multiply(rsk70_mfm2_usfast_strevrsl, inverse(rsk70_mfm2_usfast_resvol))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Prospect vs earnings quality",
+      "description": "High prospect but low earnings quality may be speculative — subtract earnqlty. S1 used. Confidence 0.55.",
+      "implementation": "subtract(rsk70_mfm2_usfast_prospect_specret_daily, rsk70_mfm2_usfast_earnqlty)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum filtered by hedge-fund count",
+      "description": "Momentum divided by hedge-fund count to emphasize moves with fewer institutional holders. S1 used. Confidence 0.62.",
+      "implementation": "divide(rsk70_mfm2_usfast_momentum, hedge_fund_ownership_count)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Short-interest × low market loading",
+      "description": "High short interest in low market-loading names suggests idiosyncratic shorts; multiply short interest and inverse market loading. S1 used but limited to 2 fields; here multiply short interest and inverse market via market field. Confidence 0.6.",
+      "implementation": "multiply(short_interest_factor_score, inverse(rsk70_mfm2_usfast_market))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Dividend-yield × earnings quality",
+      "description": "High dividend yield with strong earnings quality signals safe yield. S1 used. Confidence 0.58.",
+      "implementation": "multiply(rsk70_mfm2_usfast_divyild, rsk70_mfm2_usfast_earnqlty)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum vs profit quality",
+      "description": "Momentum high but profit low could be risky; subtract profit from momentum. S1 used. Confidence 0.56.",
+      "implementation": "subtract(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_profit)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Prospect momentum minus hedge-fund ownership",
+      "description": "Prospect-driven momentum without hedge-fund ownership may be early signals; subtract ownership from prospect×momentum. Due to two-field limit, implement prospect minus ownership. S1 considered; S4 used. Confidence 0.65.",
+      "implementation": "subtract(rsk70_mfm2_usfast_prospect_specret_daily, hedge_fund_ownership_percent)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Residual volatility screen for value",
+      "description": "Value names with low residual volatility are safer; divide value by resvol. S1 used. Confidence 0.63.",
+      "implementation": "divide(rsk70_mfm2_usfast_value, rsk70_mfm2_usfast_resvol)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum × short-interest inverse",
+      "description": "Favor momentum where short interest is low by multiplying with inverse short interest. S1 applied. Confidence 0.66.",
+      "implementation": "multiply(rsk70_mfm2_usfast_momentum, inverse(short_interest_factor_score))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Hedge-fund count × prospect acceleration",
+      "description": "Rising prospect score with increasing hedge-fund count may indicate adoption; multiply. S1 used. Confidence 0.64.",
+      "implementation": "multiply(hedge_fund_ownership_count, rsk70_mfm2_usfast_prospect_specret_daily)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Earnings-quality momentum divergence",
+      "description": "High momentum but weak earnings quality may revert; subtract earnqlty. S1 used. Confidence 0.58.",
+      "implementation": "subtract(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_earnqlty)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Specific return × inverse market exposure",
+      "description": "High specific return with low market loading is idiosyncratic — multiply specret by inverse market. S1 used. Confidence 0.7.",
+      "implementation": "multiply(daily_specific_return, inverse(rsk70_mfm2_usfast_market))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Momentum scaled by dividend yield",
+      "description": "Momentum stronger when supported by dividend yield; multiply. S1 used. Confidence 0.6.",
+      "implementation": "multiply(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_divyild)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Prospect vs short-interest contrarian",
+      "description": "High prospect and high short interest may indicate misunderstood upside; subtract short interest from prospect. S1 used. Confidence 0.63.",
+      "implementation": "subtract(rsk70_mfm2_usfast_prospect_specret_daily, short_interest_factor_score)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum residual gap",
+      "description": "Momentum minus residual volatility zscored to find momentum in lower-risk names. S1 used with zscore. Confidence 0.71.",
+      "implementation": "zscore(subtract(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_resvol))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Hedge-fund percent vs profit",
+      "description": "High ownership but low profit may signal overvaluation; subtract profit from ownership. S1 used. Confidence 0.57.",
+      "implementation": "subtract(hedge_fund_ownership_percent, rsk70_mfm2_usfast_profit)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Earnings-yield vs residual risk",
+      "description": "High earnings yield with low residual risk is attractive; divide earnyild by resvol. S1 applied. Confidence 0.65.",
+      "implementation": "divide(rsk70_mfm2_usfast_earnyild, rsk70_mfm2_usfast_resvol)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Momentum × prospect monthly cross",
+      "description": "Momentum supported by monthly prospect indicates durable idiosyncratic improvement; multiply. S1 used. Confidence 0.67.",
+      "implementation": "multiply(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_prospect_specret_monthly)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Short-interest inverse × hedge-fund ownership",
+      "description": "High hedge-fund ownership with low short interest is safer long; multiply ownership by inverse short interest. S1 used. Confidence 0.66.",
+      "implementation": "multiply(hedge_fund_ownership_percent, inverse(short_interest_factor_score))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Prospect signal vs market momentum",
+      "description": "Prospect rising while market loading low suggests stock-specific opportunity; subtract market from prospect. S1 used. Confidence 0.68.",
+      "implementation": "subtract(rsk70_mfm2_usfast_prospect_specret_daily, rsk70_mfm2_usfast_market)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Momentum minus hedge-fund percent zscore",
+      "description": "Cross-sectional zscore of momentum adjusted by hedge-fund ownership to find under-owned momentum. S1 used. Confidence 0.63.",
+      "implementation": "zscore(subtract(rsk70_mfm2_usfast_momentum, hedge_fund_ownership_percent))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Residual-volatility filtered hedge-fund count",
+      "description": "Prefer names with rising hedge-fund count but low residual vol; divide count by resvol. S1 used. Confidence 0.62.",
+      "implementation": "divide(hedge_fund_ownership_count, rsk70_mfm2_usfast_resvol)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Value × inverse residual variance",
+      "description": "High value with low residual variance via multiply value by inverse variance. S1 used. Confidence 0.64.",
+      "implementation": "multiply(rsk70_mfm2_usfast_value, inverse(specific_risk_variance))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum × prospect acceleration zscore",
+      "description": "Zscore of momentum×prospect daily to highlight extreme combined signals. S1 used. Confidence 0.7.",
+      "implementation": "zscore(multiply(rsk70_mfm2_usfast_momentum, rsk70_mfm2_usfast_prospect_specret_daily))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Short-interest × residual volatility zscore",
+      "description": "Zscore of short-interest × residual vol to identify extreme short-risk stocks. S1 used. Confidence 0.56.",
+      "implementation": "zscore(multiply(short_interest_factor_score, rsk70_mfm2_usfast_resvol))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Hedge-fund percent vs market cap zscore",
+      "description": "High hedge-fund ownership concentrated in small caps (zscore of percent/inverse cap) signals potential impact. S1 used, capped to two fields by percent and cap. Confidence 0.6.",
+      "implementation": "zscore(divide(hedge_fund_ownership_percent, current_market_cap_usd))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum × low market loading",
+      "description": "Favor momentum in stocks with low market loading (idiosyncratic momentum) by multiplying momentum with inverse market. S1 applied. Confidence 0.69.",
+      "implementation": "multiply(rsk70_mfm2_usfast_momentum, inverse(rsk70_mfm2_usfast_market))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Prospect vs profit zscore",
+      "description": "Zscore of prospect minus profit to find outliers where prospects outpace profit. S1 used. Confidence 0.58.",
+      "implementation": "zscore(subtract(rsk70_mfm2_usfast_prospect_specret_daily, rsk70_mfm2_usfast_profit))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Earnings-yield × profit filter",
+      "description": "Combine earnings yield and profit to find high-quality value via multiply. S1 used. Confidence 0.62.",
+      "implementation": "multiply(rsk70_mfm2_usfast_earnyild, rsk70_mfm2_usfast_profit)",
+      "confidence_level": 0.62
+    }
+  ]
 }

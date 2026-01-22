@@ -1,0 +1,694 @@
+{
+  "results": [
+    {
+      "idea": "Short-term earnings estimate momentum",
+      "description": "Core: buy stocks where est_eps is increasing vs 1 quarter ago. Applied SUGGESTION1 by using est_eps (high userCount). SUGGESTION2: no explicit vector fields found so vec_avg not used. SUGGESTION3: est_eps coverage>0.6 so ts_backfill not required. SUGGESTION4: chose high userCount field for signal robustness. Kept KEEP_IN_MIND: implementation short, uses 1 datafield and 1 operator. Confidence set to 0.7 because analyst estimate momentum historically predictive but noisy.",
+      "implementation": "ts_delta(est_eps, 4)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Earnings estimate surprise vs previous estimate",
+      "description": "Core: long when est_eps > eps_previous_estimate_value (upward revisions). S1: uses two datafields. S2: no vector fields. S3: both fields high coverage so no backfill. S4: both have many users. KEEP_IN_MIND obeyed (<=2 datafields, brief ops). Confidence 0.72 due to strong signal from upward revisions.",
+      "implementation": "subtract(est_eps, eps_previous_estimate_value)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Cross-sectional recent-estimate zscore",
+      "description": "Core: rank recent est_eps change within stock's recent history using ts_zscore. S1: single datafield. S2: no vector. S3: coverage ok. S4: high userCount used. KEEP_IN_MIND: short. Confidence 0.68 — zscore reduces outliers.",
+      "implementation": "ts_zscore(est_eps, 60)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Normalized eps momentum (cross-section)",
+      "description": "Core: cross-sectional quantile of recent est_eps returns to pick relative winners. S1: uses ts_returns then quantile. S2: no vector. S3: est_eps coverage ok. S4: high userCount. KEEP_IN_MIND adhered. Confidence 0.66 since cross-sectional normalization helps.",
+      "implementation": "quantile(ts_returns(est_eps, 20))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Analyst revision intensity",
+      "description": "Core: use anl4_basicconqfv110_numest (number of forecasts) growth to capture increased analyst attention. S1: single datafield. S2: not vector. S3: coverage ~0.7262 (>0.6) so no backfill. S4: userCount moderate. KEEP_IN_MIND short. Confidence 0.55 - moderate predictive value.",
+      "implementation": "ts_delta(anl4_basicconqfv110_numest, 60)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "High-consensus positive revision",
+      "description": "Core: combine increase in number of upward estimates with increase in est_eps: ts_delta(est_eps,4) * ts_delta(anl4_basicconqfv110_pu,4). S1: uses two fields. S2: no vector. S3: both coverages >0.6 so no backfill. S4: both have many users. KEEP_IN_MIND: 2 datafields, 3 operators. Confidence 0.7 — combining magnitude and breadth of revisions.",
+      "implementation": "multiply(ts_delta(est_eps,4), ts_delta(anl4_basicconqfv110_pu,4))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Earnings dispersion breakout",
+      "description": "Core: long where earnings_per_share_standard_deviation falls (consensus tightens) while est_eps rises. S1: uses two fields. S2: vector not present. S3: stddev coverage ~0.7237 so OK. S4: userCount small but acceptable. KEEP_IN_MIND short. Confidence 0.62 — tighter consensus often precedes positive surprises.",
+      "implementation": "subtract(ts_delta(est_eps,8), ts_delta(earnings_per_share_standard_deviation,8))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Analyst consensus upgrade momentum",
+      "description": "Core: use anl4_mark (recommendation consensus score) rising trend as signal. S1: single high-user field. S2: not vector. S3: coverage ~0.6243 borderline but >0.6 so no backfill. S4: good userCount. KEEP_IN_MIND short. Confidence 0.6 — consensus upgrades useful but noisy.",
+      "implementation": "ts_delta(anl4_mark, 30)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Realized vs estimated earnings surprise",
+      "description": "Core: difference between actual reported earnings (anl4_af_eps_value) and prior est_eps: subtract(anl4_af_eps_value, est_eps). S1: two fields used. S2: no vector. S3: both have high coverage; no backfill. S4: af_eps userCount high. KEEP_IN_MIND short. Confidence 0.74 — realized surprise is strong return driver.",
+      "implementation": "subtract(anl4_af_eps_value, est_eps)",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Short-term cashflow estimate acceleration",
+      "description": "Core: ts_delta(anl4_cfo_value,4) to capture accelerating cash flow expectations. S1: single datafield. S2: no vector. S3: coverage ~0.5809 slightly <0.6 so applied SUGGESTION3: ts_backfill to stabilize. S4: high userCount. KEEP_IN_MIND short. Confidence 0.58 due to weaker coverage.",
+      "implementation": "ts_delta(ts_backfill(anl4_cfo_value,120), 4)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Free cash flow per share upward revisions",
+      "description": "Core: detect increases in anl4_fcfps_mean (fcf per share mean). S1: single field. S2: no vector. S3: coverage 0.4393 <0.6 so applied ts_backfill. S4: userCount moderate. KEEP_IN_MIND short. Confidence 0.5 — low coverage weakens confidence.",
+      "implementation": "ts_delta(ts_backfill(anl4_fcfps_mean,180), 60)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Capex estimate contraction",
+      "description": "Core: falling est_capex (mean of capex estimates) may signal margin improvement. S1: uses est_capex. S2: not vector. S3: coverage ~0.6427 >0.6 no backfill. S4: good userCount. KEEP_IN_MIND short. Confidence 0.56.",
+      "implementation": "reverse(ts_delta(est_capex, 90))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Analyst attention surge (number of estimates)",
+      "description": "Core: ts_delta(anl4_basicconafv110_numest,30) to capture rising analyst activity. S1: single field. S2: not vector. S3: coverage 0.7343 good. S4: userCount decent. KEEP_IN_MIND short. Confidence 0.53.",
+      "implementation": "ts_delta(anl4_basicconafv110_numest, 30)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "EBITDA estimate momentum",
+      "description": "Core: ts_zscore(ts_delta(anl4_ebitda_mean,30),30) to accentuate unusual increases in EBITDA estimates. S1: uses one field. S2: no vector. S3: coverage ~0.5831 slightly below 0.6; apply ts_backfill to stabilize. S4: high userCount of ebitda. KEEP_IN_MIND short. Confidence 0.6.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(anl4_ebitda_mean,120),30),30)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Sales estimate acceleration signal",
+      "description": "Core: ts_delta(sales_estimate_average, 60) indicates sales momentum. S1: single field with full coverage (1.0). S2: no vector. S3: no backfill needed. S4: moderate userCount. KEEP_IN_MIND short. Confidence 0.65.",
+      "implementation": "ts_delta(sales_estimate_average, 60)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Guidance vs estimates divergence",
+      "description": "Core: subtract(guidance_estimate_value, est_eps) to find companies whose guidance diverges from analyst EPS mean. S1: two fields. S2: no vector. S3: guidance_estimate_value coverage 0.5848 <0.6 so used ts_backfill. S4: est_eps high userCount. KEEP_IN_MIND short. Confidence 0.59.",
+      "implementation": "subtract(ts_backfill(guidance_estimate_value,120), est_eps)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Pretax income upward revisions",
+      "description": "Core: ts_delta(est_ptp, 60) to capture improving pretax income expectations. S1: uses est_ptp (coverage 0.7527). S2: no vector. S3: coverage ok. S4: userCount moderate. KEEP_IN_MIND short. Confidence 0.57.",
+      "implementation": "ts_delta(est_ptp, 60)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Net profit estimate momentum (cross-sectional)",
+      "description": "Core: quantile(ts_delta(est_netprofit,30)) to pick relative momentum in net profit estimates. S1: single field. S2: no vector. S3: est_netprofit coverage 0.7861 good. S4: decent userCount. KEEP_IN_MIND short. Confidence 0.6.",
+      "implementation": "quantile(ts_delta(est_netprofit, 30))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Consensus tightening + estimate rise",
+      "description": "Core: combine drop in sales_estimate_standard_deviation with increase in sales_estimate_average. S1: two fields. S2: no vector. S3: stddev coverage 0.6792 and avg full coverage so no backfill. S4: userCounts small but present. KEEP_IN_MIND short. Confidence 0.61.",
+      "implementation": "multiply(reverse(ts_delta(sales_estimate_standard_deviation,60)), ts_delta(sales_estimate_average,60))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Broker buy recommendation surge",
+      "description": "Core: ts_delta(anl4_buy,30) to capture upward broker recommendations. S1: single field (coverage 0.6243). S2: not vector. S3: coverage borderline; no backfill applied. S4: userCount moderate. KEEP_IN_MIND short. Confidence 0.54.",
+      "implementation": "ts_delta(anl4_buy, 30)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Reported EBITDA vs estimates gap",
+      "description": "Core: subtract(ebitda_reported_value, anl4_ebitda_mean) to find positive surprises. S1: two fields. S2: no vector. S3: both have high coverage; no backfill. S4: strong userCount for anl4_ebitda_value. KEEP_IN_MIND short. Confidence 0.7.",
+      "implementation": "subtract(ebitda_reported_value, anl4_ebitda_mean)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Cash flow guidance vs actuals",
+      "description": "Core: subtract(cash_flow_from_operations, max_operating_cashflow_guidance) negative indicates outperforming guidance. S1: two fields. S2: no vector. S3: coverage for guidance is 1.0, CFO coverage ~0.7137 OK. S4: userCounts low but acceptable. KEEP_IN_MIND short. Confidence 0.6.",
+      "implementation": "subtract(cash_flow_from_operations, max_operating_cashflow_guidance)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Free cash flow acceleration zscore",
+      "description": "Core: ts_zscore(ts_delta(est_fcf, 90), 90) to detect unusual fcf strength. S1: est_fcf coverage 0.5777 <0.6 so used ts_backfill per S3. S2: no vector. S4: moderate userCount. KEEP_IN_MIND short. Confidence 0.52 due to coverage.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(est_fcf,180), 90), 90)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Tangible book value per share momentum",
+      "description": "Core: ts_delta(est_tbv_ps,120) to find improving book value expectations. S1: uses est_tbv_ps (coverage 0.3473 low) — applied ts_backfill. S2: no vector. S4: userCount moderate. KEEP_IN_MIND short. Confidence 0.45 — low coverage reduces confidence.",
+      "implementation": "ts_delta(ts_backfill(est_tbv_ps,365), 120)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Analyst-estimated total assets growth",
+      "description": "Core: ts_delta(est_tot_assets, 120). S1: single field. S2: not vector. S3: coverage 0.7522 good. S4: reasonable userCount. KEEP_IN_MIND short. Confidence 0.56.",
+      "implementation": "ts_delta(est_tot_assets, 120)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Consensus median eps breakout",
+      "description": "Core: ts_arg_max(ts_zscore(anl4_median_epsreported,90),90) to find if current median is max in window. S1: single field. S2: not vector. S3: coverage ~0.7153 good. S4 high userCount. KEEP_IN_MIND within operator limits. Confidence 0.6.",
+      "implementation": "ts_arg_max(ts_zscore(anl4_median_epsreported,90), 90)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Number of upper estimations rate",
+      "description": "Core: ts_delta(anl4_ady_pu,30) to capture rising upgrades count. S1: single field. S2: no vector. S3: coverage 0.7196 OK. S4: large userCount. KEEP_IN_MIND short. Confidence 0.58.",
+      "implementation": "ts_delta(anl4_ady_pu, 30)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Reported pretax income surprise",
+      "description": "Core: subtract(pretax_income_reported_value, anl4_ptp_mean) to get realized vs expectation. S1: two fields. S2: no vector. S3: pretax reported coverage low (0.42) — apply ts_backfill to reported if needed. S4: anl4_ptp_mean good. KEEP_IN_MIND short. Confidence 0.61.",
+      "implementation": "subtract(ts_backfill(pretax_income_reported_value,180), anl4_ptp_mean)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Sales estimate relative rank",
+      "description": "Core: groupless cross-sectional rank of ts_delta(sales_estimate_average, 30) using quantile to pick top decile. S1: single field. S2: no vector. S3: sales_estimate_average coverage 1.0. S4: userCount moderate. KEEP_IN_MIND short. Confidence 0.64.",
+      "implementation": "quantile(ts_delta(sales_estimate_average, 30))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Broker consensus momentum",
+      "description": "Core: ts_delta(anl4_total_rec,60) rising indicates growing recommendation activity. S1: single field. S2: not vector. S3: coverage 0.6243 borderline. S4: good userCount. KEEP_IN_MIND short. Confidence 0.52.",
+      "implementation": "ts_delta(anl4_total_rec, 60)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Earnings stddev contraction signal",
+      "description": "Core: reverse(ts_delta(anl4_dts_rspe, 60)) to favor tickers where EPS estimate stddev declines. S1: single field. S2: no vector. S3: coverage 0.4773 <0.6 so apply ts_backfill. S4: userCount high. KEEP_IN_MIND short. Confidence 0.5.",
+      "implementation": "reverse(ts_delta(ts_backfill(anl4_dts_rspe,180), 60))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Estimate momentum normalized by dispersion",
+      "description": "Core: divide(ts_delta(est_eps,30), ts_zscore(earnings_per_share_standard_deviation,30)) to prefer EPS momentum with low dispersion. S1: two fields. S2: no vector. S3: stddev coverage ok. S4: est_eps high userCount. KEEP_IN_MIND limited operators. Confidence 0.66.",
+      "implementation": "divide(ts_delta(est_eps, 30), ts_zscore(earnings_per_share_standard_deviation, 30))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Free cash flow surprise cross-section",
+      "description": "Core: quantile(subtract(free_cash_flow_reported_value, anl4_fcf_mean)) to rank realized vs expected FCF. S1: two fields. S2: no vector. S3: coverage moderate (0.5288,0.5545) so applied ts_backfill to both. S4: userCounts low. KEEP_IN_MIND short. Confidence 0.59.",
+      "implementation": "quantile(subtract(ts_backfill(free_cash_flow_reported_value,180), ts_backfill(anl4_fcf_mean,180)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Guidance tightening (narrow guidance range)",
+      "description": "Core: reverse(ts_delta(minimum_guidance_value, 180)) combined with reverse(ts_delta(maximum_guidance_value,180)) to find narrowing ranges. S1: uses guidance min/max (coverage ~0.5848) — apply ts_backfill. S2: no vector. KEEP_IN_MIND within limits. Confidence 0.48 — guidance fields sparse.",
+      "implementation": "multiply(reverse(ts_delta(ts_backfill(minimum_guidance_value,365),180)), reverse(ts_delta(ts_backfill(maximum_guidance_value,365),180)))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Operating profit estimate momentum",
+      "description": "Core: ts_delta(operating_profit_before_depr_amort, 120) to capture EBITDA guidance changes. S1: single field (coverage 0.8252). S2: no vector. S3: coverage good. S4: userCount low but acceptable. KEEP_IN_MIND short. Confidence 0.6.",
+      "implementation": "ts_delta(operating_profit_before_depr_amort, 120)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Analyst forecast count reliability filter",
+      "description": "Core: use anl4_qfv4_eps_number (num of EPS estimates) to weight others; pick stocks with rising counts. S1: single field high coverage. S2: not vector. S3: coverage 1.0, no backfill. S4: userCount strong. KEEP_IN_MIND short. Confidence 0.55.",
+      "implementation": "ts_delta(anl4_qfv4_eps_number, 90)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Broker-level revision cluster",
+      "description": "Core: ts_delta(anl4_ads1detailafv110_person,30) as proxy for unique broker activity (use as signal of clustered revisions). S1: single broker-id field. S2: not vector. S3: coverage ~0.688, okay. S4: userCount decent. KEEP_IN_MIND short. Confidence 0.45 — indirect proxy.",
+      "implementation": "ts_delta(anl4_ads1detailafv110_person, 30)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Large upward estimate swings (argmax)",
+      "description": "Core: ts_arg_max(ts_delta(est_eps,120), 120) pick names where current change is the max in lookback. S1: single field. S2: no vector. S3: est_eps coverage good. KEEP_IN_MIND short. Confidence 0.63.",
+      "implementation": "ts_arg_max(ts_delta(est_eps, 120), 120)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Earnings revision vs industry (cross-sectional normalize)",
+      "description": "Core: normalize(ts_delta(est_eps, 60)) to remove mean behavior and pick relative outperformers. S1: single field. S2: no vector. S3: coverage ok. S4: high userCount. KEEP_IN_MIND short. Confidence 0.62.",
+      "implementation": "normalize(ts_delta(est_eps, 60))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Sales estimate zscore momentum",
+      "description": "Core: ts_zscore(ts_delta(sales_estimate_average, 30), 30) capture unusual sales momentum. S1: single field full coverage. S2: no vector. KEEP_IN_MIND short. Confidence 0.66.",
+      "implementation": "ts_zscore(ts_delta(sales_estimate_average, 30), 30)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Rising adjusted net income estimates",
+      "description": "Core: ts_delta(est_netprofit_adj, 90) to spot improving adjusted profits. S1: single field coverage 0.7731. S2: no vector. KEEP_IN_MIND short. Confidence 0.58.",
+      "implementation": "ts_delta(est_netprofit_adj, 90)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Estimate momentum scaled by number of estimates",
+      "description": "Core: divide(ts_delta(est_eps,30), ts_mean(anl4_qfv4_eps_number,30)) to favor momentum with growing estimator base. S1: two fields. S2: no vector. S3: both coverages good. KEEP_IN_MIND short. Confidence 0.64.",
+      "implementation": "divide(ts_delta(est_eps, 30), ts_mean(anl4_qfv4_eps_number, 30))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Reported vs estimated sales surprise",
+      "description": "Core: subtract(actual_sales_value_annual, sales_estimate_average) to find positive sales surprises. S1: two fields; actual_sales_value_annual coverage ~0.9943. S2: no vector. S3: both adequate coverage. KEEP_IN_MIND short. Confidence 0.7.",
+      "implementation": "subtract(actual_sales_value_annual, sales_estimate_average)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Earnings estimate acceleration momentum",
+      "description": "Core: ts_product(ts_delta(est_eps,30), ts_delta(est_eps,60)) to emphasize persistent acceleration. S1: single field used twice. S2: no vector. S3: coverage ok. KEEP_IN_MIND operators within limit. Confidence 0.61.",
+      "implementation": "ts_product(ts_delta(est_eps, 30), ts_delta(est_eps, 60))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Large reduction in estimate dispersion",
+      "description": "Core: reverse(ts_delta(sales_estimate_dispersion,90)) pick stocks with tightening sales estimate dispersion. S1: single field (coverage 0.6792) applied without backfill. S2: no vector. KEEP_IN_MIND short. Confidence 0.5.",
+      "implementation": "reverse(ts_delta(sales_estimate_dispersion, 90))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum in analyst median EPS",
+      "description": "Core: ts_delta(anl4_median_epsreported, 30) to capture median movement. S1: single field coverage 0.7153. S2: no vector. KEEP_IN_MIND short. Confidence 0.59.",
+      "implementation": "ts_delta(anl4_median_epsreported, 30)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Cashflow per share guidance breakouts",
+      "description": "Core: subtract(cashflow_per_share_max_guidance, cashflow_per_share_min_guidance) large positive gap narrowing signals conservatism removal. S1: two guidance fields (coverage 1.0). S2: no vector. KEEP_IN_MIND short. Confidence 0.47.",
+      "implementation": "subtract(cashflow_per_share_max_guidance, cashflow_per_share_min_guidance)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Rapid growth in number of EPS estimates",
+      "description": "Core: ts_delta(anl4_qf_az_eps_number, 30). S1: single field (coverage 0.7848). S2: no vector. S3: coverage good. KEEP_IN_MIND short. Confidence 0.54.",
+      "implementation": "ts_delta(anl4_qf_az_eps_number, 30)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Earnings estimate zscore cross-section",
+      "description": "Core: quantile(ts_zscore(est_eps, 120)) to select cross-sectional outliers. S1: single field. S2: no vector. S3: coverage OK. KEEP_IN_MIND short. Confidence 0.63.",
+      "implementation": "quantile(ts_zscore(est_eps, 120))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Pretax income momentum normalized",
+      "description": "Core: normalize(ts_delta(est_ptp, 60)) to pick relative pretax momentum. S1: single field. S2: no vector. S3: coverage good. KEEP_IN_MIND short. Confidence 0.56.",
+      "implementation": "normalize(ts_delta(est_ptp, 60))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Broker upper estimate ratio increase",
+      "description": "Core: divide(anl4_basicconafv110_pu, anl4_basicconafv110_numest) then ts_delta to detect rising share of upper estimates. S1: two fields. S2: not vector. S3: coverage good. KEEP_IN_MIND short. Confidence 0.6.",
+      "implementation": "ts_delta(divide(anl4_basicconafv110_pu, anl4_basicconafv110_numest), 30)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Reported EPS relative to previous estimate",
+      "description": "Core: divide(anl4_af_eps_value, eps_previous_estimate_value) to spot large beat ratios. S1: two fields. S2: no vector. S3: coverage high for both. KEEP_IN_MIND short. Confidence 0.68.",
+      "implementation": "divide(anl4_af_eps_value, eps_previous_estimate_value)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Net debt estimate improvement",
+      "description": "Core: reverse(ts_delta(est_netdebt, 180)) — falling net debt estimates are positive. S1: single field coverage 0.5434 <0.6 so applied ts_backfill. S2: no vector. KEEP_IN_MIND short. Confidence 0.46.",
+      "implementation": "reverse(ts_delta(ts_backfill(est_netdebt,365), 180))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "EBIT surprise momentum",
+      "description": "Core: subtract(anl4_ebit_median, anl4_ebit_median) placeholder to emphasize realized vs median — instead use reported vs median: subtract(anl4_ebitda_value, anl4_ebitda_mean). S1: two fields. S2: no vector. S3: coverages good. KEEP_IN_MIND short. Confidence 0.62.",
+      "implementation": "subtract(anl4_ebitda_value, anl4_ebitda_mean)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Sales estimate rank acceleration",
+      "description": "Core: ts_arg_max(ts_delta(sales_estimate_average, 90), 90) to find recent highs. S1: single field. S2: not vector. S3: sales coverage full. KEEP_IN_MIND short. Confidence 0.61.",
+      "implementation": "ts_arg_max(ts_delta(sales_estimate_average, 90), 90)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Free cash flow per share realized vs mean estimates",
+      "description": "Core: subtract(free_cash_flow_per_share_reported_value, free_cash_flow_per_share) to detect realized beats. S1: two fields; coverage low for reported (0.3514) so used ts_backfill. S2: no vector. KEEP_IN_MIND short. Confidence 0.5.",
+      "implementation": "subtract(ts_backfill(free_cash_flow_per_share_reported_value,365), free_cash_flow_per_share)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Adjust for estimation volatility: momentum / stddev",
+      "description": "Core: divide(ts_delta(est_eps,30), ts_std_dev(est_eps, 30)) to favor clean momentum. S1: single field used in two operators. S2: no vector. S3: coverage ok. KEEP_IN_MIND short. Confidence 0.65.",
+      "implementation": "divide(ts_delta(est_eps, 30), ts_std_dev(est_eps, 30))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Announcement clustering: number of actuals",
+      "description": "Core: ts_delta(anl4_af_cfps_value,30) to find clusters where actual cashflow per share is reported frequently — signal activity. S1: single actual value field (coverage 0.6156). S3: borderline coverage, no backfill. S2: no vector. KEEP_IN_MIND short. Confidence 0.44.",
+      "implementation": "ts_delta(anl4_af_cfps_value, 30)",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Earnings momentum scaled by firm size proxy",
+      "description": "Core: divide(ts_delta(est_eps,60), ts_mean(total_assets_amount, 120)) to favor EPS improvements in smaller firms. S1: two fields. S2: no vector. S3: total_assets_amount coverage good. KEEP_IN_MIND short. Confidence 0.5.",
+      "implementation": "divide(ts_delta(est_eps, 60), ts_mean(total_assets_amount, 120))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Analyst median sales vs reported lag",
+      "description": "Core: subtract(sales_estimate_median_value, actual_sales_value_annual) to spot over/underestimation. S1: two fields. S3: both have good coverage. S2: no vector. KEEP_IN_MIND short. Confidence 0.58.",
+      "implementation": "subtract(sales_estimate_median_value, actual_sales_value_annual)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Cluster of upper estimations momentum",
+      "description": "Core: ts_zscore(ts_delta(anl4_adxqfv110_median,30),30) to detect sudden increases in upper estimates. S1: single field. S2: not vector. S3: coverage ~0.6979 okay. KEEP_IN_MIND short. Confidence 0.53.",
+      "implementation": "ts_zscore(ts_delta(anl4_adxqfv110_median, 30), 30)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Book value per share estimate momentum",
+      "description": "Core: ts_delta(bvps_value, 180) (anl4_bvps_value) signals improving book expectations. S1: single field coverage ~0.5245 <0.6 so used ts_backfill. S2: no vector. KEEP_IN_MIND short. Confidence 0.46.",
+      "implementation": "ts_delta(ts_backfill(anl4_bvps_value,365), 180)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "EPS momentum during low dispersion",
+      "description": "Core: multiply(ts_delta(est_eps,30), reverse(ts_zscore(earnings_per_share_standard_deviation,30))) to favor momentum with low dispersion. S1: two fields. S2: no vector. S3: stddev coverage ok. KEEP_IN_MIND short. Confidence 0.64.",
+      "implementation": "multiply(ts_delta(est_eps, 30), reverse(ts_zscore(earnings_per_share_standard_deviation, 30)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Surprising rise in operating cashflow",
+      "description": "Core: subtract(operating_cashflow_reported_value, ts_mean(operating_cashflow_reported_value, 120)) to find large realized increases. S1: single field in two ops. S3: coverage ~0.5809 <0.6 so ts_backfill applied. S2: no vector. KEEP_IN_MIND short. Confidence 0.56.",
+      "implementation": "subtract(ts_backfill(operating_cashflow_reported_value,365), ts_mean(ts_backfill(operating_cashflow_reported_value,365), 120))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Guidance upgrade signal",
+      "description": "Core: ts_delta(max_ebitda_guidance, 180) rising is positive. S1: single guidance field coverage 1.0. S2: no vector. KEEP_IN_MIND short. Confidence 0.49.",
+      "implementation": "ts_delta(max_ebitda_guidance, 180)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "EPS momentum conditioned on low broker disagreement",
+      "description": "Core: if_else(reverse(ts_zscore(anl4_dts_rspe, 90)) > 0.5, ts_delta(est_eps,30), 0) — prefer momentum when stddev low. S1: two fields. S2: no vector. S3: anl4_dts_rspe coverage 0.4773 so applied ts_backfill. KEEP_IN_MIND operators kept minimal. Confidence 0.6.",
+      "implementation": "if_else(greater(reverse(ts_zscore(ts_backfill(anl4_dts_rspe,180), 90)), 0.5), ts_delta(est_eps, 30), 0)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Sales estimates vs guidance divergence",
+      "description": "Core: subtract(sales_guidance_value, sales_estimate_average) to detect management guiding above analysts. S1: two fields. S3: sales_guidance_value coverage 0.4262 <0.6 so used ts_backfill. S2: no vector. KEEP_IN_MIND short. Confidence 0.47.",
+      "implementation": "subtract(ts_backfill(sales_guidance_value,365), sales_estimate_average)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Free cash flow estimate zscore cross-section",
+      "description": "Core: quantile(ts_zscore(anl4_fcf_mean, 120)) to pick anomalous FCF estimate moves. S1: single field coverage 0.5545 <0.6 so ts_backfill used. S2: no vector. KEEP_IN_MIND short. Confidence 0.52.",
+      "implementation": "quantile(ts_zscore(ts_backfill(anl4_fcf_mean,365), 120))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Capital expenditure estimate drop",
+      "description": "Core: reverse(ts_delta(anl4_capex_mean, 120)) — dropping capex may boost free cash flow. S1: single field coverage 0.6173. S2: no vector. KEEP_IN_MIND short. Confidence 0.5.",
+      "implementation": "reverse(ts_delta(anl4_capex_mean, 120))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Large increase in analyst upper estimates count",
+      "description": "Core: ts_delta(anl4_ady_pu, 30) to capture sudden increases in upper estimates. S1: single field. S2: not vector. S3: coverage 0.7196. KEEP_IN_MIND short. Confidence 0.56.",
+      "implementation": "ts_delta(anl4_ady_pu, 30)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "EPS momentum vs sales momentum",
+      "description": "Core: subtract(ts_delta(est_eps,60), ts_delta(sales_estimate_average,60)) to favor EPS improving faster than sales. S1: two fields. S2: no vector. S3: both coverage ok. KEEP_IN_MIND short. Confidence 0.58.",
+      "implementation": "subtract(ts_delta(est_eps, 60), ts_delta(sales_estimate_average, 60))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Earnings revision persistence",
+      "description": "Core: ts_product(ts_delta(est_eps,30), ts_delta(est_eps,90)) to emphasize persistent upward revisions. S1: single field. S2: no vector. KEEP_IN_MIND short. Confidence 0.6.",
+      "implementation": "ts_product(ts_delta(est_eps, 30), ts_delta(est_eps, 90))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Reported EPS rank within history",
+      "description": "Core: ts_rank(anl4_af_eps_value, 252) to find firms with top-year reported EPS relative to history. S1: single actual field coverage 0.9956 high. S2: no vector. KEEP_IN_MIND short. Confidence 0.65.",
+      "implementation": "ts_rank(anl4_af_eps_value, 252, 0)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Guidance vs analyst mean normalized",
+      "description": "Core: divide(subtract(guidance_estimate_value, est_eps), ts_std_dev(est_eps, 60)) to detect meaningful divergence. S1: two fields. S3: guidance coverage 0.5848 <0.6 so ts_backfill used. S2: no vector. KEEP_IN_MIND short. Confidence 0.57.",
+      "implementation": "divide(subtract(ts_backfill(guidance_estimate_value,180), est_eps), ts_std_dev(est_eps, 60))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Broker consensus ranking",
+      "description": "Core: quantile(anl4_total_rec) to find stocks with unusually high recommendation counts. S1: single field. S2: not vector. S3: coverage 0.6243. KEEP_IN_MIND short. Confidence 0.49.",
+      "implementation": "quantile(anl4_total_rec)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Sustained upward revisions (multi-horizon)",
+      "description": "Core: add(ts_delta(est_eps,30), ts_delta(est_eps,90)) to reward multi-horizon upward revisions. S1: single field. KEEP_IN_MIND uses 1 datafield and 2 ops. Confidence 0.62.",
+      "implementation": "add(ts_delta(est_eps, 30), ts_delta(est_eps, 90))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Earnings estimate improvement normalized by asset base",
+      "description": "Core: divide(ts_delta(est_eps,60), est_tot_assets) to prioritize EPS gains for asset-light firms. S1: two fields. S3: est_tot_assets coverage 0.7522 good. KEEP_IN_MIND short. Confidence 0.5.",
+      "implementation": "divide(ts_delta(est_eps, 60), est_tot_assets)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Reported sales beat across history",
+      "description": "Core: subtract(actual_sales_value_annual, ts_mean(actual_sales_value_annual, 252)) to find outsized sales. S1: single field. S3: coverage high. KEEP_IN_MIND short. Confidence 0.63.",
+      "implementation": "subtract(actual_sales_value_annual, ts_mean(actual_sales_value_annual, 252))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum in number of broker upper estimates (cross-section)",
+      "description": "Core: quantile(ts_delta(anl4_basicconqfv110_pu, 30)) to find relative surges. S1: single field. S3: coverage good. KEEP_IN_MIND short. Confidence 0.53.",
+      "implementation": "quantile(ts_delta(anl4_basicconqfv110_pu, 30))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Earnings momentum conditional on reported EPS high",
+      "description": "Core: if_else(ts_rank(anl4_af_eps_value, 252) > 0.8, ts_delta(est_eps,30), 0) — prioritize names with historically high reported EPS. S1: two fields. S3: both high coverage. KEEP_IN_MIND short. Confidence 0.66.",
+      "implementation": "if_else(greater(ts_rank(anl4_af_eps_value, 252), 0.8), ts_delta(est_eps, 30), 0)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Capex estimate surprise zscore",
+      "description": "Core: ts_zscore(ts_delta(anl4_capex_mean, 60), 60) to find unusual capex moves. S1: single field. S3: coverage ~0.6173 ok. S2: no vector. KEEP_IN_MIND short. Confidence 0.48.",
+      "implementation": "ts_zscore(ts_delta(anl4_capex_mean, 60), 60)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "EBITDA estimate beat momentum",
+      "description": "Core: quantile(subtract(anl4_ebitda_value, anl4_ebitda_mean)) realized vs expected. S1: two fields. S3: coverages good. S2: no vector. KEEP_IN_MIND short. Confidence 0.67.",
+      "implementation": "quantile(subtract(anl4_ebitda_value, anl4_ebitda_mean))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Analyst adjusted net income momentum",
+      "description": "Core: ts_zscore(ts_delta(anl4_netprofita_mean, 90), 90) to capture robust adjusted net income moves. S1: single field coverage 0.7511. S2: no vector. KEEP_IN_MIND short. Confidence 0.59.",
+      "implementation": "ts_zscore(ts_delta(anl4_netprofita_mean, 90), 90)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Free cash flow per share estimate rank",
+      "description": "Core: quantile(anl4_fcfps_mean) to find top relative FCF per share names. S1: single field (coverage 0.4393 low) — applied ts_backfill per S3. S2: no vector. KEEP_IN_MIND short. Confidence 0.47.",
+      "implementation": "quantile(ts_backfill(anl4_fcfps_mean,365))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Rapid revision in adjusted net profit",
+      "description": "Core: ts_delta(anl4_netprofita_number, 30) rising count signals momentum. S1: single field coverage 0.7511. S2: no vector. KEEP_IN_MIND short. Confidence 0.52.",
+      "implementation": "ts_delta(anl4_netprofita_number, 30)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Earnings momentum with low estimation variance",
+      "description": "Core: if_else(ts_zscore(earnings_per_share_standard_deviation,60) < 0, ts_delta(est_eps,30), 0) — apply momentum only when stddev low. S1: two fields. S3: stddev coverage 0.7237. S2: no vector. KEEP_IN_MIND short. Confidence 0.63.",
+      "implementation": "if_else(less(ts_zscore(earnings_per_share_standard_deviation, 60), 0), ts_delta(est_eps, 30), 0)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Operating profit vs guidance divergence",
+      "description": "Core: subtract(operating_profit_before_depr_amort, operating_profit_before_depr_amort_min_guidance_qtr) to find beats. S1: two fields. S3: guidance coverage 1.0, operating profit coverage 0.8252. S2: no vector. KEEP_IN_MIND short. Confidence 0.58.",
+      "implementation": "subtract(operating_profit_before_depr_amort, operating_profit_before_depr_amort_min_guidance_qtr)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Sales estimate momentum scaled by dispersion",
+      "description": "Core: divide(ts_delta(sales_estimate_average,30), sales_estimate_standard_deviation) to favor clean sales momentum. S1: two fields. S3: stddev coverage 0.7259 good. S2: no vector. KEEP_IN_MIND short. Confidence 0.62.",
+      "implementation": "divide(ts_delta(sales_estimate_average, 30), sales_estimate_standard_deviation)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Rapid increase in reported cashflow per share",
+      "description": "Core: ts_zscore(ts_delta(anl4_af_cfps_value, 60), 60) to capture unusual cashflow announcements. S1: single actual field coverage 0.6156 borderline. S3: no backfill. S2: no vector. KEEP_IN_MIND short. Confidence 0.51.",
+      "implementation": "ts_zscore(ts_delta(anl4_af_cfps_value, 60), 60)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Analyst downgrade detection (falling buy counts)",
+      "description": "Core: reverse(ts_delta(anl4_buy, 60)) to short when buy counts fall. S1: single field. S2: not vector. S3: coverage 0.6243. KEEP_IN_MIND short. Confidence 0.46.",
+      "implementation": "reverse(ts_delta(anl4_buy, 60))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Large change in number of estimations for EBITDA",
+      "description": "Core: ts_delta(anl4_ebitda_number, 60) to detect fresh analyst interest. S1: single field coverage 0.5831 slightly <0.6 so applied ts_backfill. S2: no vector. KEEP_IN_MIND short. Confidence 0.48.",
+      "implementation": "ts_delta(ts_backfill(anl4_ebitda_number,180), 60)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "EPS momentum normalized across universe",
+      "description": "Core: quantile(normalize(ts_delta(est_eps,30))) to get cross-sectional relative momentum. S1: single field. S2: no vector. S3: coverage good. KEEP_IN_MIND short. Confidence 0.64.",
+      "implementation": "quantile(normalize(ts_delta(est_eps, 30)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Sales realized beat zscore",
+      "description": "Core: ts_zscore(subtract(actual_sales_value_annual, sales_estimate_average), 252) to identify persistent sales beats. S1: two fields. S3: both have strong coverage; no backfill. S2: no vector. KEEP_IN_MIND short. Confidence 0.67.",
+      "implementation": "ts_zscore(subtract(actual_sales_value_annual, sales_estimate_average), 252)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Rising consensus for EBITDA (median increase)",
+      "description": "Core: ts_delta(anl4_medianepsbfam, 60) to capture median EBITDA estimate increases. S1: single field coverage 0.5831 borderline; applied ts_backfill. S2: no vector. KEEP_IN_MIND short. Confidence 0.49.",
+      "implementation": "ts_delta(ts_backfill(anl4_medianepsbfam,180), 60)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Estimate revision breadth (number of upper vs total)",
+      "description": "Core: divide(anl4_ady_pu, anl4_ady_mean) to proxy for breadth of upgrades. S1: two fields. S3: both coverage ~0.7196. S2: no vector. KEEP_IN_MIND short. Confidence 0.52.",
+      "implementation": "divide(anl4_ady_pu, anl4_ady_mean)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum in adjusted funds from operations guidance",
+      "description": "Core: ts_delta(max_adjusted_funds_from_operations_guidance, 180) as guidance-based signal. S1: single guidance field coverage 1.0. S2: no vector. KEEP_IN_MIND short. Confidence 0.46.",
+      "implementation": "ts_delta(max_adjusted_funds_from_operations_guidance, 180)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Earnings estimate acceleration with low forecast count noise",
+      "description": "Core: divide(ts_delta(est_eps,30), ts_sqrt(add(anl4_qfv4_eps_number,1))) to penalize low-estimate-count names. S1: two fields. S2: no vector. S3: counts coverage 1.0. KEEP_IN_MIND short. Confidence 0.6.",
+      "implementation": "divide(ts_delta(est_eps, 30), sqrt(add(anl4_qfv4_eps_number, 1)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Reported net profit vs estimates",
+      "description": "Core: subtract(net_income_total_2, anl4_netprofit_mean) to spot realized net profit beats. S1: two fields. S3: net_income_total_2 coverage 0.9728 good. S2: no vector. KEEP_IN_MIND short. Confidence 0.68.",
+      "implementation": "subtract(net_income_total_2, anl4_netprofit_mean)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Momentum in tangible book estimate revisions",
+      "description": "Core: ts_delta(anl4_tbvps_mean, 120) to find TBV per share improvements. S1: single field coverage 0.3321 low so used ts_backfill. S2: no vector. KEEP_IN_MIND short. Confidence 0.4.",
+      "implementation": "ts_delta(ts_backfill(anl4_tbvps_mean,365), 120)",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "EPS momentum with winsorized extremes",
+      "description": "Core: winsorize(ts_delta(est_eps,30)) to reduce outlier-driven allocations. S1: single field. S2: no vector. S3: coverage ok. KEEP_IN_MIND short. Confidence 0.6.",
+      "implementation": "winsorize(ts_delta(est_eps, 30), 4)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "EBITDA realized beats over history",
+      "description": "Core: subtract(anl4_ebitda_value, ts_mean(anl4_ebitda_value,252)) to detect outsized reported EBITDA. S1: single field used twice. S3: coverage good. S2: no vector. KEEP_IN_MIND short. Confidence 0.63.",
+      "implementation": "subtract(anl4_ebitda_value, ts_mean(anl4_ebitda_value, 252))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Decrease in analyst disagreement with rising est_eps",
+      "description": "Core: multiply(ts_delta(est_eps,30), reverse(ts_zscore(anl4_afv4_dts_spe,30))) to favor rising est_eps when std dev falls. S1: two fields. S3: anl4_afv4_dts_spe coverage 0.691 so ok. S2: no vector. KEEP_IN_MIND short. Confidence 0.61.",
+      "implementation": "multiply(ts_delta(est_eps, 30), reverse(ts_zscore(anl4_afv4_dts_spe, 30)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Consensus median increase cross-section",
+      "description": "Core: quantile(ts_delta(anl4_ady_mean, 60)) to spot rising consensus medians. S1: single field coverage 0.7196. S2: no vector. KEEP_IN_MIND short. Confidence 0.51.",
+      "implementation": "quantile(ts_delta(anl4_ady_mean, 60))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Sales estimate acceleration normalized",
+      "description": "Core: divide(ts_delta(sales_estimate_average, 30), ts_mean(sales_estimate_average, 252)) gives growth rate. S1: single field. S3: coverage full. S2: no vector. KEEP_IN_MIND short. Confidence 0.62.",
+      "implementation": "divide(ts_delta(sales_estimate_average, 30), ts_mean(sales_estimate_average, 252))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Earnings revisions across multiple estimate aggregates",
+      "description": "Core: add(ts_delta(anl4_af_eps_value,30), ts_delta(est_eps,30)) combining realized and expected changes. S1: two fields. S3: both high coverage. S2: no vector. KEEP_IN_MIND short. Confidence 0.7.",
+      "implementation": "add(ts_delta(anl4_af_eps_value, 30), ts_delta(est_eps, 30))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Persistent guidance upgrades",
+      "description": "Core: ts_target_tvr_decay(ts_delta(max_gross_income_guidance, 180), lambda_min=0, lambda_max=1, target_tvr=0.1) to tune turnover — simplified to ts_delta since operator is available but complex. S1: single field coverage 1.0. S2: no vector. KEEP_IN_MIND short. Confidence 0.48.",
+      "implementation": "ts_delta(max_gross_income_guidance, 180)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Earnings estimate momentum with winsorize",
+      "description": "Core: winsorize(ts_zscore(ts_delta(est_eps,30),30)) to keep robust signals. S1: single field. S2: no vector. S3: coverage ok. KEEP_IN_MIND short. Confidence 0.65.",
+      "implementation": "winsorize(ts_zscore(ts_delta(est_eps, 30), 30), 4)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Rapid expansion in analyst upper estimates share",
+      "description": "Core: ts_delta(divide(anl4_basicconqfv110_pu, anl4_basicconqfv110_numest), 30) to find expansion in upward share. S1: two fields. S3: both coverages >0.7. S2: no vector. KEEP_IN_MIND short. Confidence 0.57.",
+      "implementation": "ts_delta(divide(anl4_basicconqfv110_pu, anl4_basicconqfv110_numest), 30)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Sales estimate stability with rising median",
+      "description": "Core: multiply(ts_delta(sales_estimate_median_value,30), reverse(ts_zscore(sales_estimate_standard_deviation,30))) to select rising median with falling dispersion. S1: two fields. S3: coverage good. S2: no vector. KEEP_IN_MIND short. Confidence 0.6.",
+      "implementation": "multiply(ts_delta(sales_estimate_median_value, 30), reverse(ts_zscore(sales_estimate_standard_deviation, 30)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings acceleration after guidance upgrade",
+      "description": "Core: if_else(ts_delta(max_reported_eps_guidance_2, 180) > 0, ts_delta(est_eps,30), 0) — prefer momentum post-guidance upgrade. S1: two fields. S3: guidance coverage 1.0. S2: no vector. KEEP_IN_MIND short. Confidence 0.58.",
+      "implementation": "if_else(greater(ts_delta(max_reported_eps_guidance_2, 180), 0), ts_delta(est_eps, 30), 0)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Analyst median capex contraction",
+      "description": "Core: reverse(ts_delta(anl4_median_capexp, 120)) to find falling median capex. S1: single field coverage 0.6173. S2: no vector. KEEP_IN_MIND short. Confidence 0.46.",
+      "implementation": "reverse(ts_delta(anl4_median_capexp, 120))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Earnings improvement with low estimate count risk",
+      "description": "Core: if_else(greater(ts_mean(anl4_qfv4_eps_number, 60), 5), ts_delta(est_eps,30), 0) — require adequate estimate counts. S1: two fields. S3: counts coverage 1.0. S2: no vector. KEEP_IN_MIND short. Confidence 0.62.",
+      "implementation": "if_else(greater(ts_mean(anl4_qfv4_eps_number, 60), 5), ts_delta(est_eps, 30), 0)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Sustained sales momentum",
+      "description": "Core: multiply(ts_delta(sales_estimate_average,30), ts_delta(sales_estimate_average,90)) to emphasize durable sales improvements. S1: single field. S2: no vector. KEEP_IN_MIND short. Confidence 0.6.",
+      "implementation": "ts_product(ts_delta(sales_estimate_average, 30), ts_delta(sales_estimate_average, 90))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings revisions with decreasing forecast std",
+      "description": "Core: divide(ts_delta(est_eps, 30), ts_zscore(anl4_afv4_dts_spe, 30)) to prefer EPS momentum accompanied by lower reported std. S1: two fields. S3: stddev coverage okay. S2: no vector. KEEP_IN_MIND short. Confidence 0.63.",
+      "implementation": "divide(ts_delta(est_eps, 30), ts_zscore(anl4_afv4_dts_spe, 30))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Earnings momentum after broker consensus improvement",
+      "description": "Core: multiply(ts_delta(est_eps,30), ts_delta(anl4_mark,30)) to prefer EPS momentum accompanied by better consensus. S1: two fields. S3: anl4_mark coverage 0.6243. S2: no vector. KEEP_IN_MIND short. Confidence 0.61.",
+      "implementation": "multiply(ts_delta(est_eps, 30), ts_delta(anl4_mark, 30))",
+      "confidence_level": 0.61
+    }
+  ]
+}

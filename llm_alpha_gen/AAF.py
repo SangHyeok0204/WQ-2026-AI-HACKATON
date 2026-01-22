@@ -11,35 +11,28 @@ from tqdm import tqdm
 # WHITELIST: 대회 규정상 허용된 dataset만 다운로드
 # ============================================================================
 ALLOWED_DATASETS = {
-    "USA": [
-        'socialmedia8', 'option10', 'option22', 'shortinterest36', 'fundamental85',
-        'option13', 'news5', 'news79', 'fundamental91', 'model57', 'sentiment18',
-        'analyst9', 'news31', 'model240', 'analyst48', 'news50', 'macro10',
-        'analyst12', 'fundamental21', 'other323', 'model54', 'other492',
-        'shortinterest3', 'model239', 'analyst2', 'socialmedia3', 'other696',
-        'macro52', 'model46', 'news54'
-    ],
-    "EUR": [
-        'risk60', 'risk88', 'other696', 'analyst39', 'news79', 'model39',
-        'earnings3', 'news104', 'model28', 'news23', 'risk59', 'shortinterest3',
-        'model139', 'model30', 'news17', 'model138', 'model109', 'news46',
-        'model25', 'other455', 'model176', 'shortinterest37', 'socialmedia39',
-        'other197'
-    ],
-    "ASI": [
-        'shortinterest37', 'pv13', 'fundamental72', 'other455', 'fundamental23',
-        'model109', 'analyst69', 'fundamental28', 'risk74', 'risk88', 'other463',
-        'other675', 'fundamental6', 'model106', 'model77', 'analyst44', 'analyst9',
-        'analyst48', 'model262', 'fundamental17', 'fundamental44', 'model16',
-        'other128', 'fundamental21', 'model138', 'model53'
-    ],
-    "GLB": [
-        'shortinterest37', 'fundamental46', 'pv53', 'other463', 'pv13',
-        'fundamental6', 'analyst82', 'model16', 'risk74', 'model106', 'analyst9',
-        'news76', 'risk88', 'analyst11', 'fundamental72', 'other675', 'analyst44',
-        'news52', 'fundamental45', 'fundamental7', 'analyst48', 'model262',
-        'other169', 'model162', 'other128', 'pv30', 'fundamental44', 'analyst35'
-    ]
+    "USA": ['analyst12', 'analyst2', 'analyst48', 'analyst9', 'fundamental21', 'fundamental85',
+ 'fundamental91', 'macro10', 'macro52', 'model239', 'model240', 'model46', 'model54',
+ 'model57', 'news31', 'news5', 'news50', 'news54', 'news79', 'option10', 'option13',
+ 'option22', 'other323', 'other492', 'other696', 'sentiment18', 'shortinterest3',
+ 'shortinterest36', 'socialmedia3', 'socialmedia8']
+,
+    "EUR": ['analyst39', 'earnings3', 'model109', 'model138', 'model139', 'model176', 'model25',
+ 'model28', 'model30', 'model39', 'news104', 'news17', 'news23', 'news46', 'news79',
+ 'other197', 'other455', 'other696', 'risk59', 'risk60', 'risk88',
+ 'shortinterest3', 'shortinterest37', 'socialmedia39']
+,
+    "ASI": ['analyst44', 'analyst48', 'analyst69', 'analyst9', 'fundamental17', 'fundamental21',
+ 'fundamental23', 'fundamental28', 'fundamental44', 'fundamental6', 'fundamental72',
+ 'model106', 'model109', 'model138', 'model16', 'model262', 'model53', 'model77',
+ 'other128', 'other455', 'other463', 'other675', 'pv13', 'risk74', 'risk88',
+ 'shortinterest37']
+,
+    "GLB": ['analyst11', 'analyst35', 'analyst44', 'analyst48', 'analyst82', 'analyst9',
+ 'fundamental45', 'fundamental46', 'fundamental6', 'fundamental7', 'fundamental72',
+ 'model106', 'model16', 'model162', 'model262', 'news52', 'news76', 'other128',
+ 'other169', 'other463', 'other675', 'pv13', 'pv30', 'pv53', 'risk74', 'risk88',
+ 'shortinterest37']
 }
 
 
@@ -334,3 +327,142 @@ category_short_to_full = {
     'scl': 'socialmedia',
     'pv': 'pv'
 }
+
+
+def initiate_datafield_allowed(s, settings, allowed_datasets, delay_seconds=2, max_retries=5, skip_existing=True):
+    """
+    사용자가 지정한 allowed_datasets 리스트에 있는 dataset만 다운로드.
+    Brain에 없는 dataset_id는 스킵하고 로그 출력.
+
+    Args:
+        s: ace session
+        settings: 설정 dict (region, delay, universe 등)
+        allowed_datasets: 처리할 dataset_id 리스트
+        delay_seconds: API 호출 간 딜레이 (rate limit 방지)
+        max_retries: 최대 재시도 횟수
+        skip_existing: True면 이미 존재하는 파일 스킵
+
+    Returns:
+        dict: {
+            'processed': 실제 처리된 dataset_id 리스트,
+            'skipped_not_found': Brain에 없어서 스킵된 dataset_id 리스트,
+            'skipped_existing': 이미 파일 존재해서 스킵된 dataset_id 리스트,
+            'failed': 에러로 실패한 dataset_id 리스트
+        }
+    """
+    region = settings['region']
+    universe = settings.get('universe', 'TOP3000')
+    delay = settings.get('delay', 1)
+
+    # Brain에서 실제 존재하는 dataset 가져오기
+    try:
+        datasets = ace.get_datasets(s, region=region, delay=delay, universe=universe)
+        all_dataset_ids = set(datasets.id)
+    except Exception as e:
+        print(f"[ERROR] Failed to get datasets from Brain: {e}")
+        log_error(settings, "get_datasets", e, log_type="error")
+        return {'processed': [], 'skipped_not_found': allowed_datasets, 'skipped_existing': [], 'failed': []}
+
+    # allowed_datasets 중 Brain에 있는 것만 필터
+    target_datasets = [d for d in allowed_datasets if d in all_dataset_ids]
+    skipped_not_found = [d for d in allowed_datasets if d not in all_dataset_ids]
+
+    if skipped_not_found:
+        print(f"[WARNING] Datasets not found in Brain ({region}/{universe}): {skipped_not_found}")
+        for ds in skipped_not_found:
+            log_error(settings, ds, f"Dataset not found in Brain for {region}/{universe}", log_type="not_found")
+
+    print(f"\n{'='*60}")
+    print(f"Region: {region} | Universe: {universe} | Delay: {delay}")
+    print(f"Requested datasets: {len(allowed_datasets)}")
+    print(f"Found in Brain: {len(target_datasets)}")
+    print(f"Not found (skipped): {len(skipped_not_found)}")
+    print(f"{'='*60}\n")
+
+    processed = []
+    skipped_existing = []
+    failed = []
+
+    pbar = tqdm(target_datasets, desc="Processing datasets", unit="dataset")
+
+    for dataset_id in pbar:
+        pbar.set_postfix_str(f"Current: {dataset_id}")
+
+        # 이미 존재하는 파일 체크
+        filepath = get_datafield_filepath(settings, dataset_id)
+        if skip_existing and os.path.exists(filepath):
+            log_error(settings, dataset_id, None, log_type="skipped_existing")
+            skipped_existing.append(dataset_id)
+            pbar.set_postfix_str(f"Skipped (exists): {dataset_id}")
+            continue
+
+        # 재시도 로직
+        success = False
+        for attempt in range(max_retries):
+            try:
+                # get_datafields 호출 및 응답 검증
+                datafields_df = ace.get_datafields(
+                    s,
+                    region=settings['region'],
+                    delay=settings['delay'],
+                    universe=settings['universe'],
+                    dataset_id=dataset_id,
+                    data_type="ALL"
+                )
+
+                # 응답 검증: 빈 DataFrame이면 스킵
+                if datafields_df is None or datafields_df.empty:
+                    pbar.write(f"[WARNING] {dataset_id}: Empty datafields response, skipping")
+                    log_error(settings, dataset_id, "Empty datafields response", log_type="warning")
+                    failed.append(dataset_id)
+                    break
+
+                # dict로 변환 후 저장
+                datafields_df['id_ind'] = datafields_df['id']
+                datafields_data = datafields_df.set_index('id_ind').T.to_dict()
+
+                file_folder = settings_to_datafield_folder(settings)
+                mkdir(file_folder)
+                save_dict_to_json(datafields_data, filepath)
+
+                processed.append(dataset_id)
+                success = True
+                time.sleep(delay_seconds)
+                break
+
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    wait_time = delay_seconds * (2 ** attempt)
+                    pbar.write(f"[RETRY] {dataset_id}: {type(e).__name__} - waiting {wait_time}s (attempt {attempt+1}/{max_retries})")
+                    time.sleep(wait_time)
+                else:
+                    log_error(settings, dataset_id, e, log_type="error")
+                    failed.append(dataset_id)
+                    pbar.write(f"[ERROR] {dataset_id}: {type(e).__name__}: {str(e)[:50]}...")
+
+    # 모든 dataset 처리 후 total.json 생성
+    print(f"\n{'='*60}")
+    print("Creating total.json...")
+    try:
+        make_total_dicts(settings)
+        print("total.json created successfully.")
+    except Exception as e:
+        print(f"[ERROR] Failed to create total.json: {e}")
+        log_error(settings, "total", e, log_type="error")
+
+    # 최종 요약
+    print(f"\n{'='*60}")
+    print("SUMMARY")
+    print(f"{'='*60}")
+    print(f"Successfully processed: {len(processed)}")
+    print(f"Skipped (already exists): {len(skipped_existing)}")
+    print(f"Skipped (not in Brain): {len(skipped_not_found)}")
+    print(f"Failed (logged to errors.log): {len(failed)}")
+    print(f"{'='*60}\n")
+
+    return {
+        'processed': processed,
+        'skipped_not_found': skipped_not_found,
+        'skipped_existing': skipped_existing,
+        'failed': failed
+    }

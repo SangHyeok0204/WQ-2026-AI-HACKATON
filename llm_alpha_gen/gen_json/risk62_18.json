@@ -1,0 +1,760 @@
+{
+  "results": [
+    {
+      "idea": "Short-term momentum z-score",
+      "description": "S1: used single high-coverage return field (rsk62_1_return) to keep implementation simple. S2: not applicable (no vector field). S3: not needed (coverage=1.0). S4: rsk62_1_return has very high userCount/alphaCount so I prioritized it. Kept <=2 datafields and <=7 operators per KEEP_IN_MIND. Confidence: 0.75 (classic short-term momentum, robust historically).",
+      "implementation": "ts_zscore(ts_returns(rsk62_1_return,5),20)",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Five-day momentum scaled by 5-day volatility",
+      "description": "S1: combined returns and volatility (rsk62_1_return, rsk62_risk_volatility). S2: none (no vector). S3: both coverages =1.0 so ts_backfill not applied. S4: used high userCount volatility field. Kept operators low. Confidence: 0.7 (momentum adjusted for risk improves stability).",
+      "implementation": "divide(ts_returns(rsk62_1_return,5), ts_std_dev(rsk62_risk_volatility,20))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Mean-reversion: recent return vs 20-day average",
+      "description": "S1: used single returns field. S2: not applicable. S3: not needed. S4: rsk62_5_return has high userCount and complements 1-day returns; but here I used 5-day return. Kept limits. Confidence: 0.65 (mean-reversion short-term).",
+      "implementation": "subtract(ts_returns(rsk62_5_return,1), ts_mean(ts_returns(rsk62_5_return,1),20))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Industry relative momentum (vec avg of industry retseries)",
+      "description": "S1: used industry return series (retseries_industry_1_100_val3) combined with stock returns idea. S2: retseries field is vector -> used vec_avg(). S3: coverage=1.0 so ts_backfill not applied. S4: chosen retseries with decent userCount. Kept <=2 datafields. Confidence: 0.68 (industry-relative momentum tends to capture sector rotation).",
+      "implementation": "subtract(ts_zscore(ts_returns(rsk62_1_return,5),20), ts_zscore(ts_returns(vec_avg(rsk62_retseries_industry_1_100_val3),5),20))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Factor momentum: recent factor returns z-score",
+      "description": "S1: used factor return series (rsk62_retseries_factor_5_100_val7). S2: vector retseries -> vec_avg applied. S3: coverage=1.0 no backfill. S4: factor series has moderate userCount. KEEP_IN_MINDs respected. Confidence: 0.6 (factor momentum can forecast short-term factor-driven moves).",
+      "implementation": "ts_zscore(ts_returns(vec_avg(rsk62_retseries_factor_5_100_val7),5),30)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Beta-adjusted momentum (low-beta preference)",
+      "description": "S1: combined returns and industry beta (rsk62_1_return, rsk62_beta_1_100_volatility). S2: none. S3: beta coverage=1.0 so no ts_backfill. S4: beta field has high userCount. Implementation uses divide to penalize high-beta. Confidence: 0.66 (low-beta anomaly plus momentum).",
+      "implementation": "divide(ts_zscore(ts_returns(rsk62_1_return,5),20), add(rsk62_beta_1_100_volatility,0.001))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Earnings per share momentum vs industry (relative growth)",
+      "description": "S1: combined rsk62_risk_spe (earnings per share) and industry mean (retseries_industry_1_100_val11). S2: used vec_avg for industry retseries. S3: rsk62_risk_spe coverage ~0.961 -> no ts_backfill applied. S4: rsk62_risk_spe has good userCount. Kept <=2 datafields. Confidence: 0.55 (fundamental signal, moderate).",
+      "implementation": "subtract(ts_zscore(rsk62_risk_spe,60), ts_zscore(vec_avg(rsk62_retseries_industry_1_100_val11),60))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Dividend surprise proxy: recent dividend signal vs historical",
+      "description": "S1: used rsk62_risk_dividend (dividend) with ts_delta. S2: not applicable. S3: coverage 0.9637 so no backfill. S4: high userCount on dividend fields used. Kept compact. Confidence: 0.5 (dividend-based signals weaker but stable).",
+      "implementation": "ts_zscore(ts_delta(rsk62_risk_dividend,30),60)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Low logcap (small-cap) mean reversion",
+      "description": "S1: used rsk62_risk_logcap and rsk62_1_return. S2: none. S3: logcap coverage ~0.9635 so no backfill. S4: logcap has reasonable userCount. KEEP_IN_MIND satisfied. Confidence: 0.58 (small-cap mean reversion historically present).",
+      "implementation": "multiply(reverse(ts_zscore(rsk62_risk_logcap,252)), ts_zscore(ts_returns(rsk62_1_return,5),20))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Volatility breakout (momentum scaled by volatility increase)",
+      "description": "S1: combined returns with volatility change (rsk62_risk_volatility). S2: none. S3: volatility coverage high. S4: volatility field has high userCount. Operators kept minimal. Confidence: 0.62 (volatility spikes often precede directional moves).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), ts_delta(rsk62_risk_volatility,5))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Cross-factor divergence (fast vs slow factor returns)",
+      "description": "S1: used two factor return fields (rsk62_factor_5_100_val24, rsk62_factor_1_100_val34). S2: not vector. S3: both coverage=1.0. S4: chose factors with good userCount. Kept <=2 fields. Confidence: 0.56 (divergence between factor horizons can indicate reversion).",
+      "implementation": "subtract(ts_zscore(rsk62_factor_5_100_val24,20), ts_zscore(rsk62_factor_1_100_val34,60))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Industry momentum strength (sum of retseries vector)",
+      "description": "S1: used retseries_industry_5_100_val2 (vector) and vec_sum to capture cumulative industry returns. S2: vec_sum applied as S2 suggests. S3: coverage=1.0 no backfill. S4: retseries has moderate userCount. Confidence: 0.6 (industry cumulative strength predictive).",
+      "implementation": "ts_zscore(vec_sum(rsk62_retseries_industry_5_100_val2),30)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Factor surprise: recent factor return vs 60-day mean",
+      "description": "S1: used factor_5_100_val46. S2: not vector. S3: coverage=1.0 no backfill. S4: factor field has high alphaCount indicating signal usage. Confidence: 0.54 (factor surprises can be transiently predictive).",
+      "implementation": "ts_av_diff(rsk62_factor_5_100_val46,60)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Momentum adjusted by market intercept exposure",
+      "description": "S1: combined ts_zscore of returns with intercept (rsk62_1_100_intercept). S2: not vector. S3: intercept coverage=1.0. S4: intercept has very high userCount/alphaCount so used. KEEP_IN_MINDs met. Confidence: 0.65 (removes market-wide drift).",
+      "implementation": "subtract(ts_zscore(ts_returns(rsk62_1_return,5),20), rsk62_1_100_intercept)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Short-term mean reversion after large move (sign * inverse magnitude)",
+      "description": "S1: used rsk62_1_return only. S2: not vector. S3: no backfill. S4: high userCount used. Implementation uses sign and inverse to prefer reversal after large moves. Confidence: 0.63 (classic mean-reversion signal).",
+      "implementation": "multiply(sign(ts_returns(rsk62_1_return,1)), inverse(abs(ts_returns(rsk62_1_return,5))))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Quality-adjusted momentum (earnings per share x momentum)",
+      "description": "S1: combined rsk62_risk_spe and recent returns. S2: not vector. S3: rsk62_risk_spe coverage ~0.961 so no ts_backfill. S4: rsk62_risk_spe has good counts. Confidence: 0.57 (quality enhances momentum persistence).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), ts_zscore(rsk62_risk_spe,252))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Liquidity-squeeze breakout (returns scaled by logadv20)",
+      "description": "S1: used rsk62_logadv20_di and rsk62_1_return. S2: not vector. S3: logadv20 coverage=1.0 so no backfill. S4: logadv20 has high userCount. Confidence: 0.6 (low liquidity breakouts can persist).",
+      "implementation": "divide(ts_zscore(ts_returns(rsk62_1_return,5),20), add(rsk62_logadv20_di,0.001))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "PB-based value reversal (high PB short, low PB long)",
+      "description": "S1: used rsk62_risk_backfill_pb (book value) and returns. S2: not vector. S3: pb coverage ~0.9672 so no ts_backfill. S4: pb userCount is high; used for value. Confidence: 0.52 (value signals slower but persistent).",
+      "implementation": "multiply(reverse(ts_zscore(rsk62_risk_backfill_pb,252)), ts_zscore(ts_returns(rsk62_1_return,5),20))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Sector beta reversal: betas mean-revert",
+      "description": "S1: used rsk62_beta_1_100_mtl (long-term momentum beta). S2: not vector. S3: beta coverage=1.0 so ts_backfill not applied. S4: high userCount. Confidence: 0.45 (beta changes are slower, lower short-term alpha).",
+      "implementation": "reverse(ts_delta(rsk62_beta_1_100_mtl,30))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Factor cross-sectional rank z-score",
+      "description": "S1: used factor_1_100_val24 and cross-sectional zscore to pick leaders. S2: not vector. S3: coverage=1.0. S4: factor has good userCount. Kept <=2 fields. Confidence: 0.6 (cross-sectional factor ranking often predictive).",
+      "implementation": "zscore(rsk62_factor_1_100_val24)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Industry momentum minus market (industry residual)",
+      "description": "S1: used vec_avg of retseries_industry_5_100_val1 and market return rsk62_5_return. S2: used vec_avg for vector. S3: coverages=1.0. S4: chose high userCount market return. Confidence: 0.63 (industry residuals capture rotation).",
+      "implementation": "subtract(ts_zscore(vec_avg(rsk62_retseries_industry_5_100_val1),20), ts_zscore(ts_returns(rsk62_5_return,20),20))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Short-term factor correlation breakdown (ts_corr)",
+      "description": "S1: measured ts_corr between two factor series (retseries_factor_1_100_val3 and retseries_factor_1_100_val5). S2: both are vector -> use vec_avg for daily scalar. S3: coverage=1.0 so no backfill. S4: both fields have moderate userCount. Confidence: 0.5 (structural factor decoupling sometimes predictive).",
+      "implementation": "ts_corr(vec_avg(rsk62_retseries_factor_1_100_val3), vec_avg(rsk62_retseries_factor_1_100_val5),30)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum with group neutralization (sector-neutral momentum)",
+      "description": "S1: used rsk62_1_return and group_neutralize operator (group param implied). S2: not vector. S3: return coverage=1.0. S4: used high userCount return. KEEP_IN_MIND4: group used only as parameter. Confidence: 0.67 (sector-neutralization reduces sector bets).",
+      "implementation": "group_neutralize(ts_zscore(ts_returns(rsk62_1_return,5),20), group=industry)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Long-term momentum IR: mean/volatility of returns",
+      "description": "S1: used ts_ir on rsk62_5_return to compute information ratio over d days. S2: not vector. S3: coverage=1.0. S4: chosen 5-return for longer horizon. KEEP_IN_MIND respected. Confidence: 0.64 (IR is robust selector).",
+      "implementation": "ts_ir(rsk62_5_return,252)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Short-term reversal after high kurtosis (ts_kurtosis)",
+      "description": "S1: used rsk62_1_return kurtosis to detect extreme tails. S2: not vector. S3: coverage=1.0. S4: rsk62_1_return has high counts. Confidence: 0.5 (tail risk signals less stable but useful).",
+      "implementation": "reverse(ts_kurtosis(rsk62_1_return,30))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum combined with gross margin quality",
+      "description": "S1: combined returns with rsk62_risk_margin (gross margin). S2: not vector. S3: margin coverage ~0.9618 so ts_backfill not applied. S4: margin has decent userCount. Confidence: 0.56 (quality filters momentum).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,10),30), ts_zscore(rsk62_risk_margin,252))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Net income per employee growth spike",
+      "description": "S1: used rsk62_risk_nipe and recent delta. S2: not vector. S3: rsk62_risk_nipe coverage 0.9637 -> no backfill. S4: chosen for high userCount. Confidence: 0.48 (fundamental growth signals slower).",
+      "implementation": "ts_zscore(ts_delta(rsk62_risk_nipe,90),252)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Short-term factor mean reversion using ts_arg_max",
+      "description": "S1: used factor time series rsk62_retseries_factor_5_100_val3 wrapped with vec_avg. S2: vec_avg applied. S3: coverage=1.0. S4: factor series has moderate counts. Confidence: 0.52 (arg_max can catch peaks).",
+      "implementation": "ts_arg_max(vec_avg(rsk62_retseries_factor_5_100_val3),20)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Beta momentum: rising beta predicts future return",
+      "description": "S1: used beta_5_100_mtl and rsk62_1_return. S2: not vector. S3: beta coverage=1.0. S4: beta field has high userCount. Kept simple. Confidence: 0.49 (beta dynamics weaker).",
+      "implementation": "multiply(ts_zscore(rsk62_beta_5_100_mtl,30), ts_zscore(ts_returns(rsk62_1_return,5),20))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Logcap momentum with hump to reduce turnover",
+      "description": "S1: used rsk62_risk_logcap and returns. S2: not vector. S3: logcap coverage ~0.9635. S4: used hump to limit turnovers per KEEP_IN_MIND to be practical. Confidence: 0.61 (cap-weight adjustment helpful).",
+      "implementation": "hump(multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), reverse(ts_zscore(rsk62_risk_logcap,252))), hump=0.01)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Short-term reversal after factor divergence (ts_delta between factors)",
+      "description": "S1: compared two factor series (rsk62_factor_1_100_val24, rsk62_factor_1_100_val34). S2: not vector. S3: both coverages=1.0. S4: chosen factors with good counts. Confidence: 0.53 (factor divergence often mean-reverts).",
+      "implementation": "ts_delta(subtract(rsk62_factor_1_100_val24, rsk62_factor_1_100_val34),5)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Momentum scaled by specific risk (prefer low idiosyncratic risk)",
+      "description": "S1: used ts_zscore of returns and 5_100_ksrs (specific risks). S2: not vector. S3: ksrs coverage ~0.9877 high. S4: ksrs has strong userCount/alphaCount. Confidence: 0.66 (scaling by idiosyncratic risk improves risk-adjusted returns).",
+      "implementation": "divide(ts_zscore(ts_returns(rsk62_1_return,5),20), add(rsk62_5_100_ksrs,0.0001))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Momentum conditioned on dividend yield (trade when high yield)",
+      "description": "S1: used trade_when to apply alpha only if dividend high (rsk62_risk_dividend). S2: not vector. S3: dividend coverage high so no backfill. S4: dividend has high userCount. KEEP_IN_MIND respected. Confidence: 0.52 (dividend regime filtering moderate).",
+      "implementation": "trade_when(greater(rsk62_risk_dividend, ts_mean(rsk62_risk_dividend,252)), ts_zscore(ts_returns(rsk62_1_return,5),20), NaN)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Long-short by factor zscore spread",
+      "description": "S1: used two factor cross-sectional zscores (rsk62_factor_1_100_val24, rsk62_factor_1_100_val34). S2: not vector. S3: coverage=1.0. S4: factors chosen have decent userCount. Confidence: 0.59 (factor spread porting effective).",
+      "implementation": "subtract(zscore(rsk62_factor_1_100_val24), zscore(rsk62_factor_1_100_val34))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum filtered by logadv20 (avoid low liquidity)",
+      "description": "S1: multiplied momentum signal by logadv20 to downweight illiquid names. S2: not vector. S3: logadv20 coverage=1.0. S4: logadv20 has very high userCount. Confidence: 0.62 (liquidity filtering reduces execution risk).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), ts_zscore(rsk62_logadv20_di,252))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum vs factor-predicted return residual",
+      "description": "S1: subtract factor-predicted (beta * factor) from realized short return. Used rsk62_beta_factor_1_100_logadv20 and rsk62_factor_1_100_val24. S2: not vector. S3: both coverage=1.0. S4: used high userCount beta. Confidence: 0.6 (residuals often mean-revert or carry alpha).",
+      "implementation": "subtract(ts_returns(rsk62_1_return,5), multiply(rsk62_beta_factor_1_100_logadv20, rsk62_factor_1_100_val24))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-term reversal after high ts_count_nans (data sparsity proxy)",
+      "description": "S1: used ts_count_nans on factor retseries vec_avg to detect sparse reporting days. S2: used vec_avg since retseries is vector. S3: coverage=1.0 so no backfill. S4: moderate userCount. Confidence: 0.4 (sparsity signals weaker).",
+      "implementation": "ts_count_nans(vec_avg(rsk62_retseries_factor_5_100_val3),30)",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Momentum combined with eps growth beta",
+      "description": "S1: used ts_zscore on returns and rsk62_beta_factor_1_100_growth. S2: not vector. S3: both coverages=1.0. S4: growth beta has very high userCount. Confidence: 0.58 (growth-adjusted momentum useful).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), rsk62_beta_factor_1_100_growth)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Industry reversal: current vs 20-day industry average",
+      "description": "S1: used vec_avg of retseries_industry_1_100_val21 and compared current to 20-day mean. S2: vec_avg applied. S3: coverage=1.0. S4: used industry retseries with good counts. Confidence: 0.61 (industry reversion often profitable).",
+      "implementation": "subtract(vec_avg(rsk62_retseries_industry_1_100_val21), ts_mean(vec_avg(rsk62_retseries_industry_1_100_val21),20))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Short-term factor cross-sectional ts_rank",
+      "description": "S1: ts_rank on factor_1_100_val45 to capture recent ranking. S2: not vector. S3: coverage=1.0. S4: factor chosen has reasonable counts. Confidence: 0.55 (ranking filters out scale).",
+      "implementation": "ts_rank(rsk62_factor_1_100_val45,10)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum weighted by book value (value tilt)",
+      "description": "S1: combined returns with rsk62_beta_1_100_pb (book value beta). S2: not vector. S3: pb coverage=1.0. S4: pb beta has strong userCount. Confidence: 0.54 (value tilt marginally helpful).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), reverse(rsk62_beta_1_100_pb))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Short-term reversal after factor peak (ts_arg_max on factor retseries)",
+      "description": "S1: used ts_arg_max on vec_avg of retseries_factor_5_100_val5 to detect peaks. S2: vec_avg for vector. S3: coverage=1.0. S4: factor retseries has decent counts. Confidence: 0.5 (useful occasionally).",
+      "implementation": "ts_arg_max(vec_avg(rsk62_retseries_factor_5_100_val5),10)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Cross-sectional low volatility rank (prefer low vol)",
+      "description": "S1: used zscore of beta_1_100_volatility to pick low vol. S2: not vector. S3: coverage=1.0. S4: volatility beta has high userCount. Confidence: 0.6 (low-vol often outperforms risk-adjusted).",
+      "implementation": "reverse(zscore(rsk62_beta_1_100_volatility))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum with winsorization to reduce outliers",
+      "description": "S1: used winsorize on ts_returns to limit outliers. S2: not vector. S3: coverage=1.0. S4: used high userCount returns. KEEP_IN_MIND applied. Confidence: 0.62 (winsorize reduces tail noise).",
+      "implementation": "winsorize(ts_zscore(ts_returns(rsk62_1_return,5),20), std=4)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum combined with net income per employee rank",
+      "description": "S1: combined ts_zscore returns with zscore of nipe. S2: not vector. S3: nipe coverage ~0.9637. S4: nipe has good userCount. Confidence: 0.53 (operational efficiency adds information).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), zscore(rsk62_risk_nipe))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Industry tail risk detector (vec_stddev of retseries)",
+      "description": "S1: used vec_stddev on retseries_industry_5_100_val3 to measure intra-day dispersion. S2: vec_stddev applied per S2. S3: coverage=1.0. S4: moderate userCount. Confidence: 0.47 (dispersion info moderate).",
+      "implementation": "vec_stddev(rsk62_retseries_industry_5_100_val3)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Return momentum minus factor exposure (neutralize by factor)",
+      "description": "S1: group_neutralize applied to short returns using factor group. S2: not vector. S3: coverages high. S4: neutralization reduces common factor bets. Confidence: 0.65 (neutralizing common exposures improves idiosyncratic alpha).",
+      "implementation": "group_neutralize(ts_zscore(ts_returns(rsk62_1_return,5),20), group=factor)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Momentum after low ts_count_nans in fundamental data (data freshness)",
+      "description": "S1: used ts_count_nans on rsk62_risk_backfill_growth to prefer fresh reporters. S2: not vector. S3: growth backfill coverage ~0.9672 so backfill not applied. S4: good userCount. Confidence: 0.45 (data freshness marginal).",
+      "implementation": "less(ts_count_nans(rsk62_risk_backfill_growth,90),5)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Short-term reversal after 1-day overreaction (ts_max_diff)",
+      "description": "S1: used ts_max_diff on rsk62_1_return to detect drop from max. S2: not vector. S3: coverage=1.0. S4: return field high userCount. Confidence: 0.6 (overreaction mean-reverts).",
+      "implementation": "ts_max_diff(rsk62_1_return,5)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Factor momentum combined with gross margin beta",
+      "description": "S1: multiplied factor zscore with beta_factor_5_100_margin. S2: not vector. S3: coverage=1.0. S4: margin beta has moderate userCount. Confidence: 0.52 (margins help select stable factor leaders).",
+      "implementation": "multiply(ts_zscore(rsk62_factor_5_100_val46,20), rsk62_beta_factor_5_100_margin)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Short-term momentum with ts_decay_linear emphasis",
+      "description": "S1: used ts_decay_linear on recent returns to emphasize recent days. S2: not vector. S3: coverage=1.0. S4: returns high userCount. Confidence: 0.6 (decay often improves responsiveness).",
+      "implementation": "ts_decay_linear(ts_returns(rsk62_1_return,5),5)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Value + Momentum blend (PB zscore + return zscore)",
+      "description": "S1: combined zscore(pb) and ts_zscore(returns) equally. S2: not vector. S3: pb coverage high. S4: used high userCount pb. Confidence: 0.6 (momentum+value complementary).",
+      "implementation": "add(zscore(rsk62_risk_backfill_pb), ts_zscore(ts_returns(rsk62_1_return,20),60))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-term reversal after high ts_std_dev (volatility spike)",
+      "description": "S1: used ts_std_dev of returns and reversed signal to prefer reversal after spikes. S2: not vector. S3: coverage=1.0. S4: returns field high userCount. Confidence: 0.59 (vol spike reversals common).",
+      "implementation": "reverse(ts_std_dev(rsk62_1_return,10))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Industry pair trade: outperformer vs underperformer using vec_avg retseries",
+      "description": "S1: compared two industries via vec_avg(retseries) and took spread. S2: vec_avg applied to both. S3: both coverages=1.0. S4: selected industries with moderate userCounts. Confidence: 0.62 (pair trades common alpha source).",
+      "implementation": "subtract(vec_avg(rsk62_retseries_industry_5_100_val1), vec_avg(rsk62_retseries_industry_5_100_val2))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum vs expected industry beta (residual)",
+      "description": "S1: subtracted industry beta exposure (rsk62_beta_industry_constr_1_100_mining) from returns. S2: not vector. S3: beta coverage ~0.7231 so no backfill. S4: used industry beta with decent userCount. Confidence: 0.55 (residuals capture idiosyncratic moves).",
+      "implementation": "subtract(ts_zscore(ts_returns(rsk62_1_return,5),20), rsk62_beta_industry_constr_1_100_mining)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Cross-sectional earnings momentum (spe zscore rank)",
+      "description": "S1: used group zscore or zscore of rsk62_risk_spe (earnings per share). S2: not vector. S3: spe coverage ~0.9611. S4: spe has good userCount. Confidence: 0.5 (earnings momentum moderate).",
+      "implementation": "group_zscore(rsk62_risk_spe, group=industry)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum conditional on low leverage (qe2d low)",
+      "description": "S1: applied trade_when to allow momentum only when debt-to-equity (rsk62_risk_qe2d) below long-term median. S2: not vector. S3: qe2d coverage ~0.968 so no backfill. S4: used for risk control. Confidence: 0.53 (leverage filters tail risk).",
+      "implementation": "trade_when(less(rsk62_risk_qe2d, ts_mean(rsk62_risk_qe2d,252)), ts_zscore(ts_returns(rsk62_1_return,5),20), NaN)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Factor zscore momentum combined with intercept shrinkage",
+      "description": "S1: used ts_zscore on factor and subtracted intercept (rsk62_factor_5_100_intercept) to remove constant. S2: not vector. S3: both coverage=1.0. S4: intercept has high userCount. Confidence: 0.56 (removing intercept isolates factor effect).",
+      "implementation": "subtract(ts_zscore(rsk62_factor_5_100_val46,30), rsk62_factor_5_100_intercept)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Short-term reversion on high ts_quantile (extreme rank)",
+      "description": "S1: used ts_quantile on factor retseries to detect extremes. S2: applied vec_avg because retseries is vector. S3: coverage=1.0. S4: retseries has moderate counts. Confidence: 0.51 (quantile extremes often mean-revert).",
+      "implementation": "ts_quantile(vec_avg(rsk62_retseries_factor_5_100_val7),20)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Momentum scaled by beta to growth (reward growth-sensitive stocks)",
+      "description": "S1: multiplied return zscore by beta_factor_5_100_growth. S2: not vector. S3: coverage=1.0. S4: growth beta has good userCount. Confidence: 0.57 (growth tilt sometimes enhances momentum).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), rsk62_beta_factor_5_100_growth)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Volatility breakout after long quiet period (ts_arg_min)",
+      "description": "S1: used ts_arg_min on volatility to detect when current day is new minimum -> potential breakout. S2: not vector. S3: volatility coverage ~0.9637. S4: volatility_di has high userCount. Confidence: 0.46 (breakout timing uncertain).",
+      "implementation": "ts_arg_min(rsk62_risk_volatility,60)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Short-term momentum with winsorized factor exposure",
+      "description": "S1: used ts_zscore on returns and winsorized factor exposure (rsk62_factor_1_100_val45) to curb extreme factor exposures. S2: not vector. S3: coverage=1.0. S4: selected factor with decent counts. Confidence: 0.6 (winsorize improves robustness).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), winsorize(rsk62_factor_1_100_val45, std=3))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Industry momentum scaled by industry-specific beta",
+      "description": "S1: used vec_avg of industry retseries and scaled by rsk62_beta_5_100_mining. S2: vec_avg applied. S3: beta coverage ~0.6948 no backfill. S4: high userCount beta used. Confidence: 0.59 (sector-specific scaling useful).",
+      "implementation": "multiply(ts_zscore(vec_avg(rsk62_retseries_industry_5_100_val2),20), rsk62_beta_5_100_mining)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum filtered by non-NaN coverage (ts_count_nans on backfill)",
+      "description": "S1: used ts_count_nans on rsk62_risk_backfill_mtl to ensure stable coverage. S2: not vector. S3: backfill coverage ~0.9678 so ts_count_nans monitors data health. S4: used to avoid sparse assets. Confidence: 0.44 (operational filter).",
+      "implementation": "less(ts_count_nans(rsk62_risk_backfill_mtl,90),3)",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Cross-sectional short-term reversal using ts_rank",
+      "description": "S1: used ts_rank on returns to pick recent losers for mean reversion. S2: not vector. S3: rsk62_1_return coverage=1.0. S4: high userCount returns chosen. Confidence: 0.62 (cross-sectional reversal effective).",
+      "implementation": "ts_rank(ts_returns(rsk62_1_return,5),10)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum vs long-term momentum gap",
+      "description": "S1: subtract long-term ts_zscore(252d) from short-term (20d) using rsk62_1_return to detect acceleration. S2: not vector. S3: coverage ok. S4: returns high userCount. Confidence: 0.64 (acceleration picks persistent winners).",
+      "implementation": "subtract(ts_zscore(ts_returns(rsk62_1_return,20),20), ts_zscore(ts_returns(rsk62_1_return,252),252))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Factor residual momentum adjusted by ksrs",
+      "description": "S1: residual = returns - beta*factor; scaled by ksrs. Used rsk62_beta_factor_1_100_logadv20 and rsk62_5_100_ksrs. S2: not vector. S3: coverages=1.0 and ~0.9877. S4: ksrs high userCount. Confidence: 0.61 (residual/ksrs mix robust).",
+      "implementation": "divide(subtract(ts_returns(rsk62_1_return,5), multiply(rsk62_beta_factor_1_100_logadv20, rsk62_factor_1_100_val24)), add(rsk62_5_100_ksrs,0.0001))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Mean reversion when factor momentum extreme (conditional trade_when)",
+      "description": "S1: apply trade_when to trade only if factor ts_quantile extreme. Used vec_avg(retseries_factor) for S2. S3: coverages=1.0. S4: used factor series with moderate usage. Confidence: 0.5 (conditional helps reduce noise).",
+      "implementation": "trade_when(greater(ts_quantile(vec_avg(rsk62_retseries_factor_5_100_val7),20),0.95), reverse(ts_zscore(ts_returns(rsk62_1_return,5),20)), NaN)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum with cross-sectional normalization (normalize)",
+      "description": "S1: used normalize on ts_returns to remove cross-sectional mean. S2: not vector. S3: coverage=1.0. S4: returns high userCount. Confidence: 0.63 (normalization stabilizes signals).",
+      "implementation": "normalize(ts_returns(rsk62_1_return,5))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Industry volatility-adjusted momentum",
+      "description": "S1: used vec_avg retseries for industry and scaled by industry beta volatility (rsk62_beta_5_100_volatility). S2: vec_avg applied. S3: beta volatility coverage=1.0. S4: beta_volatility has good userCount. Confidence: 0.58 (vol adjustment reduces draws).",
+      "implementation": "divide(ts_zscore(vec_avg(rsk62_retseries_industry_5_100_val1),20), add(rsk62_beta_5_100_volatility,0.001))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Short-term mean reversion after factor ts_kurtosis high",
+      "description": "S1: used ts_kurtosis on factor retseries (vec_avg). S2: vec_avg applied. S3: coverage=1.0. S4: moderate userCount. Confidence: 0.48 (tail kurtosis signal weaker).",
+      "implementation": "reverse(ts_kurtosis(vec_avg(rsk62_retseries_factor_5_100_val3),30))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Momentum with exponential ts_decay (ts_decay_linear)",
+      "description": "S1: used ts_decay_linear to emphasize recent returns for rsk62_1_return. S2: not vector. S3: coverage=1.0. S4: returns high userCount. Confidence: 0.6 (decay helps recency).",
+      "implementation": "ts_decay_linear(ts_returns(rsk62_1_return,10),10)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Industry strength vs sector intercept",
+      "description": "S1: compared vec_avg industry retseries to industry intercept to get residual. S2: vec_avg applied. S3: coverages=1.0. S4: intercept and retseries have good counts. Confidence: 0.57 (residual isolates idiosyncratic movement).",
+      "implementation": "subtract(vec_avg(rsk62_retseries_industry_1_100_val11), rsk62_industry_constr_1_100_intercept)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Momentum filtered by recent factor correlation drop",
+      "description": "S1: used ts_corr between vec_avg factor series and market returns; trade_when when correlation falls. S2: vec_avg used. S3: coverage=1.0. S4: chosen series have moderate counts. Confidence: 0.49 (useful regime filter).",
+      "implementation": "trade_when(less(ts_corr(vec_avg(rsk62_retseries_factor_5_100_val3), ts_returns(rsk62_5_return,20),30),0.2), ts_zscore(ts_returns(rsk62_1_return,5),20), NaN)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Momentum scaled by intercept stability (low intercept preferred)",
+      "description": "S1: multiplied returns zscore with inverse of factor intercept volatility (rsk62_factor_5_100_intercept). S2: not vector. S3: coverage=1.0. S4: intercept high usage. Confidence: 0.55 (stable intercept signals calmer regimes).",
+      "implementation": "divide(ts_zscore(ts_returns(rsk62_1_return,5),20), add(abs(rsk62_factor_5_100_intercept),0.001))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum vs semiconductors beta mismatch",
+      "description": "S1: subtract semiconductors industry beta (rsk62_beta_industry_constr_5_100_semiconductors) from returns to find residual. S2: not vector. S3: beta coverage ~0.5331 (<0.6) so ts_backfill applied per S3. S4: beta used despite lower coverage but backfilled. Confidence: 0.5 (industry-specific signals variable).",
+      "implementation": "subtract(ts_zscore(ts_returns(rsk62_1_return,5),20), ts_backfill(rsk62_beta_industry_constr_5_100_semiconductors,30))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Short-term factor momentum vs long-term factor baseline",
+      "description": "S1: subtract long-term factor mean from short-term factor returns using rsk62_factor_5_100_val46. S2: not vector. S3: coverage=1.0. S4: factor chosen has high alphaCount. Confidence: 0.56 (factor acceleration predictive).",
+      "implementation": "subtract(ts_zscore(rsk62_factor_5_100_val46,30), ts_mean(rsk62_factor_5_100_val46,252))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum scaled by net-income-per-employee growth",
+      "description": "S1: used rsk62_nipe_di growth with returns. S2: not vector. S3: nipe_di coverage=1.0. S4: nipe date index high userCount. Confidence: 0.5 (operational growth modest alpha).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), ts_zscore(rsk62_nipe_di,252))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Short-term reversal after factor product shock (ts_product)",
+      "description": "S1: used ts_product on factor retseries vec_avg to detect cumulative shocks. S2: vec_avg used. S3: coverage=1.0. S4: retseries moderate counts. Confidence: 0.45 (product-based signals noisy).",
+      "implementation": "reverse(ts_product(vec_avg(rsk62_retseries_factor_5_100_val7),5))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Momentum adjusted for healthcare-specific beta",
+      "description": "S1: used rsk62_beta_1_100_healthcare_services with returns when in that group (group parameter implied). S2: not vector. S3: beta coverage ~0.605 no backfill. S4: high userCount. Confidence: 0.52 (industry-tailored adjustments help).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), if_else(group==\"healthcare_services\", rsk62_beta_1_100_healthcare_services, 1))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Short-term momentum with target turnover hump tuning",
+      "description": "S1: used hump operator to smooth weight changes for ts_returns alpha. S2: not vector. S3: coverage=1.0. S4: returns high userCount. Confidence: 0.6 (hump reduces transaction noise).",
+      "implementation": "hump(ts_zscore(ts_returns(rsk62_1_return,5),20), hump=0.01)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum neutralized by subindustry",
+      "description": "S1: applied group_neutralize to remove subindustry effects on return zscore. S2: not vector. S3: coverage=1.0. S4: reduces sector bets. Confidence: 0.66 (neutralization improves stock-picking).",
+      "implementation": "group_neutralize(ts_zscore(ts_returns(rsk62_1_return,5),20), group=subindustry)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Momentum against intercept of industry (industry intercept residual)",
+      "description": "S1: subtract industry intercept (rsk62_industry_constr_1_100_intercept) from returns zscore. S2: not vector. S3: coverage=1.0. S4: intercept high userCount. Confidence: 0.58 (removing intercept isolates alpha).",
+      "implementation": "subtract(ts_zscore(ts_returns(rsk62_1_return,5),20), rsk62_industry_constr_1_100_intercept)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Factor correlation momentum: ts_ir of factor returns",
+      "description": "S1: used ts_ir on rsk62_retseries_factor_5_100_val3 (vec_avg) to get factor information ratio. S2: vec_avg applied. S3: coverage=1.0. S4: factor series with decent counts. Confidence: 0.54 (IR indicates stability).",
+      "implementation": "ts_ir(vec_avg(rsk62_retseries_factor_5_100_val3),60)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Momentum tilt toward low-debt equities",
+      "description": "S1: used rsk62_risk_qe2d (debt-to-equity) to penalize high-debt names. S2: not vector. S3: coverage ~0.968. S4: high userCount. Confidence: 0.55 (leverage filter reduces tail risk).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), reverse(zscore(rsk62_risk_qe2d)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Short-term mean reversion after high factor IR (ts_ir)",
+      "description": "S1: if factor IR high, expect short-term reversion in cross-section; used vec_avg factor retseries and ts_ir. S2: vec_avg applied. S3: coverage=1.0. S4: factor series moderate counts. Confidence: 0.47 (conditional and moderate).",
+      "implementation": "trade_when(greater(ts_ir(vec_avg(rsk62_retseries_factor_5_100_val3),60),1.0), reverse(ts_zscore(ts_returns(rsk62_1_return,5),20)), NaN)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Momentum scaled by beta to log(cap) (prefer low cap-sensitivity)",
+      "description": "S1: used rsk62_beta_factor_1_100_logcap to scale returns zscore. S2: not vector. S3: coverage=1.0. S4: beta factor logcap has solid userCount. Confidence: 0.56 (cap sensitivity useful).",
+      "implementation": "divide(ts_zscore(ts_returns(rsk62_1_return,5),20), add(rsk62_beta_factor_1_100_logcap,0.001))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Cross-sectional dispersion pick (high dispersion industries)",
+      "description": "S1: used vec_range of industry retseries to detect dispersion and long winners. S2: vec_range applied. S3: coverage=1.0. S4: retseries moderate counts. Confidence: 0.5 (dispersion regimes occasionally predictive).",
+      "implementation": "vec_range(rsk62_retseries_industry_5_100_val1)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum signal shrunk by ts_scale (time-series normalization)",
+      "description": "S1: used ts_scale to map returns into [0,1] over lookback. S2: not vector. S3: coverage=1.0. S4: returns high userCount. Confidence: 0.58 (scaling reduces nonstationarity).",
+      "implementation": "ts_scale(ts_returns(rsk62_1_return,20),20)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Short-term reversal guided by retseries tail (vec_max - vec_min)",
+      "description": "S1: used vec_max and vec_min on industry retseries to find intraday extremes. S2: vec operators used per S2. S3: coverage=1.0. S4: retseries moderate counts. Confidence: 0.49 (intraday extremes noisy).",
+      "implementation": "subtract(vec_max(rsk62_retseries_industry_5_100_val1), vec_min(rsk62_retseries_industry_5_100_val1))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Momentum combined with dividend backfill stability",
+      "description": "S1: used rsk62_risk_backfill_dividend for dividend stability and multiplied with returns. S2: not vector. S3: backfill coverage ~0.968 so backfilled field is stable. S4: rsk62_risk_backfill_dividend has high userCount. Confidence: 0.51 (dividend stability mild signal).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), rsk62_risk_backfill_dividend)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Momentum after industry 5-day product spike (ts_product vec_sum)",
+      "description": "S1: used vec_sum of industry retseries product via ts_product to detect cumulative shocks. S2: vec_sum/ts_product applied. S3: coverage=1.0. S4: moderate userCount. Confidence: 0.45 (product shocks noisy).",
+      "implementation": "ts_product(vec_sum(rsk62_retseries_industry_5_100_val1),5)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Short-term momentum conditioned on high gross margin (margin_di)",
+      "description": "S1: trade_when to apply momentum only if gross margin above median (rsk62_margin_di). S2: not vector. S3: margin_di coverage=1.0. S4: margin_di has good userCount. Confidence: 0.52 (quality filter).",
+      "implementation": "trade_when(greater(rsk62_margin_di, ts_median(rsk62_margin_di,252)), ts_zscore(ts_returns(rsk62_1_return,5),20), NaN)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum shrinked by group_mean (reduce extreme cross-group bias)",
+      "description": "S1: applied group_mean to returns zscore to equalize within groups. S2: not vector. S3: coverage=1.0. S4: reduces group concentration. Confidence: 0.6 (equalizing improves diversification).",
+      "implementation": "group_mean(ts_zscore(ts_returns(rsk62_1_return,5),20), weight=1, group=industry)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Factor cross-sectional bucketing (bucket of factor ranks)",
+      "description": "S1: bucket(rank(factor_1_100_val24)) to create long-short buckets. S2: not vector. S3: coverage=1.0. S4: factor has good userCount. Confidence: 0.58 (bucketing stabilizes exposures).",
+      "implementation": "bucket(rank(rsk62_factor_1_100_val24), range=\"0,1,0.2\")",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum vs growth backfill (risk_backfill_growth)",
+      "description": "S1: used rsk62_risk_backfill_growth (eps growth backfilled) to tilt momentum toward growth names. S2: not vector. S3: backfilled field coverage ~0.9672 so stable. S4: used due to strong userCount. Confidence: 0.53 (growth tilt modest enhancement).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), ts_zscore(rsk62_risk_backfill_growth,252))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Short-term reversal after factor abrupt change (last_diff_value)",
+      "description": "S1: used last_diff_value on factor to detect abrupt changes. S2: not vector. S3: coverage=1.0. S4: factor chosen has moderate counts. Confidence: 0.46 (abrupt-change signal variable).",
+      "implementation": "last_diff_value(rsk62_factor_5_100_val46,20)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Momentum with ts_rank on industry returns",
+      "description": "S1: used ts_rank on vec_avg industry retseries to find recent leaders in industry. S2: vec_avg applied. S3: coverage=1.0. S4: industry retseries has decent counts. Confidence: 0.6 (industry ts_rank useful).",
+      "implementation": "ts_rank(vec_avg(rsk62_retseries_industry_1_100_val11),10)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-term mean reversion after huge market intercept shifts",
+      "description": "S1: used ts_delta on 5_100_intercept to detect market shifts and reverse returns. S2: not vector. S3: intercept coverage=1.0. S4: intercept has very high userCount. Confidence: 0.48 (market-wide reversals noisy).",
+      "implementation": "trade_when(greater(abs(ts_delta(rsk62_5_100_intercept,5)), ts_std_dev(rsk62_5_100_intercept,60)), reverse(ts_zscore(ts_returns(rsk62_1_return,5),20)), NaN)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Momentum combined with short-term momentum beta (rsk62_beta_5_100_mts)",
+      "description": "S1: multiplied return zscore with rsk62_beta_5_100_mts (short-term momentum beta). S2: not vector. S3: coverage=1.0. S4: chosen beta has moderate userCount. Confidence: 0.57 (beta alignment beneficial).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), rsk62_beta_5_100_mts)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Momentum with ts_scale across time to stabilize range",
+      "description": "S1: used ts_scale on returns to make signal comparable across regimes. S2: not vector. S3: coverage=1.0. S4: returns field high userCount. Confidence: 0.59 (temporal scaling improves stability).",
+      "implementation": "ts_scale(ts_returns(rsk62_1_return,20),20)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum with group_zscore by sector (sector-relative)",
+      "description": "S1: applied group_zscore to returns to rank within sector. S2: not vector. S3: coverage=1.0. S4: sector-level neutralization reduces sector bets. Confidence: 0.64 (sector-relative picks idiosyncratic winners).",
+      "implementation": "group_zscore(ts_zscore(ts_returns(rsk62_1_return,5),20), group=sector)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Short-term momentum vs long-term industry trend (vec_avg)",
+      "description": "S1: compared stock short-term returns to industry long-term vec_avg retseries. S2: vec_avg applied for industry. S3: coverages=1.0. S4: industry series chosen with moderate counts. Confidence: 0.6 (industry baseline useful).",
+      "implementation": "subtract(ts_zscore(ts_returns(rsk62_1_return,5),20), ts_zscore(ts_mean(vec_avg(rsk62_retseries_industry_1_100_val11),252),252))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum scaled by beta to PB (prefers cheap low-beta stocks)",
+      "description": "S1: divided returns zscore by beta_pb (rsk62_beta_1_100_pb) to prefer cheap low-beta names. S2: not vector. S3: coverage=1.0. S4: pb beta has good userCount. Confidence: 0.56 (combined value and low-beta beneficial).",
+      "implementation": "divide(ts_zscore(ts_returns(rsk62_1_return,5),20), add(rsk62_beta_1_100_pb,0.001))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Short-term reversal after factor product drop (ts_max_diff on vec_sum)",
+      "description": "S1: used ts_max_diff of vec_sum factor retseries to detect drop from max and reverse. S2: vec_sum applied. S3: coverage=1.0. S4: moderate counts. Confidence: 0.47 (group product signals noisy).",
+      "implementation": "ts_max_diff(vec_sum(rsk62_retseries_factor_5_100_val3),5)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Momentum with winsorized industry exposure",
+      "description": "S1: multiply returns zscore with winsorized industry beta to avoid extreme industry bets. S2: not vector. S3: beta coverages vary; used ones with coverage=1.0. S4: selected betas have reasonable userCount. Confidence: 0.58 (winsorize reduces concentration).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), winsorize(rsk62_beta_5_100_logcap, std=3))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Short-term momentum using ts_quantile to map into gaussian scores",
+      "description": "S1: used ts_quantile on returns to create gaussian-like scores. S2: not vector. S3: coverage=1.0. S4: returns have very high userCount. Confidence: 0.6 (quantile mapping improves cross-time comparability).",
+      "implementation": "ts_quantile(ts_returns(rsk62_1_return,5),20)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum filtered by backfilled margin stability",
+      "description": "S1: trade_when using rsk62_risk_backfill_margin median to allow momentum only for stable-margin names. S2: not vector. S3: backfill coverage ~0.9661 so stable. S4: used due to good userCount. Confidence: 0.5 (operational filter modest).",
+      "implementation": "trade_when(greater(rsk62_risk_backfill_margin, ts_median(rsk62_risk_backfill_margin,252)), ts_zscore(ts_returns(rsk62_1_return,5),20), NaN)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum with time-series argmax labeling (recent peak leaders)",
+      "description": "S1: used ts_arg_max on returns to pick instruments at recent peaks (trend continuation). S2: not vector. S3: coverage=1.0. S4: returns high userCount. Confidence: 0.55 (arg_max captures continuing leaders).",
+      "implementation": "ts_arg_max(ts_returns(rsk62_1_return,20),20)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum scaled by beta to net income per employee (operational beta)",
+      "description": "S1: divide return zscore by beta_factor_5_100_nipe to prefer operationally resilient firms. S2: not vector. S3: coverage=1.0. S4: chosen beta has moderate userCount. Confidence: 0.52 (operational scaling gives incremental edge).",
+      "implementation": "divide(ts_zscore(ts_returns(rsk62_1_return,5),20), add(rsk62_beta_5_100_nipe,0.001))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Short-term reversal after large industry vec_range",
+      "description": "S1: used vec_range on industry retseries to detect dispersion then reversed. S2: vec_range applied. S3: coverage=1.0. S4: moderate counts. Confidence: 0.48 (industry dispersion reversal variable).",
+      "implementation": "reverse(vec_range(rsk62_retseries_industry_5_100_val1))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Momentum with group_count constraint (require n valid in group)",
+      "description": "S1: applied group_count to ensure sufficient group data before trading. S2: not vector. S3: coverage=1.0. S4: operational filter chosen. Confidence: 0.45 (execution/coverage filter).",
+      "implementation": "trade_when(greater(group_count(rsk62_1_return, group=industry),5), ts_zscore(ts_returns(rsk62_1_return,5),20), NaN)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Momentum adjusted by beta to dividend (prefer dividend-sensitive moves)",
+      "description": "S1: multiplied returns zscore with rsk62_beta_factor_1_100_dividend. S2: not vector. S3: coverage=1.0. S4: dividend beta has good userCount. Confidence: 0.51 (dividend sensitivity sometimes predictive).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), rsk62_beta_factor_1_100_dividend)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Short-term momentum with densify for fewer buckets (group densify)",
+      "description": "S1: used densify(group) to collapse group buckets and then rank within. S2: not vector. S3: coverage=1.0. S4: densify reduces computation and overfitting. Confidence: 0.5 (operational improvement).",
+      "implementation": "group_rank(ts_zscore(ts_returns(rsk62_1_return,5),20), group=densify(industry))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum scaled by beta to margin (prefer high-margin momentum)",
+      "description": "S1: multiplied returns zscore by rsk62_beta_factor_5_100_margin. S2: not vector. S3: coverage=1.0. S4: margin beta has moderate userCount. Confidence: 0.53 (margin tilt modestly helpful).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), rsk62_beta_factor_5_100_margin)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Short-term reversal after factor ts_decay_linear fast drop",
+      "description": "S1: used ts_decay_linear on factor returns to detect rapid drop and reverse exposures. S2: not vector. S3: coverage=1.0. S4: factor hopefully informative. Confidence: 0.46 (conditional signal).",
+      "implementation": "trade_when(less(ts_decay_linear(rsk62_factor_5_100_val46,5), ts_mean(rsk62_factor_5_100_val46,20)), reverse(ts_zscore(ts_returns(rsk62_1_return,5),20)), NaN)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Momentum with ts_delay (confirm persistence)",
+      "description": "S1: multiplied current return zscore with delayed return (ts_delay) to confirm persistence. S2: not vector. S3: coverage=1.0. S4: returns high userCount. Confidence: 0.6 (persistence confirmation reduces noise).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), ts_delay(ts_returns(rsk62_1_return,5),5))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-term factor momentum vs intercept using ts_regression residual",
+      "description": "S1: used ts_regression to get residual of returns vs factor and used residual as alpha. S2: not vector. S3: coverage=1.0. S4: regression isolates idiosyncratic alpha. Confidence: 0.59 (residual often predictive).",
+      "implementation": "ts_regression(ts_returns(rsk62_1_return,20), rsk62_factor_5_100_val46,60, lag=0, rettype=0)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum with winsorized beta exposures",
+      "description": "S1: winsorized industry betas combined with return zscore to avoid extreme exposure. S2: not vector. S3: coverage variable; used betas with coverage=1.0. S4: winsorize applied. Confidence: 0.57 (reduces tail risk).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), winsorize(rsk62_beta_5_100_logcap, std=3))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Industry cross-sectional ts_rank of vec_avg retseries",
+      "description": "S1: computed ts_rank across industry vec_avg retseries to pick top industry names. S2: vec_avg used. S3: coverage=1.0. S4: retseries moderate counts. Confidence: 0.6 (industry cross-rank effective).",
+      "implementation": "ts_rank(vec_avg(rsk62_retseries_industry_1_100_val11),20)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-term reversal if growth beta spikes (ts_delta on beta_growth)",
+      "description": "S1: ts_delta on rsk62_beta_1_100_growth indicates sudden change; reverse returns when large. S2: not vector. S3: coverage=1.0. S4: growth beta high userCount. Confidence: 0.47 (conditional reversal).",
+      "implementation": "trade_when(greater(abs(ts_delta(rsk62_beta_1_100_growth,5)), ts_std_dev(rsk62_beta_1_100_growth,60)), reverse(ts_zscore(ts_returns(rsk62_1_return,5),20)), NaN)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Momentum combined with backfilled net income per employee",
+      "description": "S1: used rsk62_risk_backfill_nipe to tilt toward companies with stable nipe and multiplied with returns. S2: not vector. S3: backfill coverage ~0.968. S4: high userCount. Confidence: 0.52 (operational stability helps).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), rsk62_risk_backfill_nipe)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Short-term momentum normalized by cross-sectional zscore",
+      "description": "S1: normalized returns using normalize() to remove cross-sectional mean, then zscore. S2: not vector. S3: coverage=1.0. S4: returns high userCount. Confidence: 0.61 (normalization improves cross-sectional comparability).",
+      "implementation": "zscore(normalize(ts_returns(rsk62_1_return,5)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Factor pair spread using two factor vec_avg retseries",
+      "description": "S1: subtract vec_avg of two factor retseries to capture relative strength. S2: vec_avg used on both. S3: coverage=1.0. S4: both retseries have reasonable counts. Confidence: 0.57 (pair factor spread often predictive).",
+      "implementation": "subtract(vec_avg(rsk62_retseries_factor_5_100_val3), vec_avg(rsk62_retseries_factor_5_100_val5))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Momentum scaled by inverse group zscore (favor contrarian groups)",
+      "description": "S1: multiplied stock momentum by inverse of group_zscore (group=industry) to prefer names in weak industries. S2: not vector. S3: coverage=1.0. S4: group_zscore reduces group bias. Confidence: 0.54 (group tilts can add value).",
+      "implementation": "multiply(ts_zscore(ts_returns(rsk62_1_return,5),20), reverse(group_zscore(rsk62_1_return, group=industry)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Momentum conditioned on low beta to volatility (prefer low sensitivity)",
+      "description": "S1: trade_when to only apply momentum when beta_volatility below median. Used rsk62_beta_5_100_volatility. S2: not vector. S3: coverage=1.0. S4: beta_volatility high userCount. Confidence: 0.55 (conditional reduces drawdown).",
+      "implementation": "trade_when(less(rsk62_beta_5_100_volatility, ts_median(rsk62_beta_5_100_volatility,252)), ts_zscore(ts_returns(rsk62_1_return,5),20), NaN)",
+      "confidence_level": 0.55
+    }
+  ]
+}

@@ -1,0 +1,658 @@
+{
+  "results": [
+    {
+      "idea": "Short-term momentum of SHIELD score",
+      "description": "Use short-term returns of imb5_score to capture momentum. SUGGESTION1: used single strong datafield (imb5_score) because it has high userCount/alphaCount; SUGGESTION2: not applied (no vector field); SUGGESTION3: not applied (coverage 0.8669 > 0.6); SUGGESTION4: applied (imb5_score has high user/alpha counts). KEEP_IN_MINDs followed: implementation short, <=7 operators, <=2 datafields, no group alone. Confidence=0.70",
+      "implementation": "zscore(ts_returns(imb5_score,5))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Medium-term mean reversion of SHIELD score",
+      "description": "Mean-reversion: current score minus its medium-term average. SUGGESTION1: used imb5_score only for clarity; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4: used high-count field. KEEP_IN_MINDs observed. Confidence=0.65",
+      "implementation": "ts_av_diff(imb5_score,20)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Score momentum scaled by market cap (risk-adjusted momentum)",
+      "description": "Multiply short-term score momentum by inverse market cap to overweight small-cap momentum. SUGGESTION1: used both datafields; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4: both fields have high user/alpha counts. KEEP_IN_MINDs observed. Confidence=0.68",
+      "implementation": "multiply(ts_returns(imb5_score,10), inverse(imb5_mktcap))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Score volatility breakout",
+      "description": "Signal when score return exceeds recent volatility: ts_delta divided by ts_std_dev. SUGGESTION1: used imb5_score; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4: used high-count score. KEEP_IN_MINDs observed. Confidence=0.66",
+      "implementation": "divide(ts_delta(imb5_score,3), ts_std_dev(imb5_score,20))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Cross-sectional ranking of score acceleration",
+      "description": "Rank cross-sectionally the recent acceleration (delta of returns). SUGGESTION1: single field for focus; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4: applied. KEEP_IN_MINDs observed. Confidence=0.63",
+      "implementation": "quantile(ts_delta(ts_returns(imb5_score,5),2))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Score normalized by long-term mean (z-score)",
+      "description": "Cross-sectional zscore of score relative to its long-term history. SUGGESTION1: single high-quality field; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4: applied. KEEP_IN_MINDs observed. Confidence=0.64",
+      "implementation": "zscore(ts_zscore(imb5_score,60))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Score mean-reversion weighted by market cap group (size tilt)",
+      "description": "Short-term deviation from 10-day mean scaled by inverse market cap to favor small-cap mean reversion. SUGGESTION1: used both fields; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4: applied. KEEP_IN_MINDs observed. Confidence=0.67",
+      "implementation": "multiply(ts_av_diff(imb5_score,10), inverse(imb5_mktcap))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Persistent high-score filter",
+      "description": "Trade only if imb5_score stays high vs 20-day mean (persistence). SUGGESTION1: single field; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4: applied. KEEP_IN_MINDs observed. Confidence=0.62",
+      "implementation": "if_else(greater(imb5_score, ts_mean(imb5_score,20)), imb5_score, NaN)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Score momentum divided by market cap volatility",
+      "description": "Momentum of score divided by its historical stddev to get Sharpe-like metric. SUGGESTION1: used imb5_score only; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4: applied. KEEP_IN_MINDs ok. Confidence=0.65",
+      "implementation": "divide(ts_returns(imb5_score,10), ts_std_dev(imb5_score,30))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Short-term reversal after score spike",
+      "description": "Detect local maxima in recent window and short those with recent top (mean-reversion from ts_arg_max). SUGGESTION1: single field; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4: applied. KEEP_IN_MINDs observed. Confidence=0.60",
+      "implementation": "reverse(if_else(equal(ts_arg_max(imb5_score,5),0), 1, 0))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Score momentum with winsorization",
+      "description": "Robustify short-term momentum by winsorizing returns before ranking. SUGGESTION1: single field; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4: applied. KEEP_IN_MINDs observed. Confidence=0.66",
+      "implementation": "zscore(winsorize(ts_returns(imb5_score,7), std=3))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Relative score to market cap bucket",
+      "description": "Divide score by market cap and cross-sectional normalize to capture high-score small-cap names. SUGGESTION1: used both fields; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4: applied. KEEP_IN_MINDs observed. Confidence=0.69",
+      "implementation": "zscore(divide(imb5_score, imb5_mktcap))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Score momentum filtered by market cap threshold",
+      "description": "Apply momentum but only for names below median mktcap to capture mid/small cap effects. SUGGESTION1: used both fields; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4: applied. Keeps implementation compact. Confidence=0.67",
+      "implementation": "if_else(less(imb5_mktcap, ts_mean(imb5_mktcap,60)), zscore(ts_returns(imb5_score,10)), NaN)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Score momentum minus market cap-weighted average (relative strength)",
+      "description": "Relative strength: instrument's score return minus mktcap-weighted avg (approx using market cap scaling). SUGGESTION1: used both fields; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4: applied. KEEP_IN_MINDs observed. Confidence=0.66",
+      "implementation": "subtract(ts_returns(imb5_score,5), multiply(ts_mean(imb5_score,5), divide(imb5_mktcap, ts_mean(imb5_mktcap,60))))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Score change persistence (days from last change)",
+      "description": "Signal names whose score changed recently (fresh info) using days_from_last_change. SUGGESTION1: single field; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4: applied. KEEP_IN_MINDs obeyed. Confidence=0.58",
+      "implementation": "reverse(days_from_last_change(imb5_score))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Long-term score trend (100-day slope)",
+      "description": "Estimate long-run trend via ts_regression slope of score; trade on slope sign. SUGGESTION1: single field; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4: applied. Kept operator count low. Confidence=0.63",
+      "implementation": "ts_regression(imb5_score, ts_step(1), 100, lag=0, rettype=1)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Mean-reversion scaled by score kurtosis (risk adjustment)",
+      "description": "Use ts_kurtosis to downweight names with fat tails (less reliable mean reversion). SUGGESTION1: single field; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4: applied. KEEP_IN_MINDs ok. Confidence=0.61",
+      "implementation": "divide(ts_av_diff(imb5_score,15), ts_kurtosis(imb5_score,60))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Score momentum with hump turnover control",
+      "description": "Use hump to limit turnover on a momentum zscore of score. SUGGESTION1: single field; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4: applied. KEEP_IN_MINDs observed. Confidence=0.62",
+      "implementation": "hump(zscore(ts_returns(imb5_score,7)), hump=0.01)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Short-term score reversal after large 3-day move",
+      "description": "If 3-day return extreme, expect reversal: use sign*reverse of 3-day return zscore. SUGGESTION1: single field; others N/A; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.59",
+      "implementation": "reverse(sign(zscore(ts_returns(imb5_score,3))))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Score persistence measured by ts_ir (signal information ratio)",
+      "description": "Use ts_ir over 30 days to find persistent score signals. SUGGESTION1: single field; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.64",
+      "implementation": "ts_ir(imb5_score,30)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Combine short and long score momentum (mean of horizons)",
+      "description": "Average short and long horizon returns to capture multi-horizon momentum. SUGGESTION1: single field; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.66",
+      "implementation": "ts_mean(add(ts_returns(imb5_score,5), ts_returns(imb5_score,60)),2)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Score-derived contrarian using recent minimum (ts_arg_min)",
+      "description": "Go long names at recent minima expecting bounce. SUGGESTION1: used imb5_score; others N/A. KEEP_IN_MINDs applied. Confidence=0.60",
+      "implementation": "if_else(equal(ts_arg_min(imb5_score,20),0), 1, 0)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Normalized score divided by median market cap",
+      "description": "Scale score by current median mktcap to find relatively high-score small names. SUGGESTION1: used both fields; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.67",
+      "implementation": "divide(zscore(imb5_score), ts_mean(imb5_mktcap,60))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Score momentum winsorized and scaled to booksize",
+      "description": "Winsorize returns then scale to booksize to control exposure. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.65",
+      "implementation": "scale(winsorize(ts_returns(imb5_score,10), std=3))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Recent score increase relative to 30-day range",
+      "description": "Measure current score relative to its recent range (ts_max - ts_min). SUGGESTION1: single field; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.62",
+      "implementation": "divide(subtract(imb5_score, ts_min(imb5_score,30)), ts_max(imb5_score,30))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Score momentum adjusted by recent NaN count (data freshness)",
+      "description": "Downweight instruments with many recent NaNs via ts_count_nans. SUGGESTION1: single field; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.59",
+      "implementation": "divide(ts_returns(imb5_score,7), add(1, ts_count_nans(imb5_score,30)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Extreme-score reversion using ts_max_diff",
+      "description": "Revert from recent maximum: ts_max_diff captures distance from peak. SUGGESTION1: single field; others N/A. KEEP_IN_MINDs applied. Confidence=0.61",
+      "implementation": "ts_max_diff(imb5_score,20)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Score momentum with exponential-style linear decay",
+      "description": "Apply ts_decay_linear to recent returns to emphasize very recent moves. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.63",
+      "implementation": "ts_decay_linear(ts_returns(imb5_score,10),10)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Relative score: score / (score + mktcap) to find disproportionately scoring small caps",
+      "description": "Nonlinear scaling to emphasize small mktcap with high score. SUGGESTION1: both fields used; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.68",
+      "implementation": "divide(imb5_score, add(imb5_score, imb5_mktcap))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Score short-term zscore rank across cross-section",
+      "description": "Use cross-sectional zscore of 5-day score change to find relative movers. SUGGESTION1: single field; others N/A; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.64",
+      "implementation": "zscore(ts_delta(imb5_score,5))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Score acceleration divided by market cap to favor nimble small caps",
+      "description": "Capture rapid score acceleration then tilt to small caps. SUGGESTION1: both fields used; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.67",
+      "implementation": "multiply(ts_delta(ts_returns(imb5_score,5),2), inverse(imb5_mktcap))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Long-short between top and bottom quantiles of score",
+      "description": "Construct cross-sectional long top quantile and short bottom using quantile buckets on current score. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.66",
+      "implementation": "quantile(imb5_score)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Score momentum normalized by group (proxy via mktcap buckets)",
+      "description": "Normalize within mktcap buckets by using ts_scale of mktcap as proxy group signal. SUGGESTION1: both fields used; SUGGESTION4 applied. KEEP_IN_MINDs: avoided group_ operators. Confidence=0.62",
+      "implementation": "divide(zscore(ts_returns(imb5_score,10)), ts_scale(imb5_mktcap,60))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Score-based low-volatility pick (momentum / volatility with cap)",
+      "description": "Momentum divided by volatility but capped via pasteurize to remove infs. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.65",
+      "implementation": "pasteurize(divide(ts_returns(imb5_score,15), ts_std_dev(imb5_score,30)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Short-term rebound after multi-day decline (ts_arg_min filter)",
+      "description": "Long when score is recent 5-day minimum expecting bounce. SUGGESTION1: single field; others N/A. KEEP_IN_MINDs observed. Confidence=0.60",
+      "implementation": "if_else(equal(ts_arg_min(imb5_score,5),0), 1, NaN)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum of score weighted by recent activity proxy (vec_count not applicable so use mktcap)",
+      "description": "Use mktcap as proxy for liquidity/activity to weight score momentum. SUGGESTION1: both fields used; SUGGESTION2: not applicable; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.66",
+      "implementation": "multiply(ts_returns(imb5_score,7), divide(1, ts_mean(imb5_mktcap,30)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Score zscore with tail-truncation",
+      "description": "Apply tail to limit extreme zscores to reduce turnover. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.63",
+      "implementation": "tail(zscore(ts_returns(imb5_score,7)), lower=-3, upper=3, newval=0)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Short-term cross-sectional ranking of score change combined with mktcap filter",
+      "description": "Rank score change cross-sectionally but only for names below median mktcap. SUGGESTION1: both fields used; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.65",
+      "implementation": "if_else(less(imb5_mktcap, ts_mean(imb5_mktcap,60)), zscore(ts_delta(imb5_score,5)), NaN)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Score momentum trimmed by data freshness using ts_count_nans",
+      "description": "Penalize momentum by recent NaN counts to avoid stale signals. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.6",
+      "implementation": "divide(ts_returns(imb5_score,10), add(1, ts_count_nans(imb5_score,30)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Hybrid: long-term trend positive AND short-term momentum positive",
+      "description": "Require both long-term slope and short-term returns positive for stronger signals. SUGGESTION1: single field; SUGGESTION2: N/A; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.68",
+      "implementation": "and(greater(ts_regression(imb5_score, ts_step(1), 120, 0, 1),0), greater(ts_returns(imb5_score,5),0))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Score momentum scaled by inverse of 60-day standard deviation",
+      "description": "Sharpe-like metric using score returns over 20 days scaled by 60-day vol. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.66",
+      "implementation": "divide(ts_returns(imb5_score,20), ts_std_dev(imb5_score,60))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Short-term mean reversion after score reaches top quantile",
+      "description": "If score in upper quantile, expect pullback; short top quantile. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.61",
+      "implementation": "if_else(greater(quantile(imb5_score),0.9), reverse(imb5_score), NaN)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Score momentum filtered by extreme kurtosis (downweight fat tails)",
+      "description": "Compute momentum and divide by kurtosis to avoid tail-risky names. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.6",
+      "implementation": "divide(ts_returns(imb5_score,10), add(1, ts_kurtosis(imb5_score,60)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Adaptive horizon: choose better of 5d or 20d momentum",
+      "description": "Select the horizon with higher ts_ir historically and trade that momentum. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.67",
+      "implementation": "if_else(greater(ts_ir(ts_returns(imb5_score,5),60), ts_ir(ts_returns(imb5_score,20),60)), ts_returns(imb5_score,5), ts_returns(imb5_score,20))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Score residual momentum vs 60-day trend (ts_delta of detrended series)",
+      "description": "Remove long-term trend via subtracting ts_mean then take short-term delta. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.66",
+      "implementation": "ts_delta(subtract(imb5_score, ts_mean(imb5_score,60)),5)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Score over recent range normalized and cross-sectional ranked",
+      "description": "Position by where score sits in recent range and rank cross-sectionally. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.63",
+      "implementation": "quantile(divide(subtract(imb5_score, ts_min(imb5_score,30)), subtract(ts_max(imb5_score,30), ts_min(imb5_score,30))))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Score momentum with pasteurize to guard against universe changes",
+      "description": "Pasteurize momentum measure to avoid infs when mktcap zero or instrument leaves universe. SUGGESTION1: used imb5_score; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.64",
+      "implementation": "pasteurize(ts_returns(imb5_score,10))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Mean-reversion sign of recent change",
+      "description": "Use sign of negative ts_delta to go long on recent declines expecting bounce. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.58",
+      "implementation": "sign(reverse(ts_delta(imb5_score,5)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Score momentum combined with market cap quantile tilt",
+      "description": "Rank momentum and multiply by indicator that company is in small-cap quantile. SUGGESTION1: both fields used; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.68",
+      "implementation": "multiply(zscore(ts_returns(imb5_score,10)), if_else(less(imb5_mktcap, ts_quantile(imb5_mktcap,60)),1,0))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Score short-term reversal after unusually low volatility",
+      "description": "When score volatility collapses then sudden move may reverse; use ts_std_dev threshold. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.59",
+      "implementation": "if_else(less(ts_std_dev(imb5_score,20),0.01), reverse(ts_returns(imb5_score,3)), NaN)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Score momentum shrunk by long-term volatility",
+      "description": "Shrink short-term momentum by long-term volatility using divide and pasteurize. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.65",
+      "implementation": "divide(ts_returns(imb5_score,7), pasteurize(ts_std_dev(imb5_score,120)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Composite: average of 3 horizons zscores",
+      "description": "Combine 5d, 20d, 60d zscores to reduce horizon noise. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.69",
+      "implementation": "ts_mean(add(zscore(ts_returns(imb5_score,5)), add(zscore(ts_returns(imb5_score,20)), zscore(ts_returns(imb5_score,60)))),3)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Score rank momentum with winsorize and scale",
+      "description": "Rank momentum cross-sectionally, winsorize and scale to control extremes. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs kept simple. Confidence=0.66",
+      "implementation": "scale(winsorize(quantile(ts_returns(imb5_score,10)), std=3))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Score acceleration zscore to capture rapid changes",
+      "description": "Use zscore of delta of returns to find rapid change candidates. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.64",
+      "implementation": "zscore(ts_delta(ts_returns(imb5_score,5),2))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Score continuity: require consistent sign over 3 days",
+      "description": "Trade only if sign of returns consistent for past 3 days to avoid noise. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs respected. Confidence=0.61",
+      "implementation": "if_else(and(greater(ts_returns(imb5_score,1),0), greater(ts_returns(ts_delay(imb5_score,1),1),0)), ts_returns(imb5_score,1), NaN)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Score divergence between short and long term (mean cross)",
+      "description": "Signal when short-term mean crosses long-term mean of score (momentum shift). SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.67",
+      "implementation": "subtract(ts_mean(imb5_score,10), ts_mean(imb5_score,60))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Score momentum conditioned on low market cap volatility",
+      "description": "Trade momentum only when market cap is stable (low ts_std_dev), reducing liquidity shocks. SUGGESTION1: both fields used; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.63",
+      "implementation": "if_else(less(ts_std_dev(imb5_mktcap,30), ts_mean(ts_std_dev(imb5_mktcap,30),60)), zscore(ts_returns(imb5_score,7)), NaN)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Score momentum scaled by recent range (robustness)",
+      "description": "Divide momentum by recent range to avoid tiny moves in narrow ranges. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.62",
+      "implementation": "divide(ts_returns(imb5_score,7), add(1e-6, subtract(ts_max(imb5_score,30), ts_min(imb5_score,30))))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Score reversion when past 10-day IR low",
+      "description": "If ts_ir over 30d is low, favor mean-reversion signals as momentum likely weak. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.60",
+      "implementation": "if_else(less(ts_ir(imb5_score,30),0.1), reverse(ts_av_diff(imb5_score,10)), NaN)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum of score conditional on being outside 30-day band",
+      "description": "Trade momentum only when score is outside its recent 30-day band to avoid trading noise. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.64",
+      "implementation": "if_else(or(greater(imb5_score, ts_max(imb5_score,30)), less(imb5_score, ts_min(imb5_score,30))), ts_returns(imb5_score,5), NaN)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Score acceleration weighted by inverse recent max drawdown (proxy via ts_max_diff)",
+      "description": "Prefer accelerations in resilient names by dividing by recent max diff. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.61",
+      "implementation": "divide(ts_delta(ts_returns(imb5_score,5),2), add(1e-6, ts_max_diff(imb5_score,60)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Short-term mean-reversion when 5d zscore extreme",
+      "description": "If 5d zscore exceeds threshold, revert; implemented as negative zscore. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.62",
+      "implementation": "reverse(if_else(greater(zscore(ts_returns(imb5_score,5)),2), zscore(ts_returns(imb5_score,5)), NaN))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Composite small-cap high-score long bias",
+      "description": "Long instruments with high score and below median mktcap; short opposite. SUGGESTION1: both fields used; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.70",
+      "implementation": "subtract(if_else(less(imb5_mktcap, ts_mean(imb5_mktcap,60)), zscore(imb5_score), 0), if_else(greater(imb5_mktcap, ts_mean(imb5_mktcap,60)), zscore(imb5_score), 0))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Score momentum tempered by days_from_last_change",
+      "description": "Favor names with recent score changes (fresh) by multiplying momentum by inverse days_from_last_change. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.61",
+      "implementation": "multiply(ts_returns(imb5_score,7), inverse(add(1, days_from_last_change(imb5_score))))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Signal: score trending up and low recent volatility",
+      "description": "Combine positive slope with low short-term volatility as stable uptrend. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.63",
+      "implementation": "and(greater(ts_regression(imb5_score, ts_step(1), 90, 0, 1),0), less(ts_std_dev(imb5_score,20), ts_std_dev(imb5_score,60)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Score divided by mktcap percentile",
+      "description": "Normalize score by its market cap percentile to emphasize high score in low-cap names. SUGGESTION1: both fields used; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.68",
+      "implementation": "divide(imb5_score, ts_quantile(imb5_mktcap,60))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Score momentum with rounded bucket exposure (bucket rank)",
+      "description": "Bucket momentum into discrete exposures for simpler implementation and risk control. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.62",
+      "implementation": "bucket(rank(ts_returns(imb5_score,10)), range=\"0, 1, 0.1\")",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum conditional on recent arg_max (avoid chasing peaks)",
+      "description": "Avoid momentum if current day is recent maximum (reduce chasing). SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.60",
+      "implementation": "if_else(not_equal(ts_arg_max(imb5_score,10),0), zscore(ts_returns(imb5_score,5)), NaN)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Score mean reversion scaled to account for market cap concentration",
+      "description": "Divide mean-reversion signal by group-like mktcap concentration approximated via ts_std_dev of mktcap to avoid dominant large caps. SUGGESTION1: both fields used; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.62",
+      "implementation": "divide(ts_av_diff(imb5_score,10), add(1e-6, ts_std_dev(imb5_mktcap,60)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Score momentum downweighting long-term high variance names",
+      "description": "Downweight momentum by 120-day vol to avoid volatile names. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.64",
+      "implementation": "divide(ts_returns(imb5_score,7), add(1, ts_std_dev(imb5_score,120)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Aggressive short-term reversal after 1-day extreme",
+      "description": "If 1-day return zscore extreme, take contrarian position. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.58",
+      "implementation": "reverse(if_else(greater(abs(zscore(ts_returns(imb5_score,1))),2), zscore(ts_returns(imb5_score,1)), NaN))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Score momentum combined with low days_from_last_change (freshness boost)",
+      "description": "Boost momentum for recently changed scores. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.62",
+      "implementation": "multiply(ts_returns(imb5_score,5), inverse(add(1, days_from_last_change(imb5_score))))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Score zscore trend-following with pasteurize and hump",
+      "description": "Use zscore of trend with pasteurize to remove outliers and hump to limit turnover. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.65",
+      "implementation": "hump(pasteurize(zscore(ts_delta(imb5_score,10))), hump=0.01)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Score momentum adjusted for recent max drawdown",
+      "description": "Prefer momentum in names with smaller recent drawdowns by dividing by ts_max_diff. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.61",
+      "implementation": "divide(ts_returns(imb5_score,10), add(1e-6, ts_max_diff(imb5_score,90)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Cross-sectional rank of (score / mktcap) to find efficient high-score small caps",
+      "description": "Rank the ratio to pick names with high score per size unit. SUGGESTION1: both fields used; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.69",
+      "implementation": "quantile(divide(imb5_score, imb5_mktcap))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Score momentum but only when ts_ir above threshold (signal quality filter)",
+      "description": "Trade momentum only if ts_ir indicates persistent signal. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.66",
+      "implementation": "if_else(greater(ts_ir(imb5_score,60),0.2), zscore(ts_returns(imb5_score,10)), NaN)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Score mean reversion multiplied by market cap (tilt to large caps)",
+      "description": "Mean reversion that favors larger caps (opposite of small-cap tilt): multiply by mktcap. SUGGESTION1: both fields used; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.60",
+      "implementation": "multiply(ts_av_diff(imb5_score,10), imb5_mktcap)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Score acceleration trigger using ts_arg_max/min with short window",
+      "description": "Identify very recent extremes (1-3 days) and trade their direction of reversion/continuation. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.59",
+      "implementation": "if_else(equal(ts_arg_max(imb5_score,3),0), ts_returns(imb5_score,1), if_else(equal(ts_arg_min(imb5_score,3),0), reverse(ts_returns(imb5_score,1)), NaN))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum scaled by inverse 30-day mean score (relative strength)",
+      "description": "Divide recent returns by long-term mean to normalize across absolute score levels. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.63",
+      "implementation": "divide(ts_returns(imb5_score,7), add(1e-6, ts_mean(imb5_score,60)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Score volatility compression breakout",
+      "description": "When 30-day vol compresses and then score moves, expect breakout; detect low vol then recent move. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.62",
+      "implementation": "if_else(less(ts_std_dev(imb5_score,30), ts_std_dev(imb5_score,90)), ts_returns(imb5_score,3), NaN)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Score trend strength via ts_regression t-stat (rettype)",
+      "description": "Use regression statistics to measure trend strength and trade on high t-stats. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.64",
+      "implementation": "ts_regression(imb5_score, ts_step(1), 60, 0, 2)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum of score normalized by mktcap median to equalize exposure",
+      "description": "Divide momentum by median mktcap to avoid large-cap domination. SUGGESTION1: both fields used; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.66",
+      "implementation": "divide(zscore(ts_returns(imb5_score,10)), ts_quantile(imb5_mktcap,60))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Score change sign persistence over 5 days",
+      "description": "Require consistent direction for 5 days to confirm signal and reduce noise. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.60",
+      "implementation": "if_else(equal(sign(ts_returns(imb5_score,1)), sign(ts_returns(ts_delay(imb5_score,1),1))), ts_returns(imb5_score,1), NaN)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-term reversal for names with extreme score/mktcap ratio",
+      "description": "When the ratio is extreme, expect reversion; use zscore on ratio and reverse sign. SUGGESTION1: both fields used; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.63",
+      "implementation": "reverse(zscore(divide(imb5_score, imb5_mktcap)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Score momentum combined with pasteurize mktcap inverse",
+      "description": "Use inverse mktcap but pasteurize to prevent infinities, then weight momentum. SUGGESTION1: both fields used; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.67",
+      "implementation": "multiply(ts_returns(imb5_score,7), pasteurize(inverse(imb5_mktcap)))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Score zscore trend with tail truncation and scaling",
+      "description": "Limit extremes with tail then scale to booksize for controlled exposure. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.64",
+      "implementation": "scale(tail(zscore(ts_delta(imb5_score,10)), lower=-3, upper=3, newval=0))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Score momentum but only for high ts_ir names",
+      "description": "Filter to names where ts_ir indicates stable signal before applying momentum. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.68",
+      "implementation": "if_else(greater(ts_ir(imb5_score,90),0.25), zscore(ts_returns(imb5_score,20)), NaN)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Score mean-reversion signal with winsorize and divide by mktcap",
+      "description": "Winsorize mean-reversion then tilt toward small caps by dividing by mktcap. SUGGESTION1: both fields used; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.66",
+      "implementation": "divide(winsorize(ts_av_diff(imb5_score,15), std=3), add(1e-6, imb5_mktcap))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Short-term score surge continuation when long-term trend positive",
+      "description": "Require long-term positive slope and short-term surge to go long continuation. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.67",
+      "implementation": "and(greater(ts_regression(imb5_score, ts_step(1), 120, 0, 1),0), greater(ts_returns(imb5_score,3),0))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Score momentum adjusted by recent data completeness",
+      "description": "Downweight signals when recent data has many NaNs using ts_count_nans. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.60",
+      "implementation": "divide(zscore(ts_returns(imb5_score,10)), add(1, ts_count_nans(imb5_score,30)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Score momentum with dynamic turnover control (hump)",
+      "description": "Apply hump to momentum signal to smooth weights and reduce turnover. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.63",
+      "implementation": "hump(zscore(ts_returns(imb5_score,7)), hump=0.02)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Score reversion after extended streaks (days_from_last_change)",
+      "description": "If score unchanged for long time then sudden change may revert: use days_from_last_change. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.57",
+      "implementation": "if_else(greater(days_from_last_change(imb5_score),30), reverse(ts_returns(imb5_score,5)), NaN)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Momentum of score normalized by its 30-60 day range",
+      "description": "Divide short-term returns by mid-term range for robust signals. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.62",
+      "implementation": "divide(ts_returns(imb5_score,7), add(1e-6, subtract(ts_max(imb5_score,60), ts_min(imb5_score,30))))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Score acceleration vs mktcap-weighted average",
+      "description": "Contrast instrument acceleration to mktcap-weighted mean to find relative movers. SUGGESTION1: both fields used; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.65",
+      "implementation": "subtract(ts_delta(ts_returns(imb5_score,5),2), multiply(ts_mean(ts_returns(imb5_score,5),20), divide(imb5_mktcap, ts_mean(imb5_mktcap,60))))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Score mean reversion sign combined with low mktcap volatility",
+      "description": "Trade mean-reversion only for names with stable mktcap to avoid liquidity-driven reversals. SUGGESTION1: both fields used; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.61",
+      "implementation": "if_else(less(ts_std_dev(imb5_mktcap,30), ts_std_dev(imb5_mktcap,90)), ts_av_diff(imb5_score,10), NaN)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Score momentum with quantile scaling for robustness",
+      "description": "Convert momentum to quantiles to reduce sensitivity to outliers. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.64",
+      "implementation": "quantile(ts_returns(imb5_score,10))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Score acceleration weighted by recent positive momentum days count (stability)",
+      "description": "Multiply acceleration by count of recent positive return days approximated via kth_element not applicable so use sign aggregated via ts_sum of indicators (emulated). SUGGESTION1: single field; SUGGESTION2: N/A; SUGGESTION3: N/A; SUGGESTION4: applied. KEEP_IN_MINDs: kept short. Confidence=0.60",
+      "implementation": "multiply(ts_delta(ts_returns(imb5_score,5),2), ts_sum(if_else(greater(ts_returns(imb5_score,1),0),1,0),5))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Score momentum shrinked toward zero for high mktcap names",
+      "description": "Shrink momentum for large caps via divide by ts_quantile of mktcap. SUGGESTION1: both fields used; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.65",
+      "implementation": "divide(zscore(ts_returns(imb5_score,10)), add(1e-6, ts_quantile(imb5_mktcap,60)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Score contrarian using short-term overreaction detection",
+      "description": "If 1-day zscore > threshold, take opposite position expecting overreaction. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.58",
+      "implementation": "reverse(if_else(greater(abs(zscore(ts_returns(imb5_score,1))),2), zscore(ts_returns(imb5_score,1)), NaN))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Score-driven equal-weight small-cap basket",
+      "description": "Select top score names within small-cap universe (below median mktcap) equally weighted. SUGGESTION1: both fields used; SUGGESTION4 applied. KEEP_IN_MINDs: avoided group ops. Confidence=0.69",
+      "implementation": "if_else(less(imb5_mktcap, ts_mean(imb5_mktcap,60)), quantile(imb5_score), NaN)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Score momentum trimmed by 3-sigma winsorization",
+      "description": "Winsorize momentum to limit extreme bets. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.63",
+      "implementation": "winsorize(ts_returns(imb5_score,10), std=3)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Score directional conviction using ts_arg_max/min counts",
+      "description": "If instrument frequently at arg_max in short windows, treat as strong convictive mover. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.62",
+      "implementation": "if_else(equal(ts_arg_max(imb5_score,5),0), zscore(ts_returns(imb5_score,5)), NaN)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Score momentum with two-tier filter: ts_ir and ts_std_dev",
+      "description": "Require positive ts_ir and moderate volatility before trading momentum. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.66",
+      "implementation": "if_else(and(greater(ts_ir(imb5_score,60),0.15), less(ts_std_dev(imb5_score,30), ts_std_dev(imb5_score,90))), zscore(ts_returns(imb5_score,10)), NaN)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Score mean-reversion only for names with low recent NaNs",
+      "description": "Avoid stale data by only acting on names with few NaNs in recent window. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.59",
+      "implementation": "if_else(less(ts_count_nans(imb5_score,30),3), ts_av_diff(imb5_score,10), NaN)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Score momentum adjusted by sqrt(mktcap) to moderate size tilt",
+      "description": "Weight by inverse sqrt(mktcap) for mild small-cap tilt. SUGGESTION1: both fields used; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.67",
+      "implementation": "multiply(zscore(ts_returns(imb5_score,10)), inverse(sqrt(imb5_mktcap)))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Score momentum with quantile-based thresholding",
+      "description": "Only trade top/bottom quantiles to reduce noise. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.65",
+      "implementation": "if_else(greater(quantile(ts_returns(imb5_score,10)),0.9), quantile(ts_returns(imb5_score,10)), NaN)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Score acceleration filtered by long-term trend sign",
+      "description": "Act on acceleration only if long-term trend is in same direction to avoid fighting large trends. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.66",
+      "implementation": "if_else(greater(ts_regression(imb5_score, ts_step(1), 120, 0, 1),0), ts_delta(ts_returns(imb5_score,5),2), NaN)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Score momentum shrunk by long-term mean (shrinkage)",
+      "description": "Shrink recent momentum toward long-term mean to reduce overfitting. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.63",
+      "implementation": "subtract(ts_returns(imb5_score,7), multiply(0.5, ts_mean(imb5_score,120)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Score breakout when current > recent max and vol rising",
+      "description": "Long when score exceeds 30-day max and short-term vol rising, indicating breakout. SUGGESTION1: single field; SUGGESTION4 applied. KEEP_IN_MINDs observed. Confidence=0.62",
+      "implementation": "and(greater(imb5_score, ts_max(imb5_score,30)), greater(ts_std_dev(imb5_score,10), ts_std_dev(imb5_score,30)))",
+      "confidence_level": 0.62
+    }
+  ]
+}

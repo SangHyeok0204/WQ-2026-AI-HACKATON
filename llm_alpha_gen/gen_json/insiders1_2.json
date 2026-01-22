@@ -1,0 +1,706 @@
+{
+  "results": [
+    {
+      "idea": "Momentum of insider buying (1mo zscore)",
+      "description": "Uses buy_to_sell_amount_ratio_1mo to capture recent insider buying momentum. Applied SUGGESTION1 by using this datafield; SUGGESTION2 not applicable (no vector fields used). Coverage is 0.7842 (>0.6) so ts_backfill not needed (SUGGESTION3). Prefer high user/alpha counts where possible (SUGGESTION4 partly applied). Confidence set to 0.62 based on established insider momentum literature.",
+      "implementation": "ts_zscore(buy_to_sell_amount_ratio_1mo, 60)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Short-term insider buy surge (1wk delta)",
+      "description": "Detects sudden increases in buy/sell ratio using buy_to_sell_amount_ratio_1wk ts_delta. SUGGESTION1 used single high-signal field; SUGGESTION3 not needed (coverage 0.7842). SUGGESTION4 considered but userCount moderate. Confidence 0.58.",
+      "implementation": "ts_delta(buy_to_sell_amount_ratio_1wk, 5)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Sustained insider conviction (6mo mean zscore)",
+      "description": "Measures sustained insider buying via ts_zscore(ts_mean(buy_to_sell_amount_ratio_6mo, 90), 90). Multiple operators but single high-coverage field (SUGGESTION1). No vector fields (SUGGESTION2). Coverage high so no backfill (SUGGESTION3). Confidence 0.65.",
+      "implementation": "ts_zscore(ts_mean(buy_to_sell_amount_ratio_6mo, 90), 90)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Insider buy concentration adjusted by holdings",
+      "description": "Combine buy intensity (buy_to_sell_amount_ratio_qtr) with insider holdings to weight signals. Applied SUGGESTION1 (two fields). insd1_holdings has high userCount so used (SUGGESTION4). No ts_backfill needed (coverage >0.6). Confidence 0.67.",
+      "implementation": "multiply(buy_to_sell_amount_ratio_qtr, insd1_holdings)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Large-value insider trades lead (insd1_value zscore)",
+      "description": "Uses insd1_value to highlight large transaction values. SUGGESTION1 used one strong field with decent userCount; no vector usage. insd1_value coverage 0.756 so no backfill. Confidence 0.6.",
+      "implementation": "ts_zscore(insd1_value, 60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Insider shares increase momentum",
+      "description": "Uses ts_delta(insd1_shares) to find growing insider share trades. SUGGESTION1 applied; insd1_shares coverage 0.756 so no backfill. Chose simple operator for clarity. Confidence 0.57.",
+      "implementation": "ts_delta(insd1_shares, 20)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Buy ratio vs holdings (normalized)",
+      "description": "Normalize buy_to_sell_amount_ratio_6mo then divide by insd1_holdings to find outsized buying relative to stake. SUGGESTION1 used two fields; both have good coverage. Confidence 0.66.",
+      "implementation": "divide(zscore(buy_to_sell_amount_ratio_6mo), ts_zscore(insd1_holdings, 60))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Recent insider buying quantile",
+      "description": "Cross-sectional strength via quantile on buy_to_sell_amount_ratio_1mo. SUGGESTION1 used single popular field. No vector; coverage high. Confidence 0.59.",
+      "implementation": "quantile(buy_to_sell_amount_ratio_1mo)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Insider buying confirmed by trade significance",
+      "description": "Boost buy signal when insd1_tradesignificance is high: multiply(buy_to_sell_amount_ratio_1mo, insd1_tradesignificance). SUGGESTION1 used two fields; trade significance has good userCount. Confidence 0.64.",
+      "implementation": "multiply(buy_to_sell_amount_ratio_1mo, insd1_tradesignificance)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Insider price sentiment (zscore of transaction price)",
+      "description": "ts_zscore(insd1_price) to see extreme insider transaction prices relative to history. Coverage 0.756 so no backfill. SUGGESTION4: moderate userCount. Confidence 0.52.",
+      "implementation": "ts_zscore(insd1_price, 60)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Buy-to-total spike with backfill (low userCount field preprocessed)",
+      "description": "For buy_to_total_amount_ratio_2mo (low userCount=2) apply ts_backfill to improve coverage per SUGGESTION3, then ts_zscore. SUGGESTION1 applied; SUGGESTION4 not used due to low userCount but backfill used to mitigate. Confidence 0.45.",
+      "implementation": "ts_zscore(ts_backfill(buy_to_total_amount_ratio_2mo, 90), 60)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Weighted insider returns signal",
+      "description": "Use weighted_return_all (coverage 0.4263) but backfill per SUGGESTION3 then zscore. SUGGESTION1 limited by coverage; applied backfill. Confidence 0.48.",
+      "implementation": "ts_zscore(ts_backfill(weighted_return_all, 120), 60)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Insider buying acceleration (ts_arg_max on 6mo)",
+      "description": "ts_arg_max(buy_to_sell_amount_ratio_6mo, 120) finds when current is highest in lookback indicating acceleration. Coverage high so no backfill. SUGGESTION1 applied. Confidence 0.6.",
+      "implementation": "ts_arg_max(buy_to_sell_amount_ratio_6mo, 120)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Recent buys vs long-term (short-term / 1yr)",
+      "description": "Compare short-term buy ratio with long term: divide(buy_to_sell_amount_ratio_1mo, buy_to_sell_amount_ratio_1yr). SUGGESTION1 used two time-windows. Both coverages high. Confidence 0.63.",
+      "implementation": "divide(buy_to_sell_amount_ratio_1mo, buy_to_sell_amount_ratio_1yr)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Insider trade value velocity",
+      "description": "ts_returns(insd1_value, 30) measures velocity of transaction values. Coverage 0.756 so no backfill. SUGGESTION1 applied. Confidence 0.55.",
+      "implementation": "ts_returns(insd1_value, 30)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Low-frequency insider increase (2mo zscore)",
+      "description": "ts_zscore(buy_to_sell_amount_ratio_2mo, 120) captures medium-term trend. Coverage high; SUGGESTION1 used. Confidence 0.58.",
+      "implementation": "ts_zscore(buy_to_sell_amount_ratio_2mo, 120)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Insider holdings growth signal (days_from_last_change)",
+      "description": "days_from_last_change(insd1_holdings) to find long gaps then new activity may convey info. SUGGESTION1 used the high userCount holdings field. No backfill. Confidence 0.53.",
+      "implementation": "days_from_last_change(insd1_holdings)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "High conviction buys normalized cross-section",
+      "description": "zscore(buy_to_sell_amount_ratio_qtr) then cross-sectional normalize to remove market mean. SUGGESTION1 applied; coverage adequate. Confidence 0.61.",
+      "implementation": "normalize(ts_zscore(buy_to_sell_amount_ratio_qtr, 90))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Insider buying with low volatility (IR style)",
+      "description": "ts_ir(buy_to_sell_amount_ratio_6mo, 90) to favor persistent signals with low noise. SUGGESTION1 used; coverage good. Confidence 0.62.",
+      "implementation": "ts_ir(buy_to_sell_amount_ratio_6mo, 90)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Buy ratio momentum adjusted by trade size",
+      "description": "Multiply buy_to_sell_amount_ratio_1mo by insd1_value to amplify large-money buys. Both fields have good coverage and userCount. SUGGESTION1 applied. Confidence 0.66.",
+      "implementation": "multiply(buy_to_sell_amount_ratio_1mo, insd1_value)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Insider selling warning (reverse of buy ratio)",
+      "description": "reverse(buy_to_sell_amount_ratio_1mo) to signal heavy selling pressure from insiders. SUGGESTION1 used single field. Confidence 0.5.",
+      "implementation": "reverse(buy_to_sell_amount_ratio_1mo)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Extreme insider trade outlier removal then zscore",
+      "description": "winsorize(buy_to_sell_amount_ratio_6mo, std=3) then ts_zscore to reduce outliers. SUGGESTION1 applied; used winsorize to improve robustness per KEEP_IN_MIND1. Confidence 0.6.",
+      "implementation": "ts_zscore(winsorize(buy_to_sell_amount_ratio_6mo, 3), 90)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Insider trade frequency signal (ts_count_nans inverse)",
+      "description": "Use ts_count_nans(insd1_holdings, 60) to identify infrequent reporting; reverse to favor recently active insiders. Coverage high; no backfill. Confidence 0.49.",
+      "implementation": "reverse(ts_count_nans(insd1_holdings, 60))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Short-term buy concentration (2wk zscore)",
+      "description": "ts_zscore(buy_to_sell_amount_ratio_2wk, 30) to detect concentrated recent buying. Coverage high; SUGGESTION1 applied. Confidence 0.56.",
+      "implementation": "ts_zscore(buy_to_sell_amount_ratio_2wk, 30)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Buy ratio momentum normalized by shares traded",
+      "description": "Divide ts_zscore(buy_to_sell_amount_ratio_1mo) by ts_zscore(insd1_shares) to adjust for trade size. Both fields coverage high. SUGGESTION1 applied. Confidence 0.63.",
+      "implementation": "divide(ts_zscore(buy_to_sell_amount_ratio_1mo,60), ts_zscore(insd1_shares,60))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Insider trade Sharpe-backed momentum",
+      "description": "Use weighted_sharpe_all (coverage 0.4263) but ts_backfill then ts_zscore to stabilize per SUGGESTION3. SUGGESTION4 limited by low coverage but backfill applied. Confidence 0.47.",
+      "implementation": "ts_zscore(ts_backfill(weighted_sharpe_all, 180), 90)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Buy-to-total recent surge with significance filter",
+      "description": "multiply(ts_zscore(buy_to_total_amount_ratio_1wk,30), insd1_tradesignificance). buy_to_total_1wk coverage OK; trade significance used to weight. SUGGESTION1 applied. Confidence 0.55.",
+      "implementation": "multiply(ts_zscore(buy_to_total_amount_ratio_1wk,30), insd1_tradesignificance)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Insider transaction value per share",
+      "description": "divide(insd1_value, insd1_shares) to get implied price then zscore. Both fields present with good coverage. SUGGESTION1 applied. Confidence 0.58.",
+      "implementation": "ts_zscore(divide(insd1_value, insd1_shares), 60)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Consistent top insiders (ts_arg_min of holdings changes)",
+      "description": "ts_arg_min(ts_delta(insd1_holdings,30), 120) to find instruments with recent biggest increases relative to history. SUGGESTION1 used holdings. Confidence 0.52.",
+      "implementation": "ts_arg_min(ts_delta(insd1_holdings,30), 120)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Buy ratio persistence (ts_regression slope)",
+      "description": "ts_regression(y=buy_to_sell_amount_ratio_6mo, x=ts_step(1), d=120, lag=0) to extract trend slope. SUGGESTION1 used powerful operator to capture persistent trend. Confidence 0.64.",
+      "implementation": "ts_regression(buy_to_sell_amount_ratio_6mo, ts_step(1), 120, 0)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Insider buying prior to price move (mean_return_long backfilled)",
+      "description": "mean_return_long has low coverage 0.3407 so ts_backfill used then ts_zscore to identify positive expected returns. SUGGESTION3 applied. Confidence 0.43.",
+      "implementation": "ts_zscore(ts_backfill(mean_return_long, 180), 90)",
+      "confidence_level": 0.43
+    },
+    {
+      "idea": "Buy-to-sell ratio divergence (1mo vs qtr)",
+      "description": "subtract(buy_to_sell_amount_ratio_1mo, buy_to_sell_amount_ratio_qtr) to find acceleration. Both fields coverage high. SUGGESTION1 applied. Confidence 0.6.",
+      "implementation": "subtract(buy_to_sell_amount_ratio_1mo, buy_to_sell_amount_ratio_qtr)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High-value buys relative to holdings",
+      "description": "divide(insd1_valueeur, insd1_holdings) to find large value increases per holding unit; zscore afterwards. Both fields coverage >0.6. SUGGESTION1 applied. Confidence 0.62.",
+      "implementation": "ts_zscore(divide(insd1_valueeur, insd1_holdings), 90)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Insider buys with declining variability (low vec_std proxy using ts_std_dev)",
+      "description": "Use ts_std_dev(buy_to_sell_amount_ratio_6mo, 90) and reverse it to favor stable buy signals. Suggestion2 not applicable. Coverage high. Confidence 0.51.",
+      "implementation": "reverse(ts_std_dev(buy_to_sell_amount_ratio_6mo,90))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Recent top insider buy days (ts_arg_max 30)",
+      "description": "ts_arg_max(buy_to_sell_amount_ratio_1mo, 30) to find if today is recent max. Coverage good. SUGGESTION1 applied. Confidence 0.57.",
+      "implementation": "ts_arg_max(buy_to_sell_amount_ratio_1mo, 30)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Insider buy ratio scaled to historical range",
+      "description": "ts_scale(buy_to_sell_amount_ratio_6mo, 180) to map into 0-1 range for easier combination. Coverage high; SUGGESTION1 applied. Confidence 0.59.",
+      "implementation": "ts_scale(buy_to_sell_amount_ratio_6mo, 180)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Insider selling acceleration (negative delta)",
+      "description": "reverse(ts_delta(buy_to_sell_amount_ratio_1mo, 20)) to highlight accelerating selling. SUGGESTION1 applied. Confidence 0.5.",
+      "implementation": "reverse(ts_delta(buy_to_sell_amount_ratio_1mo, 20))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Cross-window confirmation (1wk and 1mo both high)",
+      "description": "min(ts_zscore(buy_to_sell_amount_ratio_1wk,30), ts_zscore(buy_to_sell_amount_ratio_1mo,60)) to require agreement. SUGGESTION1 used two fields. Confidence 0.68.",
+      "implementation": "min(ts_zscore(buy_to_sell_amount_ratio_1wk,30), ts_zscore(buy_to_sell_amount_ratio_1mo,60))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Insider transaction price anomaly (price vs implied)",
+      "description": "subtract(insd1_price, divide(insd1_value, insd1_shares)) then ts_zscore to find price anomalies. Both fields coverage good. SUGGESTION1 applied. Confidence 0.54.",
+      "implementation": "ts_zscore(subtract(insd1_price, divide(insd1_value, insd1_shares)), 60)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Persistent buyer IR (ts_ir on buy_to_total 6mo)",
+      "description": "ts_ir(buy_to_total_amount_ratio_6mo, 180) to find persistent buy-to-total signals. Field coverage 0.7842. SUGGESTION1 applied. Confidence 0.6.",
+      "implementation": "ts_ir(buy_to_total_amount_ratio_6mo, 180)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Insider trade concentration by value (vec proxy with ts_sum)",
+      "description": "ts_sum(insd1_value, 30) to approximate concentration of recent insider value. No vector fields; used ts_sum per SUGGESTION1. Confidence 0.56.",
+      "implementation": "ts_sum(insd1_value, 30)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Backfilled checkpoint return signal",
+      "description": "txn_return_mean_checkpoint coverage 0.4488 so ts_backfill applied, then ts_zscore to extract signal. SUGGESTION3 used. Confidence 0.46.",
+      "implementation": "ts_zscore(ts_backfill(txn_return_mean_checkpoint, 120), 60)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "High-significance long returns (txn_return_long_checkpoint)",
+      "description": "txn_return_long_checkpoint has coverage 0.4488; backfilled then ts_rank to create ordinal signal. SUGGESTION3 applied. Confidence 0.44.",
+      "implementation": "ts_rank(ts_backfill(txn_return_long_checkpoint, 120), 60)",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Insider buying vs average returns",
+      "description": "Compare buy_to_sell_amount_ratio_6mo with mean_return_all (low coverage) using ts_backfill for mean_return_all, then subtract. SUGGESTION3 applied for low coverage. Confidence 0.49.",
+      "implementation": "subtract(buy_to_sell_amount_ratio_6mo, ts_backfill(mean_return_all, 180))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Trade size spike relative to historical mean",
+      "description": "ts_av_diff(insd1_shares, 90) finds today's deviation from recent mean. Coverage OK. SUGGESTION1 applied. Confidence 0.55.",
+      "implementation": "ts_av_diff(insd1_shares, 90)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Insider buy-to-sell rapid increase (ts_max_diff)",
+      "description": "ts_max_diff(buy_to_sell_amount_ratio_1mo, 60) to find how far below max current is (reverse if needed). Coverage good. SUGGESTION1 applied. Confidence 0.53.",
+      "implementation": "ts_max_diff(buy_to_sell_amount_ratio_1mo, 60)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Robust buy signal via winsorize + quantile",
+      "description": "winsorize(buy_to_sell_amount_ratio_6mo,2) then quantile to create robust cross-sectional rank. Coverage high; SUGGESTION1 applied. Confidence 0.61.",
+      "implementation": "quantile(winsorize(buy_to_sell_amount_ratio_6mo,2))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Insider buying with low historical kurtosis",
+      "description": "ts_kurtosis(buy_to_sell_amount_ratio_1yr, 260) and reverse to favor stable distributions. No vector fields; SUGGESTION1 applied. Confidence 0.5.",
+      "implementation": "reverse(ts_kurtosis(buy_to_sell_amount_ratio_1yr,260))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Buy ratio normalized to recent extremes",
+      "description": "ts_scale(buy_to_sell_amount_ratio_1mo, 90) then zscore for cross-sectional use. Coverage high. SUGGESTION1 applied. Confidence 0.59.",
+      "implementation": "zscore(ts_scale(buy_to_sell_amount_ratio_1mo,90))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Insider buying corroborated by weighted Sharpe",
+      "description": "Combine buy_to_sell_amount_ratio_qtr with weighted_sharpe_all (low coverage, backfill applied) via multiply. SUGGESTION3 used for weighted_sharpe_all. Confidence 0.51.",
+      "implementation": "multiply(buy_to_sell_amount_ratio_qtr, ts_backfill(weighted_sharpe_all, 180))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Short-term buy spikes confirmed by trade significance and shares",
+      "description": "multiply(ts_zscore(buy_to_sell_amount_ratio_1wk,30), multiply(insd1_tradesignificance, ts_zscore(insd1_shares,60))) uses three operators and two fields. SUGGESTION1 applied. Confidence 0.65.",
+      "implementation": "multiply(ts_zscore(buy_to_sell_amount_ratio_1wk,30), multiply(insd1_tradesignificance, ts_zscore(insd1_shares,60)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Backfilled checkpoint sharpe signal",
+      "description": "txn_sharpe_ratio_checkpoint coverage 0.4488 so ts_backfill then ts_zscore. SUGGESTION3 applied. Confidence 0.42.",
+      "implementation": "ts_zscore(ts_backfill(txn_sharpe_ratio_checkpoint, 180), 90)",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Insider buys scaled by instrument volatility",
+      "description": "divide(ts_zscore(buy_to_sell_amount_ratio_6mo,90), ts_std_dev(insd1_value,90)) to reduce noisy large-value trades. Both fields coverage >0.6. SUGGESTION1 applied. Confidence 0.6.",
+      "implementation": "divide(ts_zscore(buy_to_sell_amount_ratio_6mo,90), ts_std_dev(insd1_value,90))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Recent insider buying relative to annual trend",
+      "description": "subtract(ts_zscore(buy_to_sell_amount_ratio_1mo,30), ts_zscore(buy_to_sell_amount_ratio_1yr,360)) to detect acceleration beyond yearly trend. SUGGESTION1 used two windows. Confidence 0.66.",
+      "implementation": "subtract(ts_zscore(buy_to_sell_amount_ratio_1mo,30), ts_zscore(buy_to_sell_amount_ratio_1yr,360))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Insider price stability signal",
+      "description": "reverse(ts_std_dev(insd1_price,90)) to favor insiders transacting at stable prices. Coverage high. SUGGESTION1 applied. Confidence 0.48.",
+      "implementation": "reverse(ts_std_dev(insd1_price,90))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Buy-to-total ratio cross-window min confirmation",
+      "description": "min(ts_zscore(buy_to_total_amount_ratio_1mo,60), ts_zscore(buy_to_total_amount_ratio_qtr,120)) to require consistency. Both fields coverage decent. Confidence 0.6.",
+      "implementation": "min(ts_zscore(buy_to_total_amount_ratio_1mo,60), ts_zscore(buy_to_total_amount_ratio_qtr,120))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Insider trades per currency (currency-coded grouping proxy using transaction_currency_code not used directly)",
+      "description": "transaction_currency_code is non-numeric and low userCount so not used directly (KEEP_IN_MIND3). Instead use insd1_value normalized. SUGGESTION1 applied with available numeric fields. Confidence 0.4.",
+      "implementation": "ts_zscore(divide(insd1_value, ts_sum(insd1_value,90)), 60)",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Insider trades mean return stability",
+      "description": "ts_std_dev(ts_backfill(txn_return_variance_checkpoint,120), 120) then reverse to favor stable return variance. Applied backfill for coverage <0.6 per SUGGESTION3. Confidence 0.45.",
+      "implementation": "reverse(ts_std_dev(ts_backfill(txn_return_variance_checkpoint,120),120))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Buy momentum adjusted by checkpoint days",
+      "description": "divide(ts_zscore(buy_to_sell_amount_ratio_1mo,60), ts_backfill(txn_days_checkpoint,120))—txn_days_checkpoint low coverage so backfilled per SUGGESTION3. Confidence 0.46.",
+      "implementation": "divide(ts_zscore(buy_to_sell_amount_ratio_1mo,60), ts_backfill(txn_days_checkpoint,120))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Insider activity breadth (number of transactions proxy)",
+      "description": "Use ts_sum(isnan(insd1_shares)==0 over 30 days) but since is_nan operator exists, implement as reverse(ts_count_nans(insd1_shares,30)) to approximate activity breadth. Coverage high. SUGGESTION1 applied. Confidence 0.5.",
+      "implementation": "reverse(ts_count_nans(insd1_shares,30))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High conviction buys using arg_max across windows",
+      "description": "min(ts_arg_max(buy_to_sell_amount_ratio_1wk,30), ts_arg_max(buy_to_sell_amount_ratio_1mo,60)) to find instruments at local maxima across windows. SUGGESTION1 used multiple windows. Confidence 0.58.",
+      "implementation": "min(ts_arg_max(buy_to_sell_amount_ratio_1wk,30), ts_arg_max(buy_to_sell_amount_ratio_1mo,60))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Insider trade noise-adjusted buy signal",
+      "description": "divide(ts_zscore(buy_to_sell_amount_ratio_6mo,90), ts_std_dev(buy_to_sell_amount_ratio_6mo,90)) to favor stable signals. Single field used; SUGGESTION1 partially applied. Confidence 0.59.",
+      "implementation": "divide(ts_zscore(buy_to_sell_amount_ratio_6mo,90), ts_std_dev(buy_to_sell_amount_ratio_6mo,90))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Insider holdings per transaction value",
+      "description": "divide(insd1_holdings, insd1_value) to find holdings impact per transaction size then zscore. Both fields high coverage. SUGGESTION1 applied. Confidence 0.55.",
+      "implementation": "ts_zscore(divide(insd1_holdings, insd1_value), 90)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Buy ratio variability (ts_av_diff relative)",
+      "description": "ts_av_diff(buy_to_sell_amount_ratio_qtr, 90) to find deviations from 90-day mean. Coverage >0.6. SUGGESTION1 applied. Confidence 0.54.",
+      "implementation": "ts_av_diff(buy_to_sell_amount_ratio_qtr, 90)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Insider buys confirmed by max trade price",
+      "description": "Use max_trade_price (low userCount=8) cautiously; ts_backfill applied before ts_zscore per SUGGESTION3. However limited alphaCount so confidence lower. Confidence 0.38.",
+      "implementation": "ts_zscore(ts_backfill(max_trade_price, 180), 90)",
+      "confidence_level": 0.38
+    },
+    {
+      "idea": "Insider-derived expected return (weighted_return_all backfilled zscore)",
+      "description": "weighted_return_all coverage 0.4263 so ts_backfill then ts_zscore. SUGGESTION3 used. Confidence 0.44.",
+      "implementation": "ts_zscore(ts_backfill(weighted_return_all, 180), 90)",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Buy-to-sell ratio seasonality check (ts_arg_min 365)",
+      "description": "ts_arg_min(buy_to_sell_amount_ratio_1yr, 365) to test if current is seasonal low (reverse to prefer highs). Coverage high. SUGGESTION1 applied. Confidence 0.47.",
+      "implementation": "reverse(ts_arg_min(buy_to_sell_amount_ratio_1yr,365))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Insider trade value per share velocity",
+      "description": "ts_delta(divide(insd1_value, insd1_shares), 30) to measure changes in implied transaction price velocity. Both fields available. SUGGESTION1 applied. Confidence 0.53.",
+      "implementation": "ts_delta(divide(insd1_value, insd1_shares),30)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Consistent positive transaction sharpe (txn_sharpe_long_checkpoint)",
+      "description": "txn_sharpe_long_checkpoint coverage 0.4488 so ts_backfill then quantile to rank. SUGGESTION3 applied. Confidence 0.43.",
+      "implementation": "quantile(ts_backfill(txn_sharpe_long_checkpoint, 180))",
+      "confidence_level": 0.43
+    },
+    {
+      "idea": "Insider trade value concentration vs shares (scale)",
+      "description": "divide(ts_scale(insd1_value,90), ts_scale(insd1_shares,90)) to find value-heavy trades. SUGGESTION1 applied. Confidence 0.54.",
+      "implementation": "divide(ts_scale(insd1_value,90), ts_scale(insd1_shares,90))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Recent insider buying with low checkpoint variance",
+      "description": "multiply(ts_zscore(buy_to_sell_amount_ratio_1mo,60), reverse(ts_zscore(ts_backfill(txn_return_variance_checkpoint,120),60))) uses backfill for low coverage field and combines with buy ratio. SUGGESTION3 used. Confidence 0.5.",
+      "implementation": "multiply(ts_zscore(buy_to_sell_amount_ratio_1mo,60), reverse(ts_zscore(ts_backfill(txn_return_variance_checkpoint,120),60)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Insider buy-to-total high-quantile filter",
+      "description": "quantile(buy_to_total_amount_ratio_qtr) to select top cross-sectional buyers. Coverage good. SUGGESTION1 applied. Confidence 0.58.",
+      "implementation": "quantile(buy_to_total_amount_ratio_qtr)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Long-term buy consensus (avg of multiple windows)",
+      "description": "divide(add(buy_to_sell_amount_ratio_1yr, buy_to_sell_amount_ratio_6mo), 2) to smooth signals across long windows. SUGGESTION1 applied with two fields. Confidence 0.6.",
+      "implementation": "divide(add(buy_to_sell_amount_ratio_1yr, buy_to_sell_amount_ratio_6mo), 2)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Insider shares surge normalized",
+      "description": "zscore(ts_delta(insd1_shares, 30)) to find unusual share transaction spikes. Coverage high. SUGGESTION1 applied. Confidence 0.56.",
+      "implementation": "zscore(ts_delta(insd1_shares,30))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Buy ratio vs weighted sharpe (confirm persistent alpha)",
+      "description": "multiply(ts_zscore(buy_to_sell_amount_ratio_6mo,90), ts_zscore(ts_backfill(weighted_sharpe_all,180),90)). Weighted sharpe backfilled per SUGGESTION3. Confidence 0.52.",
+      "implementation": "multiply(ts_zscore(buy_to_sell_amount_ratio_6mo,90), ts_zscore(ts_backfill(weighted_sharpe_all,180),90))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Insider buying with low transaction count volatility",
+      "description": "reverse(ts_std_dev(ts_count_nans(insd1_shares,90),90)) to favor steady reporting with new positive activity. SUGGESTION1 applied. Confidence 0.46.",
+      "implementation": "reverse(ts_std_dev(ts_count_nans(insd1_shares,90),90))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Buy-to-sell ratio momentum filtered by trade significance",
+      "description": "if_else(greater(insd1_tradesignificance,2), ts_zscore(buy_to_sell_amount_ratio_1mo,60), NaN) to only trade when significance is high. SUGGESTION1 applied. Confidence 0.65.",
+      "implementation": "if_else(greater(insd1_tradesignificance,2), ts_zscore(buy_to_sell_amount_ratio_1mo,60), NaN)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Insider transaction mean return adjusted (backfilled)",
+      "description": "ts_zscore(ts_backfill(mean_return_all,180), 90) — backfill used for low coverage field per SUGGESTION3. Confidence 0.45.",
+      "implementation": "ts_zscore(ts_backfill(mean_return_all,180),90)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Spike in buy-to-total relative to quarterly mean",
+      "description": "ts_delta(buy_to_total_amount_ratio_qtr, 60) to detect spikes relative to quarter mean. Coverage high. SUGGESTION1 applied. Confidence 0.57.",
+      "implementation": "ts_delta(buy_to_total_amount_ratio_qtr,60)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Insider activity momentum combined (sum of signals)",
+      "description": "add(ts_zscore(buy_to_sell_amount_ratio_1mo,60), ts_zscore(divide(insd1_value, insd1_shares),60)) to combine buy intensity and implied price momentum. Two fields used (SUGGESTION1). Confidence 0.64.",
+      "implementation": "add(ts_zscore(buy_to_sell_amount_ratio_1mo,60), ts_zscore(divide(insd1_value, insd1_shares),60))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Insider sell pressure (low buy_to_total ratio)",
+      "description": "reverse(buy_to_total_amount_ratio_1mo) to detect strong selling pressure. Single high-coverage field used. Confidence 0.49.",
+      "implementation": "reverse(buy_to_total_amount_ratio_1mo)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Insider large-share transactions zscore",
+      "description": "ts_zscore(insd1_shares, 60) to highlight unusually large share trades by insiders. Coverage good. SUGGESTION1 applied. Confidence 0.55.",
+      "implementation": "ts_zscore(insd1_shares,60)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Buy ratio consistency (ts_rank of rolling zscore)",
+      "description": "ts_rank(ts_zscore(buy_to_sell_amount_ratio_6mo,90), 120) to identify consistently high scorers. SUGGESTION1 applied. Confidence 0.6.",
+      "implementation": "ts_rank(ts_zscore(buy_to_sell_amount_ratio_6mo,90),120)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Checkpoint returns scaled by trade value",
+      "description": "multiply(ts_backfill(txn_return_mean_checkpoint,120), ts_backfill(txn_amount_checkpoint,120)) to favor checkpoint returns supported by value. Both low coverage so backfilled per SUGGESTION3. Confidence 0.42.",
+      "implementation": "multiply(ts_backfill(txn_return_mean_checkpoint,120), ts_backfill(txn_amount_checkpoint,120))",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Insider buy-to-sell normalized to 1yr range",
+      "description": "ts_scale(buy_to_sell_amount_ratio_1yr, 360) to map 1yr into 0-1 and detect extremes. Coverage high. SUGGESTION1 applied. Confidence 0.57.",
+      "implementation": "ts_scale(buy_to_sell_amount_ratio_1yr,360)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Insider signal de-noised by zscore of ts_mean",
+      "description": "ts_zscore(ts_mean(buy_to_sell_amount_ratio_6mo,90),90) to favor sustained elevation over noise. SUGGESTION1 applied. Confidence 0.61.",
+      "implementation": "ts_zscore(ts_mean(buy_to_sell_amount_ratio_6mo,90),90)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Insider buy intensity per holding change",
+      "description": "divide(ts_delta(insd1_holdings,60), ts_zscore(buy_to_sell_amount_ratio_qtr,90)) to find holdings changing faster than buy intensity suggests. SUGGESTION1 used two fields. Confidence 0.5.",
+      "implementation": "divide(ts_delta(insd1_holdings,60), ts_zscore(buy_to_sell_amount_ratio_qtr,90))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Backfilled transaction direction indicator filter",
+      "description": "txn_di_checkpoint coverage 0.4488 so ts_backfill then if_else(equal(ts_backfill(txn_di_checkpoint,120), 1), ts_zscore(buy_to_sell_amount_ratio_1mo,60), NaN). SUGGESTION3 applied. Confidence 0.41.",
+      "implementation": "if_else(equal(ts_backfill(txn_di_checkpoint,120),1), ts_zscore(buy_to_sell_amount_ratio_1mo,60), NaN)",
+      "confidence_level": 0.41
+    },
+    {
+      "idea": "Insider value momentum normalized by instrument mean",
+      "description": "divide(ts_zscore(insd1_value,90), ts_zscore(ts_mean(insd1_value,180),180)) to find anomalous current value relative to longer mean. Coverage high. SUGGESTION1 applied. Confidence 0.53.",
+      "implementation": "divide(ts_zscore(insd1_value,90), ts_zscore(ts_mean(insd1_value,180),180))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Low-turnover insider buys (hump-limited changes)",
+      "description": "hump(ts_zscore(buy_to_sell_amount_ratio_6mo,90), hump=0.01) to limit turnover and emphasize persistent signals. SUGGESTION1 applied and hump used for turnover control. Confidence 0.6.",
+      "implementation": "hump(ts_zscore(buy_to_sell_amount_ratio_6mo,90), 0.01)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Insider buy ratio momentum weighted by holdings zscore",
+      "description": "multiply(ts_zscore(buy_to_sell_amount_ratio_1mo,60), ts_zscore(insd1_holdings,60)) to emphasize buys by large holders. Both fields high coverage. SUGGESTION1 applied. Confidence 0.67.",
+      "implementation": "multiply(ts_zscore(buy_to_sell_amount_ratio_1mo,60), ts_zscore(insd1_holdings,60))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Insider trade value kurtosis filter",
+      "description": "ts_kurtosis(insd1_value, 120) and reverse to prefer low-kurtosis (stable) value trades. Coverage OK. SUGGESTION1 applied. Confidence 0.46.",
+      "implementation": "reverse(ts_kurtosis(insd1_value,120))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Cross-time consistency via product of zscores",
+      "description": "multiply(ts_zscore(buy_to_sell_amount_ratio_1wk,30), ts_zscore(buy_to_sell_amount_ratio_1mo,60)) to require both short and very short signals. SUGGESTION1 applied. Confidence 0.66.",
+      "implementation": "multiply(ts_zscore(buy_to_sell_amount_ratio_1wk,30), ts_zscore(buy_to_sell_amount_ratio_1mo,60))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Insider implied price momentum vs market (using insd1_price)",
+      "description": "ts_returns(insd1_price,30) to capture insiders transacting at accelerating prices. Coverage good. SUGGESTION1 applied. Confidence 0.54.",
+      "implementation": "ts_returns(insd1_price,30)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Buy-to-sell range expansion (ts_max - ts_min proxy via ts_range using ts_max and ts_min not available; use ts_std_dev)",
+      "description": "ts_std_dev(buy_to_sell_amount_ratio_6mo,90) to approximate range/expansion and reverse to favor expanding buy pressure. SUGGESTION2 not applicable. Confidence 0.5.",
+      "implementation": "ts_std_dev(buy_to_sell_amount_ratio_6mo,90)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Insider holdings stability filter for buys",
+      "description": "multiply(ts_zscore(buy_to_sell_amount_ratio_1mo,60), reverse(ts_std_dev(insd1_holdings,120))) to favor buys by stable holders. SUGGESTION1 applied. Confidence 0.58.",
+      "implementation": "multiply(ts_zscore(buy_to_sell_amount_ratio_1mo,60), reverse(ts_std_dev(insd1_holdings,120)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Insider transaction value per day momentum",
+      "description": "ts_product(insd1_value, 7) then ts_zscore to capture sustained value over week. Product can highlight consistent value trades. Coverage good. SUGGESTION1 applied. Confidence 0.52.",
+      "implementation": "ts_zscore(ts_product(insd1_value,7),60)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Buy-to-sell local rank within quarter",
+      "description": "grouping fields unavailable (KEEP_IN_MIND3), so use ts_rank(buy_to_sell_amount_ratio_qtr,90) to get local temporal rank. SUGGESTION1 applied. Confidence 0.55.",
+      "implementation": "ts_rank(buy_to_sell_amount_ratio_qtr,90)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Insider trades confirmed by checkpoint sharpe (backfilled)",
+      "description": "if txn_sharpe_ratio_checkpoint has low coverage (0.4488) backfill and require >0 using if_else, then use buy_to_sell_amount_ratio_1mo: if_else(greater(ts_backfill(txn_sharpe_ratio_checkpoint,180),0), ts_zscore(buy_to_sell_amount_ratio_1mo,60), NaN). SUGGESTION3 applied. Confidence 0.44.",
+      "implementation": "if_else(greater(ts_backfill(txn_sharpe_ratio_checkpoint,180),0), ts_zscore(buy_to_sell_amount_ratio_1mo,60), NaN)",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Insider value surge relative to historical sum",
+      "description": "divide(insd1_value, ts_sum(insd1_value, 180)) then ts_zscore to detect recent concentration. Fields coverage >0.6. SUGGESTION1 applied. Confidence 0.56.",
+      "implementation": "ts_zscore(divide(insd1_value, ts_sum(insd1_value,180)),60)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Buy momentum tempered by transaction variance",
+      "description": "divide(ts_zscore(buy_to_sell_amount_ratio_6mo,90), ts_zscore(ts_backfill(txn_return_variance_checkpoint,120),90)) to reduce noisy checkpoint signals; backfill applied. Confidence 0.49.",
+      "implementation": "divide(ts_zscore(buy_to_sell_amount_ratio_6mo,90), ts_zscore(ts_backfill(txn_return_variance_checkpoint,120),90))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Insider buying relative to average position returns",
+      "description": "subtract(ts_zscore(buy_to_sell_amount_ratio_1mo,60), ts_zscore(ts_backfill(mean_return_long,180),90)) to detect buys outperforming average long returns; backfill used for mean_return_long. Confidence 0.46.",
+      "implementation": "subtract(ts_zscore(buy_to_sell_amount_ratio_1mo,60), ts_zscore(ts_backfill(mean_return_long,180),90))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Consistent top buyers via cumulative sum",
+      "description": "ts_sum(ts_zscore(buy_to_sell_amount_ratio_1mo,60), 120) to accumulate recent strength. SUGGESTION1 applied. Confidence 0.62.",
+      "implementation": "ts_sum(ts_zscore(buy_to_sell_amount_ratio_1mo,60),120)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Insider trading anomaly: high value, low shares",
+      "description": "if divide(insd1_value, insd1_shares) is high (zscore), flag as anomalous high-value low-share trades. Implementation uses zscore(divide(...)). SUGGESTION1 applied. Confidence 0.51.",
+      "implementation": "ts_zscore(divide(insd1_value, insd1_shares), 60)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Buy-to-sell long-term dispersion filter",
+      "description": "reverse(ts_std_dev(buy_to_sell_amount_ratio_1yr, 360)) to favor stable long-term buy pressure. SUGGESTION1 applied. Confidence 0.48.",
+      "implementation": "reverse(ts_std_dev(buy_to_sell_amount_ratio_1yr,360))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Insider buys weighted by transaction currency (proxy by valueeur)",
+      "description": "Use insd1_valueeur where currency normalization matters; ts_zscore(insd1_valueeur,90). SUGGESTION1 applied; transaction_currency_code not used directly due to non-numeric limitations. Confidence 0.5.",
+      "implementation": "ts_zscore(insd1_valueeur,90)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Backfilled inexperienced fields combined (txn_amount_checkpoint * txn_return_mean_checkpoint)",
+      "description": "Both checkpoint fields coverage <0.6; backfill each per SUGGESTION3 then multiply to emphasize meaningful checkpoints. Confidence 0.4.",
+      "implementation": "multiply(ts_backfill(txn_amount_checkpoint,120), ts_backfill(txn_return_mean_checkpoint,120))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Insider buying abruptness (last_diff_value of holdings)",
+      "description": "last_diff_value(insd1_holdings, 120) to find last change magnitude compared to current. Coverage high; SUGGESTION1 applied. Confidence 0.52.",
+      "implementation": "last_diff_value(insd1_holdings,120)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Insider buy ratio cross-validated with checkpoint return zscore",
+      "description": "multiply(ts_zscore(buy_to_sell_amount_ratio_1mo,60), ts_zscore(ts_backfill(txn_return_mean_checkpoint,120),60)) applying backfill to low coverage checkpoint. SUGGESTION3 used. Confidence 0.48.",
+      "implementation": "multiply(ts_zscore(buy_to_sell_amount_ratio_1mo,60), ts_zscore(ts_backfill(txn_return_mean_checkpoint,120),60))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Insider trade implied liquidity (value / price)",
+      "description": "divide(insd1_value, insd1_price) then ts_zscore to detect high implied liquidity trades. Both fields coverage >0.6. SUGGESTION1 applied. Confidence 0.53.",
+      "implementation": "ts_zscore(divide(insd1_value, insd1_price),60)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Buy-to-sell momentum trimmed by winsorize",
+      "description": "ts_zscore(winsorize(buy_to_sell_amount_ratio_1mo, 2), 60) to reduce outlier effects then measure momentum. SUGGESTION1 applied. Confidence 0.59.",
+      "implementation": "ts_zscore(winsorize(buy_to_sell_amount_ratio_1mo,2),60)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Insider trading trend robustness (ts_quantile of 6mo)",
+      "description": "ts_quantile(buy_to_sell_amount_ratio_6mo,120) to map to a distributional score highlighting robust movers. SUGGESTION1 applied. Confidence 0.6.",
+      "implementation": "ts_quantile(buy_to_sell_amount_ratio_6mo,120)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Insider holdings change corroborated by trade significance",
+      "description": "multiply(ts_zscore(ts_delta(insd1_holdings,60),60), insd1_tradesignificance) to prioritize meaningful changes. SUGGESTION1 applied. Confidence 0.56.",
+      "implementation": "multiply(ts_zscore(ts_delta(insd1_holdings,60),60), insd1_tradesignificance)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Insider price vs 6mo buy ratio divergence",
+      "description": "subtract(ts_zscore(insd1_price,60), ts_zscore(buy_to_sell_amount_ratio_6mo,90)) to find price moves not backed by insider buying. SUGGESTION1 applied. Confidence 0.5.",
+      "implementation": "subtract(ts_zscore(insd1_price,60), ts_zscore(buy_to_sell_amount_ratio_6mo,90))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Short-term buy spike with holdings confirmation",
+      "description": "if_else(greater(ts_zscore(buy_to_sell_amount_ratio_2wk,30),1), ts_zscore(insd1_holdings,60), NaN) to act only when holdings also elevated. SUGGESTION1 applied. Confidence 0.63.",
+      "implementation": "if_else(greater(ts_zscore(buy_to_sell_amount_ratio_2wk,30),1), ts_zscore(insd1_holdings,60), NaN)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Insider transaction Sharpe to filter high-quality trades",
+      "description": "txn_sharpe_short_checkpoint coverage 0.4488 so ts_backfill then quantile to rank. SUGGESTION3 applied. Confidence 0.4.",
+      "implementation": "quantile(ts_backfill(txn_sharpe_short_checkpoint,180))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Buy ratio acceleration via ts_arg_max difference",
+      "description": "subtract(ts_arg_max(buy_to_sell_amount_ratio_1mo,60), ts_arg_max(buy_to_sell_amount_ratio_qtr,120)) to find faster acceleration in shorter window. SUGGESTION1 applied. Confidence 0.57.",
+      "implementation": "subtract(ts_arg_max(buy_to_sell_amount_ratio_1mo,60), ts_arg_max(buy_to_sell_amount_ratio_qtr,120))",
+      "confidence_level": 0.57
+    }
+  ]
+}

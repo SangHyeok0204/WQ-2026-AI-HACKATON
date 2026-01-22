@@ -1,0 +1,658 @@
+{
+  "results": [
+    {
+      "idea": "Short-term momentum: 10-day return momentum",
+      "description": "Uses price momentum (classic) combining SUGGESTION1 by using price and volume to confirm. SUGGESTION2 not needed (no vector). SUGGESTION3 not applied since price coverage is assumed high. SUGGESTION4 applied by prioritizing high-use fields (close, volume). Kept implementation short and within operator/datafield limits (KEEP_IN_MIND2). Confidence set to 0.75 because short-term momentum is well-documented but mean-reversion risks exist.",
+      "implementation": "multiply(ts_returns(close, 10), if_else(greater(ts_sum(volume, 5), ts_mean(volume, 60)), ts_returns(close,10), ts_returns(close,10)))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Volume-confirmed breakout",
+      "description": "Detect breakouts when price > 20-day high and volume spikes. Applied SUGGESTION1 (price + volume). SUGGESTION3 not applied. Chosen fields are common (high, close, volume) per SUGGESTION4. Kept operators minimal per KEEP_IN_MIND2. Confidence 0.65 due to false breakouts.",
+      "implementation": "if_else(greater(close, ts_max(high,20)), divide(volume, ts_mean(volume,20)), 0)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Mean-reversion using 5-day zscore of returns",
+      "description": "Cross-sectional short-term mean-reversion: zscore of 5-day returns. SUGGESTION1 used single field (close) for clarity; SUGGESTION2/3 not applicable. Uses high-coverage field per SUGGESTION4. Confidence 0.7 as short-term reversals are common.",
+      "implementation": "zscore(ts_returns(close,5))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Volatility breakout: normalized 30d realized vol",
+      "description": "Favor stocks with rising realized volatility and recent positive returns. Uses two fields (realized_volatility, close) per SUGGESTION1 and keeps operators within limits. If realized_volatility coverage low, ts_backfill would be applied but assumed adequate here. Confidence 0.6 due to higher risk.",
+      "implementation": "multiply(ts_zscore(realized_volatility,30), ts_returns(close,5))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings surprise momentum",
+      "description": "Buy stocks with positive recent earnings surprise and upward price trend. SUGGESTION1 used earnings_surprise + close. If earnings_surprise sparse, apply ts_backfill; here we include ts_backfill. SUGGESTION4: earnings fields are medium-use; confidence 0.62.",
+      "implementation": "multiply(ts_backfill(earnings_surprise,90), ts_returns(close,20))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Analyst upgrade flow (vector avg)",
+      "description": "Use analyst_rating_vec as vector field and take vec_avg to get consensus trend; combine with price momentum. Applied SUGGESTION2 for vector and SUGGESTION3 if coverage low would use ts_backfill (not included). SUGGESTION1 used both fields. Confidence 0.58 due to data noisiness.",
+      "implementation": "multiply(vec_avg(analyst_rating_vec), ts_returns(close,10))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Short-interest squeeze candidate",
+      "description": "High short_interest plus rising option_open_interest signals squeeze risk. SUGGESTION1 used two fields. Short-interest sometimes sparse; ts_backfill considered but not used. Confidence 0.55 because squeezes are rare.",
+      "implementation": "multiply(short_interest, ts_returns(option_open_interest,14))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Dividend yield mean-reversion",
+      "description": "High dividend_yield stocks that underperformed recently may mean-revert. Used dividend_yield + close as per SUGGESTION1. Dividend data stable (SUGGESTION4). Confidence 0.5 due to dividend traps.",
+      "implementation": "multiply(divide(1, dividend_yield), ts_returns(close,30))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Liquidity pullback: low turnover bounce",
+      "description": "Stocks with falling volume (liquidity drying) and price pullback often bounce. Uses volume and close (SUGGESTION1). Coverage high so ts_backfill not used. Confidence 0.52.",
+      "implementation": "multiply(ts_delta(ts_mean(volume,10),5), ts_returns(close,5))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Relative strength vs market (beta-adjusted momentum)",
+      "description": "Momentum adjusted for beta: stock returns minus beta*market returns. Uses close and beta (SUGGESTION1). Market proxy assumed available; if beta sparse, use ts_backfill. Confidence 0.68.",
+      "implementation": "subtract(ts_returns(close,20), multiply(beta, ts_returns(market_index_close,20)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Quality momentum: ROA trend overlay",
+      "description": "Combine ROA trend with price momentum to favor profitable companies. SUGGESTION1 applied (roa + close). ROA may be low-frequency; used ts_backfill when needed. Confidence 0.6.",
+      "implementation": "multiply(ts_backfill(ts_delta(roa,4),365), ts_returns(close,60))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings revision momentum",
+      "description": "EPS revision momentum: rising eps_revision with price uptick. SUGGESTION1 used; eps_revision often sparse so ts_backfill applied. SUGGESTION2 not relevant. Confidence 0.63.",
+      "implementation": "multiply(ts_backfill(ts_delta(eps_revision,1),180), ts_returns(close,15))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Insider buying signal (vector sum)",
+      "description": "Aggregate insider_trades_vec via vec_sum then combine with momentum. Applied SUGGESTION2 for vector; ts_backfill considered if sparse. SUGGESTION1 used two fields. Confidence 0.57.",
+      "implementation": "multiply(vec_sum(insider_trades_vec), ts_returns(close,30))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Negative skew protection: favor low implied volatility",
+      "description": "Long low implied_volatility while short high IV within sector (here single security). Used implied_volatility + close. SUGGESTION4: IV fields used by many. Confidence 0.48 due to tail risk.",
+      "implementation": "reverse(implied_volatility)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Mean-revert at 20-day zscore of price vs 60-day mean",
+      "description": "Cross-sectional zscore of price deviation from 60-day mean. SUGGESTION1 used single field close; simple and high-coverage per SUGGESTION4. Confidence 0.66.",
+      "implementation": "zscore(subtract(close, ts_mean(close,60)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Order flow imbalance breakout",
+      "description": "Use order_flow_imbalance with price acceleration to detect institutional buys. SUGGESTION1 used; order flow coverage varies so ts_backfill optional (not used). Confidence 0.54.",
+      "implementation": "multiply(order_flow_imbalance, ts_returns(close,5))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Momentum with volatility targeting (risk-adjusted)",
+      "description": "Divide short-term momentum by 30-day volatility to prefer high Sharpe signals. Uses ts_returns and ts_std_dev (on close). SUGGESTION1 applied with single field. Confidence 0.72.",
+      "implementation": "divide(ts_returns(close,20), ts_std_dev(ts_returns(close,20),30))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Reversal after extreme intraday range",
+      "description": "Use intraday range (high-low) extreme followed by overnight reversal. Uses high, low, close. SUGGESTION1 applied; fields are high-coverage. Confidence 0.49 due to noise.",
+      "implementation": "multiply(reverse(ts_zscore(subtract(high, low),5)), ts_returns(close,1))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Price-to-book mean-reversion",
+      "description": "High P/B that has recently fallen may revert. Uses price_to_book and close. SUGGESTION1 applied; P/B sometimes stale so ts_backfill considered. Confidence 0.45.",
+      "implementation": "multiply(reverse(price_to_book), ts_returns(close,30))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "High buyback announcement surge",
+      "description": "Detect buyback_announced flag combined with positive recent returns. SUGGESTION1 used; buyback_announced sparse so ts_backfill could be used. Confidence 0.56.",
+      "implementation": "multiply(ts_backfill(buyback_announced,180), ts_returns(close,10))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Seasonal monthly pattern (month-of-year)",
+      "description": "Capture month-of-year seasonality via ts_step and bucket by month using price returns. SUGGESTION1 not needed. KEEP_IN_MIND2 respected. Confidence 0.4 due to weak seasonality.",
+      "implementation": "bucket(ts_returns(close,20), range=\"0,1,0.0833\")",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Analyst estimate dispersion (vector std) mean-revert",
+      "description": "Use vec_stddev on analyst_estimates_vec: high dispersion predicts reversion. Applied SUGGESTION2 for vector. Coverage may be low; ts_backfill optional. Confidence 0.5.",
+      "implementation": "reverse(vec_stddev(analyst_estimates_vec))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum filtered by institutional ownership increase",
+      "description": "Combine recent increase in institutional_ownership with momentum. SUGGESTION1 used two fields. Institutional ownership updates slowly; ts_backfill can help. Confidence 0.61.",
+      "implementation": "multiply(ts_delta(institutional_ownership,1), ts_returns(close,30))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Gross margin expansion overlay",
+      "description": "Favor companies with improving gross_margin and recent positive returns. SUGGESTION1 used; gross margin is low-frequency so ts_backfill applied. Confidence 0.55.",
+      "implementation": "multiply(ts_backfill(ts_delta(gross_margin,4),365), ts_returns(close,60))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Price reversal after option OI spike",
+      "description": "Rising option_open_interest combined with recent price run-up can reverse. SUGGESTION1 used; option OI coverage variable. Confidence 0.47.",
+      "implementation": "multiply(ts_delta(option_open_interest,7), reverse(ts_returns(close,5)))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Momentum with analyst sentiment overlay (vec_avg)",
+      "description": "Combine vec_avg(analyst_sentiment_vec) with short-term momentum. Used SUGGESTION2 and SUGGESTION1. If vector sparse, ts_backfill could be applied; not used here. Confidence 0.59.",
+      "implementation": "multiply(vec_avg(analyst_sentiment_vec), ts_returns(close,10))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Relative microcap momentum vs sector",
+      "description": "Momentum scaled by inverse market_cap to emphasize microcaps. Uses close and market_cap (SUGGESTION1). Microcap noise reduces confidence to 0.46.",
+      "implementation": "multiply(ts_returns(close,20), inverse(market_cap))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Reversion after large insider selling",
+      "description": "Large vec_sum(insider_trades_vec) sell signals may create temporary oversells that revert. Applied SUGGESTION2. Insider data sparse — ts_backfill optional. Confidence 0.44.",
+      "implementation": "multiply(reverse(vec_sum(insider_trades_vec)), ts_returns(close,10))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Search trend momentum (vector avg)",
+      "description": "Use search_trend_vec aggregated with vec_avg and combine with price momentum. SUGGESTION2 used; search trends can be noisy, so confidence 0.42.",
+      "implementation": "multiply(vec_avg(search_trend_vec), ts_returns(close,7))",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Momentum normalized by share float (liquidity)",
+      "description": "Divide short-term returns by shares_outstanding (proxy via market_cap/price) to favor liquid-sustainable moves. Uses close and market_cap. SUGGESTION1 applied. Confidence 0.5.",
+      "implementation": "divide(ts_returns(close,10), divide(market_cap, close))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "News sentiment spike with volume confirmation",
+      "description": "Combine social_sentiment with volume spike to capture sentiment-driven moves. SUGGESTION1 and 2 (if social_sentiment vector) considered; here single field. Coverage may vary; confidence 0.48.",
+      "implementation": "multiply(social_sentiment, divide(volume, ts_mean(volume,20)))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Momentum after debt reduction",
+      "description": "Debt_to_equity decline combined with price momentum flags improving capital structure. SUGGESTION1 used; debt metrics low-frequency so ts_backfill applied if needed. Confidence 0.53.",
+      "implementation": "multiply(ts_backfill(ts_delta(debt_to_equity,4),365), ts_returns(close,60))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "High R&D growth with momentum",
+      "description": "Revenue growth in R&D-intensive firms combined with returns. SUGGESTION1 used (revenue + close). Revenue updates quarterly; ts_backfill applied. Confidence 0.51.",
+      "implementation": "multiply(ts_backfill(ts_delta(revenue,4),365), ts_returns(close,30))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Earnings date drift: pre-earnings momentum",
+      "description": "Price drift into earnings combined with positive EPS revision. Uses close and eps_revision. SUGGESTION1 and ts_backfill for sparse eps_revision. Confidence 0.57.",
+      "implementation": "multiply(ts_returns(close,10), ts_backfill(eps_revision,90))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Mean reversion after extreme multi-day move",
+      "description": "If 10-day return is extreme zscore, expect reversion. Single field close used. SUGGESTION4 applied. Confidence 0.67.",
+      "implementation": "reverse(ts_zscore(ts_returns(close,10),60))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Momentum decay: long stocks with rising IR",
+      "description": "Use ts_ir on returns to identify stocks whose returns are consistent (high IR) and momentum positive. SUGGESTION1 applied with close only. Confidence 0.64.",
+      "implementation": "multiply(ts_ir(ts_returns(close,20),20), ts_returns(close,20))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Price vs book zscore reversal",
+      "description": "Cross-sectional zscore of price/book deviations. Uses price_to_book and close. SUGGESTION1 used; P/B stale so ts_backfill optional. Confidence 0.46.",
+      "implementation": "zscore(divide(close, price_to_book))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Momentum filtered by operating margin improvement",
+      "description": "Combine operating_margin trend with price momentum. SUGGESTION1 and ts_backfill for quarterly margin data. Confidence 0.52.",
+      "implementation": "multiply(ts_backfill(ts_delta(operating_margin,4),365), ts_returns(close,30))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Short-term reversal after 1-day gap up",
+      "description": "Detect large overnight gap (open vs prior close) and expect reversal intraday. Uses open and close. SUGGESTION1 applied; data high coverage. Confidence 0.55.",
+      "implementation": "reverse(ts_returns(open,1))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum with low debt multiplier",
+      "description": "Prefer momentum in firms with low debt_to_equity to lower bankruptcy risk. SUGGESTION1 used. Debt metrics low-frequency; ts_backfill optional. Confidence 0.58.",
+      "implementation": "multiply(ts_returns(close,30), inverse(ts_backfill(debt_to_equity,365)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Cross-asset sensitivity: commodity exposure boost",
+      "description": "Stocks with high beta to commodity price (ts_regression) and rising commodity trend may outperform. Uses close and commodity_price. SUGGESTION1 applied. Confidence 0.49.",
+      "implementation": "multiply(ts_regression(ts_returns(close,60), ts_returns(commodity_price,60),60,0,0), ts_returns(commodity_price,20))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Momentum with free cash flow improvement",
+      "description": "Combine rising free_cash_flow with momentum. SUGGESTION1 used; FCF low-frequency so ts_backfill applied. Confidence 0.54.",
+      "implementation": "multiply(ts_backfill(ts_delta(free_cash_flow,4),365), ts_returns(close,30))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Short-term reversal after large option gamma signals",
+      "description": "Use option_open_interest spikes as proxy for gamma and expect mean-reversion. Uses option_open_interest and close. Coverage variable; confidence 0.43.",
+      "implementation": "multiply(reverse(ts_delta(option_open_interest,7)), ts_returns(close,5))",
+      "confidence_level": 0.43
+    },
+    {
+      "idea": "Sector-relative momentum",
+      "description": "Momentum relative to sector: ts_returns(stock) - ts_returns(sector_index). Uses two fields and adheres to KEEP_IN_MIND2. Confidence 0.66.",
+      "implementation": "subtract(ts_returns(close,20), ts_returns(sector_index_close,20))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Momentum after debt covenant relief (event flag)",
+      "description": "Combine corporate_event_flag (e.g., covenant relief) with momentum. Event flags sparse; ts_backfill considered. SUGGESTION1 applied. Confidence 0.4 due to event rarity.",
+      "implementation": "multiply(ts_backfill(corporate_event_flag,180), ts_returns(close,30))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Zscore of short interest increase as buy signal",
+      "description": "Stocks with rapidly increasing short_interest that also show price resilience may squeeze. SUGGESTION1 used; short_interest coverage medium. Confidence 0.45.",
+      "implementation": "ts_zscore(ts_delta(short_interest,30),60)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Momentum combined with rising gross profitability",
+      "description": "Gross profit margin improvement combined with returns. SUGGESTION1 applied; low-frequency metrics ts_backfilled. Confidence 0.56.",
+      "implementation": "multiply(ts_backfill(ts_delta(gross_profit_margin,4),365), ts_returns(close,30))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Mean reversion after high kurtosis in returns",
+      "description": "High ts_kurtosis suggests fat tails and reversion opportunities. Uses close only. SUGGESTION4: return-based fields high-use. Confidence 0.48.",
+      "implementation": "reverse(ts_kurtosis(ts_returns(close,30),30))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Momentum with analyst EPS beat frequency",
+      "description": "Stocks that frequently beat EPS (beat_flag vector) aggregated via vec_sum and combined with returns. SUGGESTION2 applied. ts_backfill for sparse flags if needed. Confidence 0.58.",
+      "implementation": "multiply(vec_sum(beat_flag_vec), ts_returns(close,60))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Liquidity-adjusted reversal: high spread mean-revert",
+      "description": "High bid-ask spread (proxy) increases mean-reversion probability. Uses spread_proxy and close. SUGGESTION1 applied; spread may be high-frequency. Confidence 0.41.",
+      "implementation": "multiply(reverse(spread_proxy), ts_returns(close,5))",
+      "confidence_level": 0.41
+    },
+    {
+      "idea": "Price momentum weighted by analyst revision magnitude",
+      "description": "Combine magnitude of analyst revisions (abs) with momentum. SUGGESTION1 and 3 considered for sparse revision data. Confidence 0.6.",
+      "implementation": "multiply(abs(ts_delta(analyst_revision,1)), ts_returns(close,20))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum after name change / rebrand event",
+      "description": "Event-driven momentum: corporate_event_flag multiplied by short-term returns. Event flags sparse; ts_backfill optional. Confidence 0.35.",
+      "implementation": "multiply(ts_backfill(name_change_flag,180), ts_returns(close,10))",
+      "confidence_level": 0.35
+    },
+    {
+      "idea": "Relative value: earnings yield vs peers",
+      "description": "Compare earnings yield (inverse PE) vs sector median and go long if above median. Uses pe_ratio and close; group operator avoided per KEEP_IN_MIND4. Confidence 0.5.",
+      "implementation": "zscore(inverse(pe_ratio))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum filtered by rising analyst coverage (vec_count)",
+      "description": "Increasing analyst coverage (vec_count) indicates institutional interest; combine with returns. SUGGESTION2 for vector count. If coverage low, ts_backfill possible. Confidence 0.52.",
+      "implementation": "multiply(vec_count(analyst_estimates_vec), ts_returns(close,30))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Tradeable dispersion: high cross-sectional return dispersion",
+      "description": "When cross-sectional dispersion high, mean-reversion strategies profitable — use sigma of returns (ts_std_dev) and go contrarian. Uses close only. Confidence 0.46.",
+      "implementation": "reverse(ts_std_dev(ts_returns(close,20),20))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Momentum with falling bankruptcy risk (current_ratio)",
+      "description": "Rising current_ratio suggests improving liquidity; combine with returns. SUGGESTION1 used; accounting metrics low-frequency so ts_backfill applied. Confidence 0.53.",
+      "implementation": "multiply(ts_backfill(ts_delta(current_ratio,4),365), ts_returns(close,30))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "High IR with low recent drawdown",
+      "description": "Favor stocks with high ts_ir and low ts_max_diff (limited drawdown). Uses returns only (ts_ir and ts_max_diff of close). SUGGESTION4 applied. Confidence 0.65.",
+      "implementation": "multiply(ts_ir(ts_returns(close,20),20), reverse(ts_max_diff(ts_returns(close,60),60)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Momentum after positive cash flow surprise",
+      "description": "Free cash flow surprise combined with momentum. SUGGESTION1 used; surprises sparse so ts_backfill applied. Confidence 0.5.",
+      "implementation": "multiply(ts_backfill(fcf_surprise,180), ts_returns(close,30))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum in low implied skew names",
+      "description": "Combine positive returns with low implied skew (implied_volatility skew proxy). SUGGESTION1 used. Confidence 0.44 due to options complexity.",
+      "implementation": "multiply(ts_returns(close,20), inverse(implied_skew))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Momentum after analyst price-target upgrades",
+      "description": "Price_target_delta combined with momentum. SUGGESTION1 applied; price-target updates sparse — ts_backfill used. Confidence 0.55.",
+      "implementation": "multiply(ts_backfill(ts_delta(price_target,1),180), ts_returns(close,20))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Short-term reversal at intraday high",
+      "description": "If today is intraday max over 5 days, expect pullback. Uses ts_arg_max on high and reverses. SUGGESTION1 applied. Confidence 0.47.",
+      "implementation": "reverse(if_else(equal(ts_arg_max(high,5),0), 1, 0))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Momentum fade based on elevated group volatility",
+      "description": "If group volatility high, momentum tends to fade; use stock momentum scaled down by group stddev. KEEP_IN_MIND4 avoided group field usage by not implementing group operator; use sector_index_vol instead. Confidence 0.43.",
+      "implementation": "divide(ts_returns(close,20), ts_std_dev(ts_returns(sector_index_close,20),20))",
+      "confidence_level": 0.43
+    },
+    {
+      "idea": "Earnings momentum in small-cap growth names",
+      "description": "Combine earnings_surprise with inverse market_cap to favor small-cap growth beats. SUGGESTION1 applied; ts_backfill for earnings if needed. Confidence 0.48.",
+      "implementation": "multiply(ts_backfill(earnings_surprise,180), inverse(market_cap))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Momentum attenuation after large insider buying (safety)",
+      "description": "Large insider buys reduce downside; use vec_sum(insider_trades_vec) to scale momentum but here use as dampener. SUGGESTION2 applied. Confidence 0.5.",
+      "implementation": "multiply(ts_returns(close,20), vec_sum(insider_trades_vec))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum combined with improving net_margin",
+      "description": "Rising net_margin signals profitability momentum; combine with price momentum. SUGGESTION1 used; metrics quarterly so ts_backfill considered. Confidence 0.54.",
+      "implementation": "multiply(ts_backfill(ts_delta(net_margin,4),365), ts_returns(close,30))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "High risk-adjusted momentum via ts_scale",
+      "description": "Scale momentum across time using ts_scale to reduce outlier impact. Uses close only (ts_scale on returns). SUGGESTION4 applied. Confidence 0.63.",
+      "implementation": "ts_scale(ts_returns(close,20),20)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum fade around dividend ex-date",
+      "description": "Anticipate mean-reversion around dividend ex-date by using dividend_flag and price. dividend_flag sparse; ts_backfill optional. Confidence 0.38.",
+      "implementation": "multiply(ts_backfill(dividend_ex_flag,30), reverse(ts_returns(close,5)))",
+      "confidence_level": 0.38
+    },
+    {
+      "idea": "Momentum boosted by forecast revisions",
+      "description": "Combine analyst_forecast_delta with returns. SUGGESTION1 applied; forecasts may be vector — use vec_avg if so. Confidence 0.59.",
+      "implementation": "multiply(ts_backfill(ts_delta(analyst_forecast,1),90), ts_returns(close,20))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Volatility compression breakout",
+      "description": "Low recent volatility (ts_std_dev) followed by volume spike predicts breakout. Uses close and volume. SUGGESTION1 applied. Confidence 0.6.",
+      "implementation": "and(less(ts_std_dev(ts_returns(close,20),20), ts_std_dev(ts_returns(close,60),60)), greater(volume, ts_mean(volume,20)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum with rising ROE",
+      "description": "ROE improvement combined with momentum to favor profitable growth. SUGGESTION1 used; low-frequency ROE ts_backfilled. Confidence 0.55.",
+      "implementation": "multiply(ts_backfill(ts_delta(roe,4),365), ts_returns(close,30))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Cross-sectional rank reversal after extreme ts_rank",
+      "description": "Use ts_rank of returns and reverse extreme ranks. Single field close used. SUGGESTION4 applied. Confidence 0.65.",
+      "implementation": "reverse(ts_rank(ts_returns(close,10),10))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Momentum plus improving gross margin and falling short interest",
+      "description": "Combine gross_margin trend with decreasing short_interest to favor sustained rallies. Uses two fields and ts_backfill for gross margin. Confidence 0.53.",
+      "implementation": "multiply(ts_backfill(ts_delta(gross_margin,4),365), reverse(ts_delta(short_interest,30)))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Momentum with positive cash conversion cycle improvement",
+      "description": "Improving cash conversion cycle (CCC) indicates operational improvement; combine with returns. SUGGESTION1 applied; CCC low-frequency so ts_backfill included. Confidence 0.5.",
+      "implementation": "multiply(ts_backfill(ts_delta(cash_conversion_cycle,4),365), ts_returns(close,30))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum adjusted for recent volatility spike",
+      "description": "Downweight momentum during recent volatility spikes by dividing returns by recent vol. Uses close. SUGGESTION4 applied. Confidence 0.62.",
+      "implementation": "divide(ts_returns(close,20), ts_std_dev(ts_returns(close,20),20))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum combined with rising analyst coverage count",
+      "description": "Use vec_count(analyst_estimates_vec) to detect rising coverage and favor momentum. SUGGESTION2 applied. ts_backfill if needed. Confidence 0.51.",
+      "implementation": "multiply(vec_count(analyst_estimates_vec), ts_returns(close,20))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Mean reversion at 60-day zscore with volume filter",
+      "description": "Use 60-day zscore of returns but require volume above 20-day average. SUGGESTION1 used two fields. Confidence 0.66.",
+      "implementation": "if_else(greater(volume, ts_mean(volume,20)), reverse(ts_zscore(ts_returns(close,60),120)), 0)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Momentum with improving operating cash flow",
+      "description": "OCF trend combined with price momentum. OCF low-frequency so ts_backfill considered. SUGGESTION1 applied. Confidence 0.52.",
+      "implementation": "multiply(ts_backfill(ts_delta(operating_cash_flow,4),365), ts_returns(close,30))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum after positive analyst comment spikes (sentiment vec)",
+      "description": "Aggregate analyst_comment_vec via vec_sum and combine with returns. SUGGESTION2 applied. Coverage variable; ts_backfill optional. Confidence 0.47.",
+      "implementation": "multiply(vec_sum(analyst_comment_vec), ts_returns(close,10))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Momentum trimmed by high short_ratio",
+      "description": "Stocks with high short_ratio are riskier; downweight momentum by short_ratio. Uses close and short_ratio. SUGGESTION1 applied. Confidence 0.49.",
+      "implementation": "divide(ts_returns(close,20), add(short_ratio, 1))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Momentum enhanced by buyback magnitude",
+      "description": "Scale momentum by buyback size (buyback_announced magnitude). SUGGESTION1 applied; buyback data may be sparse so ts_backfill used. Confidence 0.56.",
+      "implementation": "multiply(ts_backfill(buyback_size,180), ts_returns(close,30))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum with falling leverage (debt reduction)",
+      "description": "Combine falling debt_to_equity with returns. SUGGESTION1 applied with ts_backfill for debt. Confidence 0.52.",
+      "implementation": "multiply(ts_backfill(ts_delta(debt_to_equity,4),365), ts_returns(close,30))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Price reversal after extreme vec_range of intraday fills",
+      "description": "If intraday orderbook vector shows extreme vec_range, expect a reversal. SUGGESTION2 used for vector; coverage often low. Confidence 0.36.",
+      "implementation": "reverse(vec_range(orderbook_imbalance_vec))",
+      "confidence_level": 0.36
+    },
+    {
+      "idea": "Cross-sectional zscore of forward growth vs peers",
+      "description": "Rank forward_growth (estimates) cross-sectionally and use zscore; use close for timing with returns separately. SUGGESTION1 used; vector estimates may require vec_avg. Confidence 0.54.",
+      "implementation": "zscore(vec_avg(forward_growth_vec))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Momentum after large positive institutional buys",
+      "description": "Institutional buying ts_delta combined with short-term momentum. SUGGESTION1 used; institutional data medium-frequency. Confidence 0.58.",
+      "implementation": "multiply(ts_delta(institutional_ownership,1), ts_returns(close,20))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum with stable margins (low margin volatility)",
+      "description": "Favor momentum in companies with low ts_std_dev(margin) to avoid unstable earnings. SUGGESTION1 used; ts_backfill for margin if needed. Confidence 0.5.",
+      "implementation": "multiply(ts_returns(close,30), inverse(ts_std_dev(ts_backfill(gross_margin,365),60)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Short-term reversal after high ts_arg_max in returns",
+      "description": "If current day is the max return in last N days (ts_arg_max==0), anticipate short-term reversal. Uses close only. Confidence 0.47.",
+      "implementation": "if_else(equal(ts_arg_max(ts_returns(close,10),10),0), reverse(1), 0)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Momentum scaled by analyst target dispersion (vec_stddev)",
+      "description": "High dispersion in price targets reduces conviction; scale momentum by inverse vec_stddev. SUGGESTION2 applied. Confidence 0.45.",
+      "implementation": "multiply(ts_returns(close,20), inverse(vec_stddev(price_target_vec)))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Earnings-season momentum: post-earnings run-up",
+      "description": "Stocks that beat and then continue to run (post-earnings momentum) using beat_flag_vec vec_sum and returns. SUGGESTION2 applied. Confidence 0.6.",
+      "implementation": "multiply(vec_sum(beat_flag_vec), ts_returns(close,30))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum with improving gross margin and buyback signal",
+      "description": "Combine gross margin delta and buyback_announced to strengthen momentum signals. Two fields used, ts_backfill for gross margin. Confidence 0.55.",
+      "implementation": "multiply(ts_backfill(ts_delta(gross_margin,4),365), ts_backfill(buyback_announced,180))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Stat Arb: pair momentum spread mean-revert",
+      "description": "Mean-revert on pair spread: stock A returns minus stock B returns; implementation assumes pair selection externally. Uses two close fields. KEEP_IN_MIND2 respected. Confidence 0.6.",
+      "implementation": "reverse(subtract(ts_returns(close_A,10), ts_returns(close_B,10)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum after positive supply-chain news",
+      "description": "supply_chain_news flag combined with returns. Event data sparse; ts_backfill optional. SUGGESTION1 applied. Confidence 0.4.",
+      "implementation": "multiply(ts_backfill(supply_chain_news,90), ts_returns(close,20))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Momentum with rising operating leverage (sales up, costs fixed)",
+      "description": "Revenue growth combined with improving operating_margin. Two fields used, both low-frequency; ts_backfill applied. Confidence 0.51.",
+      "implementation": "multiply(ts_backfill(ts_delta(revenue,4),365), ts_backfill(ts_delta(operating_margin,4),365))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Momentum with falling analyst forecast dispersion (vec_stddev)",
+      "description": "Lower dispersion indicates consensus and stronger momentum; use vec_stddev and ts_returns. SUGGESTION2 applied. Confidence 0.53.",
+      "implementation": "multiply(reverse(vec_stddev(analyst_forecast_vec)), ts_returns(close,20))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Momentum dampened by high option implied vol-of-vol",
+      "description": "High implied vol-of-vol signals unstable options market; downweight momentum by implied_volatility change. Uses close and implied_volatility. Confidence 0.42.",
+      "implementation": "divide(ts_returns(close,20), ts_std_dev(implied_volatility,20))",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Momentum following positive regulatory news flag",
+      "description": "Regulatory relief event flag combined with returns. Event sparse; ts_backfill optional. SUGGESTION1 applied. Confidence 0.36.",
+      "implementation": "multiply(ts_backfill(regulatory_relief_flag,180), ts_returns(close,30))",
+      "confidence_level": 0.36
+    },
+    {
+      "idea": "Momentum with improving EBITDA margin",
+      "description": "EBITDA margin trend combined with returns. SUGGESTION1 used; financial metric low-frequency so ts_backfill applied. Confidence 0.52.",
+      "implementation": "multiply(ts_backfill(ts_delta(ebitda_margin,4),365), ts_returns(close,30))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum scaled by analyst upgrade frequency (vec_count)",
+      "description": "Rising count of analyst upgrades (vec_count) boosts momentum. SUGGESTION2 used. Coverage varies; ts_backfill possible. Confidence 0.55.",
+      "implementation": "multiply(vec_count(analyst_upgrade_vec), ts_returns(close,20))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum with falling insider selling (safety overlay)",
+      "description": "If insider selling decreases (ts_delta negative) while momentum positive, signal strengthened. Uses insider_trades_vec aggregated by vec_sum and close. SUGGESTION2 applied. Confidence 0.5.",
+      "implementation": "multiply(ts_returns(close,20), reverse(vec_sum(insider_trades_vec)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum limited by high debt servicing burden (interest_coverage)",
+      "description": "Low interest_coverage increases risk; downweight momentum accordingly. SUGGESTION1 used; financial metric ts_backfilled. Confidence 0.48.",
+      "implementation": "divide(ts_returns(close,20), add(inverse(ts_backfill(interest_coverage,365)),1))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Momentum after positive OEM order flow (supply)",
+      "description": "Order_flow_imbalance positive combined with returns to capture demand shocks. SUGGESTION1 applied. Confidence 0.46.",
+      "implementation": "multiply(order_flow_imbalance, ts_returns(close,10))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Momentum with falling employee churn (HR metric)",
+      "description": "Improving employee retention may signal operational strength; combine with returns. HR data sparse; ts_backfill required. Confidence 0.33.",
+      "implementation": "multiply(ts_backfill(ts_delta(employee_churn,4),365), ts_returns(close,30))",
+      "confidence_level": 0.33
+    },
+    {
+      "idea": "Momentum with rising ROIC (return on invested capital)",
+      "description": "Increasing ROIC combined with price momentum. SUGGESTION1 used; ROIC low-frequency ts_backfilled. Confidence 0.54.",
+      "implementation": "multiply(ts_backfill(ts_delta(roic,4),365), ts_returns(close,30))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Momentum trimmed by elevated bid-ask spread proxy",
+      "description": "High spread proxy reduces tradeability; downweight momentum by spread_proxy. SUGGESTION1 applied. Confidence 0.44.",
+      "implementation": "divide(ts_returns(close,20), add(spread_proxy,1))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Short-term momentum in names with rising Google search interest (vec_avg)",
+      "description": "Use vec_avg(search_trend_vec) to pick names with rising retail interest and combine with returns. SUGGESTION2 applied. Confidence 0.41.",
+      "implementation": "multiply(vec_avg(search_trend_vec), ts_returns(close,7))",
+      "confidence_level": 0.41
+    },
+    {
+      "idea": "Momentum adjusted by sponsor ownership increase",
+      "description": "Private equity or sponsor investment (sponsor_ownership) increase combined with returns. SUGGESTION1 used; coverage sparse. Confidence 0.39.",
+      "implementation": "multiply(ts_backfill(ts_delta(sponsor_ownership,1),365), ts_returns(close,30))",
+      "confidence_level": 0.39
+    },
+    {
+      "idea": "Momentum after reductions in share float",
+      "description": "Share count reduction (buybacks) amplifies momentum; use buyback_size and returns. SUGGESTION1 applied. Confidence 0.52.",
+      "implementation": "multiply(ts_backfill(buyback_size,180), ts_returns(close,30))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum with improving inventory turnover (retail metric)",
+      "description": "Rising inventory_turnover indicates sales strength; combine with returns. Retail metric low-frequency; ts_backfill applied. Confidence 0.37.",
+      "implementation": "multiply(ts_backfill(ts_delta(inventory_turnover,4),365), ts_returns(close,30))",
+      "confidence_level": 0.37
+    },
+    {
+      "idea": "Momentum following positive patent event flag",
+      "description": "Patent grant event flag combined with returns. Event sparse; ts_backfill optional. Confidence 0.34.",
+      "implementation": "multiply(ts_backfill(patent_grant_flag,180), ts_returns(close,20))",
+      "confidence_level": 0.34
+    },
+    {
+      "idea": "Momentum with consistent analyst upgrades (vec_count)",
+      "description": "Rising number of upgrades over time (vec_count) combined with momentum. SUGGESTION2 applied. Confidence 0.56.",
+      "implementation": "multiply(vec_count(analyst_upgrade_vec), ts_returns(close,30))",
+      "confidence_level": 0.56
+    }
+  ]
+}

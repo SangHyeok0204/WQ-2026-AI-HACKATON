@@ -1,0 +1,616 @@
+{
+  "results": [
+    {
+      "idea": "Cross-sectional 20-day momentum",
+      "description": "Use cross-sectional rank of 20-day returns to capture momentum. SUGGESTION1: planned to use PRICE and VOLUME but DATA empty so I provide placeholders; SUGGESTION2: N/A (no vector fields used); SUGGESTION3: Not applied because coverage unknown; SUGGESTION4: Would prefer high userCount fields, but dataset not provided. KEEP_IN_MIND1-4: Implementation kept short, uses 1 data placeholder, ≤7 operators, no GROUP alone. Confidence set to 0.75 based on typical momentum robustness.",
+      "implementation": "quantile(ts_returns(FIELD_PRICE,20))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Short-term reversal (5-day)",
+      "description": "Mean-reversion using negative 5-day returns (short losers). S1: planned multiple fields but simplified; S2: no vector data used; S3: skip ts_backfill; S4: prefer high-use PRICE field. Followed KEEP_IN_MINDs. Confidence 0.6.",
+      "implementation": "reverse(ts_returns(FIELD_PRICE,5))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Volatility-scaled momentum",
+      "description": "Momentum scaled by recent volatility to favor stable winners. S1: combine returns and vol; S2: no vector; S3: skip backfill; S4: use high-alphaCount fields if available. Kept operators ≤7. Confidence 0.7.",
+      "implementation": "divide(ts_returns(FIELD_PRICE,20), ts_std_dev(ts_returns(FIELD_PRICE,20),20))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Volume-confirmed breakout",
+      "description": "Price breakout validated by volume surge (price return × volume z-score). S1: uses two fields (price, volume); S2: no vector; S3: backfill not applied; S4: uses typical high-user fields. Kept concise. Confidence 0.65.",
+      "implementation": "multiply(ts_returns(FIELD_PRICE,10), zscore(ts_returns(FIELD_VOLUME,5)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Residual momentum via short regression",
+      "description": "Use ts_regression to extract residual returns (idiosyncratic momentum). S1: combines price and benchmark placeholders; S2: no vector; S3: not used; S4: uses PRICE and BENCH. KEEP_IN_MINDs OK. Confidence 0.72.",
+      "implementation": "ts_regression(ts_returns(FIELD_PRICE,60), ts_returns(FIELD_BENCH,60),60, lag=0, rettype=0)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Earnings surprise continuation",
+      "description": "Post-earnings drift: rank firms by recent positive earnings surprise and hold. S1: planned combine earnings surprise and price; due to DATA empty used placeholders; S2: no vector; S3: if coverage low, apply ts_backfill (not in placeholder); S4: prefer high alphaCount earnings field. Confidence 0.6.",
+      "implementation": "quantile(ts_zscore(FIELD_EARNINGS_SURPRISE,30))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Analyst revision momentum",
+      "description": "Rank firms by upward analyst revisions and combine with short-term momentum. S1: two fields used; S2: no vector; S3: ts_backfill optional; S4: use high-user analyst fields. Confidence 0.58.",
+      "implementation": "add(quantile(FIELD_ANALYST_REVISION), quantile(ts_returns(FIELD_PRICE,10)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Implied vs realized volatility divergence",
+      "description": "Long when implied vol > realized vol (carry on volatility premium). S1: uses IV and realized vol; S2: no vector; S3: backfill if IV sparse; S4: prefer widely-used IV fields. Confidence 0.66.",
+      "implementation": "subtract(FIELD_IV_30D, ts_std_dev(ts_returns(FIELD_PRICE,30),30))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Liquidity stress signal (count NaNs)",
+      "description": "Use ts_count_nans on liquidity proxy to detect stress and short illiquid names. S1: single field but strong signal; S2: no vector; S3: ts_backfill not applied; S4: userCount preference noted. Confidence 0.5.",
+      "implementation": "ts_count_nans(FIELD_LIQUIDITY,10)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High short-interest surge",
+      "description": "Rank by recent increase in short interest to identify squeezes or constrained stocks. S1: single field (short interest change); S2: no vector; S3: backfill if sparse; S4: depends on data coverage. Confidence 0.52.",
+      "implementation": "ts_delta(FIELD_SHORT_INTEREST,21)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Dividend yield momentum",
+      "description": "Combine rising dividend yield and positive price momentum for quality income growth names. S1: two fields; S2: no vector; S3: backfill if dividends sparse; S4: use high-user dividend field. Confidence 0.54.",
+      "implementation": "add(quantile(FIELD_DIVIDEND_YIELD), quantile(ts_returns(FIELD_PRICE,60)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Low volatility anomaly (long low vol)",
+      "description": "Rank by inverse of realized volatility to capture low-vol premium. S1: PRICE-based vol only; S2: no vector; S3: skip backfill; S4: PRICE preferred. Confidence 0.6.",
+      "implementation": "inverse(ts_std_dev(ts_returns(FIELD_PRICE,60),60))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Quality signal (ROE trend)",
+      "description": "Favor stocks with improving ROE (fundamental momentum). S1: single fundamental field used; S2: no vector; S3: apply ts_backfill if sparse; S4: prefer high userCount fundamentals. Confidence 0.57.",
+      "implementation": "ts_delta(FIELD_ROE,4)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Price range breakout (max-diff)",
+      "description": "Score by current price relative to d-day max (breakout strength). S1: single price field; S2: no vector; S3: not applied; S4: use PRICE. Confidence 0.63.",
+      "implementation": "ts_max_diff(FIELD_PRICE,60)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum cross-asset correlation filter",
+      "description": "Momentum weighted down when highly correlated with a macro asset (risk control). S1: combines asset returns and benchmark; S2: no vector; S3: skip backfill; S4: use well-covered macro fields. Confidence 0.55.",
+      "implementation": "multiply(quantile(ts_returns(FIELD_PRICE,20)), divide(1, ts_corr(ts_returns(FIELD_PRICE,60), ts_returns(FIELD_MACRO,60),60)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Post-earnings drift persistence",
+      "description": "Filter names with repeated positive earnings surprises and persistent return. S1: combines earnings surprise and returns; S2: no vector; S3: use ts_backfill if needed; S4: earnings field coverage critical. Confidence 0.59.",
+      "implementation": "multiply(quantile(ts_zscore(FIELD_EARN_SURP,30)), quantile(ts_returns(FIELD_PRICE,30)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Order book imbalance (vector avg)",
+      "description": "Use vec_avg of bid-ask imbalance vector to detect short-term pressure. S1: uses vector field; S2: applied vec_avg; S3: if vec coverage low, ts_backfill for scalar proxies; S4: vector fields often low-userCount so lower confidence. Kept under operator limits. Confidence 0.5.",
+      "implementation": "vec_avg(VEC_ORDER_IMBALANCE)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Depth-weighted momentum (vec_sum × returns)",
+      "description": "Multiply returns by vec_sum(depth) to favor moves with depth support. S1: uses vector and price; S2: applied vec_sum; S3: backfill optional; S4: vector coverage may be low. Confidence 0.52.",
+      "implementation": "multiply(ts_returns(FIELD_PRICE,10), vec_sum(VEC_BOOK_DEPTH))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Range contraction breakout (ts_std_dev momentum)",
+      "description": "Long when short-term vol compresses then expands (low then rising ts_std_dev). S1: uses price vol; S2: no vector; S3: skip; S4: price field preferred. Confidence 0.6.",
+      "implementation": "subtract(ts_std_dev(ts_returns(FIELD_PRICE,10),10), ts_std_dev(ts_returns(FIELD_PRICE,30),30))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Skewness (kurtosis) based selection",
+      "description": "Select stocks with positive return kurtosis (fat right tails) using ts_kurtosis. S1: single field; S2: no vector; S3: ts_backfill not applied; S4: depends on price history. Confidence 0.48.",
+      "implementation": "ts_kurtosis(ts_returns(FIELD_PRICE,60),60)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Information ratio ranking",
+      "description": "Rank by ts_ir of returns to find consistent performers (mean/std). S1: single field returns; S2: no vector; S3: ts_backfill optional; S4: PRICE recommended. Confidence 0.62.",
+      "implementation": "ts_ir(ts_returns(FIELD_PRICE,60),60)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Seasonal (month-of-year) momentum",
+      "description": "Long names with historically strong month returns (month-seasonality). S1: uses price history (calendar mapping external); S2: no vector; S3: backfill not applied; S4: PRICE. Confidence 0.45.",
+      "implementation": "quantile(ts_returns(FIELD_PRICE,30))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Gap open reversal",
+      "description": "Short names that gap up at open and revert intraday (requires intraday fields). S1: uses open/close intraday; S2: no vector; S3: ts_backfill if sparse intraday; S4: intraday fields often lower coverage so lower confidence. Confidence 0.5.",
+      "implementation": "reverse(ts_delta(FIELD_OPEN_CLOSE_GAP,1))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Mean-reversion after large intraday range",
+      "description": "Use ts_max_diff to detect unusually wide day relative to past, then revert. S1: PRICE only; S2: no vector; S3: skip; S4: PRICE. Confidence 0.53.",
+      "implementation": "reverse(ts_max_diff(FIELD_PRICE_RANGE,20))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Momentum with group-neutralization",
+      "description": "Cross-sectional momentum neutralized within group to remove sector bets. S1: planned combine returns + group field; S2: no vector; S3: skip; S4: group field must be provided; KEEP_IN_MIND4: used group as parameter. Confidence 0.68.",
+      "implementation": "group_neutralize(quantile(ts_returns(FIELD_PRICE,60)), FIELD_GROUP)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Short liquidity rotator",
+      "description": "Short names with worsening liquidity and negative returns. S1: combine liquidity proxy and returns; S2: no vector; S3: backfill optional; S4: liquidity fields often high-user. Confidence 0.49.",
+      "implementation": "multiply(reverse(ts_returns(FIELD_PRICE,30)), ts_delta(FIELD_LIQUIDITY,30))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Carry-style dividend capture",
+      "description": "Combine high dividend yield and low expected drawdown (low vol) to capture carry. S1: two fields used; S2: no vector; S3: backfill if sparse; S4: dividend & price used. Confidence 0.55.",
+      "implementation": "divide(FIELD_DIVIDEND_YIELD, ts_std_dev(ts_returns(FIELD_PRICE,60),60))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Earnings momentum + low beta overlay",
+      "description": "Long firms with positive earnings surprise and low market beta for defensive momentum. S1: two fields combined; S2: no vector; S3: backfill optional; S4: prefer well-covered beta field. Confidence 0.56.",
+      "implementation": "multiply(quantile(FIELD_EARN_SURP), inverse(FIELD_BETA))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Cross-sectional dispersion pick",
+      "description": "Long names with high idiosyncratic dispersion (ts_std_dev of residuals). S1: needs regression residuals; S2: no vector; S3: skip; S4: needs benchmark field. Confidence 0.5.",
+      "implementation": "ts_std_dev(ts_regression(ts_returns(FIELD_PRICE,60), ts_returns(FIELD_BENCH,60),60,0,0),60)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Days-since-price-change (trend persistence)",
+      "description": "Use days_from_last_change to detect stale tickers and favor recently-active names. S1: single field; S2: no vector; S3: skip; S4: PRICE. Confidence 0.4.",
+      "implementation": "reverse(days_from_last_change(FIELD_PRICE))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "TS Arg-max breakout timing",
+      "description": "Use ts_arg_max to identify when current day is max in lookback; trade momentum accordingly. S1: PRICE only; S2: no vector; S3: skip; S4: PRICE. Confidence 0.58.",
+      "implementation": "if_else(equal(ts_arg_max(FIELD_PRICE,20),0), ts_returns(FIELD_PRICE,5), 0)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum weighted by analyst sentiment",
+      "description": "Combine returns momentum with analyst sentiment score to favor momentum with positive sentiment. S1: two fields; S2: no vector; S3: backfill optional; S4: sentiment coverage matters. Confidence 0.53.",
+      "implementation": "multiply(quantile(ts_returns(FIELD_PRICE,30)), quantile(FIELD_ANALYST_SENTIMENT))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "TS rank breakout (short-term)",
+      "description": "Rank recent returns via ts_rank to capture short-term relative strength. S1: PRICE only; S2: no vector; S3: skip; S4: PRICE. Confidence 0.6.",
+      "implementation": "ts_rank(ts_returns(FIELD_PRICE,10),10)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Mean-reversion using rolling zscore",
+      "description": "Use ts_zscore of returns to identify extreme deviations for reversion trades. S1: PRICE only; S2: no vector; S3: skip; S4: PRICE. Confidence 0.64.",
+      "implementation": "reverse(ts_zscore(ts_returns(FIELD_PRICE,20),20))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum scaled by company size (market cap)",
+      "description": "Favor momentum in smaller caps by dividing momentum by market cap. S1: two fields; S2: no vector; S3: backfill optional for market cap; S4: market cap fields often high-userCount. Confidence 0.57.",
+      "implementation": "divide(ts_returns(FIELD_PRICE,60), FIELD_MARKET_CAP)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Accruals-based reversal",
+      "description": "Mean reversion from high accruals to predict future underperformance. S1: fundamentals only; S2: no vector; S3: ts_backfill for sparsity; S4: accruals may have lower userCount. Confidence 0.46.",
+      "implementation": "reverse(quantile(FIELD_ACCRUALS))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Inventory change momentum",
+      "description": "Rising inventories often predict future issues; combine inventory delta with negative momentum. S1: two fields; S2: no vector; S3: backfill if sparse; S4: depends on fundamental coverage. Confidence 0.44.",
+      "implementation": "multiply(reverse(ts_returns(FIELD_PRICE,30)), ts_delta(FIELD_INVENTORY,4))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Revenue acceleration",
+      "description": "Long firms with accelerating top-line (delta revenue). S1: fundamental only; S2: no vector; S3: ts_backfill recommended; S4: prefer well-covered revenue field. Confidence 0.53.",
+      "implementation": "ts_delta(FIELD_REVENUE,4)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Buyback intensity signal",
+      "description": "Favor companies with increasing buyback activity (fundamental flow). S1: single field; S2: no vector; S3: backfill optional; S4: buyback data may be sparse. Confidence 0.45.",
+      "implementation": "ts_delta(FIELD_BUYBACK,4)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Short-term dispersion (cross-sectional std)",
+      "description": "Select stocks with high cross-sectional dispersion of returns (market stress arbitrage). S1: multiple price series required (cross-sectional operation); S2: no vector; S3: not applied; S4: depends on coverage. Confidence 0.48.",
+      "implementation": "group_std_dev(ts_returns(FIELD_PRICE,20), FIELD_GROUP)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Relative strength vs sector",
+      "description": "Rank stock returns relative to sector mean (group_neutralize used). S1: PRICE + group; S2: no vector; S3: skip; S4: group field required. Kept operators low. Confidence 0.66.",
+      "implementation": "group_neutralize(quantile(ts_returns(FIELD_PRICE,60)), FIELD_GROUP)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Pair trade: residual mean reversion",
+      "description": "Trade residual between two co-integrated names using ts_regression residuals. S1: uses two price fields; S2: no vector; S3: ts_backfill optional; S4: requires pair selection outside template. Confidence 0.55.",
+      "implementation": "ts_regression(ts_returns(FIELD_PRICE_A,60), ts_returns(FIELD_PRICE_B,60),60,0,0)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum excluding high borrow-cost stocks",
+      "description": "Apply momentum but zero out names with high borrow cost via trade_when. S1: two fields; S2: no vector; S3: backfill optional; S4: borrow cost data may be limited. KEEP_IN_MINDs observed. Confidence 0.59.",
+      "implementation": "trade_when(greater(FIELD_BORROW_COST, 0.1), NaN, quantile(ts_returns(FIELD_PRICE,60)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Implied skew (options) signal",
+      "description": "Use change in implied skew to identify demand for tail hedging and trade accordingly. S1: options skew and price; S2: no vector; S3: backfill if sparse; S4: options fields lower coverage. Confidence 0.47.",
+      "implementation": "ts_delta(FIELD_IV_SKEW,10)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "High-frequency momentum (days 1-3)",
+      "description": "Exploit ultra-short momentum using ts_returns over 1-3 days aggregated. S1: PRICE only; S2: no vector; S3: skip; S4: PRICE. Confidence 0.58.",
+      "implementation": "add(ts_returns(FIELD_PRICE,1), ts_returns(FIELD_PRICE,3))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum with winsorized returns",
+      "description": "Winsorize recent returns to reduce outlier influence then rank. S1: PRICE only; S2: no vector; S3: skip; S4: PRICE. Confidence 0.62.",
+      "implementation": "quantile(winsorize(ts_returns(FIELD_PRICE,60)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Cash conversion improvement",
+      "description": "Long firms with improving cash conversion cycle metrics (fundamental momentum). S1: fundamental only; S2: no vector; S3: backfill if sparse; S4: data-dependent. Confidence 0.49.",
+      "implementation": "reverse(ts_delta(FIELD_CASH_CONVERSION,4))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Momentum filtered by ts_ir stability",
+      "description": "Favor momentum only in stocks with high recent ts_ir (stable outperformance). S1: combine returns and ts_ir; S2: no vector; S3: skip; S4: PRICE. Confidence 0.63.",
+      "implementation": "multiply(quantile(ts_returns(FIELD_PRICE,60)), ts_ir(ts_returns(FIELD_PRICE,60),60))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Mean reversion after high kurtosis spikes",
+      "description": "Identify large tail events with ts_kurtosis and revert. S1: PRICE only; S2: no vector; S3: skip; S4: PRICE. Confidence 0.46.",
+      "implementation": "reverse(if_else(greater(ts_kurtosis(ts_returns(FIELD_PRICE,30),30), 3), ts_returns(FIELD_PRICE,5), 0))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Momentum with tail-risk dampener (pasteurize)",
+      "description": "Apply pasteurize to remove outliers before ranking momentum. S1: PRICE only; S2: no vector; S3: skip; S4: pasteurize used to reduce outlier risk. Confidence 0.65.",
+      "implementation": "quantile(pasteurize(ts_returns(FIELD_PRICE,60)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Earnings quality (accruals vs cashflow)",
+      "description": "Favor improving cash flow relative to accruals as a quality signal. S1: combines two fundamentals; S2: no vector; S3: backfill when sparse; S4: fundamentals coverage matters. Confidence 0.5.",
+      "implementation": "subtract(ts_delta(FIELD_CASHFLOW,4), ts_delta(FIELD_ACCRUALS,4))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum with ts_decay_linear (turnover control)",
+      "description": "Apply ts_decay_linear to momentum signal to control turnover. S1: single field momentum; S2: no vector; S3: skip; S4: demonstrates operator usage. Confidence 0.61.",
+      "implementation": "ts_decay_linear(quantile(ts_returns(FIELD_PRICE,30)),10)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Volatility breakout (vol spike continuation)",
+      "description": "Long stocks where realized vol shows sustained increase (momentum in vol). S1: PRICE only; S2: no vector; S3: skip; S4: PRICE. Confidence 0.47.",
+      "implementation": "ts_delta(ts_std_dev(ts_returns(FIELD_PRICE,20),20),5)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Momentum cross-sectional zscore",
+      "description": "Normalize momentum cross-sectionally with zscore before allocation. S1: PRICE only; S2: no vector; S3: skip; S4: PRICE. Confidence 0.6.",
+      "implementation": "zscore(quantile(ts_returns(FIELD_PRICE,60)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Volume-weighted momentum",
+      "description": "Multiply momentum by recent average volume to favor liquid moves. S1: two fields; S2: no vector; S3: backfill optional; S4: volume typically high-userCount. Confidence 0.59.",
+      "implementation": "multiply(quantile(ts_returns(FIELD_PRICE,20)), ts_mean(FIELD_VOLUME,20))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Days-from-last-change liquidity filter",
+      "description": "Avoid names with long inactive periods by using days_from_last_change on volume. S1: volume field used; S2: no vector; S3: skip; S4: volume coverage important. Confidence 0.44.",
+      "implementation": "trade_when(greater(days_from_last_change(FIELD_VOLUME), 30), NaN, quantile(ts_returns(FIELD_PRICE,20)))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Short interest momentum (increasing short-term)",
+      "description": "Long names where short interest is falling and price momentum positive. S1: two fields; S2: no vector; S3: backfill optional; S4: depends on short interest coverage. Confidence 0.51.",
+      "implementation": "multiply(quantile(ts_returns(FIELD_PRICE,30)), reverse(ts_delta(FIELD_SHORT_INTEREST,30)))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Mean-reversion after large drawdown",
+      "description": "Identify stocks with large recent drawdowns (ts_max_diff) and mean-revert. S1: PRICE only; S2: no vector; S3: skip; S4: PRICE. Confidence 0.6.",
+      "implementation": "reverse(ts_max_diff(FIELD_PRICE,60))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum excluding microcaps",
+      "description": "Apply market cap filter to momentum to avoid microcap volatility. S1: two fields used; S2: no vector; S3: backfill optional; S4: market cap availability assumed. Confidence 0.58.",
+      "implementation": "trade_when(less(FIELD_MARKET_CAP, 500e6), NaN, quantile(ts_returns(FIELD_PRICE,60)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Sector rotation via group_rank",
+      "description": "Rank sectors by aggregated momentum (group_sum) then allocate to top sectors. S1: uses group operations and price; S2: no vector; S3: skip; S4: GROUP used as parameter per KEEP_IN_MIND4. Confidence 0.6.",
+      "implementation": "group_rank(group_sum(ts_returns(FIELD_PRICE,60), FIELD_GROUP), FIELD_GROUP)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum with winsorized volume",
+      "description": "Reduce volume outliers via winsorize before weighting momentum. S1: two fields; S2: no vector; S3: skip; S4: volume preferred. Confidence 0.56.",
+      "implementation": "multiply(quantile(ts_returns(FIELD_PRICE,30)), winsorize(ts_mean(FIELD_VOLUME,20)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum adjusted by group_std_dev",
+      "description": "Scale momentum by its sector volatility (group_std_dev) to reduce sector concentration risk. S1: price + group; S2: no vector; S3: skip; S4: group param used. Confidence 0.62.",
+      "implementation": "divide(quantile(ts_returns(FIELD_PRICE,60)), group_std_dev(ts_returns(FIELD_PRICE,60), FIELD_GROUP))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Short-term mean reversion with ts_av_diff",
+      "description": "Use ts_av_diff to compare current value vs recent mean robustly and revert extremes. S1: PRICE only; S2: no vector; S3: skip; S4: PRICE. Confidence 0.63.",
+      "implementation": "reverse(ts_av_diff(ts_returns(FIELD_PRICE,5),5))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum filtered by ts_count_nans",
+      "description": "Avoid signals in names with many missing days (low liquidity) by ts_count_nans filter. S1: PRICE + ts_count_nans; S2: no vector; S3: ts_backfill optional; S4: depends on coverage. Confidence 0.48.",
+      "implementation": "trade_when(greater(ts_count_nans(FIELD_PRICE,20),5), NaN, quantile(ts_returns(FIELD_PRICE,60)))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Momentum skirted by ts_arg_min",
+      "description": "Avoid stocks currently at 60-day minimum to reduce value traps; use ts_arg_min to identify minima. S1: PRICE only; S2: no vector; S3: skip; S4: PRICE. Confidence 0.52.",
+      "implementation": "trade_when(equal(ts_arg_min(FIELD_PRICE,60),0), NaN, quantile(ts_returns(FIELD_PRICE,60)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Event-driven post-announcement momentum",
+      "description": "After major announcements (e.g., guidance), capture sustained moves using trade_when with event flag. S1: uses event flag + price; S2: no vector; S3: backfill optional; S4: event coverage critical. Confidence 0.5.",
+      "implementation": "trade_when(equal(FIELD_EVENT_FLAG,1), quantile(ts_returns(FIELD_PRICE,30)), NaN)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Price-volume divergence",
+      "description": "Long when price rises but volume lags (steadier climbs), short when price rises on thin volume (unstable). S1: price+volume; S2: no vector; S3: optional backfill; S4: volume high-user. Confidence 0.54.",
+      "implementation": "subtract(quantile(ts_returns(FIELD_PRICE,20)), quantile(ts_returns(FIELD_VOLUME,20)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Momentum combined with fundamental momentum",
+      "description": "Require both price momentum and improving fundamentals (e.g., revenue growth) to increase signal quality. S1: two fields; S2: no vector; S3: backfill optional; S4: favor high-user fundamentals. Confidence 0.61.",
+      "implementation": "multiply(quantile(ts_returns(FIELD_PRICE,60)), quantile(ts_delta(FIELD_REVENUE,4)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Momentum with tail-limiter hump operator",
+      "description": "Apply hump to momentum to limit large changes and turnover. S1: PRICE only; S2: no vector; S3: skip; S4: hump used to control turnover. Confidence 0.6.",
+      "implementation": "hump(quantile(ts_returns(FIELD_PRICE,30)), 0.01)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Implied vs realized skew divergence",
+      "description": "Trade based on shifts in implied skew vs realized skew as a sentiment/hedging proxy. S1: options + returns; S2: no vector; S3: backfill optional; S4: options data sparse. Confidence 0.45.",
+      "implementation": "subtract(FIELD_IMPLIED_SKEW, ts_kurtosis(ts_returns(FIELD_PRICE,30),30))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Momentum after liquidity restoration",
+      "description": "Capture momentum when liquidity improves after a drought using ts_delta(volume) × returns. S1: two fields; S2: no vector; S3: backfill optional; S4: volume often covered. Confidence 0.5.",
+      "implementation": "multiply(quantile(ts_returns(FIELD_PRICE,20)), ts_delta(FIELD_VOLUME,10))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Short-term reversal with ts_quantile",
+      "description": "Use ts_quantile for robust time-series ranking to pick short-term reversers. S1: PRICE only; S2: no vector; S3: skip; S4: PRICE. Confidence 0.59.",
+      "implementation": "reverse(ts_quantile(ts_returns(FIELD_PRICE,10),10))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum leaning on group_mean (sector strength)",
+      "description": "Multiply stock momentum by group_mean momentum to favor stocks in strong sectors. S1: PRICE + GROUP; S2: no vector; S3: skip; S4: GROUP used as param. Confidence 0.64.",
+      "implementation": "multiply(quantile(ts_returns(FIELD_PRICE,60)), group_mean(ts_returns(FIELD_PRICE,60), FIELD_GROUP))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum scaled by analyst coverage",
+      "description": "Favor momentum in stocks with higher analyst coverage (liquidity/info). S1: returns + analyst coverage; S2: no vector; S3: backfill optional; S4: analyst count coverage matters. Confidence 0.53.",
+      "implementation": "multiply(quantile(ts_returns(FIELD_PRICE,60)), FIELD_ANALYST_COUNT)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Cross-sectional zscore of dividend surprises",
+      "description": "Rank dividend announcement surprises across cross-section using zscore. S1: dividend + price; S2: no vector; S3: backfill optional; S4: dividend surprise coverage low. Confidence 0.42.",
+      "implementation": "zscore(FIELD_DIVIDEND_SURPRISE)",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Momentum with group_neutralize and pasteurize",
+      "description": "Pasteurize momentum to remove extremes then group_neutralize to remove sector tilt. S1: PRICE + GROUP; S2: no vector; S3: skip; S4: GROUP used. Confidence 0.66.",
+      "implementation": "group_neutralize(pasteurize(quantile(ts_returns(FIELD_PRICE,60))), FIELD_GROUP)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Volatility-adjusted value (P/E vs vol)",
+      "description": "Favor low P/E with low volatility as stable value picks. S1: P/E + vol; S2: no vector; S3: backfill optional; S4: fundamentals coverage important. Confidence 0.48.",
+      "implementation": "divide(inverse(FIELD_PE), ts_std_dev(ts_returns(FIELD_PRICE,60),60))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Momentum filtered by ts_arg_max on volume",
+      "description": "Only trade momentum when current day is a volume max in lookback (confirmatory). S1: price + volume; S2: no vector; S3: skip; S4: volume coverage matters. Confidence 0.55.",
+      "implementation": "trade_when(equal(ts_arg_max(FIELD_VOLUME,20),0), quantile(ts_returns(FIELD_PRICE,20)), NaN)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Earnings surprise momentum with ts_zscore",
+      "description": "Z-score earnings surprise and combine with post-earnings returns. S1: earnings + price; S2: no vector; S3: apply ts_backfill if needed; S4: earnings coverage matters. Confidence 0.57.",
+      "implementation": "multiply(ts_zscore(FIELD_EARN_SURP,30), quantile(ts_returns(FIELD_PRICE,30)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Momentum with ts_product for compounded returns",
+      "description": "Use ts_product to capture compounded multi-day returns as momentum measure. S1: PRICE only; S2: no vector; S3: skip; S4: PRICE. Confidence 0.6.",
+      "implementation": "ts_product(ts_returns(FIELD_PRICE,10),10)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Liquidity-provision carry (rebate capture)",
+      "description": "Long names with high rebate or low transaction cost and stable returns. S1: combine cost & returns; S2: no vector; S3: backfill optional; S4: cost data sparse. Confidence 0.4.",
+      "implementation": "multiply(quantile(ts_returns(FIELD_PRICE,60)), inverse(FIELD_TRANSACTION_COST))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Momentum with group_scale to equalize sector exposures",
+      "description": "Apply group_scale to momentum to normalize within sectors and reduce concentration. S1: PRICE + GROUP; S2: no vector; S3: skip; S4: GROUP param used. Confidence 0.63.",
+      "implementation": "group_scale(quantile(ts_returns(FIELD_PRICE,60)), FIELD_GROUP)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Trend strength via ts_arg_max of returns",
+      "description": "Long when recent day is relative max within lookback using ts_arg_max as strength indicator. S1: PRICE only; S2: no vector; S3: skip; S4: PRICE. Confidence 0.56.",
+      "implementation": "if_else(less(ts_arg_max(ts_returns(FIELD_PRICE,20),20), 3), quantile(ts_returns(FIELD_PRICE,10)), 0)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum combined with macro surprise dampener",
+      "description": "Dampen momentum exposure on days with large macro surprises using external macro flag. S1: price + macro flag; S2: no vector; S3: skip; S4: macro data needed. Confidence 0.5.",
+      "implementation": "trade_when(greater(FIELD_MACRO_SURPRISE, 1), NaN, quantile(ts_returns(FIELD_PRICE,60)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum on buyback announcements",
+      "description": "Capture post-buyback announcement momentum using event flag and returns. S1: buyback event + price; S2: no vector; S3: backfill optional; S4: event coverage matters. Confidence 0.52.",
+      "implementation": "trade_when(equal(FIELD_BUYBACK_EVENT,1), quantile(ts_returns(FIELD_PRICE,30)), NaN)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum weighted by vec_stddev of broker estimates",
+      "description": "Use vec_stddev across analyst estimate vector to assess disagreement and weight momentum. S1: vector applied; S2: used vec_stddev; S3: if vector sparse, fallback to scalar; S4: analyst vec often limited. Confidence 0.44.",
+      "implementation": "multiply(quantile(ts_returns(FIELD_PRICE,30)), vec_stddev(VEC_ANALYST_ESTIMATES))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Momentum with winsorize and normalize",
+      "description": "Winsorize returns then normalize cross-sectionally to create robust momentum ranks. S1: PRICE only; S2: no vector; S3: skip; S4: PRICE. Confidence 0.65.",
+      "implementation": "normalize(winsorize(ts_returns(FIELD_PRICE,60)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Post-merger announcement momentum",
+      "description": "Trade momentum after M&A announcements using event flag and returns filter. S1: event + price; S2: no vector; S3: backfill optional; S4: event coverage critical. Confidence 0.47.",
+      "implementation": "trade_when(equal(FIELD_MA_ANNOUNCE,1), quantile(ts_returns(FIELD_PRICE,30)), NaN)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Momentum with ts_scale (time-series scaling)",
+      "description": "Scale returns in time series space to normalize recent swings using ts_scale. S1: PRICE only; S2: no vector; S3: skip; S4: PRICE. Confidence 0.62.",
+      "implementation": "ts_scale(ts_returns(FIELD_PRICE,30),30)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Volatility term-structure slope",
+      "description": "Use difference between short-term and long-term realized vol to signal regime changes. S1: PRICE only; S2: no vector; S3: skip; S4: PRICE. Confidence 0.49.",
+      "implementation": "subtract(ts_std_dev(ts_returns(FIELD_PRICE,10),10), ts_std_dev(ts_returns(FIELD_PRICE,60),60))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Momentum with group_rank bucketed exposures",
+      "description": "Bucket momentum into deciles within group using bucket+group_rank to allocate evenly. S1: PRICE + GROUP; S2: no vector; S3: skip; S4: GROUP param used. Confidence 0.6.",
+      "implementation": "bucket(group_rank(quantile(ts_returns(FIELD_PRICE,60)), FIELD_GROUP), range=\"0, 1, 0.1\")",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum excluding high ts_count_nans groups",
+      "description": "Exclude groups (sectors) with many missing values using group_count to avoid unreliable signals. S1: PRICE + GROUP; S2: no vector; S3: skip; S4: GROUP used. Confidence 0.46.",
+      "implementation": "trade_when(less(group_count(FIELD_PRICE, FIELD_GROUP), 5), NaN, quantile(ts_returns(FIELD_PRICE,60)))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Momentum with ts_target_tvr_decay (turnover tuning)",
+      "description": "Use ts_target_tvr_decay to tune momentum to desired turnover profile. S1: PRICE only; S2: no vector; S3: skip; S4: demonstrates operator. Confidence 0.59.",
+      "implementation": "ts_target_tvr_decay(quantile(ts_returns(FIELD_PRICE,30)), lambda_min=0, lambda_max=1, target_tvr=0.1)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Cross-sectional short squeeze monitor",
+      "description": "Detect rising short-interest with falling float via combined fields to avoid squeeze risk when going short. S1: two fields; S2: no vector; S3: backfill optional; S4: data coverage matters. Confidence 0.43.",
+      "implementation": "multiply(ts_delta(FIELD_SHORT_INTEREST,21), inverse(FIELD_FLOAT))",
+      "confidence_level": 0.43
+    },
+    {
+      "idea": "Momentum filtered by analyst upgrades count",
+      "description": "Require recent analyst upgrades to confirm momentum. S1: price + analyst upgrades; S2: no vector; S3: backfill optional; S4: analyst data coverage relevant. Confidence 0.52.",
+      "implementation": "trade_when(greater(ts_delta(FIELD_ANALYST_UPGRADES,30),0), quantile(ts_returns(FIELD_PRICE,60)), NaN)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum with inverse borrowing cost weighting",
+      "description": "Downweight momentum for names with high borrow cost to reduce shortside constraints. S1: two fields; S2: no vector; S3: backfill optional; S4: borrow cost coverage limited. Confidence 0.5.",
+      "implementation": "divide(quantile(ts_returns(FIELD_PRICE,60)), add(FIELD_BORROW_COST, 1e-6))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Mean-reversion in high-turnover names",
+      "description": "Identify mean-reversion where turnover spikes using volume delta × reverse returns. S1: price + volume; S2: no vector; S3: backfill optional; S4: volume data typically good. Confidence 0.49.",
+      "implementation": "multiply(reverse(ts_returns(FIELD_PRICE,5)), ts_delta(FIELD_VOLUME,5))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Momentum combined with growth-adjusted valuation",
+      "description": "Favor momentum in stocks with higher growth-adjusted valuation (PEG filter). S1: price + fundamentals; S2: no vector; S3: backfill if sparse; S4: PEG availability varies. Confidence 0.5.",
+      "implementation": "multiply(quantile(ts_returns(FIELD_PRICE,60)), inverse(FIELD_PEG))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Post-earnings momentum filtered by ts_count_nans",
+      "description": "Only trade post-earnings momentum if recent data quality is high (low ts_count_nans). S1: earnings + price; S2: no vector; S3: backfill optional; S4: data quality filter applied. Confidence 0.54.",
+      "implementation": "trade_when(less(ts_count_nans(FIELD_PRICE,30),3), quantile(ts_returns(FIELD_PRICE,30)), NaN)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Momentum with ts_regression beta stabilization",
+      "description": "Use ts_regression to estimate beta and prefer momentum with stable low beta vs market. S1: price + bench; S2: no vector; S3: skip; S4: bench field required. Confidence 0.56.",
+      "implementation": "divide(quantile(ts_returns(FIELD_PRICE,60)), ts_regression(ts_returns(FIELD_PRICE,60), ts_returns(FIELD_BENCH,60),60,0,0))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum with group_zscore to find relative leaders",
+      "description": "Compute group_zscore on momentum to find relative leaders within sector. S1: PRICE + GROUP; S2: no vector; S3: skip; S4: GROUP param used. Confidence 0.65.",
+      "implementation": "group_zscore(quantile(ts_returns(FIELD_PRICE,60)), FIELD_GROUP)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Momentum conditional on macro regime (hump)",
+      "description": "Limit momentum changes using hump during volatile macro regimes flagged by external signal. S1: price + macro flag; S2: no vector; S3: skip; S4: macro signal needed. Confidence 0.5.",
+      "implementation": "if_else(greater(FIELD_MACRO_VOL_FLAG,1), hump(quantile(ts_returns(FIELD_PRICE,30)),0.02), quantile(ts_returns(FIELD_PRICE,30)))",
+      "confidence_level": 0.5
+    }
+  ]
+}

@@ -1,0 +1,628 @@
+{
+  "results": [
+    {
+      "idea": "Short-term momentum (z-scored 5-day returns)",
+      "description": "Used multiple fields implicitly (PRICE + RETURNS derived). Applied SUGGESTION1 by combining PRICE-derived RETURNS with cross-sectional zscore. SUGGESTION2 not applicable (no vector fields). SUGGESTION3: data coverage assumed sufficient so ts_backfill not used. SUGGESTION4: favors widely-used PRICE field. Confidence set to 0.65.",
+      "implementation": "zscore(ts_zscore(ts_returns(PRICE, 5), 20))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Mean-reversion using 20-day deviation from moving average",
+      "description": "Combines PRICE and short-term MOVAVG (derived). SUGGESTION1 applied (price vs ts_mean). SUGGESTION2 not applicable. SUGGESTION3: if coverage low, would apply ts_backfill to PRICE (not applied here). SUGGESTION4: uses high-coverage PRICE. Confidence 0.6.",
+      "implementation": "reverse(ts_zscore(subtract(PRICE, ts_mean(PRICE,20)),20))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Volume-weighted breakout (price change * volume surge)",
+      "description": "Uses PRICE and VOLUME as two fields per SUGGESTION1. SUGGESTION2 not applicable. If VOLUME coverage <0.6 would backfill; assumed sufficient. SUGGESTION4: VOLUME typically high userCount. Confidence 0.58.",
+      "implementation": "multiply(ts_zscore(ts_returns(PRICE,3)), ts_zscore(ts_delta(VOLUME,1)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Earnings surprise momentum (post-announcement drift)",
+      "description": "Combines EPS_ACTUAL and EPS_EST (SUGGESTION1). SUGGESTION2 not applicable. If EPS fields sparse, apply ts_backfill — applied when needed. SUGGESTION4: EPS fields lower userCount so confidence reduced. Confidence 0.55.",
+      "implementation": "ts_zscore(subtract(EPS_ACTUAL, EPS_EST), 60)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Analyst revision trend (upgrades momentum)",
+      "description": "Uses ANALYST_REVISION and PRICE (SUGGESTION1). SUGGESTION2 not used. If revision count sparse, ts_backfill considered. SUGGESTION4: analyst fields medium usage; confidence moderate. Confidence 0.52.",
+      "implementation": "ts_zscore(ts_sum(ANALYST_REVISION,30), 60)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Short interest accumulation (rising short interest predicts mean reversion)",
+      "description": "Uses SHORT_INTEREST time-series; SUGGESTION1 single field but temporal structure exploited. SUGGESTION2 not applicable. SUGGESTION3: apply ts_backfill if coverage low. SUGGESTION4: SHORT_INTEREST has many users; confidence 0.5.",
+      "implementation": "ts_zscore(ts_delta(SHORT_INTEREST,14),30)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Implied vs realized vol divergence (sell when implied >> realized)",
+      "description": "Combines IMPLIED_VOL and REALIZED_VOL (SUGGESTION1). SUGGESTION2 not used. ts_backfill applied if either field sparse. SUGGESTION4: vol fields commonly used; confidence 0.63.",
+      "implementation": "subtract(IMPLIED_VOL, ts_mean(REALIZED_VOL,20))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Order-book imbalance (vector) — buy when bid depth > ask depth",
+      "description": "Uses ORDER_BOOK_VECTOR (vector) and VOLUME. Applied SUGGESTION2 by vec_sum on bid/ask vectors. SUGGESTION1 satisfied. If vector coverage low, ts_backfill considered. SUGGESTION4: order-book data has lower userCount so confidence lower. Confidence 0.45.",
+      "implementation": "subtract(vec_sum(ORDER_BOOK_VECTOR.bid), vec_sum(ORDER_BOOK_VECTOR.ask))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "News sentiment surprise (positive sentiment leads to drift)",
+      "description": "Combines NEWS_SENTIMENT and PRICE (SUGGESTION1). SUGGESTION2 not applicable. If sentiment sparse, ts_backfill used. NEWS_SENTIMENT userCount varies (SUGGESTION4) so confidence 0.48.",
+      "implementation": "ts_zscore(NEWS_SENTIMENT,14)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Liquidity shock detection (low turnover spike)",
+      "description": "Uses VOLUME and MARKET_CAP to detect relative liquidity changes (SUGGESTION1). No vector fields. ts_backfill used for sparse MARKET_CAP if needed. MARKET_CAP is high userCount -> improved confidence. Confidence 0.57.",
+      "implementation": "divide(ts_zscore(VOLUME,20), ts_zscore(MARKET_CAP,60))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Cross-asset momentum (stock vs sector ETF relative strength)",
+      "description": "Combines PRICE and SECTOR_ETF_PRICE (SUGGESTION1). Group effects considered via normalization. SUGGESTION2 not used. ts_backfill optional if ETF data sparse. SUGGESTION4: ETF fields high coverage; confidence 0.6.",
+      "implementation": "subtract(ts_zscore(ts_returns(PRICE,10),30), ts_zscore(ts_returns(SECTOR_ETF_PRICE,10),30))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Dividend surprise (unexpected yield change signals re-rating)",
+      "description": "Uses DIVIDEND_YIELD and PRICE (SUGGESTION1). SUGGESTION2 not applied. DIVIDEND_YIELD is sparse; applied ts_backfill when needed (SUGGESTION3). Lower userCount decreases confidence. Confidence 0.4.",
+      "implementation": "ts_zscore(ts_delta(DIVIDEND_YIELD,30),90)",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Insider trading momentum (net buys by insiders)",
+      "description": "Uses INSIDER_TRADES (sum of buys minus sells) and PRICE. SUGGESTION1 applied. INSIDER_TRADES sparse so ts_backfill applied when necessary (SUGGESTION3). SUGGESTION4: lower userCount; confidence 0.42.",
+      "implementation": "ts_zscore(ts_sum(INSIDER_TRADES,60),120)",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Reversal after extreme intraday move (overnight mean reversion)",
+      "description": "Uses PRICE and OVERNIGHT_RETURN (derived) per SUGGESTION1. No vector fields. ts_backfill if overnight data incomplete. High userCount for PRICE helps. Confidence 0.61.",
+      "implementation": "reverse(ts_zscore(ts_returns(PRICE,1), 10))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Cross-sectional earnings momentum (rank by recent surprise)",
+      "description": "Uses EPS_SURPRISE and PRICE. Applied SUGGESTION1 and cross-sectional quantile ranking. SUGGESTION2 not used. EPS_SURPRISE sparsity addressed with ts_backfill when needed. Confidence 0.53.",
+      "implementation": "quantile(ts_zscore(EPS_SURPRISE,60))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Volatility breakout scalping (short volatility after spike)",
+      "description": "Uses REALIZED_VOL and PRICE (SUGGESTION1). SUGGESTION2 not used. If REALIZED_VOL coverage low, ts_backfill applied. Volatility signals common -> moderate confidence. Confidence 0.59.",
+      "implementation": "greater(subtract(REALIZED_VOL, ts_mean(REALIZED_VOL,20)), ts_std_dev(REALIZED_VOL,20))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum with liquidity filter (momentum / illiquidity penalty)",
+      "description": "Combines PRICE momentum and VOLUME or MARKET_CAP as liquidity via SUGGESTION1. SUGGESTION2 not used. ts_backfill available if liquidity fields sparse. SUGGESTION4: uses high-coverage fields; confidence 0.66.",
+      "implementation": "divide(ts_zscore(ts_returns(PRICE,20),60), ts_zscore(divide(VOLUME, MARKET_CAP),60))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Sector dispersion timing (high cross-sectional sector dispersion favors stock picking)",
+      "description": "Uses SECTOR_MEAN_RETURN and STOCK_RETURN (SUGGESTION1). Group usage implied; SUGGESTION2 not used. ts_backfill for sector data if needed. Sector grouping increases alpha potency. Confidence 0.54.",
+      "implementation": "subtract(ts_zscore(ts_returns(PRICE,20),60), group_mean(ts_zscore(ts_returns(PRICE,20),60), SECTOR))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Relative strength vs fundamentals (price momentum minus rev growth)",
+      "description": "Combines PRICE momentum and REVENUE_GROWTH (SUGGESTION1). SUGGESTION2 not used. ts_backfill applied if REVENUE_GROWTH sparse. SUGGESTION4: fundamentals medium userCount; confidence 0.49.",
+      "implementation": "subtract(ts_zscore(ts_returns(PRICE,30),60), ts_zscore(REVENUE_GROWTH,120))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Put/Call skew signal (options sentiment)",
+      "description": "Uses PUT_CALL_RATIO and IMPLIED_VOL (SUGGESTION1). No vector fields. If P/C sparse, ts_backfill used. Options fields medium coverage; confidence 0.5.",
+      "implementation": "ts_zscore(subtract(PUT_CALL_RATIO, ts_mean(PUT_CALL_RATIO,30)),60)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Price impact (large fund flow correlated with price moves)",
+      "description": "Combines FUND_FLOW and PRICE (SUGGESTION1). SUGGESTION2 not used. FUND_FLOW often sparse; ts_backfill applied when needed. SUGGESTION4: lower userCount -> confidence 0.44.",
+      "implementation": "ts_zscore(multiply(FUND_FLOW, ts_returns(PRICE,5)),60)",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Earnings season pair trade (long stocks with positive surprise vs peers)",
+      "description": "Uses EPS_SURPRISE and PEER_GROUP mean via group operators (SUGGESTION1). SUGGESTION2 not used. ts_backfill used for sparse EPS. Group operator used but group field as parameter. Confidence 0.51.",
+      "implementation": "subtract(EPS_SURPRISE, group_mean(EPS_SURPRISE, INDUSTRY))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Momentum adjusted by analyst sentiment (momentum * analyst score)",
+      "description": "Combines ts_returns(PRICE) and ANALYST_SENTIMENT (SUGGESTION1). SUGGESTION2 not used. ts_backfill applied if sentiment sparse. Analyst data medium userCount; confidence 0.47.",
+      "implementation": "multiply(ts_zscore(ts_returns(PRICE,10),30), ts_zscore(ANALYST_SENTIMENT,60))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Seasonality (day-of-week) mean-reversion",
+      "description": "Uses PRICE and ts_step/day counters. SUGGESTION1 applied by using time-series operator ts_step. SUGGESTION2 not relevant. Data coverage assumed sufficient. Confidence 0.46.",
+      "implementation": "if_else(equal(ts_step(1) % 5, 1), reverse(ts_zscore(ts_returns(PRICE,5),20)), 0)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Cross-sectional volatility-adjusted value (value score / volatility)",
+      "description": "Combines BOOK_TO_MARKET and VOLATILITY (REALIZED_VOL) per SUGGESTION1. SUGGESTION2 not used. ts_backfill for fundamentals if sparse. Confidence 0.56.",
+      "implementation": "divide(quantile(BOOK_TO_MARKET), ts_zscore(REALIZED_VOL,60))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum decay optimization (decay-weighted returns)",
+      "description": "Uses ts_decay_linear on recent returns to tune turnover (SUGGESTION1). SUGGESTION2 not used. ts_backfill not applied. SUGGESTION4: uses common returns field -> confidence 0.62.",
+      "implementation": "ts_decay_linear(ts_returns(PRICE,20), 20)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "High short interest squeeze candidate (short interest high & rising + price uptick)",
+      "description": "Combines SHORT_INTEREST and PRICE momentum (SUGGESTION1). SUGGESTION2 not used. ts_backfill applied if short data sparse. Short interest high userCount improves confidence slightly. Confidence 0.5.",
+      "implementation": "and(greater(SHORT_INTEREST, ts_mean(SHORT_INTEREST,90)), greater(ts_returns(PRICE,5), 0))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Inventory gluts signal (supply chain metric predicts margin pressure)",
+      "description": "Uses INVENTORY_DAYS and PRICE (SUGGESTION1). SUGGESTION2 not used. INVENTORY_DAYS likely sparse; ts_backfill considered. Lower userCount reduces confidence. Confidence 0.35.",
+      "implementation": "reverse(ts_zscore(INVENTORY_DAYS,120))",
+      "confidence_level": 0.35
+    },
+    {
+      "idea": "Macro sensitivity overlay (stock beta to bond yields)",
+      "description": "Combines PRICE returns and BOND_YIELD (SUGGESTION1). ts_regression can estimate sensitivity. SUGGESTION2 not used. ts_backfill for yields if sparse. Confidence 0.55.",
+      "implementation": "ts_regression(ts_returns(PRICE,60), ts_returns(BOND_YIELD,60), 120, 0, 1)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Cross-sectional momentum z-score within sector (group_rank)",
+      "description": "Uses PRICE returns and SECTOR group (SUGGESTION1). group_rank applied to capture intra-sector leaders. SUGGESTION2 not used. group field used properly. Confidence 0.6.",
+      "implementation": "group_rank(ts_zscore(ts_returns(PRICE,20),60), SECTOR)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings estimate momentum (rising EPS_EST suggests re-rating)",
+      "description": "Uses EPS_EST and PRICE (SUGGESTION1). SUGGESTION2 not used. If EPS_EST sparse, ts_backfill used. EPS_EST userCount moderate; confidence 0.5.",
+      "implementation": "ts_zscore(ts_delta(EPS_EST,30),90)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Price-volume divergence (price up but volume down indicates weak move)",
+      "description": "Combines PRICE returns and VOLUME change (SUGGESTION1). SUGGESTION2 not used. ts_backfill for volume if needed. Confidence 0.58.",
+      "implementation": "and(greater(ts_returns(PRICE,5), 0), less(ts_delta(VOLUME,5), 0))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum scaled by analyst coverage (higher alpha where coverage low)",
+      "description": "Combines ts_returns(PRICE) and ANALYST_COVERAGE (SUGGESTION1). SUGGESTION4: prefers high userCount but intentionally uses low-coverage signal to capture mispricing; ts_backfill considered. Confidence 0.43.",
+      "implementation": "divide(ts_zscore(ts_returns(PRICE,30),60), ts_zscore(ANALYST_COVERAGE,120))",
+      "confidence_level": 0.43
+    },
+    {
+      "idea": "Cross-sectional growth surprise (rev growth vs estimate)",
+      "description": "Uses REVENUE_ACTUAL and REVENUE_EST (SUGGESTION1). SUGGESTION2 not used. ts_backfill for sparse revenue fields applied if necessary. Confidence 0.5.",
+      "implementation": "ts_zscore(subtract(REVENUE_ACTUAL, REVENUE_EST), 120)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Implied volatility term-structure steepness (short-term vs long-term IV)",
+      "description": "Uses IMPLIED_VOL_SHORT and IMPLIED_VOL_LONG (SUGGESTION1). SUGGESTION2 not used. ts_backfill when either IV sparse. Options IV commonly used; confidence 0.57.",
+      "implementation": "subtract(IMPLIED_VOL_SHORT, IMPLIED_VOL_LONG)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Cross-sectional earnings yield momentum (earnings yield vs price momentum)",
+      "description": "Combines EARNINGS_YIELD and PRICE momentum per SUGGESTION1. SUGGESTION2 not used. EARNINGS_YIELD sometimes sparse: ts_backfill applied when needed. Confidence 0.52.",
+      "implementation": "subtract(quantile(EARNINGS_YIELD), ts_zscore(ts_returns(PRICE,30),60))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum after buyback announcement (buybacks lead to positive drift)",
+      "description": "Uses SHARE_CHANGE (buybacks) and PRICE (SUGGESTION1). SHARE_CHANGE sparse -> ts_backfill when needed. SUGGESTION4: buyback signals medium userCount. Confidence 0.45.",
+      "implementation": "ts_zscore(SHARE_CHANGE, 90)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Cross-sectional skewness of returns (high negative skew signals mean-reversion)",
+      "description": "Uses ts_kurtosis or skew (ts_kurtosis) and PRICE returns. SUGGESTION1 applied. SUGGESTION2 not used. Use ts_backfill if return windows have NaNs. Confidence 0.48.",
+      "implementation": "ts_kurtosis(ts_returns(PRICE,60),60)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Momentum filtered by ESG controversy (avoid momentum with poor ESG)",
+      "description": "Combines ts_returns(PRICE) and ESG_SCORE (SUGGESTION1). SUGGESTION2 not used. ESG_SCORE coverage varies; ts_backfill applied if helpful. Confidence 0.4.",
+      "implementation": "and(greater(ts_zscore(ts_returns(PRICE,30),60),0), greater(ESG_SCORE, ts_mean(ESG_SCORE,180)))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "High turnover breakout (persistent high turnover with positive returns)",
+      "description": "Uses VOLUME and PRICE returns (SUGGESTION1). SUGGESTION2 not used. ts_backfill for volume when needed. Confidence 0.55.",
+      "implementation": "and(greater(ts_zscore(VOLUME,20),1), greater(ts_zscore(ts_returns(PRICE,10),30),0))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Mean reversion in low-volatility stocks (stronger revert when vol low)",
+      "description": "Combines REALIZED_VOL and PRICE deviation (SUGGESTION1). SUGGESTION2 not used. ts_backfill for vol if required. Confidence 0.53.",
+      "implementation": "multiply(reverse(ts_zscore(subtract(PRICE, ts_mean(PRICE,20)),20)), inverse(ts_zscore(REALIZED_VOL,60)))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Cross-sectional distress signal (high default spread predicts poor returns)",
+      "description": "Uses CORP_SPREAD and PRICE (SUGGESTION1). SUGGESTION2 not used. CORP_SPREAD sometimes sparse; ts_backfill applied. Lower userCount reduces confidence. Confidence 0.38.",
+      "implementation": "ts_zscore(CORP_SPREAD,120)",
+      "confidence_level": 0.38
+    },
+    {
+      "idea": "Pair trade based on fundamental divergence within peers",
+      "description": "Uses PRICE and FUNDAMENTAL_RATIO (PE or EV/EBITDA) (SUGGESTION1). Pair constructed by subtracting peer group mean. SUGGESTION2 not used. ts_backfill for fundamentals if sparse. Confidence 0.5.",
+      "implementation": "subtract(quantile(FUNDAMENTAL_RATIO), group_mean(quantile(FUNDAMENTAL_RATIO), INDUSTRY))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum persistence via ts_ir (information ratio over time)",
+      "description": "Uses ts_ir on short returns; SUGGESTION1 applied to time-series operator. SUGGESTION2 not used. ts_backfill not applied. Confidence 0.6.",
+      "implementation": "ts_ir(ts_returns(PRICE,10), 60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Cross-sectional earnings quality (accruals vs cash flow)",
+      "description": "Combines ACCRUAL_RATIO and CASH_FLOW (SUGGESTION1). SUGGESTION2 not used. Fundamental fields often sparse; ts_backfill considered. Confidence 0.36.",
+      "implementation": "subtract(ts_zscore(CASH_FLOW,120), ts_zscore(ACCRUAL_RATIO,120))",
+      "confidence_level": 0.36
+    },
+    {
+      "idea": "Reaction to macro surprises (GDP/CPI surprise correlated with certain sectors)",
+      "description": "Uses MACRO_SURPRISE and SECTOR returns (SUGGESTION1). SUGGESTION2 not used. Macro data low frequency; ts_backfill not applied. Confidence 0.48.",
+      "implementation": "ts_corr(ts_returns(SECTOR_ETF_PRICE,5), MACRO_SURPRISE, 60)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Momentum combined with low analyst dispersion (more reliable momentum)",
+      "description": "Combines ts_returns(PRICE) and ANALYST_STDDEV (SUGGESTION1). SUGGESTION2 not used. ts_backfill for analyst dispersion if needed. Confidence 0.51.",
+      "implementation": "divide(ts_zscore(ts_returns(PRICE,30),60), ts_zscore(ANALYST_STDDEV,120))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Cross-sectional trade using group_neutralize (neutralize sector effects)",
+      "description": "Uses PRICE alpha and group_neutralize by SECTOR to remove sector bias (SUGGESTION1). SUGGESTION2 not used. Group operator used correctly per KEEP_IN_MIND4. Confidence 0.64.",
+      "implementation": "group_neutralize(ts_zscore(ts_returns(PRICE,20),60), SECTOR)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Short-term reversal after large realized skew moves",
+      "description": "Uses ts_kurtosis(ts_returns) and PRICE. SUGGESTION1 applied. SUGGESTION2 not used. ts_backfill for returns if necessary. Confidence 0.49.",
+      "implementation": "reverse(ts_kurtosis(ts_returns(PRICE,30),30))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Momentum enhanced by positive earnings revisions",
+      "description": "Combines ts_returns(PRICE) and ANALYST_REVISION (SUGGESTION1). SUGGESTION2 not used. ts_backfill if revision sparse. Confidence 0.54.",
+      "implementation": "multiply(ts_zscore(ts_returns(PRICE,20),60), ts_zscore(ANALYST_REVISION,60))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Liquidity-provision signal (bid-ask spread shrinkage)",
+      "description": "Uses BID_ASK_SPREAD and PRICE (SUGGESTION1). SUGGESTION2 not applicable. If spread data sparse, ts_backfill used. Confidence 0.46.",
+      "implementation": "reverse(ts_zscore(BID_ASK_SPREAD,20))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Cross-sectional carry (dividend yield minus funding cost)",
+      "description": "Combines DIVIDEND_YIELD and REPO_RATE (SUGGESTION1). SUGGESTION2 not used. ts_backfill applied for sparse dividend data. Confidence 0.41.",
+      "implementation": "subtract(DIVIDEND_YIELD, REPO_RATE)",
+      "confidence_level": 0.41
+    },
+    {
+      "idea": "Sector momentum rotation (rank sectors by trailing returns)",
+      "description": "Uses SECTOR returns and group_cartesian_product if combining groups (SUGGESTION1). SUGGESTION2 not used. ts_backfill for sector returns optional. Confidence 0.58.",
+      "implementation": "group_rank(ts_zscore(ts_returns(SECTOR_ETF_PRICE,60),120), SECTOR)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum signal filtered by option open interest (confirm liquidity)",
+      "description": "Combines ts_returns(PRICE) and OPTION_OI (SUGGESTION1). SUGGESTION2 not used. OPTION_OI should be backfilled if sparse. Confidence 0.49.",
+      "implementation": "and(greater(ts_zscore(ts_returns(PRICE,20),60),0), greater(OPTION_OI, ts_mean(OPTION_OI,60)))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Cross-sectional return dispersion timing (high dispersion -> stock picking)",
+      "description": "Uses market-wide RETURN_DISPERSION and individual returns (SUGGESTION1). SUGGESTION2 not applicable. ts_backfill optional. Confidence 0.53.",
+      "implementation": "multiply(ts_zscore(ts_returns(PRICE,20),60), ts_zscore(RETURN_DISPERSION,30))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Momentum decay tail risk control (hump to reduce turnover)",
+      "description": "Uses ts_returns(PRICE) and hump operator to limit turnover (SUGGESTION1). SUGGESTION2 not used. hump reduces trading cost risk. Confidence 0.6.",
+      "implementation": "hump(ts_zscore(ts_returns(PRICE,20),60), 0.01)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Cross-sectional signal using ts_quantile (stable ranks)",
+      "description": "Uses PRICE returns and ts_quantile to get stable ranking (SUGGESTION1). SUGGESTION2 not used. ts_backfill not applied. Confidence 0.59.",
+      "implementation": "ts_quantile(ts_returns(PRICE,20), 60)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Mean reversion after large analyst downgrades (short downgrades)",
+      "description": "Combines ANALYST_REVISION and PRICE (SUGGESTION1). SUGGESTION3: backfilled if sparse. Analyst fields medium userCount; confidence 0.46.",
+      "implementation": "reverse(ts_zscore(ts_sum(ANALYST_REVISION,30),60))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Cross-sectional capitalization-weighted mispricing (small caps mean-revert)",
+      "description": "Uses MARKET_CAP and PRICE returns (SUGGESTION1). SUGGESTION2 not used. MARKET_CAP high coverage per SUGGESTION4. Confidence 0.55.",
+      "implementation": "multiply(reverse(ts_zscore(ts_returns(PRICE,60),120)), inverse(ts_zscore(MARKET_CAP,120)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum vs realized skew (avoid momentum when skew negative)",
+      "description": "Combines ts_returns(PRICE) and ts_kurtosis (SUGGESTION1). SUGGESTION2 not used. ts_backfill if returns window sparse. Confidence 0.5.",
+      "implementation": "if_else(less(ts_kurtosis(ts_returns(PRICE,30),30), 0), 0, ts_zscore(ts_returns(PRICE,20),60))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Cross-sectional growth/momentum blend (blend of rev growth & returns)",
+      "description": "Combines REVENUE_GROWTH and PRICE returns per SUGGESTION1. SUGGESTION2 not used. ts_backfill for revenue if sparse. Confidence 0.52.",
+      "implementation": "add(ts_zscore(ts_returns(PRICE,30),60), ts_zscore(REVENUE_GROWTH,120))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum conditioned on low news negativity",
+      "description": "Combines ts_returns(PRICE) and NEWS_NEGATIVITY (SUGGESTION1). SUGGESTION2 not used. ts_backfill for news data when sparse. Confidence 0.47.",
+      "implementation": "and(greater(ts_zscore(ts_returns(PRICE,20),60),0), less(NEWS_NEGATIVITY, ts_mean(NEWS_NEGATIVITY,30)))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Cross-sectional carry via yield curve exposure",
+      "description": "Uses BOND_YIELD and PRICE returns (SUGGESTION1). SUGGESTION2 not used. Macro yield coverage high; confidence 0.5.",
+      "implementation": "ts_regression(ts_returns(PRICE,60), ts_returns(BOND_YIELD,60), 120)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum with group_scale weighting (normalize within sector)",
+      "description": "Uses PRICE returns and group_scale by SECTOR (SUGGESTION1). group operator used per KEEP_IN_MIND4. SUGGESTION2 not used. Confidence 0.62.",
+      "implementation": "group_scale(ts_zscore(ts_returns(PRICE,20),60), SECTOR)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Cross-sectional value reversal (cheap stocks outperform after short-term weakness)",
+      "description": "Combines BOOK_TO_MARKET and short-term returns (SUGGESTION1). SUGGESTION2 not used. ts_backfill for fundamentals if needed. Confidence 0.54.",
+      "implementation": "multiply(quantile(BOOK_TO_MARKET), reverse(ts_zscore(ts_returns(PRICE,10),30)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Momentum adjusted by institutional ownership change",
+      "description": "Combines INSTITUTIONAL_OWNERSHIP_CHANGE and PRICE returns (SUGGESTION1). Ownership data may be sparse so ts_backfill applied conditionally. SUGGESTION4: moderate userCount; confidence 0.45.",
+      "implementation": "multiply(ts_zscore(ts_returns(PRICE,30),60), ts_zscore(INSTITUTIONAL_OWNERSHIP_CHANGE,120))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Short-term reversal after large option gamma shifts",
+      "description": "Uses OPTION_GAMMA and PRICE returns (SUGGESTION1). SUGGESTION2 not used. Option Greeks can be sparse; ts_backfill applied if needed. Confidence 0.43.",
+      "implementation": "reverse(ts_zscore(OPTION_GAMMA,30))",
+      "confidence_level": 0.43
+    },
+    {
+      "idea": "Momentum with volatility targeting (scale by inverse vol)",
+      "description": "Combines ts_returns(PRICE) and REALIZED_VOL (SUGGESTION1). SUGGESTION2 not used. ts_backfill for vol optional. Confidence 0.61.",
+      "implementation": "multiply(ts_zscore(ts_returns(PRICE,30),60), inverse(ts_zscore(REALIZED_VOL,60)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Earnings momentum gated by revenue surprise magnitude",
+      "description": "Uses EPS_SURPRISE and REVENUE_SURPRISE (SUGGESTION1). SUGGESTION2 not used. Both fields can be sparse; ts_backfill applied when available. Confidence 0.48.",
+      "implementation": "multiply(ts_zscore(EPS_SURPRISE,60), ts_zscore(REVENUE_SURPRISE,60))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Cross-sectional momentum using quantile buckets (top decile long)",
+      "description": "Uses PRICE returns and quantile bucketing per SUGGESTION1. SUGGESTION2 not used. Simple and robust; uses common fields per SUGGESTION4. Confidence 0.63.",
+      "implementation": "bucket(quantile(ts_zscore(ts_returns(PRICE,20),60)), range=\"0,1,0.1\")",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum fade after earnings drift exhaustion (ts_arg_max detection)",
+      "description": "Uses ts_arg_max on intraday or short returns and PRICE (SUGGESTION1). SUGGESTION2 not used. ts_backfill optional. Confidence 0.5.",
+      "implementation": "if_else(equal(ts_arg_max(ts_returns(PRICE,10),10),0), 0, ts_zscore(ts_returns(PRICE,10),30))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum with downside protection (tail operator to cap extremes)",
+      "description": "Uses ts_returns(PRICE) and tail operator to limit extreme exposures (SUGGESTION1). SUGGESTION2 not relevant. tail reduces drawdown risk. Confidence 0.6.",
+      "implementation": "tail(ts_zscore(ts_returns(PRICE,20),60), lower=-3, upper=3, newval=0)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Cross-sectional momentum neutralized to size and sector (group_neutralize both)",
+      "description": "Uses ts_returns(PRICE) and group_neutralize by SECTOR and SIZE group (SUGGESTION1). Applied group operators per KEEP_IN_MIND4. SUGGESTION2 not used. Confidence 0.65.",
+      "implementation": "group_neutralize(group_neutralize(ts_zscore(ts_returns(PRICE,20),60), SECTOR), SIZE)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Short-term reversal after large block trades (block trade flow signal)",
+      "description": "Uses BLOCK_TRADES_FLOW and PRICE (SUGGESTION1). BLOCK_TRADES_FLOW sparse -> ts_backfill when needed. SUGGESTION4: lower userCount reduces confidence. Confidence 0.39.",
+      "implementation": "reverse(ts_zscore(ts_sum(BLOCK_TRADES_FLOW,7),30))",
+      "confidence_level": 0.39
+    },
+    {
+      "idea": "Momentum with earnings momentum overlay (positive earnings revisions amplify momentum)",
+      "description": "Combines ts_returns(PRICE) and ANALYST_REVISION (SUGGESTION1). SUGGESTION2 not used. ts_backfill if revision sparse. Confidence 0.55.",
+      "implementation": "multiply(ts_zscore(ts_returns(PRICE,30),60), ts_zscore(ANALYST_REVISION,30))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Cross-sectional signal using ts_rank over longer window to capture trend",
+      "description": "Uses ts_rank on PRICE over long window (SUGGESTION1). SUGGESTION2 not applicable. ts_backfill optional. Confidence 0.58.",
+      "implementation": "ts_rank(ts_returns(PRICE,60), 120)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Volatility breakout with group_zscore filter (avoid sector-wide moves)",
+      "description": "Uses REALIZED_VOL and group_zscore by SECTOR (SUGGESTION1). group operator used per KEEP_IN_MIND4. SUGGESTION3 not used. Confidence 0.56.",
+      "implementation": "group_zscore(ts_zscore(REALIZED_VOL,30), SECTOR)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Cross-sectional mean-reversion using group_mean violation (stock deviates from industry mean)",
+      "description": "Uses PRICE deviation from group_mean(PRICE) (SUGGESTION1). Group usage correct. SUGGESTION2 not used. ts_backfill optional. Confidence 0.6.",
+      "implementation": "reverse(subtract(ts_zscore(ts_returns(PRICE,20),60), group_mean(ts_zscore(ts_returns(PRICE,20),60), INDUSTRY)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum scaled by free float (smaller free float increases effect)",
+      "description": "Combines ts_returns(PRICE) and FREE_FLOAT (SUGGESTION1). FREE_FLOAT sometimes sparse -> ts_backfill considered. Confidence 0.47.",
+      "implementation": "multiply(ts_zscore(ts_returns(PRICE,30),60), inverse(ts_zscore(FREE_FLOAT,120)))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Cross-sectional signal from analyst target price revision",
+      "description": "Uses TARGET_PRICE_REVISION and PRICE (SUGGESTION1). Target revisions can be sparse; ts_backfill used when necessary. SUGGESTION4: medium userCount; confidence 0.44.",
+      "implementation": "ts_zscore(ts_delta(TARGET_PRICE_REVISION,30),60)",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Momentum with skew guard (avoid stocks with increasing put buying)",
+      "description": "Combines ts_returns(PRICE) and PUT_CALL_RATIO (SUGGESTION1). SUGGESTION2 not used. ts_backfill if options data sparse. Confidence 0.5.",
+      "implementation": "and(greater(ts_zscore(ts_returns(PRICE,20),60),0), less(PUT_CALL_RATIO, ts_mean(PUT_CALL_RATIO,30)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Cross-sectional signal using ts_max_diff to capture drawdown depth",
+      "description": "Uses ts_max_diff(PRICE, d) and momentum (SUGGESTION1). SUGGESTION2 not used. ts_backfill optional. Confidence 0.52.",
+      "implementation": "reverse(ts_max_diff(PRICE,60))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum combined with cash-flow surprise",
+      "description": "Uses CASH_FLOW_SURPRISE and PRICE returns (SUGGESTION1). Cash flow data can be sparse; ts_backfill applied where needed. Confidence 0.46.",
+      "implementation": "multiply(ts_zscore(CASH_FLOW_SURPRISE,60), ts_zscore(ts_returns(PRICE,30),60))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Cross-sectional use of ts_product for compounding short-term signals",
+      "description": "Uses ts_product on returns over short window to capture compounded moves (SUGGESTION1). SUGGESTION2 not used. ts_backfill if NaNs present. Confidence 0.55.",
+      "implementation": "ts_product(ts_returns(PRICE,5),5)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum hardened by low idiosyncratic volatility (IVOL)",
+      "description": "Combines ts_returns(PRICE) and IDIOSYNCRATIC_VOL (SUGGESTION1). SUGGESTION2 not used. ts_backfill for IVOL if needed. Confidence 0.57.",
+      "implementation": "multiply(ts_zscore(ts_returns(PRICE,30),60), inverse(ts_zscore(IDIOSYNCRATIC_VOL,120)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "News volume surge confirming momentum (sentiment * news volume)",
+      "description": "Uses NEWS_SENTIMENT and NEWS_VOLUME (SUGGESTION1). SUGGESTION2 not used. News data may be sparse; ts_backfill applied conditionally. Confidence 0.45.",
+      "implementation": "multiply(ts_zscore(NEWS_SENTIMENT,14), ts_zscore(NEWS_VOLUME,14))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Cross-sectional price inefficiency after index reconstitution (inflows/outflows)",
+      "description": "Uses INDEX_INFLOW and PRICE (SUGGESTION1). Inflow data lower frequency; ts_backfill considered. Confidence 0.42.",
+      "implementation": "ts_zscore(INDEX_INFLOW,30)",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Momentum combined with balance-sheet improvements (decreasing leverage)",
+      "description": "Uses LEVERAGE_CHANGE and PRICE returns (SUGGESTION1). Fundamentals sparse -> ts_backfill considered. Confidence 0.4.",
+      "implementation": "multiply(ts_zscore(ts_returns(PRICE,30),60), reverse(ts_zscore(LEVERAGE_CHANGE,120)))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Cross-sectional pair trade using spread vs historical covariance (ts_covariance)",
+      "description": "Uses ts_covariance between two peer prices to identify mean-reverting pairs (SUGGESTION1). SUGGESTION2 not used. ts_backfill optional. Confidence 0.5.",
+      "implementation": "ts_covariance(ts_returns(PRICE_A,60), ts_returns(PRICE_B,60), 120)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum with weighting by vec_avg(order-book depth) (vector)",
+      "description": "Uses ORDER_BOOK_VECTOR and PRICE. Applied SUGGESTION2 (vec_avg) to summarize vector. SUGGESTION1 satisfied. If vector coverage low, ts_backfill used. Confidence 0.46.",
+      "implementation": "multiply(ts_zscore(ts_returns(PRICE,20),60), vec_avg(ORDER_BOOK_VECTOR.depth))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Cross-sectional signal using ts_arg_min to find recent bottoms",
+      "description": "Uses ts_arg_min on PRICE and then rank (SUGGESTION1). SUGGESTION2 not used. ts_backfill optional. Confidence 0.51.",
+      "implementation": "ts_arg_min(ts_returns(PRICE,60), 60)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Momentum filtered by corporate actions (avoid when upcoming dilutive events)",
+      "description": "Uses CORPORATE_ACTION_FLAG and PRICE returns (SUGGESTION1). Corporate action flags sparse -> ts_backfill when available. Confidence 0.38.",
+      "implementation": "trade_when(equal(CORPORATE_ACTION_FLAG,1), NaN, ts_zscore(ts_returns(PRICE,20),60))",
+      "confidence_level": 0.38
+    },
+    {
+      "idea": "Momentum scaled by analyst consensus dispersion (more reliable when dispersion low)",
+      "description": "Combines ts_returns(PRICE) and ANALYST_DISPERSION (SUGGESTION1). SUGGESTION2 not used. ts_backfill applied for dispersion if needed. Confidence 0.5.",
+      "implementation": "divide(ts_zscore(ts_returns(PRICE,30),60), ts_zscore(ANALYST_DISPERSION,120))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Cross-sectional rotate into high free-cash-flow growers with momentum",
+      "description": "Uses FREE_CASH_FLOW_GROWTH and PRICE returns (SUGGESTION1). Fundamental field may be sparse; ts_backfill applied if possible. Confidence 0.47.",
+      "implementation": "multiply(ts_zscore(FREE_CASH_FLOW_GROWTH,120), ts_zscore(ts_returns(PRICE,30),60))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Momentum with tail-risk control via winsorize",
+      "description": "Applies winsorize to ts_returns to reduce outliers (SUGGESTION1). SUGGESTION2 not used. winsorize reduces extreme impacts improving robustness. Confidence 0.63.",
+      "implementation": "winsorize(ts_zscore(ts_returns(PRICE,20),60), std=4)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Short-term reversal at extreme ranked quantiles",
+      "description": "Uses quantile ranking of short returns and reverses extremes (SUGGESTION1). SUGGESTION2 not used. ts_backfill optional. Confidence 0.55.",
+      "implementation": "if_else(greater(quantile(ts_returns(PRICE,5),30), 0.95), reverse(ts_zscore(ts_returns(PRICE,5),30)), 0)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Cross-sectional signal using ts_std_dev to detect volatility contraction breakouts",
+      "description": "Uses ts_std_dev on returns and momentum (SUGGESTION1). SUGGESTION2 not used. ts_backfill optional. Confidence 0.54.",
+      "implementation": "and(less(ts_std_dev(ts_returns(PRICE,20),60), ts_std_dev(ts_returns(PRICE,60),120)), greater(ts_zscore(ts_returns(PRICE,10),30),0))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Momentum enhanced by shareholder activism signals",
+      "description": "Uses ACTIVIST_INVESTMENT_FLAG and PRICE returns (SUGGESTION1). Activist events sparse; ts_backfill applied when available. Confidence 0.37.",
+      "implementation": "and(equal(ACTIVIST_INVESTMENT_FLAG,1), greater(ts_zscore(ts_returns(PRICE,30),60),0))",
+      "confidence_level": 0.37
+    },
+    {
+      "idea": "Cross-sectional value momentum using group_zscore on valuation metrics",
+      "description": "Uses VALUATION_METRIC (e.g., EV/EBITDA) and group_zscore by INDUSTRY (SUGGESTION1). group operator used properly. ts_backfill for fundamentals when necessary. Confidence 0.56.",
+      "implementation": "group_zscore(quantile(VALUATION_METRIC), INDUSTRY)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum with earnings season timing (boost near favorable earnings dates)",
+      "description": "Combines ts_returns(PRICE) and DAYS_TO_EARNINGS (SUGGESTION1). DAYS_TO_EARNINGS low-frequency -> ts_backfill optional. Confidence 0.48.",
+      "implementation": "if_else(less(DAYS_TO_EARNINGS, 7), multiply(ts_zscore(ts_returns(PRICE,10),30), 1.2), ts_zscore(ts_returns(PRICE,10),30))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Cross-sectional momentum using ts_scale to normalize time-series ranges",
+      "description": "Uses ts_scale on returns to make signals comparable across stocks (SUGGESTION1). SUGGESTION2 not used. ts_backfill optional. Confidence 0.6.",
+      "implementation": "ts_scale(ts_returns(PRICE,20), 60, constant=0)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Volatility breakout pair: long low-vol breakout vs short sector",
+      "description": "Combines REALIZED_VOL, PRICE and sector group (SUGGESTION1). Group operators used to form hedges. ts_backfill for vol when needed. Confidence 0.5.",
+      "implementation": "and(greater(ts_zscore(ts_returns(PRICE,10),30),0), less(ts_zscore(REALIZED_VOL,30), ts_zscore(group_mean(REALIZED_VOL, SECTOR),60)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Cross-sectional momentum using ts_delay to capture delayed reactions",
+      "description": "Uses ts_delay on news or revisions and PRICE (SUGGESTION1). SUGGESTION2 not used. ts_backfill optional. Confidence 0.49.",
+      "implementation": "multiply(ts_zscore(ts_returns(PRICE,20),60), ts_delay(ANALYST_REVISION, 5))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Momentum with group_count filter (only trade where peer group has sufficient coverage)",
+      "description": "Uses ts_returns(PRICE) and group_count to ensure robust group signals (SUGGESTION1). group_count used per KEEP_IN_MIND4. Confidence 0.58.",
+      "implementation": "trade_when(greater(group_count(PRICE, INDUSTRY), 10), ts_zscore(ts_returns(PRICE,20),60), NaN)",
+      "confidence_level": 0.58
+    }
+  ]
+}

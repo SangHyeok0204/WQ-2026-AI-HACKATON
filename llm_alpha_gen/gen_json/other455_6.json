@@ -1,0 +1,694 @@
+{
+  "results": [
+    {
+      "idea": "Short-term momentum in returns",
+      "description": "Combines price returns momentum as a short-term alpha. SUGGESTION1: used a single primary field (close) for clarity since DATA is empty; SUGGESTION2: not applicable (close is scalar); SUGGESTION3: if coverage <0.6 apply ts_backfill — noted but not applied to keep template simple; SUGGESTION4: cannot check userCount/alphaCount due to missing metadata. KEEP_IN_MINDs respected: implementation short, <=7 ops, <=2 datafields, no GROUP used alone. Confidence set to 0.7 based on well-known momentum persistence.",
+      "implementation": "ts_zscore(ts_returns(close, 20), 60)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Medium-term momentum (price trend)",
+      "description": "Captures 3-6 month trend. SUGGESTION1: single price field used for robustness; SUGGESTION2: not applicable; SUGGESTION3: ts_backfill optional if missing; SUGGESTION4: metadata unavailable. Kept implementation compact. Confidence 0.72 reflecting medium-term momentum evidence.",
+      "implementation": "ts_zscore(ts_returns(close, 90), 180)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Mean-reversion on 5-day returns",
+      "description": "Short-term reversal: expect mean-reversion after extreme 5-day moves. S1: used close; S2: not applicable; S3: ts_backfill noted; S4: not applied. Fits KEEP_IN_MIND limits. Confidence 0.65 because short-term reversals are common but noisy.",
+      "implementation": "reverse(ts_zscore(ts_returns(close, 5), 20))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Volume-weighted momentum (high conviction)",
+      "description": "Combine price returns and volume to emphasize moves with real activity. S1: used two fields (close, volume) to follow SUGGESTION1; S2: not applicable; S3: ts_backfill for volume optional; S4: not checked. Operators kept <=7. Confidence 0.73 because volume confirms trends.",
+      "implementation": "multiply(ts_zscore(ts_returns(close, 20), 60), ts_zscore(ts_returns(volume, 20), 60))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Volatility breakout (realized vol spike)",
+      "description": "Trade assets showing rising realized vol relative to history. S1: uses close only (realized from returns); S2: not applicable; S3: ts_backfill noted; S4: omitted. Implementation short. Confidence 0.66 — breakouts can lead to momentum.",
+      "implementation": "ts_zscore(ts_std_dev(ts_returns(close,1), 20), 60)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Volatility mean-reversion (implied higher than realized)",
+      "description": "Short overpriced implied vol if implied > realized (requires implied vol field). S1: would use implied_vol and close; S2: not applicable; S3: if implied_vol sparse apply ts_backfill; S4: not checked. Kept <=2 datafields. Confidence 0.68 conditional on implied vol data quality.",
+      "implementation": "subtract(implied_vol, ts_std_dev(ts_returns(close,1), 30))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Liquidity shock recovery",
+      "description": "Long names that show sudden drop in liquidity (low volume) then recovery in volume. S1: close and volume used; S2: not applicable; S3: backfill for volume if needed; S4: not applied. Implementation compact. Confidence 0.6 — liquidity signals noisy.",
+      "implementation": "ts_zscore(ts_returns(close, 10), 60) * ts_zscore(ts_returns(volume, 5), 20)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings surprise momentum",
+      "description": "Fade or follow earnings surprises using EPS surprise field and price returns. S1: uses eps_surprise and close; S2: not applicable; S3: apply ts_backfill if sparse; S4: no metadata. KEEP_IN_MINDs followed. Confidence 0.74 given typical post-earnings drift.",
+      "implementation": "multiply(eps_surprise, ts_zscore(ts_returns(close, 20), 60))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Analyst revision momentum",
+      "description": "Stocks with upward analyst revisions tend to outperform. S1: uses analyst_rev and close; S2: not applicable; S3: ts_backfill if analyst_rev sparse; S4: not checked. Implementation short. Confidence 0.71 because revisions often predict returns.",
+      "implementation": "multiply(analyst_rev, ts_zscore(ts_returns(close, 30), 90))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "High short interest mean-reversion",
+      "description": "Mean-revert assets with extreme short interest (short squeeze potential). S1: short_interest and close used; S2: not applicable; S3: backfill for short_interest if needed; S4: not applied. Confidence 0.59 as squeeze events are sporadic.",
+      "implementation": "multiply(reverse(zscore(short_interest)), ts_zscore(ts_returns(close,5),20))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Dividend acceleration anomaly",
+      "description": "Companies raising dividends show positive future returns. S1: dividend and close used; S2: not applicable; S3: ts_backfill for dividend history if sparse; S4: not available. Confidence 0.66 based on income signal persistence.",
+      "implementation": "ts_zscore(ts_delta(dividend, 365), 730)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Buyback acceleration signal",
+      "description": "Rising buyback announcements predict positive returns. S1: buyback_amount and market_cap used (two fields) to normalize; S2: not applicable; S3: backfill if buyback sparse; S4: omitted. Implementation compact. Confidence 0.68 historically supported.",
+      "implementation": "divide(buyback_amount, market_cap)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Momentum-of-momentum (2-layer trend)",
+      "description": "Apply momentum to momentum signal to capture persistent accelerations. S1: close only; S2: not applicable; S3: ts_backfill optional; S4: not checked. KEEP_IN_MIND respected. Confidence 0.67.",
+      "implementation": "ts_zscore(ts_returns(ts_zscore(ts_returns(close,20),60),20),60)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Cross-sectional rank reversal",
+      "description": "Bet on cross-sectional mean-reversion by shorting top performers and longing laggards. S1: close only; S2: not applicable; S3: ts_backfill optional; S4: not used. Uses quantile/grouping implicitly. Confidence 0.64.",
+      "implementation": "reverse(quantile(ts_returns(close, 20)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Size-adjusted momentum",
+      "description": "Momentum after scaling by market cap to avoid small-cap biases. S1: close and market_cap used (2 fields) per SUGGESTION1; S2: not applicable; S3: backfill if market_cap sparse; S4: omitted. Implementation simple. Confidence 0.69.",
+      "implementation": "multiply(ts_zscore(ts_returns(close, 90), 180), inverse(log(market_cap)))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Quality * momentum (quality-weighted trend)",
+      "description": "Combine quality metric (ROE) with momentum to prefer profitable trends. S1: close and roe used; SUGGESTION2: roe scalar; SUGGESTION3: ts_backfill optional; SUGGESTION4: omitted. Kept <=2 datafields. Confidence 0.7.",
+      "implementation": "multiply(ts_zscore(ts_returns(close,60),120), zscore(roe))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Profitability acceleration",
+      "description": "Companies with accelerating gross margin tend to outperform. S1: gross_margin used; S2: not applicable; S3: apply ts_backfill if quarterly data sparse; S4: not applied. Confidence 0.63 due to slower signal frequency.",
+      "implementation": "ts_zscore(ts_delta(gross_margin, 365), 730)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Revenue acceleration vs consensus",
+      "description": "Revenue growth beating consensus predicts positive drift. S1: revenue_surprise and close used; S2: not applicable; S3: backfill if sparse; S4: not available. Confidence 0.72 for post-earnings drift.",
+      "implementation": "multiply(revenue_surprise, ts_zscore(ts_returns(close,30),90))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Option flow spike detection",
+      "description": "Detect unusually high option volume relative to past using option_volume field. S1: option_volume and implied_vol optional; S2: not applicable; S3: ts_backfill if sparse; S4: not used. Keep operators limited. Confidence 0.62 — requires good options data.",
+      "implementation": "ts_zscore(option_volume, 20)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Implied vs realized vol divergence",
+      "description": "Short implied vol when it significantly exceeds realized. S1: implied_vol and close used; S2: not applicable; S3: backfill for implied_vol if needed; S4: unknown. Confidence 0.69 conditional on data.",
+      "implementation": "subtract(implied_vol, ts_std_dev(ts_returns(close,1), 30))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Cross-asset dispersion pick",
+      "description": "Long equities with low correlation to peers (high idiosyncratic return). S1: uses ts_std_dev and ts_covariance of returns (close only) to compute idiosyncrasy; S2: not applicable; S3: ts_backfill optional; S4: not applied. Confidence 0.6.",
+      "implementation": "subtract(ts_std_dev(ts_returns(close,60), 120), ts_covariance(ts_returns(close,60), market_index_returns, 120))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum into low volatility stocks",
+      "description": "Combine momentum signal with low volatility preference (vol-tilt). S1: close and market_vol used (2 fields). S2: not applicable. S3: backfill optional. Confidence 0.7 as low-vol premium is persistent.",
+      "implementation": "multiply(ts_zscore(ts_returns(close,90),180), inverse(ts_std_dev(ts_returns(close,1), 60)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Trend-following on sector ETFs",
+      "description": "Apply momentum to sector-level prices and rotate. S1: sector_close used (group-level); S2: not applicable; S3: backfill if sparse; S4: not applied. Keeps implementation simple. Confidence 0.71 for sector rotation use-case.",
+      "implementation": "ts_zscore(ts_returns(sector_close, 60), 120)",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Post-earnings drift moderated by size",
+      "description": "Post-earnings momentum adjusted by market cap to reduce noise. S1: eps_surprise and market_cap used; S2: not applicable; S3: backfill optional; S4: omitted. Confidence 0.68.",
+      "implementation": "multiply(eps_surprise, inverse(log(market_cap)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Falling short interest momentum",
+      "description": "Stocks where short interest is dropping rapidly may experience positive returns. S1: short_interest used; S2: not applicable; S3: ts_backfill if sparse; S4: not checked. Confidence 0.6.",
+      "implementation": "reverse(ts_zscore(ts_delta(short_interest, 30), 90))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Insider buying momentum",
+      "description": "Companies with recent insider buying often outperform. S1: insider_buy_amount and close used; S2: not applicable; S3: backfill optional; S4: omitted. Confidence 0.7 historically supported.",
+      "implementation": "multiply(insider_buy_amount, ts_zscore(ts_returns(close,30),90))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Analyst coverage expansion signal",
+      "description": "Increasing analyst coverage may lead to re-rating. S1: analyst_count and close used; S2: not applicable; S3: backfill if sparse; S4: not applied. Confidence 0.58 — effect modest.",
+      "implementation": "ts_zscore(ts_delta(analyst_count, 365), 730)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "News sentiment momentum",
+      "description": "Aggregate recent news sentiment and pair with price momentum. S1: news_sentiment and close used to follow SUGGESTION1; S2: not applicable; S3: backfill optional; S4: unknown. Confidence 0.66 depending on sentiment quality.",
+      "implementation": "multiply(vec_avg(news_sentiment), ts_zscore(ts_returns(close,20),60))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Social media engagement acceleration",
+      "description": "Rising social engagement (mentions, likes) precedes retail-driven rallies. S1: social_mentions and close used; S2: social is vector — applied vec_sum or vec_avg if daily vectors available; S3: backfill noted; S4: not available. Confidence 0.55 — noisy.",
+      "implementation": "multiply(vec_sum(social_mentions), ts_zscore(ts_returns(close,7),20))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Search trend momentum",
+      "description": "Rising search interest often leads to short-term price moves. S1: search_trend and close used; S2: search data may be vector — use vec_avg if so; S3: ts_backfill if sparse; S4: not applied. Confidence 0.58.",
+      "implementation": "multiply(vec_avg(search_trend), ts_zscore(ts_returns(close,14),40))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Inventory drawdown as demand signal",
+      "description": "Falling inventories can precede revenue/price improvements in cyclical firms. S1: inventory and close used; S2: not applicable; S3: backfill for quarterly data may be needed; S4: not checked. Confidence 0.6.",
+      "implementation": "reverse(ts_zscore(ts_delta(inventory, 365), 730))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Capex reduction signal",
+      "description": "Companies cutting capex while maintaining revenue can boost free cash flow. S1: capex and revenue used (2 fields). SUGGESTION2 not applicable. SUGGESTION3: backfill if quarterly sparse. Confidence 0.57.",
+      "implementation": "divide(reverse(ts_delta(capex, 365)), ts_delta(revenue, 365))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Inventory-to-revenue momentum",
+      "description": "Improving inventory turnover signals operational improvement. S1: inventory and revenue used; S2: not applicable; S3: backfill noted; S4: omitted. Confidence 0.59.",
+      "implementation": "ts_zscore(divide(revenue, inventory), 365)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "ARPU acceleration for tech names",
+      "description": "Rising Average Revenue Per User signals monetization improvements. S1: arpu and close used; S2: not applicable; S3: backfill optional; S4: omitted. Confidence 0.63 in digital platform contexts.",
+      "implementation": "ts_zscore(ts_delta(arpu, 90), 360)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Churn reduction momentum",
+      "description": "Declining churn rates often predict better subscription revenue. S1: churn_rate used; S2: not applicable; S3: backfill for sparse quarterly data; S4: not used. Confidence 0.61.",
+      "implementation": "reverse(ts_zscore(ts_delta(churn_rate, 90), 360))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Customer growth acceleration",
+      "description": "Faster user or customer additions can lead prices higher. S1: user_count (vector possible) and revenue used; S2: if user_count is vector apply vec_sum/vec_avg; S3: ts_backfill optional; S4: omitted. Confidence 0.6.",
+      "implementation": "ts_zscore(ts_delta(vec_sum(user_count), 90), 360)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "ESG momentum (improving scores)",
+      "description": "Companies improving ESG scores may get re-rated. S1: esg_score and close used; S2: not applicable; S3: backfill if sparse; S4: not applied. Confidence 0.56 — ESG effect mixed.",
+      "implementation": "ts_zscore(ts_delta(esg_score, 365), 730)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Carbon intensity reduction premium",
+      "description": "Firms cutting carbon intensity can outperform in sustainable portfolios. S1: carbon_intensity and market_cap used; S2: not applicable; S3: backfill optional; S4: not used. Confidence 0.54.",
+      "implementation": "multiply(reverse(ts_zscore(ts_delta(carbon_intensity, 365), 730)), inverse(log(market_cap)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Patent citation growth signal",
+      "description": "Rising patent citations indicate improving innovation and future returns. S1: patent_citations (vector) used; S2: applied vec_sum/vec_avg if vector; S3: ts_backfill noted; S4: not checked. Confidence 0.58.",
+      "implementation": "ts_zscore(ts_delta(vec_sum(patent_citations), 365), 730)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Supply chain robustness signal",
+      "description": "Improving supplier metrics or fewer delays can predict outperformance. S1: supplier_delay metric used with close; S2: not applicable; S3: backfill if sparse; S4: not applied. Confidence 0.55.",
+      "implementation": "reverse(ts_zscore(ts_delta(supplier_delay, 90), 360))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Commodity pass-through advantage",
+      "description": "Firms able to pass rising input costs to consumers (margin preservation) show resilience. S1: gross_margin and commodity_price used (2 fields). S2: not applicable. S3: backfill optional. Confidence 0.59.",
+      "implementation": "subtract(ts_zscore(ts_delta(gross_margin, 365), 730), ts_zscore(ts_delta(commodity_price, 90), 360))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "FX-hedged earnings surprise",
+      "description": "Adjust earnings surprise by FX moves to isolate operational surprise. S1: eps_surprise and fx_return used; S2: not applicable; S3: backfill optional. Confidence 0.62.",
+      "implementation": "subtract(eps_surprise, ts_returns(fx_rate, 30))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Retail flow-induced micro-momentum",
+      "description": "Stocks with rising retail flow signals (ETF flow into related ETFs) can see short-term momentum. S1: etf_flow and close used; S2: not applicable; S3: backfill if needed. Confidence 0.57.",
+      "implementation": "multiply(ts_zscore(ts_sum(etf_flow,7),30), ts_zscore(ts_returns(close,7),20))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "ETF ownership change (flow shock)",
+      "description": "Stocks added to or removed from ETFs experience price pressure. S1: etf_weight_change used with close; S2: not applicable; S3: backfill optional; S4: not used. Confidence 0.64 around rebalancing windows.",
+      "implementation": "multiply(etf_weight_change, ts_zscore(ts_returns(close,5),20))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Quarter-end window dressing detection",
+      "description": "Detect stocks with quarter-end abnormal flows and fade the effect post-quarter. S1: fund_flow and close used; S2: not applicable; S3: backfill optional. Confidence 0.56.",
+      "implementation": "subtract(ts_zscore(ts_sum(fund_flow,5),20), ts_zscore(ts_sum(fund_flow,30),60))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum following analyst target price upgrades",
+      "description": "Target price upgrades often precede further positive returns. S1: target_price_change and close used; S2: not applicable; S3: backfill if sparse; S4: not applied. Confidence 0.67.",
+      "implementation": "multiply(ts_zscore(target_price_change,30), ts_zscore(ts_returns(close,30),90))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Earnings quality (cash vs accrual) signal",
+      "description": "Firms with rising cash earnings relative to accruals may outperform. S1: cash_flow and accruals used (2 fields). S2: not applicable; S3: backfill if quarterly; S4: not used. Confidence 0.62.",
+      "implementation": "ts_zscore(subtract(ts_delta(cash_flow,365), ts_delta(accruals,365)), 730)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Accruals mean-reversion",
+      "description": "High accruals predict lower future returns (accrual anomaly). S1: accruals used; S2: not applicable; S3: backfill optional; S4: not applied. Confidence 0.63.",
+      "implementation": "reverse(ts_zscore(accruals, 365))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Brokerage-level order imbalance",
+      "description": "Persistent order imbalance from retail broker data can forecast short-term moves. S1: order_imbalance (vector) and close used; S2: apply vec_sum/vec_avg if vector; S3: backfill optional; S4: omitted. Confidence 0.55.",
+      "implementation": "multiply(vec_sum(order_imbalance), ts_zscore(ts_returns(close,3),10))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Opening gap continuation",
+      "description": "Trades gaps that continue—buy gaps with momentum and short reversal gaps. S1: open and close used; S2: not applicable; S3: backfill not needed. Confidence 0.6 for intraday strategies.",
+      "implementation": "ts_zscore(subtract(open, ts_delay(close,1)), 5)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Overnight return anomaly",
+      "description": "Exploit difference between overnight and intraday returns. S1: overnight_return field (close to next open) used; S2: not applicable; S3: backfill if missing; S4: not used. Confidence 0.58.",
+      "implementation": "ts_zscore(overnight_return, 60)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Post-halt momentum",
+      "description": "Stocks resuming after halts can exhibit continuation moves. S1: halt_flag and close used; S2: not applicable; S3: backfill optional; S4: not applied. Confidence 0.54 — event-driven and noisy.",
+      "implementation": "if_else(halt_flag, ts_zscore(ts_returns(close,5),20), NaN)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "High buy-side analyst dispersion",
+      "description": "High dispersion in analyst estimates can lead to larger subsequent moves. S1: analyst_dispersion used; S2: not applicable; S3: backfill optional; S4: not used. Confidence 0.56.",
+      "implementation": "ts_zscore(analyst_dispersion, 120)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Credit spread tightening signal for equities",
+      "description": "Firms with improving CDS spreads may see equity price gains. S1: cds_spread and close used; S2: not applicable; S3: ts_backfill if sparse; S4: omitted. Confidence 0.6 dependent on CDS data.",
+      "implementation": "reverse(ts_zscore(ts_delta(cds_spread, 90), 360))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Relative strength vs peers",
+      "description": "Long stocks outperforming their industry peers. S1: close and industry_index_close used; S2: not applicable; S3: backfill optional; S4: not applied. Confidence 0.66.",
+      "implementation": "subtract(ts_zscore(ts_returns(close,60),120), ts_zscore(ts_returns(industry_index_close,60),120))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Earnings quality z-score",
+      "description": "Combine multiple accounting signals (accruals, cash_flow) into z-score to predict mean-reversion. S1: accruals and cash_flow used (2 fields). S2: not applicable. S3: backfill optional. Confidence 0.61.",
+      "implementation": "zscore(add(zscore(accruals), zscore(reverse(cash_flow))))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Seasonal (month-of-year) momentum",
+      "description": "Exploit month seasonality for certain sectors. S1: close only; S2: not applicable; S3: ts_step/time decomposition not used; S4: not applied. Confidence 0.55 — seasonal but weak.",
+      "implementation": "ts_zscore(ts_returns(close, 30), 365)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum after credit rating upgrades",
+      "description": "Long names receiving credit rating upgrades with improving fundamentals. S1: rating_change and close used; S2: not applicable; S3: backfill optional. Confidence 0.62.",
+      "implementation": "multiply(rating_change, ts_zscore(ts_returns(close,90),180))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum filtered by institutional ownership change",
+      "description": "Combine momentum with rising institutional ownership to confirm trend. S1: inst_ownership_change and close used; S2: not applicable; S3: backfill optional. Confidence 0.65.",
+      "implementation": "multiply(ts_zscore(ts_returns(close,60),120), ts_zscore(ts_delta(inst_ownership, 90), 360))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Insider selling avoidance",
+      "description": "Avoid stocks with large insider selling relative to past. S1: insider_sell_amount used; S2: not applicable; S3: backfill optional. Confidence 0.58.",
+      "implementation": "reverse(ts_zscore(ts_sum(insider_sell_amount, 30), 90))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum with group-neutralization",
+      "description": "Cross-sectional momentum neutralized by sector to reduce sector bets. S1: close used; GROUP: sector_group applied via group_neutralize. S2: not applicable; S3: backfill optional. Confidence 0.7.",
+      "implementation": "group_neutralize(ts_zscore(ts_returns(close,90),180), sector_group)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "High active share rotation",
+      "description": "Rotate into stocks with rising active share among funds (signal of focus). S1: active_share_change used; S2: not applicable; S3: backfill optional. Confidence 0.56.",
+      "implementation": "ts_zscore(ts_delta(active_share, 90), 360)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Dividend surprise momentum",
+      "description": "Positive dividend surprises followed by price appreciation. S1: dividend_surprise and close used; S2: not applicable; S3: backfill optional. Confidence 0.61.",
+      "implementation": "multiply(dividend_surprise, ts_zscore(ts_returns(close,30),90))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Share count shrinkage (float reduction)",
+      "description": "Share buybacks reducing float can create positive returns. S1: share_count_change and market_cap used; S2: not applicable; S3: backfill optional. Confidence 0.64.",
+      "implementation": "divide(reverse(ts_delta(share_count, 365)), market_cap)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Insider buying scaled by market cap",
+      "description": "Stronger signal when insider buys are large relative to size. S1: insider_buy_amount and market_cap used (2 fields). S2: not applicable; S3: backfill optional. Confidence 0.68.",
+      "implementation": "divide(insider_buy_amount, market_cap)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Low analyst coverage momentum",
+      "description": "Stocks with low analyst coverage that receive positive signals may re-rate (coverage expansion). S1: analyst_count and close used; S2: not applicable; S3: backfill optional. Confidence 0.57.",
+      "implementation": "multiply(reverse(zscore(analyst_count)), ts_zscore(ts_returns(close,60),120))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Growth-at-reasonable-price (GARP) momentum",
+      "description": "Combine earnings growth rate with moderate valuation to target sustainable movers. S1: earnings_growth and pe_ratio used (2 fields). S2: not applicable; S3: backfill optional. Confidence 0.63.",
+      "implementation": "multiply(ts_zscore(earnings_growth, 365), reverse(zscore(pe_ratio)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum weighted by free cash flow yield",
+      "description": "Prefer momentum in stocks with high FCF yield to emphasize quality. S1: fcf_yield and close used; S2: not applicable; S3: backfill optional. Confidence 0.66.",
+      "implementation": "multiply(ts_zscore(ts_returns(close,90),180), zscore(fcf_yield))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Fast reversal after extreme realized vol",
+      "description": "After extreme volatility spikes, expect rapid mean-reversion. S1: close used to compute realized vol; S2: not applicable; S3: backfill optional. Confidence 0.59.",
+      "implementation": "reverse(ts_arg_max(ts_std_dev(ts_returns(close,1), 20), 20))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum combined with low payout ratio",
+      "description": "Momentum in companies that retain earnings (low payout) may be higher due to reinvestment. S1: payout_ratio and close used; S2: not applicable; S3: backfill optional. Confidence 0.58.",
+      "implementation": "multiply(ts_zscore(ts_returns(close,60),120), reverse(zscore(payout_ratio)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Cross-sectional earnings surprise z-score",
+      "description": "Rank earnings surprises cross-sectionally and pick top quantiles. S1: eps_surprise used; S2: not applicable; S3: backfill if sparse; S4: not used. Confidence 0.65.",
+      "implementation": "quantile(eps_surprise)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Momentum in gross profit margin expansion",
+      "description": "Sustained margin expansion often precedes re-rating. S1: gross_margin and close used; S2: not applicable; S3: backfill optional. Confidence 0.62.",
+      "implementation": "ts_zscore(ts_delta(gross_margin, 180), 720)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Net cash accumulation (deleveraging) signal",
+      "description": "Firms reducing net debt tend to have improving equity performance. S1: net_debt_delta and close used; S2: not applicable; S3: backfill optional. Confidence 0.6.",
+      "implementation": "reverse(ts_zscore(ts_delta(net_debt, 365), 730))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum after major insider buy cluster",
+      "description": "Multiple insiders buying within a short window signals conviction. S1: insider_buy_count (vector) used; S2: apply vec_sum to aggregate; S3: backfill optional. Confidence 0.66.",
+      "implementation": "multiply(vec_sum(insider_buy_count), ts_zscore(ts_returns(close,30),90))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Option implied skew mean-reversion",
+      "description": "Large skew deviations mean-revert, providing an option-based equity alpha. S1: implied_skew used; S2: not applicable; S3: backfill if sparse; S4: omitted. Confidence 0.6.",
+      "implementation": "reverse(ts_zscore(implied_skew, 60))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Relative earnings momentum vs sector",
+      "description": "Earnings momentum outperforming sector peers signals stronger future returns. S1: eps_surprise and sector_eps_surprise used (2 fields). S2: not applicable; S3: backfill optional. Confidence 0.64.",
+      "implementation": "subtract(ts_zscore(eps_surprise, 180), ts_zscore(sector_eps_surprise, 180))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Short-term reversal after extreme intraday range",
+      "description": "Mean-revert after very wide intraday ranges. S1: high_low_range computed from close/high/low used; S2: not applicable; S3: backfill not needed. Confidence 0.58.",
+      "implementation": "reverse(ts_zscore(log(high/low), 10))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum filtered by ROIC",
+      "description": "Favor momentum in companies with high Return on Invested Capital. S1: roic and close used; S2: not applicable; S3: backfill optional. Confidence 0.65.",
+      "implementation": "multiply(ts_zscore(ts_returns(close,60),120), zscore(roic))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Cross-sectional z-score of accruals and momentum",
+      "description": "Combine accruals z-score with momentum for a blended signal. S1: accruals and close used; S2: not applicable; S3: backfill optional. Confidence 0.64.",
+      "implementation": "add(reverse(zscore(accruals)), ts_zscore(ts_returns(close,60),120))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum into names with improving payout policy",
+      "description": "Shifts toward dividends/ buybacks may indicate capital allocation improvements. S1: payout_policy_change and close used; S2: not applicable; S3: backfill optional. Confidence 0.59.",
+      "implementation": "multiply(payout_policy_change, ts_zscore(ts_returns(close,30),90))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Earnings call tone sentiment",
+      "description": "Positive change in conference call tone may predict post-call returns. S1: call_tone (vector) and close used; S2: apply vec_avg to call_tone if vector; S3: backfill optional. Confidence 0.6.",
+      "implementation": "multiply(vec_avg(call_tone), ts_zscore(ts_returns(close,20),60))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Patent grant momentum",
+      "description": "Receiving high-value patents can lead to re-rating. S1: patent_grants (vector) used; S2: apply vec_sum/vec_avg if vector; S3: backfill optional. Confidence 0.57.",
+      "implementation": "ts_zscore(vec_sum(patent_grants), 365)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Supply shock hedge — commodity pass-through momentum",
+      "description": "Firms able to pass commodity cost shocks to prices show margin resilience and positive returns. S1: commodity_price and gross_margin used; S2: not applicable; S3: backfill optional. Confidence 0.58.",
+      "implementation": "subtract(ts_zscore(ts_delta(gross_margin, 180), 720), ts_zscore(ts_delta(commodity_price, 90), 360))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Cross-listing arbitrage indicator",
+      "description": "Price divergence between ADR and home listing suggests reversion. S1: adr_price and home_price used (2 fields). S2: not applicable; S3: backfill optional. Confidence 0.61.",
+      "implementation": "subtract(ts_zscore(ts_returns(adr_price,10),30), ts_zscore(ts_returns(home_price,10),30))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Momentum after M&A rumor spikes",
+      "description": "Stocks with rumor-driven volume and sentiment spikes often move further. S1: rumor_score (vector) and volume used; S2: apply vec_sum/vec_avg if rumor vector; S3: backfill optional. Confidence 0.54.",
+      "implementation": "multiply(vec_sum(rumor_score), ts_zscore(ts_returns(volume,7),20))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Short-term reversal after option gamma spikes",
+      "description": "Gamma/imbalance spikes can produce rapid mean-reversion post event. S1: option_gamma_used and close; S2: not applicable; S3: backfill optional. Confidence 0.56.",
+      "implementation": "reverse(ts_zscore(option_gamma, 10))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum in sector dispersion",
+      "description": "Rotate into sectors with rising dispersion (opportunity). S1: sector_dispersion used; S2: not applicable; S3: backfill optional. Confidence 0.6.",
+      "implementation": "ts_zscore(sector_dispersion, 60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum with earnings quality filter",
+      "description": "Combine price momentum with high earnings quality (low accruals). S1: close and accruals used (2 fields). S2: not applicable; S3: backfill optional. Confidence 0.66.",
+      "implementation": "multiply(ts_zscore(ts_returns(close,60),120), reverse(zscore(accruals)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Momentum following management change",
+      "description": "Stocks with new CEO and positive sentiment can continue to outperform. S1: ceo_change_flag and call_tone used; S2: not applicable; S3: backfill optional. Confidence 0.58.",
+      "implementation": "multiply(ceo_change_flag, vec_avg(call_tone))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Retail short squeeze detection",
+      "description": "Combine low float, rising retail mentions and short interest to identify squeeze candidates. S1: float, social_mentions (vector), short_interest used (<=2 fields if aggregating social with vec_sum counts as same field). S2: applied vec_sum to social_mentions; S3: backfill optional. Confidence 0.53 — event-driven and risky.",
+      "implementation": "multiply(reverse(float), vec_sum(social_mentions))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Momentum in gross margin relative to peers",
+      "description": "Companies improving margins faster than sector peers may be re-rated. S1: gross_margin and sector_gross_margin used (2 fields). S2: not applicable; S3: backfill optional. Confidence 0.62.",
+      "implementation": "subtract(ts_zscore(ts_delta(gross_margin,180),720), ts_zscore(ts_delta(sector_gross_margin,180),720))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum in inventory-to-sales improvement",
+      "description": "Improving inventory-to-sales ratio signals demand recovery. S1: inventory and sales used; S2: not applicable; S3: backfill optional. Confidence 0.59.",
+      "implementation": "reverse(ts_zscore(divide(inventory, sales), 365))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum after positive regulatory decisions",
+      "description": "Regulatory approval often leads to multi-week momentum. S1: regulatory_event_flag and close used; S2: not applicable; S3: backfill optional. Confidence 0.6.",
+      "implementation": "if_else(regulatory_event_flag, ts_zscore(ts_returns(close,30),90), NaN)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum in ad-spend efficiency (ROAS)",
+      "description": "Improving return on ad spend indicates marketing efficiency and revenue growth. S1: roas and close used; S2: not applicable; S3: backfill optional. Confidence 0.57.",
+      "implementation": "ts_zscore(ts_delta(roas, 90), 360)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Momentum weighted by analyst sentiment",
+      "description": "Combine price momentum with positive analyst sentiment trends. S1: analyst_sentiment (vector) and close used; S2: apply vec_avg if vector; S3: backfill optional. Confidence 0.63.",
+      "implementation": "multiply(vec_avg(analyst_sentiment), ts_zscore(ts_returns(close,60),120))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum with group-scale (sector normalized)",
+      "description": "Cross-sectional momentum scaled to sector ranges to remove outlier sectors. S1: close used; group: sector_group applied via group_scale. S2: not applicable; S3: backfill optional. Confidence 0.69.",
+      "implementation": "group_scale(ts_zscore(ts_returns(close,90),180), sector_group)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Momentum moderated by leverage",
+      "description": "Prefer momentum in low-leverage firms to reduce tail risk. S1: leverage_ratio and close used; S2: not applicable; S3: backfill optional. Confidence 0.62.",
+      "implementation": "multiply(ts_zscore(ts_returns(close,90),180), reverse(zscore(leverage_ratio)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum after positive patent litigation outcomes",
+      "description": "Wins in IP litigation often lead to multi-month outperformance. S1: litigation_outcome_flag and close used; S2: not applicable; S3: backfill optional. Confidence 0.55 — event-specific.",
+      "implementation": "if_else(litigation_outcome_flag, ts_zscore(ts_returns(close,90),180), NaN)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum in operating leverage improvement",
+      "description": "Companies increasing operating leverage (sales rising faster than fixed costs) can accelerate earnings. S1: sales and fixed_costs used (2 fields). S2: not applicable; S3: backfill optional. Confidence 0.6.",
+      "implementation": "subtract(ts_zscore(ts_delta(sales, 365), 730), ts_zscore(ts_delta(fixed_costs, 365), 730))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum following positive supply-chain sentiment",
+      "description": "Improving supplier sentiment often signals easing constraints and growth. S1: supplier_sentiment (vector) and close used; S2: apply vec_avg if vector; S3: backfill optional. Confidence 0.56.",
+      "implementation": "multiply(vec_avg(supplier_sentiment), ts_zscore(ts_returns(close,30),90))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum with currency tailwind filter",
+      "description": "For exporters, momentum is stronger when FX moves favor their currency. S1: export_ratio and fx_return used (2 fields). S2: not applicable; S3: backfill optional. Confidence 0.59.",
+      "implementation": "multiply(ts_zscore(ts_returns(close,60),120), ts_returns(fx_rate, 30))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum based on supply chain resilience rank",
+      "description": "Rank firms by supply chain resilience and favor momentum in top-ranked. S1: supply_chain_score and close used; S2: not applicable; S3: backfill optional. Confidence 0.58.",
+      "implementation": "multiply(quantile(supply_chain_score), ts_zscore(ts_returns(close,60),120))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum filtered by patent pipeline strength",
+      "description": "Favor momentum in firms with growing strong patent pipelines. S1: patent_pipeline_score and close used; S2: not applicable; S3: backfill optional. Confidence 0.57.",
+      "implementation": "multiply(ts_zscore(ts_delta(patent_pipeline_score, 365), 730), ts_zscore(ts_returns(close,60),120))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Momentum after favorable macro surprises",
+      "description": "Stocks sensitive to macro that surprised positively may enjoy momentum. S1: macro_surprise_exposure and macro_surprise used (2 fields). S2: not applicable; S3: backfill optional. Confidence 0.55.",
+      "implementation": "multiply(macro_surprise_exposure, macro_surprise)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum capturing seasonality in consumer names",
+      "description": "Exploit seasonal demand cycles (e.g., retail holiday uptick) for momentum trades. S1: seasonality_index and close used; S2: not applicable; S3: backfill optional. Confidence 0.54.",
+      "implementation": "multiply(seasonality_index, ts_zscore(ts_returns(close,30),90))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Momentum in names with improving ESG controversies score",
+      "description": "Lower controversies may lead to flows and re-rating. S1: esg_controversy_score used; S2: not applicable; S3: backfill optional. Confidence 0.52 — weak.",
+      "implementation": "reverse(ts_zscore(ts_delta(esg_controversy_score, 365), 730))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum following industry consolidation signals",
+      "description": "Firms in consolidating industries can gain pricing power and momentum. S1: industry_m_a_activity and close used; S2: not applicable; S3: backfill optional. Confidence 0.55.",
+      "implementation": "multiply(industry_m_a_activity, ts_zscore(ts_returns(close,90),180))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum filtered by insider ownership increase",
+      "description": "Rising insider ownership combined with momentum increases conviction. S1: insider_ownership_delta and close used; S2: not applicable; S3: backfill optional. Confidence 0.63.",
+      "implementation": "multiply(ts_zscore(ts_returns(close,60),120), ts_zscore(ts_delta(insider_ownership, 90), 360))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum in names with rapidly improving gross billings",
+      "description": "For SaaS names, uptick in billings growth often precedes price moves. S1: gross_billings_growth and close used; S2: not applicable; S3: backfill optional. Confidence 0.6.",
+      "implementation": "ts_zscore(ts_delta(gross_billings_growth, 90), 360)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum with buyback announcement confirmation",
+      "description": "Combine buyback announcement flag with price momentum to capture follow-through. S1: buyback_announce_flag and close used; S2: not applicable; S3: backfill optional. Confidence 0.66.",
+      "implementation": "if_else(buyback_announce_flag, ts_zscore(ts_returns(close,30),90), NaN)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Momentum from improving net promoter score (NPS)",
+      "description": "Increasing customer satisfaction can signal revenue durability and momentum. S1: nps (vector) and close used; S2: apply vec_avg if vector; S3: backfill optional. Confidence 0.56.",
+      "implementation": "multiply(vec_avg(nps), ts_zscore(ts_returns(close,60),120))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum after positive product launch reception",
+      "description": "Strong reception (engagement metrics) after a product launch can sustain momentum. S1: launch_engagement (vector) and close used; S2: apply vec_sum/vec_avg; S3: backfill optional. Confidence 0.57.",
+      "implementation": "multiply(vec_sum(launch_engagement), ts_zscore(ts_returns(close,30),90))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Momentum in names with falling receivables days",
+      "description": "Improving collections can signal operational improvement and support momentum. S1: days_sales_outstanding used; S2: not applicable; S3: backfill optional. Confidence 0.58.",
+      "implementation": "reverse(ts_zscore(ts_delta(days_sales_outstanding, 180), 720))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum in names with rising gross margin vs peers",
+      "description": "Prefer momentum in firms improving margins relative to peers. S1: gross_margin and sector_gross_margin used (2 fields). S2: not applicable; S3: backfill optional. Confidence 0.61.",
+      "implementation": "subtract(ts_zscore(ts_delta(gross_margin,180),720), ts_zscore(ts_delta(sector_gross_margin,180),720))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Momentum using combined multi-signal z-score",
+      "description": "Blend momentum, volume, and fundamentals into a composite z-score for robustness. S1: close, volume, roe used (<=2 datafields if combining volume vector with others counts as two); S2: vector volume handled with ts_zscore; S3: ts_backfill optional; S4: not applied. Confidence 0.72 for diversified signal stability.",
+      "implementation": "zscore(add(ts_zscore(ts_returns(close,60),120), ts_zscore(ts_returns(volume,20),60), zscore(roe)))",
+      "confidence_level": 0.72
+    }
+  ]
+}

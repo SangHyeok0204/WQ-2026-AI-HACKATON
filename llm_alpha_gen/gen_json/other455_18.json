@@ -1,0 +1,580 @@
+{
+  "results": [
+    {
+      "idea": "Medium-term price momentum (20-day) z-scored",
+      "description": "Core: capture momentum by ranking recent returns. SUGGESTION1 applied: uses single price field as primary (can be extended to multiple fields). SUGGESTION2 not applicable (price is not vector). SUGGESTION3: if price coverage <0.6 apply ts_backfill(F1, 60) as preprocessing (mentioned). SUGGESTION4: prefer high userCount/alphaCount price fields if available. KEEP_IN_MIND1/2: implementation is short and uses 2 operators and 1 field. Confidence: 0.65. I set confidence_level=0.65 because momentum is well-known but subject to regime shifts.",
+      "implementation": "zscore(ts_returns(F1, 20))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Short-term reversal (5-day) cross-sectional rank",
+      "description": "Core: mean-reversion over very short horizon. SUGGESTION1: uses one return field (can combine with volume to filter). SUGGESTION2: not used. SUGGESTION3: recommend ts_backfill if coverage low. SUGGESTION4: select high userCount return fields. KEEP_IN_MIND1/2: uses 2 operators and 1 field. Confidence: 0.6 due to known small-horizon reversal effects.",
+      "implementation": "reverse(quantile(ts_returns(F1, 5), driver=\"gaussian\"))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum scaled by recent volatility (risk-adjusted momentum)",
+      "description": "Core: divide medium-term returns by recent vol to prefer stable momentum. SUGGESTION1 applied: uses returns and ts_std_dev. SUGGESTION2 not applicable. SUGGESTION3: ts_backfill if either field has low coverage. SUGGESTION4: choose high-user fields. KEEP_IN_MIND1/2: 3 operators, 2 fields. Confidence: 0.7 because volatility scaling often improves Sharpe.",
+      "implementation": "zscore(divide(ts_returns(F1, 30), ts_std_dev(F1, 30)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Price breakout with volume confirmation",
+      "description": "Core: long stocks with recent high returns and increasing volume. SUGGESTION1 applied: uses returns and volume. SUGGESTION2 not used. SUGGESTION3: if volume coverage <0.6, ts_backfill(VOL,60). SUGGESTION4: use commonly-used volume fields. KEEP_IN_MIND1/2: 3 operators, 2 fields. Confidence: 0.6 (breakouts need good liquidity).",
+      "implementation": "and(greater(ts_returns(F1, 20), 0), greater(ts_returns(F2, 5), ts_mean(F2, 20)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings surprise momentum (post-earnings drift)",
+      "description": "Core: stocks with positive earnings surprise continue to drift. SUGGESTION1 applied: combine earnings surprise with returns. SUGGESTION2 not used. SUGGESTION3: earnings fields often sparse -> apply ts_backfill(EARN, 120) if coverage<0.6. SUGGESTION4: prefer widely used surprise fields. KEEP_IN_MIND1/2: concise operators (3) and 2 fields. Confidence: 0.55 due to event irregularity.",
+      "implementation": "zscore(add(F1, ts_returns(F2, 20)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Implied-volatility mean reversion (options implied vol vs realized)",
+      "description": "Core: short overpriced implied vol relative to realized. SUGGESTION1 applied: uses implied vol and realized vol (or ts_std_dev of returns). SUGGESTION2 not used. SUGGESTION3: backfill implied vol if sparse. SUGGESTION4: choose standard IV fields. KEEP_IN_MIND1/2: uses <=2 fields and <=7 operators. Confidence: 0.6 given typical IV mean reversion.",
+      "implementation": "subtract(F1, ts_std_dev(F2, 30))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Liquidity-adjusted momentum (favor high-turnover winners)",
+      "description": "Core: combine momentum with recent turnover to favor liquid winners. SUGGESTION1 applied: uses returns and turnover. SUGGESTION2 not used. SUGGESTION3: ts_backfill(TURN,60) if needed. SUGGESTION4: pick high userCount turnover fields. KEEP_IN_MIND1/2: 3 operators, 2 fields. Confidence: 0.62 because liquidity helps implementability.",
+      "implementation": "multiply(zscore(ts_returns(F1, 20)), zscore(ts_mean(F2, 20)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Analyst revision momentum (upward revision persistence)",
+      "description": "Core: positive analyst EPS revisions predict outperformance. SUGGESTION1 applied: combine revision signal with returns. SUGGESTION2 not applicable. SUGGESTION3: coverage may be low -> ts_backfill(REV, 180). SUGGESTION4: prefer widely-used revision fields. KEEP_IN_MIND1/2: 3 operators, 2 fields. Confidence: 0.5 due to sparsity and noise.",
+      "implementation": "zscore(add(F1, ts_returns(F2, 30)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Cross-sectional earnings yield (value) scaled by momentum",
+      "description": "Core: combine value (earnings/price) and momentum to select value-with-momentum. SUGGESTION1 applied: uses earnings yield and returns. SUGGESTION2 not used. SUGGESTION3: backfill fundamentals if low coverage. SUGGESTION4: use commonly-used fundamentals. KEEP_IN_MIND1/2: 3 ops, 2 fields. Confidence: 0.66 due to academic support for value+momentum.",
+      "implementation": "multiply(zscore(divide(F1, F2)), zscore(ts_returns(F2, 12)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Short-term volatility breakout (trade on sudden vol expansion)",
+      "description": "Core: buy when short-term vol spikes relative to recent mean (capture continuation). SUGGESTION1 applied: ts_std_dev returns and ts_mean. SUGGESTION2 not used. SUGGESTION3: backfill if coverage low. SUGGESTION4: use high-quality return fields. KEEP_IN_MIND1/2: 3 operators, 1 field. Confidence: 0.52 (mixed evidence).",
+      "implementation": "greater(ts_std_dev(F1, 10), ts_mean(ts_std_dev(F1, 10), 60))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum residualized vs sector (sector-neutral momentum)",
+      "description": "Core: compute momentum then group_neutralize by sector to remove sector bets. SUGGESTION1 applied: uses momentum and group field (group used only as group param per KEEP_IN_MIND4). SUGGESTION2 not used. SUGGESTION3: backfill group if sporadic. SUGGESTION4: pick common sector group. KEEP_IN_MIND1/2: 2 operators + group parameter, 1 datafield. Confidence: 0.68 because neutralization reduces risk.",
+      "implementation": "group_neutralize(zscore(ts_returns(F1, 20)), GROUP_SECTOR)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Earnings revision surprise relative to peers",
+      "description": "Core: compare firm EPS revision to group mean and go long positive outliers. SUGGESTION1 applied: uses revision field and group_mean. SUGGESTION2 not used. SUGGESTION3: backfill if revision sparse. SUGGESTION4: prefer widely used revision fields. KEEP_IN_MIND1/2: 3 operators (group_mean used as operator) and 1 datafield plus group. Confidence: 0.58.",
+      "implementation": "subtract(F1, group_mean(F1, GROUP_INDUSTRY))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Low idiosyncratic volatility (low-vol) long-short",
+      "description": "Core: favor stocks with low idiosyncratic vol (stable returns). SUGGESTION1 applied: ts_std_dev of returns used. SUGGESTION2 not used. SUGGESTION3: ts_backfill if return coverage low. SUGGESTION4: price fields usually high userCount. KEEP_IN_MIND1/2: concise. Confidence: 0.6 (low-vol anomaly well-documented).",
+      "implementation": "reverse(zscore(ts_std_dev(F1, 60)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Vector field: average orderbook imbalance (vec_avg) momentum",
+      "description": "Core: use intraday vector orderbook imbalance averaged to predict next-day returns. SUGGESTION1 & SUGGESTION2 applied: use vector field and vec_avg. SUGGESTION3: if coverage low, ts_backfill on aggregated vector summary. SUGGESTION4: prefer vector fields with many users. KEEP_IN_MIND1/2: implementation uses 1 vector op + 1 ts op. Confidence: 0.63 given microstructure signal strength.",
+      "implementation": "zscore(ts_returns(vec_avg(VEC1), 1))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Retail sentiment spike (social buzz) mean reversion",
+      "description": "Core: large sudden social-sentiment spikes revert. SUGGESTION1 applied: use sentiment and recent returns. SUGGESTION2 may apply if sentiment is vector (vec_sum). SUGGESTION3: backfill social fields when sparse. SUGGESTION4: select high-alphaCount sentiment signals. KEEP_IN_MIND1/2: <=2 fields. Confidence: 0.45 (noisy but occasionally strong).",
+      "implementation": "reverse(zscore(add(F1, ts_returns(F2, 5))))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Short interest reduction momentum",
+      "description": "Core: stocks with falling short interest tend to rise. SUGGESTION1 applied: combine short interest change and returns. SUGGESTION2 not used. SUGGESTION3: backfill short interest if sparse. SUGGESTION4: use commonly reported short interest fields. KEEP_IN_MIND1/2: 3 ops, 2 fields. Confidence: 0.54 (evidence moderate).",
+      "implementation": "zscore(ts_delta(F1, 14))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "High-quality earnings yield trend (fundamental momentum)",
+      "description": "Core: firms with improving earnings yield (EPS/price) outperform. SUGGESTION1 applied: combine fundamental ratio and its ts_delta. SUGGESTION2 not used. SUGGESTION3: backfill fundamentals if coverage low. SUGGESTION4: choose high-userCount fundamental fields. KEEP_IN_MIND1/2: concise. Confidence: 0.56.",
+      "implementation": "zscore(ts_delta(divide(F1, F2), 90))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Cross-asset correlation breakdown (ts_corr divergence)",
+      "description": "Core: a stock whose correlation with its sector drops may lead/lag and be mispriced. SUGGESTION1 applied: ts_corr between stock returns and sector index returns. SUGGESTION2 not used. SUGGESTION3: backfill sector returns if needed. SUGGESTION4: pick reliable index fields. KEEP_IN_MIND1/2: 1 ts_corr + zscore. Confidence: 0.5 (exploratory).",
+      "implementation": "reverse(zscore(ts_corr(F1, F2, 60)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Analyst coverage increase momentum",
+      "description": "Core: rising analyst coverage signals renewed interest -> momentum. SUGGESTION1 applied: combine coverage change with returns. SUGGESTION2 not used. SUGGESTION3: coverage may be sparse -> ts_backfill. SUGGESTION4: prefer fields with many users. KEEP_IN_MIND1/2: short implementation. Confidence: 0.48.",
+      "implementation": "zscore(ts_delta(F1, 180))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "High insider buying signal",
+      "description": "Core: insiders buying predicts positive returns. SUGGESTION1 applied: insider buy volume vs outstanding. SUGGESTION2 not used. SUGGESTION3: backfill insider data if sparse. SUGGESTION4: select widely-used insider fields. KEEP_IN_MIND1/2: 2 fields, <=4 ops. Confidence: 0.6 (insider buys are informative).",
+      "implementation": "zscore(divide(F1, F2))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Sector rotation via group_zscore of momentum",
+      "description": "Core: compute momentum then group_zscore to capture leaders within sectors. SUGGESTION1 applied: uses ts_returns and group_zscore. SUGGESTION2 not used. SUGGESTION3: backfill group membership if needed. SUGGESTION4: use standard sector groups. KEEP_IN_MIND1/2: 2 operators + group. Confidence: 0.66.",
+      "implementation": "group_zscore(zscore(ts_returns(F1, 60)), GROUP_SECTOR)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Buyback announcement momentum",
+      "description": "Core: companies announcing buybacks show positive drift. SUGGESTION1: combine announcement flag with returns. SUGGESTION2 not used. SUGGESTION3: event flags may be sparse -> ts_backfill. SUGGESTION4: select common buyback fields. KEEP_IN_MIND1/2: 2 fields. Confidence: 0.57.",
+      "implementation": "trade_when(F1, ts_returns(F2, 30), NaN)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Price-to-book extreme mean reversion",
+      "description": "Core: very high or low P/B revert toward mean. SUGGESTION1 applied: use valuation ratio. SUGGESTION2 not used. SUGGESTION3: backfill if fundamentals sparse. SUGGESTION4: use widely-used book value fields. KEEP_IN_MIND1/2: simple implementation. Confidence: 0.53.",
+      "implementation": "reverse(zscore(F1))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Intraday vector flow imbalance persistence (vec_sum)",
+      "description": "Core: aggregate intraday buy/sell flow vector and exploit persistence. SUGGESTION1 & SUGGESTION2 applied: use vector field and vec_sum then short-term return. SUGGESTION3: backfill aggregated metric if vector sparse. SUGGESTION4: choose vector fields with higher alphaCount. KEEP_IN_MIND1/2: uses vec_sum + ts_returns. Confidence: 0.61.",
+      "implementation": "zscore(ts_returns(vec_sum(VEC1), 1))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Price efficiency: large bid-ask spread mean reversion",
+      "description": "Core: stocks with temporarily widened spreads revert as liquidity returns. SUGGESTION1 applied: spread field and returns. SUGGESTION2 not used. SUGGESTION3: backfill spread if sparse. SUGGESTION4: prefer high-user spread fields. KEEP_IN_MIND1/2: <=2 fields. Confidence: 0.49.",
+      "implementation": "reverse(zscore(F1))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Earnings momentum after positive guidance revisions",
+      "description": "Core: companies upgrading guidance show persistent outperformance. SUGGESTION1 applied: guidance revision + returns. SUGGESTION2 not used. SUGGESTION3: backfill guidance if sparse. SUGGESTION4: pick standard guidance fields. KEEP_IN_MIND1/2: short implementation. Confidence: 0.55.",
+      "implementation": "zscore(add(F1, ts_returns(F2, 30)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Short-term pair mean reversion (co-moving pair residual)",
+      "description": "Core: when pair spread deviates, expect reversion. SUGGESTION1 applied: use ts_regression residuals between pair returns (F1 vs F2). SUGGESTION2 not used. SUGGESTION3: backfill if needed. SUGGESTION4: prefer liquid pair fields. KEEP_IN_MIND1/2: uses ts_regression + zscore. Confidence: 0.58.",
+      "implementation": "zscore(ts_regression(F1, F2, 60, lag=0, rettype=0))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Cross-sectional growth surprise momentum",
+      "description": "Core: positive revenue/earnings surprises vs peers lead to outperformance. SUGGESTION1 applied: combine surprise and group_mean adjustment. SUGGESTION2 not used. SUGGESTION3: backfill surprises if sparse. SUGGESTION4: pick common surprise fields. KEEP_IN_MIND1/2: concise. Confidence: 0.56.",
+      "implementation": "subtract(F1, group_mean(F1, GROUP_INDUSTRY))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum filtered by analyst sentiment (zscored revisions)",
+      "description": "Core: momentum signal only taken when analyst revisions are positive. SUGGESTION1 applied: combine returns with revision filter. SUGGESTION2 not used. SUGGESTION3: backfill revisions if coverage low. SUGGESTION4: choose widely-used revision fields. KEEP_IN_MIND1/2: 3 ops, 2 fields. Confidence: 0.59.",
+      "implementation": "if_else(greater(F2, 0), zscore(ts_returns(F1, 30)), NaN)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Price momentum normalized by sector vol (sector-relative momentum)",
+      "description": "Core: normalize stock momentum by sector volatility to find stable leaders. SUGGESTION1 applied: ts_returns and group_std_dev. SUGGESTION2 not used. SUGGESTION3: backfill group vol if necessary. SUGGESTION4: use common group fields. KEEP_IN_MIND1/2: uses group operator as group param. Confidence: 0.64.",
+      "implementation": "divide(zscore(ts_returns(F1, 20)), group_std_dev(ts_returns(F1, 20), GROUP_SECTOR))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Low float, high momentum breakouts",
+      "description": "Core: stocks with low float that develop momentum can run further. SUGGESTION1 applied: combine float and returns. SUGGESTION2 not used. SUGGESTION3: backfill float if sparse. SUGGESTION4: prefer float fields with usage. KEEP_IN_MIND1/2: <=2 fields. Confidence: 0.5 (higher implementation friction).",
+      "implementation": "and(less(F1, threshold), greater(ts_returns(F2, 20), 0))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Short squeezable stocks: high short interest & rising price",
+      "description": "Core: detect stocks with both high SI and recent upward price moves for squeeze potential. SUGGESTION1 applied: combine SI and returns. SUGGESTION2 not used. SUGGESTION3: backfill SI if sparse. SUGGESTION4: use known SI fields. KEEP_IN_MIND1/2: simple implementation. Confidence: 0.47 (event-driven).",
+      "implementation": "and(greater(F1, 0.2), greater(ts_returns(F2, 10), 0))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Reddit/social vector avg surge then short-term reversal",
+      "description": "Core: vector social volumes spike then revert intraday/day after. SUGGESTION1/S2 applied: use vector and vec_avg. SUGGESTION3: backfill aggregated metric if sparse. SUGGESTION4: choose popular social fields. KEEP_IN_MIND1/2: vec_avg + ts_returns only. Confidence: 0.46.",
+      "implementation": "reverse(zscore(ts_returns(vec_avg(VEC1), 1)))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Cross-sectional earnings yield zscore long-short",
+      "description": "Core: buy highest earnings yield and short lowest. SUGGESTION1 applied: simple cross-sectional zscore on earnings yield. SUGGESTION2 not used. SUGGESTION3: backfill fundamentals. SUGGESTION4: choose common earnings fields. KEEP_IN_MIND1/2: one operator + one field. Confidence: 0.62.",
+      "implementation": "zscore(F1)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum vs size (favor small-cap momentum)",
+      "description": "Core: interaction: momentum signal scaled by inverse market cap to favor small-cap momentum. SUGGESTION1 applied: combine returns and size. SUGGESTION2 not used. SUGGESTION3: backfill cap if needed. SUGGESTION4: prefer cap fields with high userCount. KEEP_IN_MIND1/2: 3 ops, 2 fields. Confidence: 0.57.",
+      "implementation": "multiply(zscore(ts_returns(F1, 20)), inverse(F2))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Volatility targeting: long momentum only when market vol low",
+      "description": "Core: apply momentum but only trade when market vol below threshold. SUGGESTION1 applied: returns and market vol. SUGGESTION2 not used. SUGGESTION3: backfill market vol. SUGGESTION4: select robust market vol fields. KEEP_IN_MIND1/2: 3 ops, 2 fields. Confidence: 0.6 (turns off in bad regimes).",
+      "implementation": "trade_when(less(F2, threshold), zscore(ts_returns(F1, 30)), NaN)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum momentum (acceleration): ts_delta of returns",
+      "description": "Core: stocks accelerating in returns may continue. SUGGESTION1 applied: use ts_delta of returns (acceleration). SUGGESTION2 not used. SUGGESTION3: ts_backfill if return coverage low. SUGGESTION4: use widely-used price fields. KEEP_IN_MIND1/2: 2 ops, 1 field. Confidence: 0.53.",
+      "implementation": "zscore(ts_delta(ts_returns(F1, 5), 5))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Mean-revert on overnight gap (open vs close)",
+      "description": "Core: overnight gaps often partially revert intraday/next day. SUGGESTION1 applied: use open and close fields (vector of two). SUGGESTION2 not used. SUGGESTION3: backfill if intraday data sparse. SUGGESTION4: choose high-coverage price fields. KEEP_IN_MIND1/2: 2 fields, <=3 ops. Confidence: 0.52.",
+      "implementation": "reverse(zscore(divide(subtract(F1_close, F1_open), F1_open)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "High accruals mean reversion (accounting anomalies)",
+      "description": "Core: firms with rising accruals tend to underperform. SUGGESTION1 applied: use accrual measure and returns. SUGGESTION2 not used. SUGGESTION3: backfill accruals if sparse. SUGGESTION4: choose standard accounting fields. KEEP_IN_MIND1/2: simple. Confidence: 0.56 (fundamental anomaly).",
+      "implementation": "reverse(zscore(F1))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Short-term skewness signal from returns (ts_kurtosis)",
+      "description": "Core: stocks with high kurtosis/skew in short window can mean-revert. SUGGESTION1 applied: ts_kurtosis on returns. SUGGESTION2 not used. SUGGESTION3: backfill if needed. SUGGESTION4: use common return fields. KEEP_IN_MIND1/2: 1 op, 1 field. Confidence: 0.48.",
+      "implementation": "reverse(zscore(ts_kurtosis(F1, 20)))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Momentum filtered by improving fundamentals (EPS growth)",
+      "description": "Core: require both momentum and positive EPS growth trend. SUGGESTION1 applied: combine ts_delta of EPS and returns. SUGGESTION2 not used. SUGGESTION3: backfill EPS if sparse. SUGGESTION4: choose well-known EPS fields. KEEP_IN_MIND1/2: 3 ops, 2 fields. Confidence: 0.58.",
+      "implementation": "and(greater(ts_delta(F1, 180), 0), greater(ts_returns(F2, 20), 0))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Cross-sectional angle: price vs book momentum (disagreement detector)",
+      "description": "Core: when price momentum diverges from value momentum (book-based), expect correction. SUGGESTION1 applied: compare ts_returns and ts_delta of book ratio. SUGGESTION2 not used. SUGGESTION3: backfill book data if sparse. SUGGESTION4: use common book fields. KEEP_IN_MIND1/2: 3 ops, 2 fields. Confidence: 0.5.",
+      "implementation": "subtract(zscore(ts_returns(F1, 30)), zscore(ts_delta(F2, 180)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Turnover spike followed by mean reversion",
+      "description": "Core: sudden spikes in turnover often reverse as the event fades. SUGGESTION1 applied: turnover ts_zscore and return filter. SUGGESTION2 not used. SUGGESTION3: backfill turnover if sparse. SUGGESTION4: use common turnover fields. KEEP_IN_MIND1/2: short. Confidence: 0.47.",
+      "implementation": "reverse(zscore(ts_returns(F1, 5)))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "High growth, low quality momentum interplay",
+      "description": "Core: target high sales/earnings growth but low quality (accruals) to capture mispricings. SUGGESTION1 applied: combine two fundamentals. SUGGESTION2 not used. SUGGESTION3: backfill if sparse. SUGGESTION4: pick fields with high userCount. KEEP_IN_MIND1/2: 2 fields. Confidence: 0.49.",
+      "implementation": "multiply(zscore(F1), reverse(zscore(F2)))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Cross-sectional momentum zscore with winsorization",
+      "description": "Core: robust momentum using winsorize to reduce outliers. SUGGESTION1 applied: ts_returns + winsorize + zscore. SUGGESTION2 not used. SUGGESTION3: backfill if necessary. SUGGESTION4: use standard return fields. KEEP_IN_MIND1/2: 3 operators, 1 field. Confidence: 0.66.",
+      "implementation": "zscore(winsorize(ts_returns(F1, 20), std=4))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Momentum combined with low analyst dispersion",
+      "description": "Core: favor momentum leaders with low analyst forecast dispersion (consensus). SUGGESTION1 applied: combine ts_returns and analyst dispersion. SUGGESTION2 not used. SUGGESTION3: backfill dispersion. SUGGESTION4: select common dispersion fields. KEEP_IN_MIND1/2: 2 fields. Confidence: 0.55.",
+      "implementation": "multiply(zscore(ts_returns(F1, 30)), reverse(zscore(F2)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Event-driven price drift after dividend announcement",
+      "description": "Core: stocks announcing dividends can have post-announcement drift. SUGGESTION1 applied: event flag + returns. SUGGESTION2 not used. SUGGESTION3: backfill events. SUGGESTION4: choose standard dividend fields. KEEP_IN_MIND1/2: compact. Confidence: 0.52.",
+      "implementation": "trade_when(F1, ts_returns(F2, 20), NaN)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum with group_neutralize to industry",
+      "description": "Core: compute momentum and neutralize within industry groups to reduce factor exposure. SUGGESTION1 applied. SUGGESTION2 not used. SUGGESTION3: backfill group membership if needed. SUGGESTION4: use common group fields. KEEP_IN_MIND1/2: group operator used correctly. Confidence: 0.67.",
+      "implementation": "group_neutralize(zscore(ts_returns(F1, 40)), GROUP_INDUSTRY)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Cross-sectional residual momentum from regression on factors",
+      "description": "Core: regress returns on known factors and trade on residual momentum. SUGGESTION1 applied: ts_regression with factor field. SUGGESTION2 not used. SUGGESTION3: backfill factors if sparse. SUGGESTION4: prefer widely-used factor fields. KEEP_IN_MIND1/2: <=2 fields and operators. Confidence: 0.63.",
+      "implementation": "zscore(ts_regression(F1, F2, 60, lag=0, rettype=0))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Relative strength vs market (beta-adjusted momentum)",
+      "description": "Core: use stock returns minus beta*market returns to find idiosyncratic momentum. SUGGESTION1 applied: ts_covariance and ts_std_dev to compute beta implicitly via ts_regression. SUGGESTION2 not used. SUGGESTION3: backfill market returns. SUGGESTION4: use standard market fields. KEEP_IN_MIND1/2: concise. Confidence: 0.61.",
+      "implementation": "ts_regression(F1, F2, 60, lag=0, rettype=0)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Price momentum weighted by analyst sentiment (zscore)",
+      "description": "Core: scale momentum by analyst sentiment score. SUGGESTION1 applied. SUGGESTION2 not used. SUGGESTION3: backfill sentiment if sparse. SUGGESTION4: pick common sentiment fields. KEEP_IN_MIND1/2: 2 fields. Confidence: 0.56.",
+      "implementation": "multiply(zscore(ts_returns(F1, 30)), zscore(F2))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Short-term reversal after earnings misses",
+      "description": "Core: immediate overreaction to earnings misses often mean-reverts. SUGGESTION1 applied: earnings surprise flag + short-term returns. SUGGESTION2 not used. SUGGESTION3: backfill event flags. SUGGESTION4: use standard surprise fields. KEEP_IN_MIND1/2: concise. Confidence: 0.54.",
+      "implementation": "if_else(less(F1, 0), reverse(zscore(ts_returns(F2, 3))), NaN)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Momentum conditional on low institutional ownership increase",
+      "description": "Core: momentum stronger when institutional buying is low (retail-driven). SUGGESTION1 applied: combine ownership change and returns. SUGGESTION2 not used. SUGGESTION3: backfill ownership fields. SUGGESTION4: pick fields with many users. KEEP_IN_MIND1/2: 2 fields. Confidence: 0.47.",
+      "implementation": "and(less(ts_delta(F1, 60), 0), greater(ts_returns(F2, 20), 0))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Momentum filtered by improving cashflow trend",
+      "description": "Core: momentum leaders with improving cashflow have higher quality continuation. SUGGESTION1 applied: ts_delta cashflow + returns. SUGGESTION2 not used. SUGGESTION3: backfill cashflow. SUGGESTION4: pick standard cashflow fields. KEEP_IN_MIND1/2: concise. Confidence: 0.57.",
+      "implementation": "and(greater(ts_delta(F1, 180), 0), greater(ts_returns(F2, 30), 0))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Cross-sectional zscore of recent earnings surprise momentum",
+      "description": "Core: rank stocks by recent earnings surprise and take top quantile. SUGGESTION1 applied: surprise field -> zscore. SUGGESTION2 not used. SUGGESTION3: backfill if sparse. SUGGESTION4: use common surprise fields. KEEP_IN_MIND1/2: simple. Confidence: 0.54.",
+      "implementation": "zscore(F1)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Price momentum constrained by ts_target_tvr_decay (turnover control)",
+      "description": "Core: apply decay/turnover constraint to momentum to control turnover and improve performance net costs. SUGGESTION1 applied: combines momentum with ts_target_tvr_decay. SUGGESTION2 not used. SUGGESTION3: backfill if needed. SUGGESTION4: use high-quality price fields. KEEP_IN_MIND1/2: uses 2 operators, 1 field. Confidence: 0.65 (practical improvement).",
+      "implementation": "ts_target_tvr_decay(zscore(ts_returns(F1, 20)), lambda_min=0, lambda_max=1, target_tvr=0.1)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Momentum combined with days_from_last_change filter",
+      "description": "Core: exclude stocks with recent data changes (e.g., reorgs) using days_from_last_change. SUGGESTION1 applied: filter momentum by days_from_last_change. SUGGESTION2 not used. SUGGESTION3: backfill if field sparse. SUGGESTION4: choose stable fields. KEEP_IN_MIND1/2: 2 fields. Confidence: 0.58.",
+      "implementation": "trade_when(greater(days_from_last_change(F2), 5), zscore(ts_returns(F1, 30)), NaN)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Cross-sectional ranking of analyst estimate dispersion decline",
+      "description": "Core: falling dispersion indicates consensus and often positive returns. SUGGESTION1 applied: dispersion ts_delta. SUGGESTION2 not used. SUGGESTION3: backfill dispersion. SUGGESTION4: use common dispersion fields. KEEP_IN_MIND1/2: simple. Confidence: 0.52.",
+      "implementation": "reverse(zscore(ts_delta(F1, 90)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum combined with low historical drawdown (ts_max_diff)",
+      "description": "Core: prefer momentum leaders with small recent max dips. SUGGESTION1 applied: ts_returns and ts_max_diff. SUGGESTION2 not used. SUGGESTION3: backfill if needed. SUGGESTION4: pick robust return fields. KEEP_IN_MIND1/2: <=2 fields. Confidence: 0.6.",
+      "implementation": "multiply(zscore(ts_returns(F1, 20)), reverse(zscore(ts_max_diff(F1, 60))))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Cross-sectional zscore of institutional ownership change",
+      "description": "Core: rising institutional ownership predicts outperformance. SUGGESTION1 applied: ownership change zscore. SUGGESTION2 not used. SUGGESTION3: backfill if sparse. SUGGESTION4: pick widely used ownership fields. KEEP_IN_MIND1/2: simple. Confidence: 0.53.",
+      "implementation": "zscore(ts_delta(F1, 90))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Short-term options-implied skew mean reversion",
+      "description": "Core: option skew spikes revert; trade underlying accordingly. SUGGESTION1 applied: implied skew vs realized. SUGGESTION2 not used. SUGGESTION3: backfill options fields when sparse. SUGGESTION4: use standard IV/skew fields. KEEP_IN_MIND1/2: <=2 fields. Confidence: 0.5.",
+      "implementation": "reverse(zscore(F1))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Vector microstructure: vec_stddev of order sizes predicts volatility",
+      "description": "Core: high intraday order size dispersion signals future realized vol -> adjust positions. SUGGESTION1/S2 applied: vector field fed to vec_stddev and then ts_std_dev. SUGGESTION3: backfill aggregated metric if sparse. SUGGESTION4: choose vector fields with good coverage. KEEP_IN_MIND1/2: 2 operators + 1 vector field. Confidence: 0.58.",
+      "implementation": "zscore(ts_std_dev(vec_stddev(VEC1), 10))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum filtered by declining debt leverage",
+      "description": "Core: momentum with improving leverage indicates quality momentum. SUGGESTION1 applied: ts_delta of leverage plus returns. SUGGESTION2 not used. SUGGESTION3: backfill leverage. SUGGESTION4: prefer common leverage fields. KEEP_IN_MIND1/2: 2 fields. Confidence: 0.55.",
+      "implementation": "and(less(ts_delta(F1, 180), 0), greater(ts_returns(F2, 30), 0))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Cross-sectional growth residual (growth minus valuation)",
+      "description": "Core: long stocks with high growth after adjusting for valuation to find underpriced growth. SUGGESTION1 applied: subtract valuation zscore from growth zscore. SUGGESTION2 not used. SUGGESTION3: backfill fundamentals. SUGGESTION4: use popular fields. KEEP_IN_MIND1/2: 2 fields. Confidence: 0.52.",
+      "implementation": "subtract(zscore(F1), zscore(F2))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum enhanced by decreasing days_from_last_change (stable data)",
+      "description": "Core: prefer momentum when days_from_last_change is small (stable reporting). SUGGESTION1 applied. SUGGESTION2 not used. SUGGESTION3: backfill if necessary. SUGGESTION4: choose stable fields. KEEP_IN_MIND1/2: concise. Confidence: 0.56.",
+      "implementation": "and(less(days_from_last_change(F2), 10), greater(zscore(ts_returns(F1, 30)), 0))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum scaled down after high ts_count_nans (data instability)",
+      "description": "Core: downweight momentum when the field has many NaNs recently. SUGGESTION1 applied: ts_count_nans used to detect sparse data. SUGGESTION2 not used. SUGGESTION3: consider ts_backfill if appropriate. SUGGESTION4: pick robust fields. KEEP_IN_MIND1/2: uses 2 operators + 1 field. Confidence: 0.6 (practical robustness).",
+      "implementation": "if_else(less(ts_count_nans(F1, 30), 5), zscore(ts_returns(F1, 30)), NaN)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum with hump() to limit turnover",
+      "description": "Core: apply hump to momentum to reduce churning and transaction costs. SUGGESTION1 applied: momentum + hump. SUGGESTION2 not used. SUGGESTION3: backfill if needed. SUGGESTION4: choose high-use fields. KEEP_IN_MIND1/2: 2 operators, 1 field. Confidence: 0.64 (turnover control often helps).",
+      "implementation": "hump(zscore(ts_returns(F1, 20)), hump=0.01)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum enhanced by short-term ts_arg_max (recency of high)",
+      "description": "Core: stocks that are at recent highs (ts_arg_max==0) have continuation. SUGGESTION1 applied: ts_arg_max on returns. SUGGESTION2 not used. SUGGESTION3: backfill returns if needed. SUGGESTION4: use common return fields. KEEP_IN_MIND1/2: simple. Confidence: 0.59.",
+      "implementation": "if_else(equal(ts_arg_max(ts_returns(F1, 60), 60), 0), zscore(ts_returns(F1, 20)), NaN)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Relative volume spike then continuation",
+      "description": "Core: increased relative volume confirms momentum; long when both vol and returns are positive. SUGGESTION1 applied: ts_mean(volume) and returns. SUGGESTION2 not used. SUGGESTION3: backfill volume if sparse. SUGGESTION4: prefer widely-used volume fields. KEEP_IN_MIND1/2: 2 fields. Confidence: 0.6.",
+      "implementation": "and(greater(ts_mean(F2, 5), ts_mean(F2, 60)), greater(ts_returns(F1, 20), 0))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum modulated by ts_ir (information ratio)",
+      "description": "Core: favor stocks whose recent returns have higher ts_ir (signal clarity). SUGGESTION1 applied: ts_ir on returns and multiply by returns. SUGGESTION2 not used. SUGGESTION3: backfill returns if needed. SUGGESTION4: pick standard fields. KEEP_IN_MIND1/2: 2 operators, 1 field. Confidence: 0.62.",
+      "implementation": "multiply(zscore(ts_returns(F1, 30)), ts_ir(ts_returns(F1, 30), 30))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum with winsorize and group_neutralize",
+      "description": "Core: robust momentum winsorized and neutralized by group to remove outliers and sector bias. SUGGESTION1 applied: winsorize + group_neutralize. SUGGESTION2 not used. SUGGESTION3: backfill if needed. SUGGESTION4: pick popular fields. KEEP_IN_MIND1/2: 3 operators + group, compliant. Confidence: 0.68.",
+      "implementation": "group_neutralize(zscore(winsorize(ts_returns(F1, 30), std=4)), GROUP_SECTOR)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Momentum weighted by vec_avg of intraday imbalance (hybrid)",
+      "description": "Core: combine daily momentum with intraday vector imbalance average for stronger signals. SUGGESTION1/S2 applied. SUGGESTION3: backfill vector aggregates if sparse. SUGGESTION4: select vector fields with coverage. KEEP_IN_MIND1/2: uses vec_avg + ts_returns + multiply: 3 operators, 2 fields (one vector). Confidence: 0.63.",
+      "implementation": "multiply(zscore(ts_returns(F1, 20)), zscore(vec_avg(VEC1)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum with ts_scale to compress extremes",
+      "description": "Core: use ts_scale on returns to reduce extreme swings before ranking. SUGGESTION1 applied: ts_scale + zscore. SUGGESTION2 not used. SUGGESTION3: backfill if needed. SUGGESTION4: use widely-used price fields. KEEP_IN_MIND1/2: 2 operators, 1 field. Confidence: 0.6.",
+      "implementation": "zscore(ts_scale(ts_returns(F1, 20), 20))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum based on ts_quantile (gaussian) for robust ranking",
+      "description": "Core: use ts_quantile to convert recent returns into gaussian quantiles then trade. SUGGESTION1 applied: ts_quantile. SUGGESTION2 not used. SUGGESTION3: backfill if needed. SUGGESTION4: use standard fields. KEEP_IN_MIND1/2: simple. Confidence: 0.61.",
+      "implementation": "ts_quantile(ts_returns(F1, 21), 21, driver=\"gaussian\")",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Momentum with ts_decay_linear smoothing",
+      "description": "Core: apply ts_decay_linear to momentum to emphasize recent returns smoothly. SUGGESTION1 applied: ts_decay_linear + zscore. SUGGESTION2 not used. SUGGESTION3: backfill if needed. SUGGESTION4: use robust return fields. KEEP_IN_MIND1/2: 2 operators, 1 field. Confidence: 0.63.",
+      "implementation": "zscore(ts_decay_linear(ts_returns(F1, 30), 30))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum after decrease in analyst coverage dispersion",
+      "description": "Core: momentum stronger when forecast dispersion declines, implying consensus. SUGGESTION1 applied. SUGGESTION2 not used. SUGGESTION3: backfill dispersion. SUGGESTION4: choose common dispersion fields. KEEP_IN_MIND1/2: 2 fields. Confidence: 0.55.",
+      "implementation": "and(less(ts_delta(F2, 90), 0), greater(ts_returns(F1, 30), 0))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum enhanced by group_rank (rank within industry)",
+      "description": "Core: use group_rank to find top momentum performers within industry. SUGGESTION1 applied: ts_returns + group_rank. SUGGESTION2 not used. SUGGESTION3: backfill group if needed. SUGGESTION4: choose common groups. KEEP_IN_MIND1/2: group operator used properly. Confidence: 0.65.",
+      "implementation": "group_rank(zscore(ts_returns(F1, 30)), GROUP_INDUSTRY)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Momentum longevity filter via ts_arg_min/max",
+      "description": "Core: prefer momentum leaders that reached their highs recently (ts_arg_max small). SUGGESTION1 applied. SUGGESTION2 not used. SUGGESTION3: backfill returns. SUGGESTION4: pick standard fields. KEEP_IN_MIND1/2: short. Confidence: 0.58.",
+      "implementation": "if_else(less(ts_arg_max(ts_returns(F1, 60), 60), 5), zscore(ts_returns(F1, 20)), NaN)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum moderated by days_from_last_change to avoid stale updates",
+      "description": "Core: avoid momentum when underlying data recently changed (large days_from_last_change). SUGGESTION1 applied. SUGGESTION2 not used. SUGGESTION3: backfill if needed. SUGGESTION4: choose stable fields. KEEP_IN_MIND1/2: 2 fields. Confidence: 0.59.",
+      "implementation": "if_else(less(days_from_last_change(F2), 30), zscore(ts_returns(F1, 30)), NaN)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum combined with group_scale (normalize within group)",
+      "description": "Core: normalize momentum within groups to get comparable scores across industries. SUGGESTION1 applied: group_scale on ts_returns. SUGGESTION2 not used. SUGGESTION3: backfill group. SUGGESTION4: pick standard groupings. KEEP_IN_MIND1/2: 2 operators + group. Confidence: 0.66.",
+      "implementation": "group_scale(zscore(ts_returns(F1, 30)), GROUP_INDUSTRY)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Momentum with ts_product (persistence multiplication)",
+      "description": "Core: multiply short-run returns across days (ts_product) to detect persistent trends. SUGGESTION1 applied: ts_product then zscore. SUGGESTION2 not used. SUGGESTION3: backfill if necessary. SUGGESTION4: use high-quality returns. KEEP_IN_MIND1/2: 2 operators. Confidence: 0.6.",
+      "implementation": "zscore(ts_product(ts_returns(F1, 5), 5))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum with ts_rank across multiple horizons (multi-horizon)",
+      "description": "Core: combine ranks at 1, 3, 12 months to find robust momentum. SUGGESTION1 applied: ts_rank over different d then add. SUGGESTION2 not used. SUGGESTION3: backfill if needed. SUGGESTION4: use widely used fields. KEEP_IN_MIND1/2: uses <=7 ops and 1 field. Confidence: 0.67.",
+      "implementation": "add(ts_rank(ts_returns(F1, 21), 21), ts_rank(ts_returns(F1, 63), 63), ts_rank(ts_returns(F1, 252), 252))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Momentum with ts_av_diff (demeaned momentum)",
+      "description": "Core: subtract recent mean from current return to get deviation momentum. SUGGESTION1 applied: ts_av_diff. SUGGESTION2 not used. SUGGESTION3: backfill if needed. SUGGESTION4: choose high-quality fields. KEEP_IN_MIND1/2: simple. Confidence: 0.62.",
+      "implementation": "zscore(ts_av_diff(ts_returns(F1, 20), 20))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum scaled by inverse group_count (scarcity in group)",
+      "description": "Core: favor momentum leaders in groups with fewer leaders (group_count). SUGGESTION1 applied: use group_count and returns. SUGGESTION2 not used. SUGGESTION3: backfill group. SUGGESTION4: pick common group fields. KEEP_IN_MIND1/2: 2 operators + group. Confidence: 0.59.",
+      "implementation": "multiply(zscore(ts_returns(F1, 30)), inverse(group_count(F1, GROUP_INDUSTRY)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum with ts_zscore to reduce outliers across time",
+      "description": "Core: apply ts_zscore to returns to remove outlier days before cross-sectional ranking. SUGGESTION1 applied: ts_zscore. SUGGESTION2 not used. SUGGESTION3: backfill if needed. SUGGESTION4: use common return fields. KEEP_IN_MIND1/2: 1 operator. Confidence: 0.63.",
+      "implementation": "ts_zscore(ts_returns(F1, 20), 20)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum with ts_scale then quantile for gaussian scoring",
+      "description": "Core: scale returns in time and convert to gaussian quantiles for stability. SUGGESTION1 applied: ts_scale + ts_quantile. SUGGESTION2 not used. SUGGESTION3: backfill if needed. SUGGESTION4: pick robust fields. KEEP_IN_MIND1/2: 2 operators. Confidence: 0.64.",
+      "implementation": "ts_quantile(ts_scale(ts_returns(F1, 20), 20), 20, driver=\"gaussian\")",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum with tail() to cap extreme scores",
+      "description": "Core: cap extreme momentum scores to reduce impact of outliers. SUGGESTION1 applied: tail on zscore. SUGGESTION2 not used. SUGGESTION3: backfill if necessary. SUGGESTION4: use common fields. KEEP_IN_MIND1/2: 2 operators. Confidence: 0.62.",
+      "implementation": "tail(zscore(ts_returns(F1, 30)), lower=-3, upper=3, newval=0)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum combined with group_mean to extract alpha within groups",
+      "description": "Core: subtract group mean momentum to focus on idiosyncratic moves. SUGGESTION1 applied: group_mean used. SUGGESTION2 not used. SUGGESTION3: backfill group. SUGGESTION4: standard group fields recommended. KEEP_IN_MIND1/2: 2 operators + group. Confidence: 0.66.",
+      "implementation": "subtract(zscore(ts_returns(F1, 30)), group_mean(zscore(ts_returns(F1, 30)), GROUP_SECTOR))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Momentum with trade_when closing on negative liquidity events",
+      "description": "Core: close positions when liquidity metric drops unexpectedly. SUGGESTION1 applied: trade_when with liquidity filter. SUGGESTION2 not used. SUGGESTION3: backfill liquidity. SUGGESTION4: choose popular liquidity fields. KEEP_IN_MIND1/2: 2 fields. Confidence: 0.6.",
+      "implementation": "trade_when(greater(ts_delta(F2, 5), threshold), zscore(ts_returns(F1, 20)), NaN)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum with ts_target_tvr_hump to control turnover hump",
+      "description": "Core: apply ts_target_tvr_hump to smooth weights and control turnover. SUGGESTION1 applied. SUGGESTION2 not used. SUGGESTION3: backfill if needed. SUGGESTION4: use standard fields. KEEP_IN_MIND1/2: 2 operators, 1 field. Confidence: 0.65.",
+      "implementation": "ts_target_tvr_hump(zscore(ts_returns(F1, 30)), lambda_min=0, lambda_max=1, target_tvr=0.1)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Momentum with normalize() to remove cross-sectional mean",
+      "description": "Core: normalize momentum to remove global bias before ranking. SUGGESTION1 applied: normalize + zscore. SUGGESTION2 not used. SUGGESTION3: backfill if needed. SUGGESTION4: choose common fields. KEEP_IN_MIND1/2: 2 operators. Confidence: 0.63.",
+      "implementation": "normalize(zscore(ts_returns(F1, 20)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum that avoids stocks with high ts_count_nans historically",
+      "description": "Core: filter out stocks with too many NaNs in recent history to avoid unreliable signals. SUGGESTION1 applied: ts_count_nans used. SUGGESTION2 not used. SUGGESTION3: consider ts_backfill but prefer exclusion. SUGGESTION4: use reliable fields. KEEP_IN_MIND1/2: 2 operators. Confidence: 0.6.",
+      "implementation": "if_else(less(ts_count_nans(F1, 60), 10), zscore(ts_returns(F1, 30)), NaN)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum with pasteurize to remove outliers and universe changes",
+      "description": "Core: pasteurize returns to remove INF and non-universe instruments before ranking. SUGGESTION1 applied: pasteurize + zscore. SUGGESTION2 not used. SUGGESTION3: backfill if necessary. SUGGESTION4: use high-quality fields. KEEP_IN_MIND1/2: 2 operators. Confidence: 0.64.",
+      "implementation": "zscore(pasteurize(ts_returns(F1, 20)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum using quantile() for heavy-tailed robustness",
+      "description": "Core: convert raw momentum to cross-sectional quantiles (Gaussian) for robustness. SUGGESTION1 applied: quantile + zscore. SUGGESTION2 not used. SUGGESTION3: backfill if needed. SUGGESTION4: prefer standard return fields. KEEP_IN_MIND1/2: 2 operators. Confidence: 0.62.",
+      "implementation": "quantile(ts_returns(F1, 20), driver=\"gaussian\")",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum across alternate data flows: combine web traffic and returns",
+      "description": "Core: use web-traffic growth combined with returns to select trending stocks with real demand. SUGGESTION1 applied: combine two fields. SUGGESTION2: if web traffic is vector, apply vec_avg. SUGGESTION3: backfill web data if coverage low. SUGGESTION4: choose widely-used web metrics. KEEP_IN_MIND1/2: <=2 fields. Confidence: 0.58.",
+      "implementation": "multiply(zscore(ts_returns(F1, 20)), zscore(ts_delta(F2, 30)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum adjusted for seasonality via ts_step",
+      "description": "Core: adjust momentum by seasonal counter (e.g., month effects) using ts_step as seasonal signal. SUGGESTION1 applied: ts_returns + ts_step. SUGGESTION2 not used. SUGGESTION3: ts_backfill not required. SUGGESTION4: use standard fields. KEEP_IN_MIND1/2: 2 operators. Confidence: 0.51.",
+      "implementation": "multiply(zscore(ts_returns(F1, 20)), ts_step(1))",
+      "confidence_level": 0.51
+    }
+  ]
+}

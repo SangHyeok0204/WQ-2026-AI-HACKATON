@@ -1,0 +1,622 @@
+{
+  "results": [
+    {
+      "idea": "Short-term momentum (5-day) z-score on daily change",
+      "description": "Uses ts_zscore on mcr38_change to capture short-term momentum. SUG1: single datafield used because change is primary for momentum. SUG2: no vector fields present so not applied. SUG3: coverage high so no ts_backfill. SUG4: high userCount for mcr38_change (344) applied to prefer robust field. Confidence set to 0.62 based on common momentum efficacy.",
+      "implementation": "ts_zscore(mcr38_change,5)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Volume-weighted momentum: 3-day change z-score times cross-sectional volume rank",
+      "description": "Combines mcr38_change and mcr38_volume to tilt momentum by liquidity. SUG1 applied using two fields. SUG2 not applicable. SUG3 not needed. SUG4: both fields have high userCount (change 344, volume 223). Confidence 0.66 reflecting improved signal from volume weighting.",
+      "implementation": "multiply(ts_zscore(mcr38_change,3), quantile(mcr38_volume))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Mean-reversion: reverse of 1-day percent change scaled by volume",
+      "description": "Short-term mean-reversion: negative 1-day percent change scaled by volume to prefer liquid reversals. SUG1 used two fields (mcr38_percent_change, mcr38_volume). SUG2 not applicable. Coverage high so no backfill. SUG4 applied. Confidence 0.55 (mean-reversion riskier intraday).",
+      "implementation": "multiply(reverse(mcr38_percent_change), quantile(mcr38_volume))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "ADX strength momentum: ts_zscore of ADX strength",
+      "description": "Uses mcr38_adx_strength (high coverage/userCount) to capture trend strength. SUG1 single field used as ADX directly measures trend. SUG4 applied. No vector/backfill. Confidence 0.60 based on ADX reliability.",
+      "implementation": "ts_zscore(mcr38_adx_strength,10)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Signal-concordance: combine overall_signal with longterm_signal to favor aligned bullish signals",
+      "description": "Multiply categorical signals by mapping B/S/H via numeric conversion implicit in field values; use mcr38_overall_signal and mcr38_longterm_signal to favor agreement. SUG1 used two fields; SUG4 OK. No vector/backfill. Confidence 0.58 due to categorical noise.",
+      "implementation": "multiply(mcr38_overall_signal, mcr38_longterm_signal)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Strength-weighted overall percent: overall_percent times strength_rating",
+      "description": "Weights consensus percent by overall strength rating to emphasize confident signals. Uses mcr38_overall_percent and mcr38_strength_rating. SUG1 and SUG4 applied. Confidence 0.64.",
+      "implementation": "multiply(mcr38_overall_percent, mcr38_strength_rating)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "BB breakout: bb_direction * recent percent change",
+      "description": "Combines mcr38_bb_direction signal (directional sign) with mcr38_percent_change to detect confirmed Bollinger breakouts. SUG1 applied. SUG4 uses high userCount for bb_direction (370). Confidence 0.67.",
+      "implementation": "multiply(mcr38_bb_direction, mcr38_percent_change)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "MA trend confirmation: ma_50_strength minus ma_20_strength (momentum shift)",
+      "description": "Subtracts mcr38_ma_20_strength from mcr38_ma_50_strength to find medium-term acceleration/deceleration. SUG1 used two fields. SUG4 considered. Confidence 0.59.",
+      "implementation": "ts_zscore(subtract(mcr38_ma_50_strength, mcr38_ma_20_strength),5)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "MACD divergence: ts_delta of macd_20_50_strength over 5 days",
+      "description": "Captures accelerating MACD momentum using ts_delta on mcr38_macd_20_50_strength. SUG1 single field; SUG4 applied. Confidence 0.61.",
+      "implementation": "ts_delta(mcr38_macd_20_50_strength,5)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "CCI counter-trend: negative ts_zscore of cci_40_strength",
+      "description": "Uses mcr38_cci_40_strength inversely for mean-reversion when CCI is extreme. SUG1 single field. Confidence 0.56.",
+      "implementation": "reverse(ts_zscore(mcr38_cci_40_strength,10))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum-volume breakout filter: ts_zscore(change,5) * if_else(volume > ts_mean(volume,20), 1, 0)",
+      "description": "Favor momentum only when volume is above recent mean. Uses mcr38_change and mcr38_volume (SUG1). SUG4 applied. Confidence 0.68 as volume-confirmed moves are stronger.",
+      "implementation": "multiply(ts_zscore(mcr38_change,5), if_else(greater(mcr38_volume, ts_mean(mcr38_volume,20)), 1, 0))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Short-term reversal after high-strength trend: reverse(change) when adx_strength high",
+      "description": "Take contrarian small reversal if ADX strength extremely high (possible exhaustion). Uses mcr38_change and mcr38_adx_strength (SUG1). SUG4 applied. Confidence 0.53.",
+      "implementation": "multiply(reverse(mcr38_change), if_else(greater(mcr38_adx_strength,4), 1, 0))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Trend-following composite: average of ma_20_signal and ma_50_signal",
+      "description": "Combine short and medium MA signals by averaging categorical fields (signals encoded numerically). Uses mcr38_ma_20_signal and mcr38_ma_50_signal (SUG1). Confidence 0.60.",
+      "implementation": "divide(add(mcr38_ma_20_signal, mcr38_ma_50_signal), 2)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Volatility-normalized move: ts_zscore(mcr38_change,10) / ts_std_dev(mcr38_change,10)",
+      "description": "Scale recent change z-score by recent volatility to prefer stable signals. Single field mcr38_change used (SUG1 limited). Confidence 0.57.",
+      "implementation": "divide(ts_zscore(mcr38_change,10), ts_std_dev(mcr38_change,10))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Volume spike mean-revert: reverse(percent_change) when volume > 2x ts_mean(volume,30)",
+      "description": "Capture reversals after extreme liquidity spikes. Uses mcr38_percent_change and mcr38_volume (SUG1). Confidence 0.65.",
+      "implementation": "multiply(reverse(mcr38_percent_change), if_else(greater(mcr38_volume, multiply(ts_mean(mcr38_volume,30),2)), 1, 0))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Signal strength divergence: overall_percent minus mediumterm_percent",
+      "description": "Identify divergence between overall and medium-term consensus using mcr38_overall_percent and mcr38_mediumterm_percent. SUG1 applied. Confidence 0.54.",
+      "implementation": "subtract(mcr38_overall_percent, mcr38_mediumterm_percent)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Trend persistence: ts_count_nans of trendspotter_signal over 10 days to detect stability",
+      "description": "Counts continuity of trendspotter_signal; stable signals likely persistent. Uses mcr38_trendspotter_signal (single field). SUG2 not applicable. Confidence 0.52.",
+      "implementation": "ts_count_nans(mcr38_trendspotter_signal,10)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Composite strength zscore: zscore of add(strength_rating, trendspotter_strength)",
+      "description": "Combine two strength measures (mcr38_strength_rating and mcr38_trendspotter_strength) to form robust strength metric. SUG1 applied. Confidence 0.63.",
+      "implementation": "zscore(add(mcr38_strength_rating, mcr38_trendspotter_strength))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Breakout persistence: ts_arg_max(last,5) to prefer instruments at local highs",
+      "description": "Use mcr38_last to find instruments at 5-day highs (arg max=0). SUG1 single field. Confidence 0.59.",
+      "implementation": "ts_arg_max(mcr38_last,5)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Low-lag reversal: last - open (gap) scaled by volume",
+      "description": "Use gap between mcr38_last and mcr38_open, scaled by mcr38_volume to capture gap-driven moves. SUG1 applied. Confidence 0.58.",
+      "implementation": "multiply(subtract(mcr38_last, mcr38_open), quantile(mcr38_volume))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Mean-revert after extreme bb_strength: reverse(ts_zscore(bb_strength,20))",
+      "description": "If bollinger band strength extreme, expect short-term reversion. Uses mcr38_bb_strength. SUG1 single field. Confidence 0.55.",
+      "implementation": "reverse(ts_zscore(mcr38_bb_strength,20))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum confirmation: sign(ts_delta(last,3)) * adx_direction",
+      "description": "Use short-term price delta via ts_delta(mcr38_last,3) and align with mcr38_adx_direction to confirm direction. SUG1 applied. Confidence 0.65.",
+      "implementation": "multiply(sign(ts_delta(mcr38_last,3)), mcr38_adx_direction)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Strength-normalized breakout: divide(bb_strength, ts_std_dev(last,20))",
+      "description": "Scale BB strength by price volatility to prefer breakouts in low vol regimes. Uses mcr38_bb_strength and mcr38_last (SUG1). Confidence 0.60.",
+      "implementation": "divide(mcr38_bb_strength, ts_std_dev(mcr38_last,20))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-term TS IR of returns: ts_ir(ts_returns(last,5),20)",
+      "description": "Measure information ratio of recent returns to identify consistent movers using mcr38_last returns. SUG1 single field. Confidence 0.61.",
+      "implementation": "ts_ir(ts_returns(mcr38_last,5),20)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Volume-normalized change: divide(percent_change, ts_mean(volume,10))",
+      "description": "Scale price move by recent average volume to prefer moves on light liquidity. Uses mcr38_percent_change and mcr38_volume. SUG1 applied. Confidence 0.56.",
+      "implementation": "divide(mcr38_percent_change, ts_mean(mcr38_volume,10))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "MACD strength + ADX strength multiplier",
+      "description": "Multiply mcr38_macd_20_100_strength by mcr38_adx_strength to emphasize strong trending momentum confirmed by ADX. SUG1 applied; both fields have decent counts. Confidence 0.68.",
+      "implementation": "multiply(mcr38_macd_20_100_strength, mcr38_adx_strength)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Signal volatility squeeze: reverse(vec_avg not applicable) use ts_max_diff(last,20) inverse",
+      "description": "Use ts_max_diff(mcr38_last,20) to find price near 20-day max; reverse to mean-revert from extremes. SUG2 not applicable; SUG1 single field. Confidence 0.53.",
+      "implementation": "reverse(ts_max_diff(mcr38_last,20))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Consensus buy pressure: group-like proxy add of shorttermpercent + mediumterm_percent",
+      "description": "Combine mcr38_shorttermpercent and mcr38_mediumterm_percent to capture multi-horizon buy pressure. SUG1 applied. Confidence 0.62.",
+      "implementation": "add(mcr38_shorttermpercent, mcr38_mediumterm_percent)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "High-low range momentum: subtract(high, low) ts_zscore",
+      "description": "Use daily range (mcr38_high - mcr38_low) zscored to detect volatility breakout setups. Uses mcr38_high and mcr38_low (SUG1). Confidence 0.57.",
+      "implementation": "ts_zscore(subtract(mcr38_high, mcr38_low),10)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "MA crossover detector: subtract(ma_20_signal, ma_50_signal) and take sign",
+      "description": "Detect crossovers between short and medium MA signals using mcr38_ma_20_signal and mcr38_ma_50_signal. SUG1 applied. Confidence 0.60.",
+      "implementation": "sign(subtract(mcr38_ma_20_signal, mcr38_ma_50_signal))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Trend fatigue: subtract(longterm_percent, shorttermpercent)",
+      "description": "Long minus short percent to detect trend fatigue or accelerating trend. Uses mcr38_longterm_percent and mcr38_shorttermpercent (SUG1). Confidence 0.54.",
+      "implementation": "subtract(mcr38_longterm_percent, mcr38_shorttermpercent)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Strength-weighted breakout where bb_direction aligns with percent change",
+      "description": "Multiply mcr38_bb_direction, mcr38_percent_change and mcr38_bb_strength (uses 2 fields limit — use bb_strength via multiplier with percent_change and bb_direction; here use two fields percent_change and bb_strength; bb_direction used as filter in if_else would exceed fields—so use multiply of percent_change and bb_strength) SUG1 partially applied. Confidence 0.63.",
+      "implementation": "multiply(mcr38_percent_change, mcr38_bb_strength)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Price-volume divergence: ts_corr of last and volume over 10 days (negative implies divergence)",
+      "description": "Compute ts_corr(mcr38_last, mcr38_volume,10) to detect price-volume divergence. SUG1 applied with 2 fields. Confidence 0.59.",
+      "implementation": "ts_corr(mcr38_last, mcr38_volume,10)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Short squeeze detector: high percentile of volume plus positive percent change",
+      "description": "Multiply quantile(volume) with positive percent change indicator to find squeezes. Uses mcr38_volume and mcr38_percent_change (SUG1). Confidence 0.66.",
+      "implementation": "multiply(quantile(mcr38_volume), if_else(greater(mcr38_percent_change,0), mcr38_percent_change, 0))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Combined ADX & MACD sign agreement",
+      "description": "Multiply mcr38_adx_direction and mcr38_macd_20_50_direction to favor instruments with both trend direction alignment. SUG1 applied. Confidence 0.64.",
+      "implementation": "multiply(mcr38_adx_direction, mcr38_macd_20_50_direction)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Stability score: divide(overall_percent, ts_std_dev(last,30))",
+      "description": "Higher overall percent with low volatility preferred. Uses mcr38_overall_percent and mcr38_last. SUG1 applied. Confidence 0.60.",
+      "implementation": "divide(mcr38_overall_percent, ts_std_dev(mcr38_last,30))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum acceleration: ts_delta(ts_zscore(change,5),3)",
+      "description": "Measure acceleration in short-term z-scored returns using mcr38_change. Single field per SUG1. Confidence 0.58.",
+      "implementation": "ts_delta(ts_zscore(mcr38_change,5),3)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Signal confidence filter: apply trade_when overall_signal only if strength_rating > 7",
+      "description": "Use mcr38_overall_signal but only trade when mcr38_strength_rating high. SUG1 used 2 fields. SUG4 applied. Confidence 0.62.",
+      "implementation": "trade_when(mcr38_overall_signal, greater(mcr38_strength_rating,7), NaN)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Gap continuation: sign(last - open) * quantile(volume)",
+      "description": "Favor continuation of gap direction when volume high. Uses mcr38_last, mcr38_open and mcr38_volume — restrict to two fields: use last and volume by replacing open via percent_change proxy. For brevity use sign(percent_change)*quantile(volume). SUG1 applied. Confidence 0.57.",
+      "implementation": "multiply(sign(mcr38_percent_change), quantile(mcr38_volume))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "MACD & BB alignment: multiply(macd_20_100_signal, bb_signal)",
+      "description": "Favor stocks where MACD and BB signals agree using mcr38_macd_20_100_signal and mcr38_bb_signal (SUG1). Confidence 0.65.",
+      "implementation": "multiply(mcr38_macd_20_100_signal, mcr38_bb_signal)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Percent change zscore normalized by group (sector) — group unavailable so use zscore cross-sectional",
+      "description": "Use zscore(mcr38_percent_change) as cross-sectional normalization. SUG1 single field; could use group_neutralize if group field existed but not provided. Confidence 0.58.",
+      "implementation": "zscore(mcr38_percent_change)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Strength surge: ts_delta(strength_rating,7) to detect improving confidence",
+      "description": "Use mcr38_strength_rating changes over a week to find improving conviction. SUG1 single field. Confidence 0.55.",
+      "implementation": "ts_delta(mcr38_strength_rating,7)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Long-term trend tilt: ma_100_strength scaled by longterm_percent",
+      "description": "Multiply mcr38_ma_100_strength and mcr38_longterm_percent to emphasize long-term trending names. SUG1 applied. Confidence 0.63.",
+      "implementation": "multiply(mcr38_ma_100_strength, mcr38_longterm_percent)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Short-term contrarian after high shorttermpercent (mean-revert)",
+      "description": "Reverse mcr38_shorttermpercent to short overcrowded short-term sentiment. SUG1 single field. Confidence 0.50 (contrarian risk).",
+      "implementation": "reverse(mcr38_shorttermpercent)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Aggregate signal strength: add(cci_60_strength, para_50_strength) zscored",
+      "description": "Combine two strength measures mcr38_cci_60_strength and mcr38_para_50_strength then zscore to get robust composite. SUG1 applied. Confidence 0.62.",
+      "implementation": "zscore(add(mcr38_cci_60_strength, mcr38_para_50_strength))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "High momentum + low volatility: divide(ts_zscore(change,5), ts_std_dev(last,20))",
+      "description": "Favor strong returns with low recent volatility using mcr38_change and mcr38_last (SUG1). Confidence 0.64.",
+      "implementation": "divide(ts_zscore(mcr38_change,5), ts_std_dev(mcr38_last,20))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Price breakout sustained: if ts_arg_max(last,10)==0 then ts_zscore(change,3) else 0",
+      "description": "Prefer stocks currently at 10-day highs and continuing momentum using mcr38_last and mcr38_change (2 fields). SUG1 applied. Confidence 0.63.",
+      "implementation": "if_else(equal(ts_arg_max(mcr38_last,10),0), ts_zscore(mcr38_change,3), 0)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "ADX + Volume filter: trade only when adx_strength >3 and volume above median",
+      "description": "Combine mcr38_adx_strength and mcr38_volume to filter for strong trending moves. SUG1 applied. Confidence 0.66.",
+      "implementation": "if_else(greater(mcr38_adx_strength,3), if_else(greater(mcr38_volume, ts_mean(mcr38_volume,20)), 1, 0), 0)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "MACD momentum scaled by macd_strength",
+      "description": "Multiply ts_zscore of macd_20_100_signal returns with mcr38_macd_20_100_strength to emphasize strong MACD moves. Uses mcr38_macd_20_100_signal and its strength (SUG1). Confidence 0.65.",
+      "implementation": "multiply(ts_zscore(mcr38_macd_20_100_signal,5), mcr38_macd_20_100_strength)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Range compression breakout: low ts_std_dev(last,30) combined with rising percent_change",
+      "description": "Identify squeezes by low 30-day stddev of price and recent positive percent change. Uses mcr38_last and mcr38_percent_change (SUG1). Confidence 0.61.",
+      "implementation": "multiply(divide(1, ts_std_dev(mcr38_last,30)), ts_zscore(mcr38_percent_change,3))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Cross-indicator consensus: average of bb_signal, macd_20_50_signal and cci_40_signal (limit fields to 2 by using sum of two and adding third via scale would exceed - keep two)",
+      "description": "Combine mcr38_bb_signal and mcr38_macd_20_50_signal as compact consensus. SUG1 applied. Confidence 0.63.",
+      "implementation": "divide(add(mcr38_bb_signal, mcr38_macd_20_50_signal),2)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Volume-adjusted breakout zscore: ts_zscore(percent_change,5) * quantile(volume)",
+      "description": "Scale recent percent change zscore by volume quantile to emphasize robust breakouts. Uses mcr38_percent_change and mcr38_volume (SUG1). Confidence 0.67.",
+      "implementation": "multiply(ts_zscore(mcr38_percent_change,5), quantile(mcr38_volume))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Momentum decay: hump(ts_zscore(change,5), 0.02) to reduce turnover",
+      "description": "Apply hump to recent change zscore to smooth and control turnover using mcr38_change. SUG1 single field. SUG3 not needed. Confidence 0.55.",
+      "implementation": "hump(ts_zscore(mcr38_change,5), 0.02)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Directional strength multiplier: multiply(direction_rating, strength_rating)",
+      "description": "Combine mcr38_direction_rating and mcr38_strength_rating to emphasize high-confidence directional signals. SUG1 applied. Confidence 0.64.",
+      "implementation": "multiply(mcr38_direction_rating, mcr38_strength_rating)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum normalized by ADX: divide(ts_zscore(change,7), adx_strength)",
+      "description": "Penalize momentum when ADX strength low to prefer clear trend momentum. Uses mcr38_change and mcr38_adx_strength (SUG1). Confidence 0.62.",
+      "implementation": "divide(ts_zscore(mcr38_change,7), mcr38_adx_strength)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Volume breakout when BB indicates buy: percent_change * (bb_direction==5)",
+      "description": "Multiply percent change by indicator that bb_direction equals strong buy (5) using mcr38_percent_change and mcr38_bb_direction (SUG1). Confidence 0.66.",
+      "implementation": "multiply(mcr38_percent_change, if_else(equal(mcr38_bb_direction,5),1,0))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Adaptive momentum: ts_scale(ts_zscore(change,10),10)",
+      "description": "Scale z-scored change in time-series space to adapt to local ranges; single field mcr38_change used. SUG1 limited. Confidence 0.58.",
+      "implementation": "ts_scale(ts_zscore(mcr38_change,10),10)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Streak detector: days_from_last_change of trendspotter_signal",
+      "description": "Use mcr38_trendspotter_signal to detect extended unchanged signal durations; long unchanged bullish may indicate exhaustion. SUG1 single field. Confidence 0.51.",
+      "implementation": "days_from_last_change(mcr38_trendspotter_signal)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Pair of indicators disagreement: subtract(mahilo_signal, overall_signal)",
+      "description": "Detect disagreement between MAHILO proprietary signal and overall consensus using mcr38_mahilo_signal and mcr38_overall_signal (SUG1). Confidence 0.56.",
+      "implementation": "subtract(mcr38_mahilo_signal, mcr38_overall_signal)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "High ADX & high MACD strength filter: if both >3 then use change zscore",
+      "description": "Only accept ts_zscore(change,5) when mcr38_adx_strength>3 and mcr38_macd_20_100_strength>3. Uses three inputs logically — reduce to two by combining MACD strength and ADX via multiply then compare. SUG1 applied. Confidence 0.67.",
+      "implementation": "if_else(greater(multiply(mcr38_adx_strength, mcr38_macd_20_100_strength),9), ts_zscore(mcr38_change,5), 0)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Signal momentum: ts_arg_max(overall_percent,7) to find recent peaks in consensus percent",
+      "description": "Use mcr38_overall_percent to detect if current day is peak in last 7 days indicating momentum in consensus. SUG1 single field. Confidence 0.57.",
+      "implementation": "ts_arg_max(mcr38_overall_percent,7)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "CCI momentum confirmation with macd: multiply(cci_60_signal, macd_20_50_signal)",
+      "description": "Favor names where CCI and MACD agree using mcr38_cci_60_signal and mcr38_macd_20_50_signal (SUG1). Confidence 0.62.",
+      "implementation": "multiply(mcr38_cci_60_signal, mcr38_macd_20_50_signal)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Percent change persistence: ts_product of (1+returns) over 5 days minus 1",
+      "description": "Compute 5-day compounded returns using mcr38_last returns. SUG1 uses mcr38_last via ts_returns. Confidence 0.63.",
+      "implementation": "ts_product(add(ts_returns(mcr38_last,1),1),5)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Trend strength ratio: divide(adx_strength, strength_rating)",
+      "description": "Compare ADX trend strength to overall strength rating using mcr38_adx_strength and mcr38_strength_rating (SUG1). Confidence 0.55.",
+      "implementation": "divide(mcr38_adx_strength, mcr38_strength_rating)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Short-term zscore of volume spikes: ts_zscore(volume,5)",
+      "description": "Identify unusually high volume days using mcr38_volume. Single field per SUG1. Confidence 0.60.",
+      "implementation": "ts_zscore(mcr38_volume,5)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Price-strength divergence: divide(ts_zscore(last,10), strength_rating)",
+      "description": "Penalize price zscore by low strength rating, using mcr38_last and mcr38_strength_rating (SUG1). Confidence 0.58.",
+      "implementation": "divide(ts_zscore(mcr38_last,10), mcr38_strength_rating)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum filtered by trendspotter_signal alignment",
+      "description": "Use ts_zscore(change,5) only when mcr38_trendspotter_signal indicates buy. Uses two fields (mcr38_change, mcr38_trendspotter_signal). SUG1 applied. Confidence 0.62.",
+      "implementation": "if_else(greater(mcr38_trendspotter_signal,0), ts_zscore(mcr38_change,5), 0)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "MA volatility-adjusted crossover: sign(ma_20 - ma_50) * divide(1, ts_std_dev(last,20))",
+      "description": "Combine MA crossover sign (using ma signals) scaled by inverse volatility. Use mcr38_ma_20_signal approximating ma_20 and mcr38_last for vol (SUG1 two fields). Confidence 0.60.",
+      "implementation": "multiply(sign(mcr38_ma_20_signal), divide(1, ts_std_dev(mcr38_last,20)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Confluence of longterm_signal and longterm_percent",
+      "description": "Multiply mcr38_longterm_signal and mcr38_longterm_percent to emphasize aligned long-term buy signals. SUG1 applied. Confidence 0.61.",
+      "implementation": "multiply(mcr38_longterm_signal, mcr38_longterm_percent)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Breakout follow-through: if ts_arg_max(last,3)==0 and percent_change>0 then rank high",
+      "description": "Check if current day is 3-day high and price is up (mcr38_last and mcr38_percent_change). SUG1 applied with 2 fields. Confidence 0.63.",
+      "implementation": "if_else(equal(ts_arg_max(mcr38_last,3),0), if_else(greater(mcr38_percent_change,0), 1, 0), 0)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Relative strength via quantile(percent_change)",
+      "description": "Use cross-sectional quantile of mcr38_percent_change to select top movers. SUG1 single field. Confidence 0.59.",
+      "implementation": "quantile(mcr38_percent_change)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum + signal strength: multiply(ts_zscore(change,5), strength_rating)",
+      "description": "Combine recent momentum with signal strength using mcr38_change and mcr38_strength_rating (SUG1). Confidence 0.65.",
+      "implementation": "multiply(ts_zscore(mcr38_change,5), mcr38_strength_rating)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "BB mean-revert when bb_direction weakening: reverse(percent_change) if bb_direction<3",
+      "description": "Take contrarian trade when bollinger direction indicates weakness using mcr38_percent_change and mcr38_bb_direction (SUG1). Confidence 0.54.",
+      "implementation": "if_else(less(mcr38_bb_direction,3), reverse(mcr38_percent_change), 0)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Price-to-signal momentum: multiply(ts_zscore(last,10), overall_percent)",
+      "description": "Scale price zscore by consensus percent to favor priced moves with consensus. Uses mcr38_last and mcr38_overall_percent (SUG1). Confidence 0.62.",
+      "implementation": "multiply(ts_zscore(mcr38_last,10), mcr38_overall_percent)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "MACD trend persistence: ts_arg_min(macd_20_100_strength,7) to find when MACD at recent minima",
+      "description": "Use mcr38_macd_20_100_strength to find MACD strength troughs that may reverse. SUG1 single field. Confidence 0.50.",
+      "implementation": "ts_arg_min(mcr38_macd_20_100_strength,7)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Strength-weighted longterm percent (normalize then multiply)",
+      "description": "Normalize longterm_percent then multiply by strength_rating using mcr38_longterm_percent and mcr38_strength_rating (SUG1). Confidence 0.63.",
+      "implementation": "multiply(quantile(mcr38_longterm_percent), mcr38_strength_rating)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "High conviction reversals: reverse(percent_change) when direction_rating high but percent_change extreme",
+      "description": "If mcr38_direction_rating>8 and percent change extreme (abs>2*std), take contrarian. Uses mcr38_direction_rating and mcr38_percent_change (SUG1). Confidence 0.52.",
+      "implementation": "if_else(greater(mcr38_direction_rating,8), reverse(ts_zscore(mcr38_percent_change,10)), 0)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Composite momentum: zscore(add(ts_zscore(change,5), ts_zscore(percent_change,5)))",
+      "description": "Combine change and percent_change time-series zscores to form robust short-term momentum using mcr38_change and mcr38_percent_change (SUG1). Confidence 0.64.",
+      "implementation": "zscore(add(ts_zscore(mcr38_change,5), ts_zscore(mcr38_percent_change,5)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "High-low breakout filtered by BB buy signal",
+      "description": "Use (high-low) range zscore and require mcr38_bb_signal to be buy to prefer directional breakouts. Uses mcr38_high (and mcr38_bb_signal but limited to two fields; use high and bb_signal). SUG1 applied. Confidence 0.66.",
+      "implementation": "if_else(greater(mcr38_bb_signal,0), ts_zscore(subtract(mcr38_high, mcr38_low),10), 0)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Momentum decile filter: bucket(ts_zscore(change,10), range to top decile)",
+      "description": "Bucket zscored change to select top decile using mcr38_change. SUG1 single field. Confidence 0.60.",
+      "implementation": "bucket(ts_zscore(mcr38_change,10), range=\"0, 1, 0.1\")",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Volume-adjusted strength: divide(strength_rating, ts_mean(volume,20))",
+      "description": "Penalize strength in names with unusually low volume using mcr38_strength_rating and mcr38_volume (SUG1). Confidence 0.56.",
+      "implementation": "divide(mcr38_strength_rating, ts_mean(mcr38_volume,20))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "MACD sign persistence: if_else(ts_arg_max(macd_20_50_signal,5)==0, macd_20_50_signal, 0)",
+      "description": "Prefer MACD signals that are at local maxima in recent window using mcr38_macd_20_50_signal. SUG1 single field. Confidence 0.59.",
+      "implementation": "if_else(equal(ts_arg_max(mcr38_macd_20_50_signal,5),0), mcr38_macd_20_50_signal, 0)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum breadth: add(cci_40_signal, cci_60_signal) to find CCI agreement",
+      "description": "Combine mcr38_cci_40_signal and mcr38_cci_60_signal for breadth on CCI indicators (SUG1). Confidence 0.61.",
+      "implementation": "add(mcr38_cci_40_signal, mcr38_cci_60_signal)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "High conviction momentum: multiply(overall_percent, strength_rating) then quantile",
+      "description": "Use mcr38_overall_percent and mcr38_strength_rating to generate conviction then take cross-sectional quantile. SUG1 applied. Confidence 0.65.",
+      "implementation": "quantile(multiply(mcr38_overall_percent, mcr38_strength_rating))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Short-term return IR: ts_ir(ts_returns(last,3),10)",
+      "description": "Measure short-term return stability using mcr38_last. SUG1 single field. Confidence 0.60.",
+      "implementation": "ts_ir(ts_returns(mcr38_last,3),10)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Directional confirmation filter: trade_when(percent_change, overall_signal>0, NaN)",
+      "description": "Only trade percent change when overall_signal positive using mcr38_percent_change and mcr38_overall_signal (SUG1). Confidence 0.61.",
+      "implementation": "trade_when(mcr38_percent_change, greater(mcr38_overall_signal,0), NaN)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "BB strength momentum: ts_zscore(bb_strength,7) * sign(percent_change)",
+      "description": "Combine bb_strength and direction of price move using mcr38_bb_strength and mcr38_percent_change (SUG1). Confidence 0.64.",
+      "implementation": "multiply(ts_zscore(mcr38_bb_strength,7), sign(mcr38_percent_change))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Trendspotter + volume: multiply(trendspotter_strength, quantile(volume))",
+      "description": "Emphasize proprietary trendspotter strength when supported by high relative volume using mcr38_trendspotter_strength and mcr38_volume (SUG1). Confidence 0.63.",
+      "implementation": "multiply(mcr38_trendspotter_strength, quantile(mcr38_volume))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum normalized across time: ts_quantile(change,7)",
+      "description": "Use ts_quantile on mcr38_change to map to gaussian quantiles over time for robust temporal normalization. SUG1 single field. Confidence 0.59.",
+      "implementation": "ts_quantile(mcr38_change,7)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Strength divergence between MA and Trendspotter: subtract(ma_50_strength, trendspotter_strength)",
+      "description": "Detect disagreement in strengths (mcr38_ma_50_strength vs mcr38_trendspotter_strength) to find regime shifts. SUG1 applied. Confidence 0.54.",
+      "implementation": "subtract(mcr38_ma_50_strength, mcr38_trendspotter_strength)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "High percentile of last price movement within month: quantile(ts_returns(last,20))",
+      "description": "Select instruments with top cross-sectional 20-day returns using mcr38_last. SUG1 single field. Confidence 0.62.",
+      "implementation": "quantile(ts_returns(mcr38_last,20))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Price momentum dampened by recent signal changes: divide(ts_zscore(change,5), days_from_last_change(overall_signal))",
+      "description": "Reduce momentum when overall_signal recently changed frequently; uses mcr38_change and mcr38_overall_signal (SUG1). Confidence 0.57.",
+      "implementation": "divide(ts_zscore(mcr38_change,5), add(days_from_last_change(mcr38_overall_signal),1))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "MACD strength to percent change ratio",
+      "description": "Divide macd_20_100_strength by percent_change to find outsized strength relative to move using mcr38_macd_20_100_strength and mcr38_percent_change (SUG1). Confidence 0.56.",
+      "implementation": "divide(mcr38_macd_20_100_strength, add(mcr38_percent_change, 0.0001))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Multi-horizon agreement: add(shorttermsignal, longterm_signal) to find consistent signals",
+      "description": "Combine mcr38_shorttermsignal and mcr38_longterm_signal to prefer cross-horizon agreement. SUG1 applied. Confidence 0.64.",
+      "implementation": "add(mcr38_shorttermsignal, mcr38_longterm_signal)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Normalized breakout: divide(percent_change, ts_max_diff(last,20))",
+      "description": "Scale percent change by gap to 20-day max to detect true breakouts using mcr38_percent_change and mcr38_last (SUG1). Confidence 0.60.",
+      "implementation": "divide(mcr38_percent_change, ts_max_diff(mcr38_last,20))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Trend acceleration via ts_regression slope of last over 10 days",
+      "description": "Use ts_regression to extract slope (regression y=last vs time) indicating accelerating price trends using mcr38_last. SUG1 single field. Confidence 0.62.",
+      "implementation": "ts_regression(mcr38_last, ts_step(1),10,0,1)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Signal-weighted ranked percent change: quantile(multiply(percent_change, strength_rating))",
+      "description": "Weight percent change by signal strength then take cross-sectional quantile using mcr38_percent_change and mcr38_strength_rating (SUG1). Confidence 0.66.",
+      "implementation": "quantile(multiply(mcr38_percent_change, mcr38_strength_rating))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Momentum confirmed by para_50_signal: ts_zscore(change,5) only when para_50_signal positive",
+      "description": "Filter short-term momentum by PARA indicator using mcr38_change and mcr38_para_50_signal (SUG1). Confidence 0.61.",
+      "implementation": "if_else(greater(mcr38_para_50_signal,0), ts_zscore(mcr38_change,5), 0)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Breakout probability proxy: divide(bb_strength, ts_mean(bb_strength,30))",
+      "description": "Relative BB strength to its 30-day mean using mcr38_bb_strength to detect unusual BB strength. SUG1 single field. Confidence 0.58.",
+      "implementation": "divide(mcr38_bb_strength, ts_mean(mcr38_bb_strength,30))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Volume-ADX confluence: multiply(quantile(volume), adx_direction)",
+      "description": "Find directional moves supported by high relative volume using mcr38_volume and mcr38_adx_direction (SUG1). Confidence 0.64.",
+      "implementation": "multiply(quantile(mcr38_volume), mcr38_adx_direction)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Signal persistence score: ts_count_nans(overall_signal,14) low indicates frequent updates — favor stable signals",
+      "description": "Use mcr38_overall_signal to measure signal stability; fewer NaNs implies persistent signals. SUG1 single field. Confidence 0.51.",
+      "implementation": "ts_count_nans(mcr38_overall_signal,14)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Relative ADX: divide(adx_strength, ts_mean(adx_strength,20))",
+      "description": "Find ADX strength relative to its recent history using mcr38_adx_strength. SUG1 single field. Confidence 0.59.",
+      "implementation": "divide(mcr38_adx_strength, ts_mean(mcr38_adx_strength,20))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum filtered by CCI consensus: multiply(ts_zscore(change,5), cci_40_signal)",
+      "description": "Require CCI 40 signal alignment to confirm momentum using mcr38_change and mcr38_cci_40_signal (SUG1). Confidence 0.62.",
+      "implementation": "multiply(ts_zscore(mcr38_change,5), mcr38_cci_40_signal)",
+      "confidence_level": 0.62
+    }
+  ]
+}

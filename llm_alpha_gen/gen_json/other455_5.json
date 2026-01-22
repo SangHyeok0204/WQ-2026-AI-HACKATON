@@ -1,0 +1,640 @@
+{
+  "results": [
+    {
+      "idea": "Simple price momentum (3-month)",
+      "description": "SUGGESTION1: Intended to use multiple fields but DATA is empty so used single price placeholder x. SUGGESTION2: No vector fields. SUGGESTION3: Cannot assess coverage; ts_backfill not applied. SUGGESTION4: Cannot check user/alpha counts. Kept implementation short and within operator/datafield limits (<=7 operators, <=2 datafields). Historical evidence gives moderate confidence. Confidence set to 0.65.",
+      "implementation": "ts_zscore(ts_returns(x, 63), 63)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Short-term reversal (5-day)",
+      "description": "SUGGESTION1: Single-field implementation due to empty DATA; would combine with volume if available. SUGGESTION2: No vector fields. SUGGESTION3: ts_backfill not used. SUGGESTION4: N/A. Followed KEEP_IN_MIND constraints. Short-term reversal is common; confidence 0.55.",
+      "implementation": "reverse(ts_zscore(ts_returns(x, 5), 5))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum vs sector (residual momentum)",
+      "description": "SUGGESTION1: Designed to use price x and sector benchmark y (2 datafields). SUGGESTION2: No vector. SUGGESTION3: Could backfill sector if sparse; not applied here. SUGGESTION4: N/A. Implementation uses <=2 fields and few operators. Residual momentum historically robust. Confidence 0.68.",
+      "implementation": "subtract(ts_zscore(ts_returns(x, 63),63), ts_zscore(ts_returns(y,63),63))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Volume-adjusted momentum",
+      "description": "SUGGESTION1: Intended combination of price (x) and volume (y). SUGGESTION2: No vector. SUGGESTION3: If volume coverage <0.6, ts_backfill(y,20) would be used; not applied due to empty DATA. Kept to 2 datafields and <=7 ops. Confidence 0.60.",
+      "implementation": "multiply(ts_zscore(ts_returns(x, 21),21), ts_zscore(ts_mean(y, 21),21))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Volatility breakout",
+      "description": "SUGGESTION1: Uses price x and realized volatility proxy (ts_std_dev of returns). SUGGESTION2: No vector. SUGGESTION3: ts_backfill not used. Implementation concise. Vol breakout can work but depends on market regime. Confidence 0.58.",
+      "implementation": "divide(ts_returns(x, 1), ts_std_dev(ts_returns(x, 21),21))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Implied vs realized vol divergence",
+      "description": "SUGGESTION1: Concept needs implied vol field (x) and realized vol computed from price (y). Data absent so placeholders used. SUGGESTION2: No vector. SUGGESTION3: ts_backfill could be used for sparse IV. KEEP_IN_MINDs respected. Divergence signals often informative. Confidence 0.62.",
+      "implementation": "subtract(x, ts_std_dev(ts_returns(y, 21),21))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Earnings surprise momentum",
+      "description": "SUGGESTION1: Ideally uses earnings surprise field (x) and price returns (y). SUGGESTION2: No vector. SUGGESTION3: If surprise coverage low, use ts_backfill(x, 90). Not applied here. Earnings surprise persistence gives moderate confidence. Confidence 0.63.",
+      "implementation": "multiply(ts_zscore(x, 20), ts_zscore(ts_returns(y, 21),21))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Analyst upgrade momentum",
+      "description": "SUGGESTION1: Combine analyst revisions (x) and price momentum (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill(x, 60) recommended if sparse. Kept concise. Upgrades often lead to outperformance short-to-medium term. Confidence 0.59.",
+      "implementation": "multiply(ts_zscore(x, 30), ts_zscore(ts_returns(y, 21),21))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Short interest decay signal",
+      "description": "SUGGESTION1: Uses short interest (x) and its change over time. SUGGESTION2: No vector. SUGGESTION3: ts_backfill(x, 90) if coverage low. Lowering short interest often correlates with reduced selling pressure. Confidence 0.52.",
+      "implementation": "reverse(ts_zscore(ts_delta(x, 21),21))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Options skew mean reversion",
+      "description": "SUGGESTION1: Needs option skew field (x) and realized vol (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill(x, 30) suggested if sparse. Keep short template. Skew reversion can be profitable; moderate confidence. Confidence 0.57.",
+      "implementation": "reverse(subtract(x, ts_std_dev(ts_returns(y,21),21)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Liquidity shock rebound (low turnover spike then recovery)",
+      "description": "SUGGESTION1: Combine turnover (x) and short-term returns (y). SUGGESTION2: No vector. SUGGESTION3: Use ts_backfill(x,30) if turnover coverage low. Kept within operator/data limits. Liquidity signals are promising but noisy. Confidence 0.50.",
+      "implementation": "if_else(greater(ts_zscore(x,5),2), reverse(ts_zscore(ts_returns(y,5),5)), NaN)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High conviction institutional flows",
+      "description": "SUGGESTION1: Combine institutional ownership change (x) with price momentum (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill(x,90) if sparse. KEEP_IN_MINDs followed. Institutional buying often predicts returns. Confidence 0.61.",
+      "implementation": "multiply(ts_zscore(ts_delta(x,63),63), ts_zscore(ts_returns(y,21),21))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Accruals anomaly (quality)",
+      "description": "SUGGESTION1: Uses accruals metric (x) and profitability (y) optionally. SUGGESTION2: No vector. SUGGESTION3: ts_backfill(x,365) if rare. Quality factors are durable; confidence moderate-high. Confidence 0.66.",
+      "implementation": "reverse(ts_zscore(x, 252))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Gross profitability momentum",
+      "description": "SUGGESTION1: Uses gross profit margin (x) and recent returns (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill(x,252) if needed. Kept concise. Profitability metrics are robust. Confidence 0.67.",
+      "implementation": "multiply(ts_zscore(x,252), ts_zscore(ts_returns(y,63),63))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Return-on-equity improvement signal",
+      "description": "SUGGESTION1: Combine ROE change (x) with price reaction (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill(x,252) optional. ROE improvements often signal future outperformance. Confidence 0.64.",
+      "implementation": "ts_zscore(ts_delta(x,252),252)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Inventory drawdown -> margin expansion",
+      "description": "SUGGESTION1: Use inventory change (x) and gross margin (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill recommended for sparse accounting fields. Implementation short. Confidence 0.55.",
+      "implementation": "multiply(reverse(ts_zscore(ts_delta(x,252),252)), ts_zscore(y,252))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Free cash flow yield vs peers",
+      "description": "SUGGESTION1: Uses FCF yield (x) and industry median peer field (y). SUGGESTION2: No vector. SUGGESTION3: group backfill could help but group unavailable. Kept <=2 fields. Value-quality combo is strong. Confidence 0.69.",
+      "implementation": "subtract(ts_zscore(x,252), ts_zscore(y,252))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Earnings revision momentum (upgrade rate)",
+      "description": "SUGGESTION1: Combines analyst EPS revision delta (x) and price momentum (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill(x,90) if sparse. Short template used. Confidence 0.6.",
+      "implementation": "multiply(ts_zscore(ts_delta(x,30),30), ts_zscore(ts_returns(y,21),21))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Revenue surprise persistence",
+      "description": "SUGGESTION1: Uses revenue surprise (x) and subsequent returns (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill(x,365) if sparse. Revenue surprise persistence is credible. Confidence 0.62.",
+      "implementation": "multiply(ts_zscore(x,120), ts_zscore(ts_returns(y,63),63))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Seasonal month-effect (January)",
+      "description": "SUGGESTION1: Uses price returns (x) gated by calendar month. SUGGESTION2: No vector. SUGGESTION3: N/A. Kept implementation short. Calendar effects exist but are small; lower confidence. Confidence 0.45.",
+      "implementation": "if_else(equal(ts_step(1) % 12, 1), ts_zscore(ts_returns(x,21),21), NaN)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Price vs VWAP intraday reversal",
+      "description": "SUGGESTION1: Needs intraday price series (x) and VWAP (y). SUGGESTION2: Could use vec_avg for intraday vector; SUGGESTION2 applied conceptually. SUGGESTION3: ts_backfill not applied. Intraday signals lower confidence for long-term. Confidence 0.48.",
+      "implementation": "reverse(ts_zscore(subtract(x,y),5))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "52-week high breakout momentum",
+      "description": "SUGGESTION1: Uses current price (x) and ts_max over 252d (y) to detect new highs. SUGGESTION2: No vector. SUGGESTION3: N/A. Simplicity maintained. Breakout strategies have moderate success. Confidence 0.6.",
+      "implementation": "greater(x, ts_max(x,252))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "52-week low mean reversion",
+      "description": "SUGGESTION1: Uses price x and ts_min over 252d. SUGGESTION2: No vector. SUGGESTION3: N/A. Low-priced outliers often mean revert. Confidence 0.53.",
+      "implementation": "less(x, ts_min(x,252))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Cross-sectional volatility ranking (pick low vol)",
+      "description": "SUGGESTION1: Uses recent return stddev (x) across universe. SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. KEEP_IN_MIND: single field used. Low-vol strategies have mixed results; confidence 0.56.",
+      "implementation": "ts_zscore(ts_std_dev(ts_returns(x,63),63),63)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum combined with low volatility",
+      "description": "SUGGESTION1: Combines momentum (x) and low vol (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill if needed. Combo aims to improve risk-adjusted returns. Confidence 0.66.",
+      "implementation": "multiply(ts_zscore(ts_returns(x,63),63), inverse(ts_std_dev(ts_returns(y,63),63)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Value-momentum blend (PB vs momentum)",
+      "description": "SUGGESTION1: Uses price-to-book (x) and momentum (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill for PB if sparse. Blend often outperforms single factor. Confidence 0.7.",
+      "implementation": "multiply(reverse(ts_zscore(x,252)), ts_zscore(ts_returns(y,63),63))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Quality-growth tilt (ROA growth)",
+      "description": "SUGGESTION1: Uses ROA change (x) and revenue growth (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill(x,252) suggested. Quality-growth mix is robust. Confidence 0.65.",
+      "implementation": "multiply(ts_zscore(ts_delta(x,252),252), ts_zscore(ts_delta(y,252),252))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Dividend surprise pick",
+      "description": "SUGGESTION1: Requires dividend change/announcement field (x) and price response (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill if sparse. Dividend increases often positive. Confidence 0.58.",
+      "implementation": "multiply(ts_zscore(x,60), ts_zscore(ts_returns(y,21),21))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Share buyback execution momentum",
+      "description": "SUGGESTION1: Uses buyback activity (x) and price (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill(x,180) if sparse. Buyback execution correlates with outperformance. Confidence 0.63.",
+      "implementation": "multiply(ts_zscore(ts_delta(x,180),180), ts_zscore(ts_returns(y,63),63))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Float shrinkage signal",
+      "description": "SUGGESTION1: Uses shares outstanding change (x) and price (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill(x,365) if coverage low. Float shrinkage can lift price; confidence 0.6.",
+      "implementation": "multiply(reverse(ts_zscore(ts_delta(x,365),365)), ts_zscore(ts_returns(y,63),63))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Insider buying trend",
+      "description": "SUGGESTION1: Uses insider buys (x) and price reaction (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill(x,365) if sparse. Insider buying is an informative signal. Confidence 0.64.",
+      "implementation": "multiply(ts_zscore(ts_sum(x,90),90), ts_zscore(ts_returns(y,21),21))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Insider selling avoidance",
+      "description": "SUGGESTION1: Use insider selling spike (x) to avoid/short. SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Avoiding insider-selling stocks reduces risk. Confidence 0.58.",
+      "implementation": "reverse(ts_zscore(ts_sum(x,90),90))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "High analyst dispersion (uncertainty) mean reversion",
+      "description": "SUGGESTION1: Uses analyst forecast dispersion (x) and price (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill if sparse. High dispersion often leads to larger moves; mean reversion possible. Confidence 0.52.",
+      "implementation": "if_else(greater(ts_zscore(x,63),1.5), reverse(ts_zscore(ts_returns(y,21),21)), NaN)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum in small-caps (size-tilt)",
+      "description": "SUGGESTION1: Combine market cap (x) and momentum (y) to tilt small caps. SUGGESTION2: No vector. SUGGESTION3: ts_backfill for cap if necessary. Small-cap momentum can be stronger but riskier. Confidence 0.6.",
+      "implementation": "multiply(inverse(ts_zscore(x,252)), ts_zscore(ts_returns(y,63),63))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Sector rotation via relative momentum",
+      "description": "SUGGESTION1: Uses sector return series (x) and stock momentum (y) to rotate. SUGGESTION2: No vector. SUGGESTION3: ts_backfill for sector if sparse. Sector rotation is practical; moderate confidence. Confidence 0.61.",
+      "implementation": "multiply(ts_zscore(ts_returns(y,63),63), ts_zscore(ts_returns(x,63),63))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Cross-asset risk-on signal (correlation shift)",
+      "description": "SUGGESTION1: Needs asset-class returns x and y; uses ts_corr. SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Correlation regime shifts can forecast returns. Confidence 0.55.",
+      "implementation": "reverse(ts_corr(x,y,63))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Carry trade (FX) momentum",
+      "description": "SUGGESTION1: Uses FX interest differential (x) and FX returns (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill for carry if needed. Carry has been historically strong but carries tail risk. Confidence 0.6.",
+      "implementation": "multiply(ts_zscore(x,252), ts_zscore(ts_returns(y,63),63))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Commodity producer margin squeeze signal",
+      "description": "SUGGESTION1: Combine commodity prices (x) and producer margins (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Works for sector-specific trades. Confidence 0.54.",
+      "implementation": "subtract(ts_zscore(y,252), ts_zscore(x,252))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Implied vol term-structure steepening",
+      "description": "SUGGESTION1: Needs short-term IV (x) and long-term IV (y); use difference. SUGGESTION2: No vector. SUGGESTION3: ts_backfill recommended for sparse IV. Term structure anomalies can be traded. Confidence 0.59.",
+      "implementation": "subtract(x,y)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Realized vs implied vol gap",
+      "description": "SUGGESTION1: Uses realized vol from returns (x) and implied vol (y); compare. SUGGESTION2: No vector. SUGGESTION3: ts_backfill for IV if sparse. Vol gap mean reversion is tradable. Confidence 0.61.",
+      "implementation": "subtract(ts_std_dev(ts_returns(x,21),21), y)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Option open interest accumulation",
+      "description": "SUGGESTION1: Uses option OI (x) and directionality from put-call ratio (y). SUGGESTION2: Could use vec_sum for option strikes vector; SUGGESTION2 applied conceptually. SUGGESTION3: ts_backfill if sparse. OI accumulation often precedes moves; confidence 0.53.",
+      "implementation": "vec_sum(x)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Put-call volume surge",
+      "description": "SUGGESTION1: Uses put-call ratio (x) and price (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill if needed. Large put buying may predict downside; confidence 0.5.",
+      "implementation": "multiply(ts_zscore(x,5), ts_zscore(ts_returns(y,5),5))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Short-term correlation collapse -> long dispersion trade",
+      "description": "SUGGESTION1: Uses cross-stock correlation metric (x). SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Dispersion trades profit from low correlation regimes. Confidence 0.53.",
+      "implementation": "reverse(ts_zscore(x,63))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Momentum in low analyst coverage names",
+      "description": "SUGGESTION1: Combine analyst coverage count (x) and momentum (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill for coverage if sparse. Undercovered names can exhibit stronger effects. Confidence 0.56.",
+      "implementation": "multiply(inverse(ts_zscore(x,252)), ts_zscore(ts_returns(y,63),63))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Retail sentiment spike (social volume)",
+      "description": "SUGGESTION1: Uses social volume (x) and price change (y). SUGGESTION2: vec_avg could be used if social vector exists; noted but not applied. SUGGESTION3: ts_backfill if sparse. Retail-driven spikes can be mean-reverting; lower confidence. Confidence 0.44.",
+      "implementation": "if_else(greater(ts_zscore(x,5),2), reverse(ts_zscore(ts_returns(y,5),5)), NaN)",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Search trend momentum (Google Trends)",
+      "description": "SUGGESTION1: Use search volume (x) and stock returns (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill recommended for sparse search data. Search momentum can precede flows; tentative confidence 0.46.",
+      "implementation": "multiply(ts_zscore(x,21), ts_zscore(ts_returns(y,21),21))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "News sentiment shift",
+      "description": "SUGGESTION1: Combine sentiment score (x) and recent returns (y). SUGGESTION2: Could use vector operators if multi-article vectors exist; applied conceptually. SUGGESTION3: ts_backfill optional. News sentiment can be noisy; confidence 0.5.",
+      "implementation": "multiply(ts_zscore(x,5), ts_zscore(ts_returns(y,5),5))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Earnings call tone momentum",
+      "description": "SUGGESTION1: Tone score (x) and post-call returns (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill if necessary. Natural language signals have moderate promise. Confidence 0.52.",
+      "implementation": "multiply(ts_zscore(x,20), ts_zscore(ts_returns(y,21),21))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Supply-chain disruption signal",
+      "description": "SUGGESTION1: Uses supplier distress indicators (x) and stock exposure (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill possible. Macro supply shocks can be predictive for specific names. Confidence 0.48.",
+      "implementation": "multiply(ts_zscore(x,63), ts_zscore(ts_returns(y,21),21))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Momentum after large drawdown (recovery play)",
+      "description": "SUGGESTION1: Use recent max drawdown metric (x) and short-term reversal (y). SUGGESTION2: No vector. SUGGESTION3: N/A. Exploits overreaction after declines. Confidence 0.54.",
+      "implementation": "if_else(greater(ts_max_diff(x,252),0.2), ts_zscore(ts_returns(y,21),21), NaN)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Price-to-sales low and momentum",
+      "description": "SUGGESTION1: Use P/S ratio (x) and momentum (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Value+momentum blend performs well historically. Confidence 0.68.",
+      "implementation": "multiply(reverse(ts_zscore(x,252)), ts_zscore(ts_returns(y,63),63))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Gross margin expansion trend",
+      "description": "SUGGESTION1: Uses gross margin time series (x). SUGGESTION2: No vector. SUGGESTION3: ts_backfill for accounting sparsity. Margin expansion tends to be persistent. Confidence 0.63.",
+      "implementation": "ts_zscore(ts_delta(x,252),252)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Operating cash flow acceleration",
+      "description": "SUGGESTION1: Uses operating cash flow growth (x) and price (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill possible. Cash flow improvements often lead to returns. Confidence 0.66.",
+      "implementation": "multiply(ts_zscore(ts_delta(x,252),252), ts_zscore(ts_returns(y,63),63))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "CapEx spike negative future returns",
+      "description": "SUGGESTION1: Combine sudden capex increases (x) with returns (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill for sparsity. Large capex spikes can reduce free cash flow and hurt returns. Confidence 0.49.",
+      "implementation": "if_else(greater(ts_delta(x,252),0.5), reverse(ts_zscore(ts_returns(y,63),63)), NaN)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "R&D intensity positive signal",
+      "description": "SUGGESTION1: Use R&D-to-sales ratio (x) and subsequent returns (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill if sparse. R&D intensity can be a quality/growth proxy. Confidence 0.57.",
+      "implementation": "multiply(ts_zscore(x,252), ts_zscore(ts_returns(y,63),63))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Patent grant acceleration",
+      "description": "SUGGESTION1: Track patent counts growth (x) and price (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Patent flows can predict innovation payoff; speculative. Confidence 0.46.",
+      "implementation": "ts_zscore(ts_delta(x,365),365)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Inventory turnover improvement",
+      "description": "SUGGESTION1: Use inventory turnover change (x) and margins (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill for accounting fields. Operational improvements often matter. Confidence 0.59.",
+      "implementation": "multiply(ts_zscore(ts_delta(x,252),252), ts_zscore(y,252))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Cash conversion cycle shortening",
+      "description": "SUGGESTION1: Use CCC change (x) and profitability (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill if sparse. Shorter CCC often signals efficiency gains. Confidence 0.58.",
+      "implementation": "reverse(ts_zscore(ts_delta(x,252),252))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Seasonal retail sales spike play",
+      "description": "SUGGESTION1: Uses retail sales proxy (x) and retailer stock returns (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Seasonal retail moves can be predictable. Confidence 0.5.",
+      "implementation": "multiply(ts_zscore(x,30), ts_zscore(ts_returns(y,21),21))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High short borrow fee -> short squeeze candidate",
+      "description": "SUGGESTION1: Uses borrow fee spikes (x) and share float (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill for borrow data if sparse. Borrow fee surges can precede squeezes. Confidence 0.47.",
+      "implementation": "if_else(greater(ts_zscore(x,14),2), ts_zscore(ts_returns(y,7),7), NaN)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Loan balance decline (short covering)",
+      "description": "SUGGESTION1: Use loan balances (x) and price momentum (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill if needed. Rapid loan balance drops suggest covering. Confidence 0.49.",
+      "implementation": "reverse(ts_zscore(ts_delta(x,14),14))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Dividend yield vs sector peers",
+      "description": "SUGGESTION1: Compare dividend yield (x) to sector median (y). SUGGESTION2: No vector. SUGGESTION3: group_backfill would help but group not available. Yield premium can signal value. Confidence 0.6.",
+      "implementation": "subtract(ts_zscore(x,252), ts_zscore(y,252))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum after positive cashflow surprise",
+      "description": "SUGGESTION1: Use cashflow surprise (x) and returns (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill if sparse. Cashflow surprises often persist. Confidence 0.63.",
+      "implementation": "multiply(ts_zscore(x,90), ts_zscore(ts_returns(y,63),63))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Relative value vs industry (cheap leaders)",
+      "description": "SUGGESTION1: Use valuation metric x and industry leader momentum y. SUGGESTION2: No vector. SUGGESTION3: group operations preferred but not used due to group requirement. Kept within limits. Confidence 0.62.",
+      "implementation": "multiply(reverse(ts_zscore(x,252)), ts_zscore(ts_returns(y,63),63))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Low float + positive momentum (squeeze candidate)",
+      "description": "SUGGESTION1: Use float size (x) and momentum (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Low float amplifies moves; confidence 0.56.",
+      "implementation": "multiply(inverse(ts_zscore(x,252)), ts_zscore(ts_returns(y,21),21))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Cross-listing arbitrage hint (price divergence)",
+      "description": "SUGGESTION1: Compare price series of same company in two venues x and y using ts_corr or difference. SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Arbitrage typically low risk but requires execution. Confidence 0.6.",
+      "implementation": "subtract(x,y)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum after management change",
+      "description": "SUGGESTION1: Use management change indicator (x) and price (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill for corporate events. Management changes can lead to re-rating. Confidence 0.51.",
+      "implementation": "if_else(equal(x,1), ts_zscore(ts_returns(y,63),63), NaN)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Insider buying intensity vs historical",
+      "description": "SUGGESTION1: Use insider buy amount (x) averaged over vector of trades (vec_avg) if available. SUGGESTION2: Applied conceptually. SUGGESTION3: ts_backfill optional. Implementation kept simple. Confidence 0.62.",
+      "implementation": "vec_avg(x)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Analyst coverage increase -> improve liquidity alpha",
+      "description": "SUGGESTION1: Use coverage delta (x) and turnover (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Coverage increases often improve liquidity and valuation. Confidence 0.53.",
+      "implementation": "multiply(ts_zscore(ts_delta(x,180),180), ts_zscore(y,63))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "High accruals short bias",
+      "description": "SUGGESTION1: Use accruals metric x; reverse sign to short high accruals. SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Accruals anomaly known in literature. Confidence 0.65.",
+      "implementation": "reverse(ts_zscore(x,252))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Momentum in rising institutional ownership",
+      "description": "SUGGESTION1: Combine institutional ownership change (x) with momentum (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill if sparse. Institutional inflows correlate with positive returns. Confidence 0.6.",
+      "implementation": "multiply(ts_zscore(ts_delta(x,63),63), ts_zscore(ts_returns(y,21),21))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High buyback announcement immediate alpha",
+      "description": "SUGGESTION1: Use buyback announcement flag (x) and short-term returns (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill for event fields. Announcements often lift price; short-term alpha plausible. Confidence 0.59.",
+      "implementation": "if_else(equal(x,1), ts_zscore(ts_returns(y,5),5), NaN)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Earnings growth acceleration vs peers",
+      "description": "SUGGESTION1: Use EPS growth delta (x) and peer median y. SUGGESTION2: No vector. SUGGESTION3: group_backfill desirable but not used. Outperformance vs peers is predictive. Confidence 0.64.",
+      "implementation": "subtract(ts_zscore(x,252), ts_zscore(y,252))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Inventory build warning (cyclical risk)",
+      "description": "SUGGESTION1: Use inventory growth (x) and compare to sales momentum (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Large inventory builds can presage margin pressure. Confidence 0.47.",
+      "implementation": "multiply(ts_zscore(ts_delta(x,252),252), reverse(ts_zscore(ts_delta(y,252),252)))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Momentum filtered by analyst sentiment",
+      "description": "SUGGESTION1: Combine analyst sentiment (x) and momentum (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Filtering momentum by sentiment can reduce false signals. Confidence 0.62.",
+      "implementation": "multiply(ts_zscore(x,30), ts_zscore(ts_returns(y,63),63))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Relative strength vs components (index arbitrage)",
+      "description": "SUGGESTION1: Compare stock returns (x) with index component average y using group operations (conceptual). SUGGESTION2: No vector. SUGGESTION3: group ops excluded due to lack of group field. Keep concise. Confidence 0.58.",
+      "implementation": "subtract(ts_zscore(ts_returns(x,63),63), ts_zscore(ts_returns(y,63),63))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum after buy rating concentration",
+      "description": "SUGGESTION1: Use count of buy ratings (x) and price (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill possible. Concentration of upgrades can drive price. Confidence 0.55.",
+      "implementation": "multiply(ts_zscore(x,30), ts_zscore(ts_returns(y,21),21))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Short-term mean reversion after extreme intraday move",
+      "description": "SUGGESTION1: Uses intraday return vector (x) and vec_stats like vec_range or vec_avg. SUGGESTION2: vec_range recommended; applied conceptually. SUGGESTION3: ts_backfill not relevant. Intraday mean reversion is exploitable for high-frequency strategies. Confidence 0.5.",
+      "implementation": "reverse(vec_range(x))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum in names with rising gross margin and rising sales",
+      "description": "SUGGESTION1: Uses gross margin trend (x) and sales growth (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Dual fundamental momentum often robust. Confidence 0.66.",
+      "implementation": "multiply(ts_zscore(ts_delta(x,252),252), ts_zscore(ts_delta(y,252),252))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Relative P/E compression reversal",
+      "description": "SUGGESTION1: Use P/E vs sector median (x) and its change (y). SUGGESTION2: No vector. SUGGESTION3: group operations helpful but not used. Valuation re-rating can be predictive. Confidence 0.57.",
+      "implementation": "reverse(ts_zscore(ts_delta(x,252),252))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "High insider buying + low short interest combo",
+      "description": "SUGGESTION1: Combine insider buys (x) with short interest (y) to find strong long candidates. SUGGESTION2: No vector. SUGGESTION3: ts_backfill if sparse. Combining signals increases conviction. Confidence 0.68.",
+      "implementation": "multiply(ts_zscore(ts_sum(x,90),90), reverse(ts_zscore(y,90)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Volatility z-score mean reversion",
+      "description": "SUGGESTION1: Uses realized vol (x) zscored over time and trades mean reversion. SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Vol mean reversion often exploitable. Confidence 0.6.",
+      "implementation": "reverse(ts_zscore(ts_std_dev(ts_returns(x,21),21),21))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Realized-implied vol momentum (difference trend)",
+      "description": "SUGGESTION1: Track difference between realized (x) and implied (y) vol using ts_delta. SUGGESTION2: No vector. SUGGESTION3: ts_backfill for IV. Trend in gap is tradable. Confidence 0.59.",
+      "implementation": "ts_zscore(ts_delta(subtract(x,y),21),21)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Residual momentum after factor neutralization",
+      "description": "SUGGESTION1: Compute momentum on residuals after removing market/sector factors x and y conceptually. SUGGESTION2: No vector. SUGGESTION3: group_neutralize would be used in production but omitted here due to group requirement. Residual momentum often stronger. Confidence 0.67.",
+      "implementation": "ts_zscore(ts_returns(x,63),63)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "High earnings call mention of 'guidance' improvement",
+      "description": "SUGGESTION1: NLP tag for 'guidance' change (x) and price (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Guidance improvements are credible signal. Confidence 0.54.",
+      "implementation": "if_else(greater(x,0), ts_zscore(ts_returns(y,21),21), NaN)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Momentum after positive ESG news",
+      "description": "SUGGESTION1: ESG news score (x) and returns (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill if sparse. ESG improvements can attract flows; confidence moderate. Confidence 0.5.",
+      "implementation": "multiply(ts_zscore(x,30), ts_zscore(ts_returns(y,21),21))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High gross margin but low valuation (quality-value)",
+      "description": "SUGGESTION1: Uses gross margin (x) and P/E or PB (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Quality-value combos historically perform well. Confidence 0.7.",
+      "implementation": "multiply(ts_zscore(x,252), reverse(ts_zscore(y,252)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Sequential positive earnings surprises",
+      "description": "SUGGESTION1: Track number of positive surprises in last n periods (x) and momentum (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Positive surprise streaks are predictive. Confidence 0.62.",
+      "implementation": "multiply(ts_sum(x,365), ts_zscore(ts_returns(y,63),63))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Low analyst dispersion + positive revision",
+      "description": "SUGGESTION1: Combine low dispersion (x) and upward revisions (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill if needed. Low dispersion with positive revisions increases conviction. Confidence 0.63.",
+      "implementation": "multiply(reverse(ts_zscore(x,252)), ts_zscore(ts_delta(y,30),30))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "High revenue growth but negative sentiment reversal",
+      "description": "SUGGESTION1: Use revenue growth (x) and sentiment (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Combination can identify mispriced growth. Confidence 0.55.",
+      "implementation": "multiply(ts_zscore(x,252), reverse(ts_zscore(y,30)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Short-term reversal after abnormal option flow",
+      "description": "SUGGESTION1: Use abnormal option buys metric (x) and short-term returns (y). SUGGESTION2: vec_sum may be used for strikes vector; conceptually applied. SUGGESTION3: ts_backfill optional. Option-flow signals can be noisy; confidence 0.48.",
+      "implementation": "if_else(greater(ts_zscore(x,5),2), reverse(ts_zscore(ts_returns(y,5),5)), NaN)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Low coverage + positive insider buys (alpha niche)",
+      "description": "SUGGESTION1: Combine low analyst coverage (x) with insider buys (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Niche signals can outperform once uncovered. Confidence 0.57.",
+      "implementation": "multiply(inverse(ts_zscore(x,252)), ts_zscore(ts_sum(y,90),90))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Momentum filtered by borrow cost rise",
+      "description": "SUGGESTION1: Use borrow cost (x) to down-weight longs where borrow cost spikes. SUGGESTION2: No vector. SUGGESTION3: ts_backfill for borrow data suggested. Filtering can reduce squeeze risk. Confidence 0.55.",
+      "implementation": "trade_when(greater(ts_zscore(x,14),2), ts_zscore(ts_returns(y,21),21), NaN)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Real yields shift -> duration factor timing",
+      "description": "SUGGESTION1: Use real yield changes (x) and rate-sensitive stock returns (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Macro signals can time factor exposures. Confidence 0.53.",
+      "implementation": "multiply(ts_zscore(ts_delta(x,21),21), ts_zscore(ts_returns(y,21),21))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Calendar holiday liquidity anomaly",
+      "description": "SUGGESTION1: Use calendar proximity indicator (x) and volume (y). SUGGESTION2: No vector. SUGGESTION3: N/A. Holidays create liquidity patterns; lower confidence. Confidence 0.45.",
+      "implementation": "if_else(equal(ts_step(1) % 7, 5), ts_zscore(ts_returns(y,1),1), NaN)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Momentum in countries with improving FX",
+      "description": "SUGGESTION1: Use FX appreciation metric (x) and domestic equities (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. FX regime shifts affect equity returns. Confidence 0.52.",
+      "implementation": "multiply(ts_zscore(ts_returns(x,63),63), ts_zscore(ts_returns(y,63),63))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "High revenue growth + low capex (scalable profits)",
+      "description": "SUGGESTION1: Combine revenue growth (x) and capex/sales low (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill for accounting fields recommended. Quality of growth is predictive. Confidence 0.61.",
+      "implementation": "multiply(ts_zscore(x,252), reverse(ts_zscore(y,252)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Beta-adjusted momentum (market-neutral)",
+      "description": "SUGGESTION1: Compute momentum on beta-adjusted returns using beta field x and returns y. SUGGESTION2: No vector. SUGGESTION3: ts_backfill for beta if sparse. Beta-neutral momentum reduces market exposure. Confidence 0.65.",
+      "implementation": "subtract(ts_zscore(ts_returns(y,63),63), multiply(x, ts_zscore(ts_returns(y,63),63)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Return reversal after sudden upgrade downgrades divergence",
+      "description": "SUGGESTION1: Use upgrade count (x) vs downgrade count (y) and trade on divergence. SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Opinion flows can drive returns. Confidence 0.52.",
+      "implementation": "subtract(ts_zscore(x,30), ts_zscore(y,30))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum following large insider buy relative to float",
+      "description": "SUGGESTION1: Use insider buy amount scaled by float (x) and momentum (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Scaled insider buys carry signal. Confidence 0.63.",
+      "implementation": "multiply(divide(x,y), ts_zscore(ts_returns(y,21),21))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum after positive margin guidance",
+      "description": "SUGGESTION1: Use guidance delta (x) and returns (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Positive guidance surprises often persistent. Confidence 0.6.",
+      "implementation": "if_else(greater(x,0), ts_zscore(ts_returns(y,63),63), NaN)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-term reversal after block trades",
+      "description": "SUGGESTION1: Use block trade volume spike (x) and price (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Block trades can reflect temporary liquidity shocks; reversal possible. Confidence 0.48.",
+      "implementation": "if_else(greater(ts_zscore(x,5),2), reverse(ts_zscore(ts_returns(y,5),5)), NaN)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Momentum after credit spread tightening for corporates",
+      "description": "SUGGESTION1: Use CDS spread change (x) and equity returns (y). SUGGESTION2: No vector. SUGGESTION3: ts_backfill for CDS perhaps needed. Credit improvement often leads equity gains. Confidence 0.56.",
+      "implementation": "multiply(reverse(ts_zscore(x,63)), ts_zscore(ts_returns(y,21),21))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Relative momentum vs peers for narrow-moat companies",
+      "description": "SUGGESTION1: Combine moat score (x) and relative returns (y). SUGGESTION2: No vector. SUGGESTION3: group operations helpful but not used. Quality moat plus outperformance is reliable. Confidence 0.66.",
+      "implementation": "multiply(ts_zscore(x,252), subtract(ts_zscore(ts_returns(y,63),63), ts_zscore(ts_returns(x,63),63)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Momentum after positive patent litigation outcome",
+      "description": "SUGGESTION1: Event flag x and price y. SUGGESTION2: No vector. SUGGESTION3: ts_backfill for events optional. Legal wins can boost stock price; confidence 0.49.",
+      "implementation": "if_else(equal(x,1), ts_zscore(ts_returns(y,21),21), NaN)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Momentum following sudden institutional selling (contrarian)",
+      "description": "SUGGESTION1: Use large institutional outflows x and contrarian buy signal y. SUGGESTION2: No vector. SUGGESTION3: ts_backfill optional. Contrarian plays can be profitable when flows are temporary. Confidence 0.51.",
+      "implementation": "if_else(greater(ts_zscore(x,21),2), reverse(ts_zscore(ts_returns(y,21),21)), NaN)",
+      "confidence_level": 0.51
+    }
+  ]
+}

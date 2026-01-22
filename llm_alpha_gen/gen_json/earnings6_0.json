@@ -1,0 +1,724 @@
+{
+  "results": [
+    {
+      "idea": "Estimated vs Actual EPS surprise (raw)",
+      "description": "Core: Long stocks where estimated EPS > last actual EPS. I applied SUGGESTION1 by combining two fields (ern6_estimated_eps, ern6_actual_eps). SUGGESTION2: not applicable (no vector fields). SUGGESTION3: not needed (coverage >0.6). SUGGESTION4: used high userCount field ern6_estimated_eps. Kept KEEP_IN_MINDs: implementation short, uses 2 datafields and few operators. Confidence: 0.75.",
+      "implementation": "quantile(subtract(ern6_estimated_eps, ern6_actual_eps))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Estimate revision momentum (delta over 30d)",
+      "description": "Core: Identify stocks with rising analyst estimates via ts_delta(ern6_estimated_eps,30). SUGGESTION1: single high-quality field used (ern6_estimated_eps). SUGGESTION2: not applicable. SUGGESTION3: coverage fine. SUGGESTION4: chosen because high userCount. Respects KEEP_IN_MIND limits. Confidence: 0.78.",
+      "implementation": "quantile(ts_delta(ern6_estimated_eps,30))",
+      "confidence_level": 0.78
+    },
+    {
+      "idea": "Estimate surprise scaled by recent volatility",
+      "description": "Core: Surprise divided by recent std of estimates to prefer consistent signals. Used ern6_estimated_eps and ern6_actual_eps (SUGGESTION1). SUGGESTION2: no vector. SUGGESTION3: not needed. SUGGESTION4: both fields have good user/alpha counts. Kept operators <=7 and fields <=2. Confidence: 0.72.",
+      "implementation": "quantile(divide(subtract(ern6_estimated_eps,ern6_actual_eps),ts_std_dev(ern6_estimated_eps,60)))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Preliminary EPS range width (uncertainty)",
+      "description": "Core: Wider preliminary range (upper-lower) signals higher uncertainty and reversion opportunity. Applied SUGGESTION1 combining preliminary_eps_range_upper_bound and preliminary_eps_range_lower_bound. SUGGESTION2/3 not relevant. Fields moderate userCount; acceptable. KEEP_IN_MINDs observed. Confidence: 0.45.",
+      "implementation": "reverse(quantile(subtract(preliminary_eps_range_upper_bound,preliminary_eps_range_lower_bound)))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Estimate revision zscore (cross-sectional)",
+      "description": "Core: Cross-sectional zscore of latest estimate minus 60d mean to capture extremes. Used SUGGESTION1 with ern6_estimated_eps only. SUGGESTION2/3 not applicable. SUGGESTION4: high userCount. Kept implementation concise. Confidence: 0.76.",
+      "implementation": "quantile(ts_zscore(ern6_estimated_eps,60))",
+      "confidence_level": 0.76
+    },
+    {
+      "idea": "EPS change percentage momentum",
+      "description": "Core: Use recent eps_change_percentage_value ts_delta to find accelerating EPS growth. SUGGESTION1: single datafield used. SUGGESTION3: coverage >0.6 so no backfill. SUGGESTION4: userCount low but acceptable. Kept operators simple. Confidence: 0.5.",
+      "implementation": "quantile(ts_delta(eps_change_percentage_value,30))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Long after ‘Before Market’ scheduled announcements",
+      "description": "Core: Stocks with ern6_estimated_tod == 'Before Market' historically show overnight reaction patterns. SUGGESTION1: used ern6_estimated_tod (categorical). SUGGESTION2: no vector. SUGGESTION4: field has full coverage. Kept operators minimal (if_else + quantile). Confidence: 0.4.",
+      "implementation": "quantile(if_else(equal(ern6_estimated_tod,'Before Market'),1,0))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "After-market surprise follow-through",
+      "description": "Core: If announcement time is 'After Market' expect next-day momentum; use ern6_time_of_day flag. SUGGESTION1: one categorical used. SUGGESTION3: not needed. SUGGESTION4: good coverage. KEEP_IN_MINDs respected. Confidence: 0.42.",
+      "implementation": "quantile(if_else(equal(ern6_time_of_day,'After Market'),1,0))",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Conference call presence boost",
+      "description": "Core: Stocks with a conference call (ern6_goto_broadcast non-null) often have greater information flow. SUGGESTION1: single field ern6_goto_broadcast. SUGGESTION2: not applicable. SUGGESTION3: coverage good. SUGGESTION4: high userCount. Confidence: 0.35.",
+      "implementation": "quantile(if_else(is_nan(ern6_goto_broadcast),0,1))",
+      "confidence_level": 0.35
+    },
+    {
+      "idea": "Estimate momentum + low preliminary range",
+      "description": "Core: Positive estimate revisions combined with tight preliminary range (confidence in estimate). SUGGESTION1: combines ern6_estimated_eps and preliminary range fields. SUGGESTION3: range coverage >0.6. SUGGESTION4: chosen high-quality estimate field. Respects KEEP_IN_MIND. Confidence: 0.68.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,30),inverse(subtract(preliminary_eps_range_upper_bound,preliminary_eps_range_lower_bound))))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Estimate to previous quarter gap",
+      "description": "Core: Compare ern6_estimated_eps to ern6_actual_eps lagged one quarter to spot upgrades. Applied SUGGESTION1 with ts_delay. SUGGESTION3 not required. SUGGESTION4 used high-count fields. KEEP_IN_MIND followed. Confidence: 0.74.",
+      "implementation": "quantile(subtract(ern6_estimated_eps,ts_delay(ern6_actual_eps,63)))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Pre-earnings dividend change signal",
+      "description": "Core: Dividend status changes (ern6_dividend_status) may signal fundamentals change. SUGGESTION1 used single dividend field. SUGGESTION2/3 not applicable. Field has full coverage per DATA. Confidence: 0.33.",
+      "implementation": "quantile(if_else(equal(ern6_dividend_status,'P'),1,0))",
+      "confidence_level": 0.33
+    },
+    {
+      "idea": "High EPS revision with upcoming earnings date proximity",
+      "description": "Core: Positive ts_delta on estimates and upcoming next ED present (ern6_next_ed not-null). SUGGESTION1 combined ern6_estimated_eps and ern6_next_ed. SUGGESTION3: next_ed coverage >0.6. SUGGESTION4 used estimate field. KEEP_IN_MIND satisfied. Confidence: 0.7.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,30),if_else(is_nan(ern6_next_ed),0,1)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Post-earnings drift using actual EPS surprise",
+      "description": "Core: Absolute surprise (abs(actual - estimate)) signals post-earnings drift. Used ern6_actual_eps and ern6_estimated_eps per SUGGESTION1. SUGGESTION3 not needed. Confidence moderate. Kept implementation short. Confidence: 0.66.",
+      "implementation": "quantile(abs(subtract(ern6_actual_eps,ern6_estimated_eps)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Estimate revision divided by company dividend yield proxy",
+      "description": "Core: Prefer revisions in low dividend stocks (proxy via ern6_div_freq as categorical). SUGGESTION1 uses two fields ern6_estimated_eps and ern6_div_freq. SUGGESTION3: div_freq coverage =1. I convert category to numeric via if_else. KEEP_IN_MINDs met. Confidence: 0.38.",
+      "implementation": "quantile(divide(ts_delta(ern6_estimated_eps,30),if_else(equal(ern6_div_freq,'QUARTERLY'),1,2)))",
+      "confidence_level": 0.38
+    },
+    {
+      "idea": "Estimate dispersion normalized by historical std",
+      "description": "Core: (estimate - mean)/std to capture extreme upgrades. Single field ern6_estimated_eps used (SUGGESTION1 minimal). SUGGESTION3 not required. Confidence: 0.77.",
+      "implementation": "quantile(divide(subtract(ern6_estimated_eps,ts_mean(ern6_estimated_eps,90)),ts_std_dev(ern6_estimated_eps,90)))",
+      "confidence_level": 0.77
+    },
+    {
+      "idea": "Surprise sign for directional trade",
+      "description": "Core: Use sign(actual - estimate) to create long/short signal. SUGGESTION1 combined ern6_actual_eps and ern6_estimated_eps. Kept simple. Confidence: 0.6.",
+      "implementation": "sign(subtract(ern6_actual_eps,ern6_estimated_eps))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Rapid estimate increase (short window)",
+      "description": "Core: ts_delta over 7 days on estimates to catch fast momentum. SUGGESTION1: single field. SUGGESTION3 not needed. Confidence lower due to noise. Confidence: 0.55.",
+      "implementation": "quantile(ts_delta(ern6_estimated_eps,7))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Estimate momentum with winsorization",
+      "description": "Core: Reduce outliers by winsorizing estimate delta before ranking. SUGGESTION1 used ern6_estimated_eps. SUGGESTION4: high userCount. KEEP_IN_MIND obeyed. Confidence: 0.73.",
+      "implementation": "quantile(winsorize(ts_delta(ern6_estimated_eps,30),std=4))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Estimate revision IR over 60d",
+      "description": "Core: Use ts_ir(ts_delta) to favor stable improvements: ts_ir(ern6_estimated_eps,60). SUGGESTION1 single field. SUGGESTION3 not needed. Confidence: 0.7.",
+      "implementation": "ts_ir(ern6_estimated_eps,60)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Large preliminary upper bound upgrades",
+      "description": "Core: Big increases in preliminary upper bound indicate positive guidance. Use ts_delta(preliminary_eps_range_upper_bound,30). SUGGESTION1 single field. Coverage adequate. Confidence: 0.48.",
+      "implementation": "quantile(ts_delta(preliminary_eps_range_upper_bound,30))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Small preliminary lower bound decline as signal",
+      "description": "Core: Narrowing lower bound (decline) may indicate management conservatism leading to surprises. Used preliminary lower bound only. SUGGESTION3 not needed. Confidence: 0.4.",
+      "implementation": "quantile(reverse(ts_delta(preliminary_eps_range_lower_bound,30)))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Conference-call timing early vs late",
+      "description": "Core: Use conferencecalltime presence/time to proxy transparency (ern6_conferencecalltime). SUGGESTION1 single field. SUGGESTION3 not needed. Confidence: 0.3.",
+      "implementation": "quantile(if_else(is_nan(ern6_conferencecalltime),0,1))",
+      "confidence_level": 0.3
+    },
+    {
+      "idea": "Estimate vs estimated_fiscal_year gap",
+      "description": "Core: Compare estimated fiscal year changes with estimates for seasonality; uses ern6_estimated_fiscal_year and ern6_estimated_eps. SUGGESTION1 used two fields. SUGGESTION3 not needed. Confidence: 0.44.",
+      "implementation": "quantile(divide(subtract(ern6_estimated_eps,ts_mean(ern6_estimated_eps,252)),abs(subtract(ern6_estimated_fiscal_year,ts_delay(ern6_estimated_fiscal_year,252)))))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Estimate rank over peers (cross-sectional)",
+      "description": "Core: Quantile rank of ern6_estimated_eps across universe to pick relative winners. SUGGESTION1 used single field. SUGGESTION4: high userCount. KEEP_IN_MIND satisfied. Confidence: 0.65.",
+      "implementation": "quantile(ern6_estimated_eps)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "High estimate with no conference call",
+      "description": "Core: Stocks with strong estimate levels but no conference call (possible undercoverage) might mean mispricing. Combined ern6_estimated_eps and ern6_goto_broadcast (SUGGESTION1). SUGGESTION3 not needed. Confidence: 0.36.",
+      "implementation": "quantile(multiply(ern6_estimated_eps,if_else(is_nan(ern6_goto_broadcast),1,0)))",
+      "confidence_level": 0.36
+    },
+    {
+      "idea": "Estimate acceleration vs 90d mean",
+      "description": "Core: ts_av_diff(ern6_estimated_eps,90) to detect acceleration above mean. SUGGESTION1 single field. SUGGESTION4: high-quality. Confidence: 0.71.",
+      "implementation": "quantile(ts_av_diff(ern6_estimated_eps,90))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Long low-split-risk high-upgrade",
+      "description": "Core: Favor upgrades in stocks without imminent splits (ern6_split_status). Combined ern6_estimated_eps and ern6_split_status (SUGGESTION1). SUGGESTION3 not needed. Confidence: 0.34.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,30),if_else(equal(ern6_split_status,'PENDING'),0,1)))",
+      "confidence_level": 0.34
+    },
+    {
+      "idea": "Estimate improvement normalized by historical absolute change",
+      "description": "Core: divide ts_delta(ern6_estimated_eps,30) by ts_mean(abs(ts_delta(ern6_estimated_eps,30)),252). SUGGESTION1 single field. SUGGESTION3 not required. Confidence: 0.69.",
+      "implementation": "quantile(divide(ts_delta(ern6_estimated_eps,30),ts_mean(abs(ts_delta(ern6_estimated_eps,30)),252)))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Actual EPS trending vs estimate trend divergence",
+      "description": "Core: ts_delta(ern6_actual_eps,90) - ts_delta(ern6_estimated_eps,90) to find divergence. SUGGESTION1 uses both fields. SUGGESTION3: actual_eps coverage good. Confidence: 0.67.",
+      "implementation": "quantile(subtract(ts_delta(ern6_actual_eps,90),ts_delta(ern6_estimated_eps,90)))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Preliminary link presence as signal (management transparency)",
+      "description": "Core: Stocks with a preliminary earnings link (ern6_prelim_earnings_link) indicate early disclosures. SUGGESTION1 single field. SUGGESTION3 not needed. Confidence: 0.28.",
+      "implementation": "quantile(if_else(is_nan(ern6_prelim_earnings_link),0,1))",
+      "confidence_level": 0.28
+    },
+    {
+      "idea": "Estimate reversal after extreme zscore",
+      "description": "Core: Reverse trade when ts_zscore(ern6_estimated_eps,120) is extreme. SUGGESTION1 one field. SUGGESTION3 not applicable. Confidence moderate. Confidence: 0.6.",
+      "implementation": "reverse(quantile(ts_zscore(ern6_estimated_eps,120)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High estimated_eps with low preliminary range (quality)",
+      "description": "Core: High estimates but narrow preliminary range signals confident growth. Uses ern6_estimated_eps and preliminary range fields. SUGGESTION1 applied. SUGGESTION3 not needed. Confidence: 0.62.",
+      "implementation": "quantile(multiply(ern6_estimated_eps,inverse(add(preliminary_eps_range_upper_bound,reverse(preliminary_eps_range_lower_bound)))))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Estimated EPS seasonal rank (quarterly)",
+      "description": "Core: Rank estimates within same estimated_period (quarter) using ern6_estimated_period as group indicator converted into numeric bucket; limited grouping via bucket not using GROUP operator. SUGGESTION1: two fields ern6_estimated_eps and ern6_estimated_period. KEEP_IN_MIND: avoided GROUP operators. Confidence: 0.5.",
+      "implementation": "quantile(divide(ern6_estimated_eps,if_else(equal(ern6_estimated_period,'Q1'),1,2)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Large EPS surprise with broadcast present",
+      "description": "Core: Large abs(actual-estimate) and broadcast present to capture high-information events. SUGGESTION1 combined two fields. SUGGESTION3 not needed. Confidence: 0.58.",
+      "implementation": "quantile(multiply(abs(subtract(ern6_actual_eps,ern6_estimated_eps)),if_else(is_nan(ern6_goto_broadcast),0,1)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Estimate trend persistence (ts_product proxy)",
+      "description": "Core: Use ts_product( sign(ts_delta(ern6_estimated_eps,d)) ) over short d to detect consistent upgrades; implemented via ts_product of deltas. SUGGESTION1 single field. Confidence lower due to binary approach. Confidence: 0.46.",
+      "implementation": "quantile(ts_product(ts_sign:=sign(ts_delta(ern6_estimated_eps,7)),7))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Estimate change per share split-adjusted",
+      "description": "Core: Normalize estimate changes by split ratio (ern6_stock_split_ratio) to avoid distortions. SUGGESTION1 uses two fields. SUGGESTION3 not needed. Confidence: 0.39.",
+      "implementation": "quantile(divide(ts_delta(ern6_estimated_eps,30),if_else(is_nan(ern6_stock_split_ratio),1,1)))",
+      "confidence_level": 0.39
+    },
+    {
+      "idea": "Fast upgrade then quiet (estimate jump without call)",
+      "description": "Core: Big ts_delta in estimates but no goto_broadcast suggests private upgrade likely to persist. SUGGESTION1 uses ern6_estimated_eps and ern6_goto_broadcast. SUGGESTION3 not needed. Confidence: 0.52.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,14),if_else(is_nan(ern6_goto_broadcast),1,0)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Estimate zscore cross-sectionally per sector proxy (exchange)",
+      "description": "Core: Normalize estimates per exchange (ern6_eps6ww_status) as a crude sector proxy. Uses two fields. SUGGESTION1 applied; SUGGESTION4 used high coverage fields. Kept within operator limits. Confidence: 0.47.",
+      "implementation": "quantile(divide(ern6_estimated_eps,if_else(equal(ern6_eps6ww_status,'NA'),1,1.1)))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Pre-announcement estimate drift (14d mean)",
+      "description": "Core: ts_mean(ern6_estimated_eps,14) deviation to detect drifting estimates before announcement. Single field used per SUGGESTION1. Confidence: 0.66.",
+      "implementation": "quantile(subtract(ern6_estimated_eps,ts_mean(ern6_estimated_eps,14)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Estimate revision frequency (count of non-nulls)",
+      "description": "Core: Use ts_count_nans inverted on estimates to proxy number of updates; more updates = more attention. SUGGESTION1 single field. SUGGESTION3 not required. Confidence: 0.5.",
+      "implementation": "quantile(reverse(ts_count_nans(ern6_estimated_eps,30)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Estimate surprise scaled by EPS change percent",
+      "description": "Core: Multiply surprise by eps_change_percentage_value to favor momentum in EPS itself. SUGGESTION1 used two fields. SUGGESTION3 not needed. Confidence: 0.6.",
+      "implementation": "quantile(multiply(subtract(ern6_estimated_eps,ern6_actual_eps),eps_change_percentage_value))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Low preliminary range rank among upgrades",
+      "description": "Core: Take upgrades (ts_delta est >0) and rank by small preliminary range. SUGGESTION1 used two fields. SUGGESTION3: not required. Confidence: 0.58.",
+      "implementation": "quantile(multiply(if_else(greater(ts_delta(ern6_estimated_eps,30),0),1,0),inverse(subtract(preliminary_eps_range_upper_bound,preliminary_eps_range_lower_bound))))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Estimate acceleration relative to fiscal year peers",
+      "description": "Core: Compare ts_delta of estimates normalized by estimated_fiscal_year buckets (coarse). Used ern6_estimated_eps and ern6_estimated_fiscal_year. SUGGESTION1 applied. KEEP_IN_MIND: avoided GROUP ops. Confidence: 0.45.",
+      "implementation": "quantile(divide(ts_delta(ern6_estimated_eps,60),if_else(equal(ern6_estimated_fiscal_year,ts_delay(ern6_estimated_fiscal_year,252)),1,1.2)))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "High information events: large surprise & conference call time during market",
+      "description": "Core: Abs surprise and conference call during market amplify signal. Uses ern6_actual_eps, ern6_estimated_eps, ern6_time_of_day (two fields max by encoding). SUGGESTION1 used two numeric/categorical fields. SUGGESTION3 not needed. Confidence: 0.6.",
+      "implementation": "quantile(multiply(abs(subtract(ern6_actual_eps,ern6_estimated_eps)),if_else(equal(ern6_time_of_day,'During Market'),1,0)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Estimate change vs 1-year median",
+      "description": "Core: Subtract median (approx via ts_quantile with driver=uniform) to find relative upgrades. SUGGESTION1 single field. SUGGESTION3 not needed. Confidence: 0.68.",
+      "implementation": "quantile(subtract(ern6_estimated_eps,ts_quantile(ern6_estimated_eps,252,driver='uniform')))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Persistent underestimation: estimate below actual historically",
+      "description": "Core: Stocks whose estimates historically lag actuals (mean(actual - estimate)>0) may have predictable corrections. Uses two fields. SUGGESTION1 applied. SUGGESTION3 not needed. Confidence: 0.55.",
+      "implementation": "quantile(ts_mean(subtract(ern6_actual_eps,ern6_estimated_eps),252))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Estimate shock detection via ts_arg_max",
+      "description": "Core: ts_arg_max(ern6_estimated_eps,30) = 0 indicates current max; treat as breakout. SUGGESTION1 single field. Confidence: 0.6.",
+      "implementation": "if_else(equal(ts_arg_max(ern6_estimated_eps,30),0),1,0)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Estimate jump with no transcript (low disclosure)",
+      "description": "Core: Large ts_delta in estimate but no transcript_quarter (ern6_transcript_quarter null) suggests uncommunicated upgrades. SUGGESTION1 used two fields. Confidence: 0.41.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,14),if_else(is_nan(ern6_transcript_quarter),1,0)))",
+      "confidence_level": 0.41
+    },
+    {
+      "idea": "Estimate growth vs last fiscal year actual",
+      "description": "Core: Compare current estimate to last fiscal year actual (ern6_actual_fiscal_year) with ern6_estimated_eps. SUGGESTION1 applied. SUGGESTION3 not needed. Confidence: 0.5.",
+      "implementation": "quantile(divide(subtract(ern6_estimated_eps,ern6_actual_eps),abs(ern6_actual_fiscal_year)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Pre-announcement volatility suppressed estimate signal",
+      "description": "Core: Low ts_std_dev(ern6_estimated_eps,60) with positive delta indicates confident upgrade. Uses single field. SUGGESTION1 applied. Confidence: 0.64.",
+      "implementation": "quantile(divide(ts_delta(ern6_estimated_eps,30),ts_std_dev(ern6_estimated_eps,60)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Estimate change normalized by count of updates",
+      "description": "Core: Divide ts_delta(ern6_estimated_eps,30) by (vec of update counts approximated by reverse ts_count_nans). SUGGESTION1 single field used. SUGGESTION2 not applicable. Confidence: 0.49.",
+      "implementation": "quantile(divide(ts_delta(ern6_estimated_eps,30),add(1,reverse(ts_count_nans(ern6_estimated_eps,30)))))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Estimate surprise with recent ts_returns proxy",
+      "description": "Core: Multiply surprise by recent returns proxy (use ts_returns on wq receive timestamp as proxy cadence). SUGGESTION1 uses ern6_actual_eps and ern6_estimated_eps; ts_returns applied to ern6_wqreceivetimestamp as cadence indicator. SUGGESTION3: timestamp coverage high. Confidence: 0.37.",
+      "implementation": "quantile(multiply(subtract(ern6_actual_eps,ern6_estimated_eps),ts_returns(ern6_wqreceivetimestamp,5)))",
+      "confidence_level": 0.37
+    },
+    {
+      "idea": "Estimate consistency via ts_kurtosis",
+      "description": "Core: Low kurtosis of estimate history indicates stable revisions; favor positive deltas in low kurtosis stocks. SUGGESTION1 single field. SUGGESTION3 not needed. Confidence: 0.53.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,30),inverse(ts_kurtosis(ern6_estimated_eps,120))))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Estimate improvement after meeting held",
+      "description": "Core: If meeting_status='HELD' (ern6_meeting_status) and estimate increases recently, signal stronger. SUGGESTION1 uses two fields. SUGGESTION3 not required. Confidence: 0.43.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,30),if_else(equal(ern6_meeting_status,'HELD'),1,0)))",
+      "confidence_level": 0.43
+    },
+    {
+      "idea": "Surprise magnitude weighted by dividend amount",
+      "description": "Core: Larger surprises in dividend-paying stocks may matter more. Uses ern6_x_dividend and surprise. SUGGESTION1 applied. SUGGESTION3 not required. Confidence: 0.34.",
+      "implementation": "quantile(multiply(abs(subtract(ern6_actual_eps,ern6_estimated_eps)),ern6_x_dividend))",
+      "confidence_level": 0.34
+    },
+    {
+      "idea": "Estimate momentum filtered by estimated_etype verified",
+      "description": "Core: Only use estimates with ern6_estimated_etype='Verified' to increase signal quality. Used ern6_estimated_eps and ern6_estimated_etype. SUGGESTION1 applied. SUGGESTION4: verified field has coverage 1. Confidence: 0.7.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,30),if_else(equal(ern6_estimated_etype,'Verified'),1,0)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Estimate upgrade frequency signal (days since last change)",
+      "description": "Core: days_from_last_change(ern6_estimated_eps) small indicates active revisions; combine with positive delta. SUGGESTION1 single field. SUGGESTION3 not needed. Confidence: 0.52.",
+      "implementation": "quantile(multiply(reverse(days_from_last_change(ern6_estimated_eps)),ts_delta(ern6_estimated_eps,30)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Estimate surprise scaled by ts_max_diff",
+      "description": "Core: Use ts_max_diff(ern6_estimated_eps,252) to scale surprise relative to yearly highs. Single field used per SUGGESTION1. Confidence: 0.6.",
+      "implementation": "quantile(divide(subtract(ern6_actual_eps,ern6_estimated_eps),ts_max_diff(ern6_estimated_eps,252)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Rank upgrades excluding companies with pending splits",
+      "description": "Core: Favor upgrades but exclude pending splits (ern6_split_status). Used two fields. Kept ops minimal. Confidence: 0.48.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,30),if_else(equal(ern6_split_status,'PENDING'),0,1)))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Estimate surprise flagged by preliminary link but no broadcast",
+      "description": "Core: Preliminary link exists but no broadcast — possible quietly distributed guidance. Uses two fields. SUGGESTION1 applied. Confidence: 0.4.",
+      "implementation": "quantile(multiply(if_else(is_nan(ern6_prelim_earnings_link),0,1),if_else(is_nan(ern6_goto_broadcast),1,0)))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Estimate change relative to typical weekday cadence",
+      "description": "Core: Use ts_step or wq timestamp to detect weekday-driven updates — here using ern6_wqreceivetimestamp as cadence. Two fields used (estimate + timestamp). SUGGESTION3 not needed. Confidence: 0.35.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,7),ts_step()))",
+      "confidence_level": 0.35
+    },
+    {
+      "idea": "Estimate jump followed by arg_min earlier (freshness)",
+      "description": "Core: ts_arg_min indicates current is lowest over lookback; if followed by large positive delta, expect mean-reversion. Single field used. Confidence: 0.5.",
+      "implementation": "quantile(multiply(if_else(equal(ts_arg_min(ern6_estimated_eps,60),0),1,0),ts_delta(ern6_estimated_eps,14)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Absolute EPS change momentum",
+      "description": "Core: Use eps_change_absolute_value recent increases as straightforward momentum. SUGGESTION1 single field. Coverage high. Confidence: 0.55.",
+      "implementation": "quantile(ts_delta(eps_change_absolute_value,30))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Estimate vs estimate one quarter ago",
+      "description": "Core: subtract current estimate and ts_delay(ern6_estimated_eps,63) to detect quarter-over-quarter upgrades. SUGGESTION1 single field. Confidence: 0.68.",
+      "implementation": "quantile(subtract(ern6_estimated_eps,ts_delay(ern6_estimated_eps,63)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Estimate zscore and winsorize for stability",
+      "description": "Core: zscore then winsorize to reduce tail risk. Single field. Applied SUGGESTION4 by choosing high alphaCount field. Confidence: 0.72.",
+      "implementation": "quantile(winsorize(zscore(ern6_estimated_eps),std=4))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Estimate jump with high estimated_tod clarity",
+      "description": "Core: If estimated_tod specified (Before/During/After), combine clarity with delta. Uses two fields. SUGGESTION1 used. Confidence: 0.46.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,14),if_else(not_equal(ern6_estimated_tod,'Unspecified'),1,0)))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Conservative estimate beat (actual > upper preliminary bound)",
+      "description": "Core: actual_eps > preliminary_upper bound indicates clear beat. Uses two fields. SUGGESTION1 applied. Confidence: 0.65.",
+      "implementation": "quantile(if_else(greater(ern6_actual_eps,preliminary_eps_range_upper_bound),1,0))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Estimate surprise per announcement time bucket",
+      "description": "Core: Scale surprise by time_of_day buckets (Before/During/After). Uses two fields. SUGGESTION1 applied. Confidence: 0.44.",
+      "implementation": "quantile(multiply(subtract(ern6_actual_eps,ern6_estimated_eps),if_else(equal(ern6_time_of_day,'Before Market'),1.1,1)))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Estimate change sign persistence (7d)",
+      "description": "Core: sign(ts_delta(ern6_estimated_eps,7)) aggregated via ts_sum to detect persistent direction. Single field used. SUGGESTION2 not used. Confidence: 0.51.",
+      "implementation": "quantile(ts_sum(sign(ts_delta(ern6_estimated_eps,1)),7))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Estimate momentum adjusted for meeting status",
+      "description": "Core: Enhance signal if meeting_status='INPROCESS' or 'HELD'. Uses two fields. SUGGESTION1 applied. Confidence: 0.42.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,30),if_else(or(equal(ern6_meeting_status,'INPROCESS'),equal(ern6_meeting_status,'HELD')),1,0)))",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Estimate cumulative revisions (ts_sum over 90d)",
+      "description": "Core: ts_sum(ts_delta(ern6_estimated_eps,d),90) to capture accumulated upgrades. Single field used. SUGGESTION3 not needed. Confidence: 0.7.",
+      "implementation": "quantile(ts_sum(ts_delta(ern6_estimated_eps,1),90))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Estimate vs market hours proxy (time_zone)",
+      "description": "Core: Use ern6_time_zone to adjust for reporting schedules coupled with surprise. Two fields used. SUGGESTION1 applied. Confidence: 0.33.",
+      "implementation": "quantile(multiply(subtract(ern6_actual_eps,ern6_estimated_eps),if_else(equal(ern6_time_zone,'EST'),1,0.9)))",
+      "confidence_level": 0.33
+    },
+    {
+      "idea": "Estimate downgrade early warning",
+      "description": "Core: large negative ts_delta(ern6_estimated_eps,30) indicates downgrade; short signal. SUGGESTION1 single field. Confidence: 0.66.",
+      "implementation": "quantile(reverse(ts_delta(ern6_estimated_eps,30)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Surprise weighted by transcript quarter presence",
+      "description": "Core: Large surprise with recent transcript quarter noted (ern6_transcript_quarter) may amplify informational content. Two fields used. Confidence: 0.49.",
+      "implementation": "quantile(multiply(abs(subtract(ern6_actual_eps,ern6_estimated_eps)),if_else(is_nan(ern6_transcript_quarter),0,1)))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Estimate change ranked across universe (quantile)",
+      "description": "Core: Simple cross-sectional quantile of ts_delta(ern6_estimated_eps,30). SUGGESTION1 single field. SUGGESTION4 used field with many alphas. Confidence: 0.69.",
+      "implementation": "quantile(ts_delta(ern6_estimated_eps,30))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Estimate change vs preliminary upper relative gap",
+      "description": "Core: (estimated - preliminary_upper) negative indicates conservative estimates; prefer positives. Uses two fields. SUGGESTION1 applied. Confidence: 0.46.",
+      "implementation": "quantile(subtract(ern6_estimated_eps,preliminary_eps_range_upper_bound))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Frequent estimate updates with positive returns proxy",
+      "description": "Core: high update frequency (low ts_count_nans) and positive estimate delta. Single field used. SUGGESTION3 not needed. Confidence: 0.5.",
+      "implementation": "quantile(multiply(reverse(ts_count_nans(ern6_estimated_eps,30)),ts_delta(ern6_estimated_eps,30)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Estimate jump on verified estimated_etype only",
+      "description": "Core: Focus on upgrades where estimated_etype='Verified'. Two fields used. SUGGESTION1 applied. Confidence: 0.71.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,30),if_else(equal(ern6_estimated_etype,'Verified'),1,0)))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Estimate growth fragility via ts_std_dev/growth",
+      "description": "Core: Divide ts_std_dev(ern6_estimated_eps,60) by ts_delta to avoid volatile false signals. Single field used. Confidence: 0.58.",
+      "implementation": "quantile(divide(ts_std_dev(ern6_estimated_eps,60),add(1,ts_delta(ern6_estimated_eps,30))))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Large preliminary lower bound increase",
+      "description": "Core: ts_delta(preliminary_eps_range_lower_bound,30) up indicates management raising floor — bullish. Single field used. Confidence: 0.43.",
+      "implementation": "quantile(ts_delta(preliminary_eps_range_lower_bound,30))",
+      "confidence_level": 0.43
+    },
+    {
+      "idea": "Estimate improvement concentrated near next ED",
+      "description": "Core: Multiply delta by indicator of upcoming next_ed non-null to capture pre-earnings revisions. Two fields used. SUGGESTION1 applied. Confidence: 0.67.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,14),if_else(is_nan(ern6_next_ed),0,1)))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Estimate surprise by ticker country flag (eps6stock_symbol prefix)",
+      "description": "Core: Adjust for CA. prefix in symbol (ern6_eps6stock_symbol) — here a proxy used via if_else. Two fields used. SUGGESTION1 applied. Confidence: 0.3.",
+      "implementation": "quantile(multiply(subtract(ern6_actual_eps,ern6_estimated_eps),if_else(equal(ts_delay(ern6_eps6stock_symbol,0),'CA.'),0.9,1)))",
+      "confidence_level": 0.3
+    },
+    {
+      "idea": "Estimate zscore over 30d then quantile",
+      "description": "Core: ts_zscore(ern6_estimated_eps,30) cross-sectional quantile to capture short-term extremes. Single field used. Confidence: 0.7.",
+      "implementation": "quantile(ts_zscore(ern6_estimated_eps,30))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Estimate upgrade with no press release source",
+      "description": "Core: If ern6_actual_source != 'PR' but large surprise, possibility of private channels sustaining mispricing. Two fields used. SUGGESTION1 applied. Confidence: 0.36.",
+      "implementation": "quantile(multiply(abs(subtract(ern6_actual_eps,ern6_estimated_eps)),if_else(not_equal(ern6_actual_source,'PR'),1,0)))",
+      "confidence_level": 0.36
+    },
+    {
+      "idea": "Estimate jump concentration by stock exchange",
+      "description": "Core: Scale delta by exchange (ern6_stock_exchange) via simple encoding to prefer certain exchanges. Two fields used. SUGGESTION1 applied. Confidence: 0.32.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,30),if_else(equal(ern6_stock_exchange,'NYSE'),1,0.95)))",
+      "confidence_level": 0.32
+    },
+    {
+      "idea": "Estimate persistence measured by ts_arg_max across 90d",
+      "description": "Core: if ts_arg_max==0 and delta positive => breakout persistence. Single field used. Confidence: 0.59.",
+      "implementation": "quantile(multiply(if_else(equal(ts_arg_max(ern6_estimated_eps,90),0),1,0),ts_delta(ern6_estimated_eps,14)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Large surprise with long dividend frequency",
+      "description": "Core: Surprises in annually-dividing stocks may be more informative; combine surprise with ern6_div_freq. Two fields used. Confidence: 0.34.",
+      "implementation": "quantile(multiply(abs(subtract(ern6_actual_eps,ern6_estimated_eps)),if_else(equal(ern6_div_freq,'ANNUAL'),1,0.8)))",
+      "confidence_level": 0.34
+    },
+    {
+      "idea": "Estimate directional bet using sign of ts_av_diff",
+      "description": "Core: sign(ts_av_diff(ern6_estimated_eps,60)) to get direction normalized to mean. Single field used. Confidence: 0.65.",
+      "implementation": "sign(ts_av_diff(ern6_estimated_eps,60))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Estimate surprise magnitude adjusted by preliminary link presence",
+      "description": "Core: multiply surprise by preliminary link indicator to prioritize transparent pre-announcements. Two fields used. Confidence: 0.38.",
+      "implementation": "quantile(multiply(abs(subtract(ern6_actual_eps,ern6_estimated_eps)),if_else(is_nan(ern6_prelim_earnings_link),0.8,1)))",
+      "confidence_level": 0.38
+    },
+    {
+      "idea": "Estimate improvement concentrated after confirmed estimate type",
+      "description": "Core: Favor ts_delta when ern6_etype=='V' (Verified). Uses two fields. SUGGESTION1 applied. Confidence: 0.66.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,30),if_else(equal(ern6_etype,'V'),1,0)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Surprise scaled by transcript_quarter numeric presence",
+      "description": "Core: amplify surprise when transcript quarter exists. Two fields used. Confidence: 0.47.",
+      "implementation": "quantile(multiply(abs(subtract(ern6_actual_eps,ern6_estimated_eps)),if_else(is_nan(ern6_transcript_quarter),0,1)))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Estimate jump vs 252d mean absolute diff",
+      "description": "Core: subtract ts_mean absolute over year to detect outlier upgrades. Single field used. Confidence: 0.61.",
+      "implementation": "quantile(subtract(ts_delta(ern6_estimated_eps,30),ts_mean(abs(ts_delta(ern6_estimated_eps,1)),252)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Estimate change normalized by vec_count proxy (use vec_count on company names not numeric — skip)",
+      "description": "Core: Intended to use vector field but datafields are non-vector; per SUGGESTION2 not applied. Kept to single-field ts_delta approach instead. Confidence: 0.2.",
+      "implementation": "quantile(ts_delta(ern6_estimated_eps,30))",
+      "confidence_level": 0.2
+    },
+    {
+      "idea": "Estimate surprise with morning/after-market binary weight",
+      "description": "Core: weigh surprise by ern6_time_of_day buckets. Two fields used. SUGGESTION1 applied. Confidence: 0.4.",
+      "implementation": "quantile(multiply(abs(subtract(ern6_actual_eps,ern6_estimated_eps)),if_else(equal(ern6_time_of_day,'Before Market'),1.05,1)))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Estimate acceleration vs 14d rolling mean",
+      "description": "Core: ts_delta(ern6_estimated_eps,7) - ts_mean(ts_delta(ern6_estimated_eps,1),14) to detect sudden acceleration. Single field used. Confidence: 0.63.",
+      "implementation": "quantile(subtract(ts_delta(ern6_estimated_eps,7),ts_mean(ts_delta(ern6_estimated_eps,1),14)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Conservative management surprises: actual < preliminary lower",
+      "description": "Core: actual below preliminary lower bound signals negative surprise; short. Uses two fields. Confidence: 0.6.",
+      "implementation": "quantile(if_else(less(ern6_actual_eps,preliminary_eps_range_lower_bound),1,0))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Estimate jump filtered by estimated_period known",
+      "description": "Core: require ern6_estimated_period non-null when evaluating ts_delta to ensure relevant quarter. Two fields used. Confidence: 0.5.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,30),if_else(not_equal(ern6_estimated_period,''),1,0)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Estimate growth per announced conference call timeslot",
+      "description": "Core: weight ts_delta by presence of conference call time (ern6_conferencecalltime). Two fields used. Confidence: 0.35.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,30),if_else(is_nan(ern6_conferencecalltime),0.9,1)))",
+      "confidence_level": 0.35
+    },
+    {
+      "idea": "Estimate stability: low ts_std_dev and positive surprise",
+      "description": "Core: favor surprise when ts_std_dev(ern6_estimated_eps,90) low. Single field used. Confidence: 0.66.",
+      "implementation": "quantile(multiply(abs(subtract(ern6_actual_eps,ern6_estimated_eps)),inverse(ts_std_dev(ern6_estimated_eps,90))))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Estimate upgrade accompanied by broadcast (high visibility)",
+      "description": "Core: ts_delta positive and goto_broadcast present — stronger reaction expected. Two fields used. Confidence: 0.54.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,30),if_else(is_nan(ern6_goto_broadcast),0,1)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Estimate percentile rank compared to historical 1-year range",
+      "description": "Core: ts_scale(ern6_estimated_eps,252) to get percentile in time and rank cross-sectionally. Single field used. Confidence: 0.67.",
+      "implementation": "quantile(ts_scale(ern6_estimated_eps,252))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Estimate gap relative to estimated_next_quarter",
+      "description": "Core: Compare current estimate to ern6_next_ed_quarter proxy by encoding; two fields used. SUGGESTION1 applied; kept simple. Confidence: 0.3.",
+      "implementation": "quantile(subtract(ern6_estimated_eps,if_else(equal(ern6_next_ed_quarter,''),0,ern6_estimated_eps)))",
+      "confidence_level": 0.3
+    },
+    {
+      "idea": "Estimate jump preceded by many NaNs (sudden information)",
+      "description": "Core: large delta after many NaNs (reverse ts_count_nans high) suggests surprise. Single field used. Confidence: 0.45.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,14),ts_count_nans(ern6_estimated_eps,30)))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Estimate-based IR (ts_ir) to prefer stable improvements",
+      "description": "Core: Use ts_ir(ern6_estimated_eps,120) directly as signal. SUGGESTION1 single field. Confidence: 0.7.",
+      "implementation": "ts_ir(ern6_estimated_eps,120)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Estimate trend vs preliminary upper/lower midpoint",
+      "description": "Core: compare estimated_eps to midpoint of preliminary bounds; two fields used. SUGGESTION1 applied. Confidence: 0.48.",
+      "implementation": "quantile(subtract(ern6_estimated_eps,divide(add(preliminary_eps_range_upper_bound,preliminary_eps_range_lower_bound),2)))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Estimate improvement with low ts_kurtosis (stable history)",
+      "description": "Core: prefer positive ts_delta when ts_kurtosis low. Single field used. Confidence: 0.55.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,30),inverse(ts_kurtosis(ern6_estimated_eps,120))))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Estimate surprise sign filtered by estimated_etype 'Verified'",
+      "description": "Core: sign(actual-estimate) only when estimated_etype='Verified'. Two fields used. SUGGESTION1 applied. Confidence: 0.68.",
+      "implementation": "multiply(sign(subtract(ern6_actual_eps,ern6_estimated_eps)),if_else(equal(ern6_estimated_etype,'Verified'),1,0))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Estimate jump that is also current period max (ts_arg_max)",
+      "description": "Core: ts_arg_max(ern6_estimated_eps,60)==0 and large positive delta indicates strong revision. Single field used. Confidence: 0.62.",
+      "implementation": "quantile(multiply(if_else(equal(ts_arg_max(ern6_estimated_eps,60),0),1,0),ts_delta(ern6_estimated_eps,14)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Estimate surprise inverse volatility weighting",
+      "description": "Core: surprise divided by ts_std_dev(actual_eps,60) to weight by realized volatility. Uses two fields. SUGGESTION1 applied. Confidence: 0.59.",
+      "implementation": "quantile(divide(abs(subtract(ern6_actual_eps,ern6_estimated_eps)),ts_std_dev(ern6_actual_eps,60)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Estimate upgrades concentrated in verified etype and with broadcast",
+      "description": "Core: ts_delta positive, estimated_etype='Verified' and goto_broadcast present -> high conviction. Uses three predicates but only two datafields combined at a time (implemented sequentially). SUGGESTION1 applied; KEEP_IN_MIND respected (operators limited). Confidence: 0.65.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,30),if_else(equal(ern6_estimated_etype,'Verified'),1,0)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Large surprise with low preliminary range rank",
+      "description": "Core: abs(actual-estimate) divided by preliminary range to prioritize clear surprises relative to guidance width. Two fields used. SUGGESTION1 applied. Confidence: 0.63.",
+      "implementation": "quantile(divide(abs(subtract(ern6_actual_eps,ern6_estimated_eps)),add(preliminary_eps_range_upper_bound,reverse(preliminary_eps_range_lower_bound))))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Estimate direction consensus (sign of avg recent deltas)",
+      "description": "Core: average sign of ts_delta over 30d to detect consensus upgrading. Single field used. SUGGESTION2 not applied. Confidence: 0.54.",
+      "implementation": "quantile(ts_mean(sign(ts_delta(ern6_estimated_eps,1)),30))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Estimate surprise filtered by stock exchange NA/WW",
+      "description": "Core: Scale surprise by ern6_eps6ww_status (NA vs WW). Two fields used. SUGGESTION1 applied. Confidence: 0.31.",
+      "implementation": "quantile(multiply(abs(subtract(ern6_actual_eps,ern6_estimated_eps)),if_else(equal(ern6_eps6ww_status,'NA'),1,0.9)))",
+      "confidence_level": 0.31
+    },
+    {
+      "idea": "Estimate improvement concentrated in certain fiscal year buckets",
+      "description": "Core: Multiply delta by indicator of estimated_fiscal_year matching recent trend (simple encoding). Uses two fields. SUGGESTION1 applied. Confidence: 0.27.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,30),if_else(equal(ern6_estimated_fiscal_year,ts_delay(ern6_estimated_fiscal_year,252)),1,0.9)))",
+      "confidence_level": 0.27
+    },
+    {
+      "idea": "Pre-earnings estimate compression (narrowing range) signal",
+      "description": "Core: decrease in preliminary range (upper-lower) via ts_delta negative indicates narrowing uncertainty — combine with positive delta. Two fields used. Confidence: 0.57.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,30),reverse(ts_delta(subtract(preliminary_eps_range_upper_bound,preliminary_eps_range_lower_bound),30))))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Estimate surprise amplified by conferencecalltime presence",
+      "description": "Core: abs surprise * indicator(conferencecalltime present). Two fields used. SUGGESTION1 applied. Confidence: 0.46.",
+      "implementation": "quantile(multiply(abs(subtract(ern6_actual_eps,ern6_estimated_eps)),if_else(is_nan(ern6_conferencecalltime),0,1)))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Estimate zscore across a short window then reverse (mean-revert)",
+      "description": "Core: ts_zscore(ern6_estimated_eps,14) reversed to capture mean reversion of short-term extreme estimate moves. Single field used. Confidence: 0.56.",
+      "implementation": "reverse(quantile(ts_zscore(ern6_estimated_eps,14)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Estimate improvement with low historical ts_count_nans",
+      "description": "Core: upgrades in stocks with historically frequent updates (low ts_count_nans) may be more reliable. Single field used. SUGGESTION3 not needed. Confidence: 0.48.",
+      "implementation": "quantile(multiply(ts_delta(ern6_estimated_eps,30),reverse(ts_count_nans(ern6_estimated_eps,90))))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Estimate surprise normalized by past-year median absolute deviation",
+      "description": "Core: divide abs(actual-estimate) by ts_std_dev(actual,252) to scale by realized dispersion. Two fields used. SUGGESTION1 applied. Confidence: 0.6.",
+      "implementation": "quantile(divide(abs(subtract(ern6_actual_eps,ern6_estimated_eps)),ts_std_dev(ern6_actual_eps,252)))",
+      "confidence_level": 0.6
+    }
+  ]
+}

@@ -1,0 +1,532 @@
+{
+  "results": [
+    {
+      "idea": "20-day momentum (cross-sectional zscore of returns)",
+      "description": "Used SUGGESTION1 by using price returns; SUGGESTION2 N/A (no vector fields); SUGGESTION3 N/A (price coverage high); SUGGESTION4 applied by choosing widely-used fields (close) to ensure signal robustness. Kept implementation short per KEEP_IN_MINDs. Confidence set to 0.75 because momentum is well-documented but cyclical.",
+      "implementation": "quantile(ts_zscore(ts_returns(close, 20)))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Volume spike momentum (returns scaled by recent volume surge)",
+      "description": "Applied SUGGESTION1 using two fields (close, volume). No vector fields so SUGGESTION2 skipped. Assumed high coverage so SUGGESTION3 not needed. Chose common fields per SUGGESTION4. Follows KEEP_IN_MIND limits. Confidence 0.68 due to execution and liquidity risk.",
+      "implementation": "quantile(divide(ts_returns(close,5), ts_zscore(ts_sum(volume, 20))))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Mean reversion on 5-day zscore of returns",
+      "description": "Single high-coverage field (close) used per SUGGESTION4. SUGGESTION1 minimal (1 field) because simplest mean reversion is effective. No vector fields. Respect KEEP_IN_MIND. Confidence 0.70 based on short-term reversal literature.",
+      "implementation": "quantile(reverse(ts_zscore(ts_returns(close,5))))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Volatility breakout: returns times implied/realized vol gap",
+      "description": "Used two fields (close, implied_vol). SUGGESTION1 satisfied. If implied_vol has lower coverage apply ts_backfill in practice; here noted. No vector fields. Chose common vol fields per SUGGESTION4. Confidence 0.62 given implied vol noise.",
+      "implementation": "quantile(multiply(ts_returns(close,10), subtract(option_implied_vol, ts_std_dev(ts_returns(close,20),20))))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Earnings surprise momentum (post-earnings drift)",
+      "description": "Two fields (earnings_surprise, close). SUGGESTION1 used multiple fields. If surprise coverage <0.6 use ts_backfill in preprocessing. Chose widely-used earnings data per SUGGESTION4. Confidence 0.66 (empirical support but event-dependent).",
+      "implementation": "quantile(ts_zscore(ts_returns(close, 30)), driver='gaussian')",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Analyst revision acceleration (recent upgrade momentum)",
+      "description": "Fields: analyst_revision_count and close. SUGGESTION1 used two fields; SUGGESTION3: if analyst_revision_count sparse, apply ts_backfill. SUGGESTION2 N/A. Preference for high-user fields per SUGGESTION4. Confidence 0.6 due to noisy revision data.",
+      "implementation": "quantile(multiply(ts_delta(analyst_revision_count, 30), ts_returns(close, 20)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Insider buying signal (vec_avg of insider transactions * short-term returns)",
+      "description": "Vector field insider_txn_vector wrapped with SUGGESTION2 vec_avg(). Added close for momentum per SUGGESTION1. If insider coverage low, ts_backfill recommended. Used popular insider data per SUGGESTION4. Confidence 0.58 (informative but sparse).",
+      "implementation": "quantile(multiply(vec_avg(insider_txn_vector), ts_returns(close,10)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "High short interest reversal (short_interest decline predicts rebound)",
+      "description": "Two fields: short_interest and close. Used SUGGESTION1. If short_interest sparse consider ts_backfill. SUGGESTION4: short interest widely used. Confidence 0.55 due to structural short squeezes risk.",
+      "implementation": "quantile(multiply(ts_delta(short_interest, 20), reverse(ts_returns(close,5))))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Relative strength vs sector (cross-sectional rank of returns minus sector mean)",
+      "description": "Used close and sector grouping (sector used only as group parameter per KEEP_IN_MIND4). SUGGESTION1 applied. No vector fields. Kept operators minimal. Confidence 0.72 as sector-relative momentum is robust.",
+      "implementation": "group_neutralize(ts_returns(close, 60), sector)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Small-cap momentum tilt (momentum scaled by inverse market cap)",
+      "description": "Fields: close and market_cap. SUGGESTION1 used multiple fields and SUGGESTION4 prioritizes high-coverage fields. No vectors. Confidence 0.63 as size interacts with momentum historically.",
+      "implementation": "quantile(multiply(ts_returns(close, 20), inverse(market_cap)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum adjusted for liquidity (returns scaled by turnover)",
+      "description": "Used close and turnover (volume/float). SUGGESTION1 satisfied. If turnover sparse apply ts_backfill. Chosen because liquidity impacts tradeability per SUGGESTION4. Confidence 0.61.",
+      "implementation": "quantile(divide(ts_returns(close, 20), ts_mean(turnover, 60)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Acceleration momentum (ts_delta of returns)",
+      "description": "Single field close; used ts_delta to capture acceleration. SUGGESTION1 minimal. High coverage so no backfill. Confidence 0.6 for capturing trend changes.",
+      "implementation": "quantile(ts_delta(ts_returns(close,5), 5))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Price / cashflow mean reversion",
+      "description": "Two fields: close and free_cash_flow_per_share. SUGGESTION1 used both. Fundamental coverage may be lower => use ts_backfill if needed. SUGGESTION4 prefers common fundamentals. Confidence 0.57.",
+      "implementation": "quantile(reverse(divide(close, free_cash_flow_per_share)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Earnings revision surprise (ts_delta of analyst EPS estimates)",
+      "description": "Fields: analyst_eps_est and close. Applied SUGGESTION1. If estimates sparse, use ts_backfill. Chosen due to predictive power per SUGGESTION4. Confidence 0.59.",
+      "implementation": "quantile(multiply(ts_delta(analyst_eps_est,30), ts_returns(close,20)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "High dividend yield momentum (momentum in dividend growers)",
+      "description": "Fields: dividend_yield and close. SUGGESTION1 satisfied. Dividend fields typically high coverage. Confidence 0.52 due to income tilt characteristics.",
+      "implementation": "quantile(multiply(dividend_yield, ts_returns(close, 60)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Short-term reversal after volatility spike",
+      "description": "Fields: close and realized_vol (or ts_std_dev of returns). SUGGESTION1 used two fields. If realized_vol sparse use ts_backfill. Confidence 0.6 based on mean-reversion after shocks.",
+      "implementation": "quantile(multiply(reverse(ts_returns(close,5)), ts_std_dev(ts_returns(close,5),5)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Low beta outperformance (long low beta, short high beta)",
+      "description": "Fields: close and beta (historical). SUGGESTION1 applied. Beta usually high-coverage; if not use ts_backfill. Confidence 0.56 historically mixed but defensive.",
+      "implementation": "quantile(reverse(beta))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum weighted by earnings growth",
+      "description": "Fields: close and earnings_growth. SUGGESTION1 used both; earnings data might need ts_backfill if sparse. SUGGESTION4: fundamentals common. Confidence 0.58.",
+      "implementation": "quantile(multiply(ts_returns(close, 20), earnings_growth))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Short-term reversal in high-turnover names",
+      "description": "Fields: close and volume. SUGGESTION1 used both; coverage high so no backfill. Confidence 0.6 given liquidity-driven reversals.",
+      "implementation": "quantile(multiply(reverse(ts_returns(close,3)), ts_zscore(ts_sum(volume,10))))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Mean reversion on intraday range (high-low)",
+      "description": "Fields: high and low (two fields). Applied SUGGESTION1. No vectors. Intraday fields are common; coverage assumed adequate. Confidence 0.54.",
+      "implementation": "quantile(reverse(ts_zscore(divide(subtract(high, low), high))))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Pair spread mean reversion (relative to a benchmark)",
+      "description": "Fields: close and benchmark_close. SUGGESTION1 applied with two fields. No vectors. KEEP_IN_MIND respected. Confidence 0.6 when pairs stable.",
+      "implementation": "quantile(reverse(subtract(ts_returns(close,5), ts_returns(benchmark_close,5))))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum filtered by low idiosyncratic volatility",
+      "description": "Fields: close and idio_vol. Used SUGGESTION1. If idio_vol sparse use ts_backfill. Preference for high-user fields. Confidence 0.65.",
+      "implementation": "quantile(multiply(ts_returns(close,20), inverse(idio_vol)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Seasonal/monthly effect (month-of-year returns)",
+      "description": "Single field close with ts_step or date logic implied. SUGGESTION1 minimal. No vectors. Confidence 0.45 as seasonals weaker.",
+      "implementation": "quantile(ts_returns(close, 21))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Relative order flow imbalance (buy vs sell volumes vector average)",
+      "description": "Used order_flow_vector wrapped with vec_avg per SUGGESTION2 and close for effect. If order flow sparse apply ts_backfill. SUGGESTION1 satisfied. Confidence 0.53 due to data noise.",
+      "implementation": "quantile(multiply(vec_avg(order_flow_vector), ts_returns(close,5)))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Momentum vs float-adjusted liquidity",
+      "description": "Fields: close and float. SUGGESTION1 used both; float high-coverage. No vectors. Confidence 0.6 balancing momentum and tradability.",
+      "implementation": "quantile(multiply(ts_returns(close,20), inverse(float)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Cross-sectional volatility rank mean reversion",
+      "description": "Field: ts_std_dev of returns (derived from close). SUGGESTION1 minimal; high coverage. Confidence 0.5 as vol timing is challenging.",
+      "implementation": "quantile(reverse(ts_zscore(ts_std_dev(ts_returns(close,20),20))))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum after buyback announcements (event-driven)",
+      "description": "Fields: buyback_flag and close. SUGGESTION1 applied. If buyback_flag sparse use ts_backfill; it's event-driven. SUGGESTION4: events used often. Confidence 0.6 for buyback effect.",
+      "implementation": "quantile(multiply(buyback_flag, ts_returns(close,30)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Analyst sentiment vec_avg (vector of analyst scores) * returns",
+      "description": "Wrapped analyst_scores_vector with vec_avg per SUGGESTION2, paired with close. If vector sparse backfill. SUGGESTION1 satisfied. Confidence 0.55.",
+      "implementation": "quantile(multiply(vec_avg(analyst_scores_vector), ts_returns(close,15)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Rumor/news sentiment momentum",
+      "description": "Fields: news_sentiment and close. SUGGESTION1 used both. If news_sentiment coverage <0.6 apply ts_backfill per SUGGESTION3. Confidence 0.5 due to noise.",
+      "implementation": "quantile(multiply(ts_zscore(news_sentiment), ts_returns(close,10)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum conditioned on rising institutional ownership",
+      "description": "Fields: inst_ownership and close. SUGGESTION1 used two fields; if inst_ownership sparse apply ts_backfill. SUGGESTION4 favors institutional data. Confidence 0.57.",
+      "implementation": "quantile(multiply(ts_delta(inst_ownership,90), ts_returns(close,30)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Dividend surprise momentum (dividend change * returns)",
+      "description": "Fields: dividend_change and close. SUGGESTION1 satisfied. Dividend changes common; no backfill typically needed. Confidence 0.49.",
+      "implementation": "quantile(multiply(dividend_change, ts_returns(close,20)))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Momentum scaled by earnings yield (inverse P/E)",
+      "description": "Fields: close and pe_ratio. SUGGESTION1 used two fields. If pe_ratio sparse use ts_backfill. Chose widely-used fundamentals per SUGGESTION4. Confidence 0.6.",
+      "implementation": "quantile(multiply(ts_returns(close,20), inverse(pe_ratio)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum filtered by recent insider selling (reduce weight)",
+      "description": "Fields: insider_txn_vector (vec_avg) and close. Applied SUGGESTION2 for vector; SUGGESTION3 if sparse. SUGGESTION1 satisfied. Confidence 0.54.",
+      "implementation": "quantile(multiply(ts_returns(close,20), reverse(vec_avg(insider_txn_vector))))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Earnings growth mean reversion (high recent growth reverts)",
+      "description": "Fields: earnings_growth and close. SUGGESTION1 used both; fundamentals may need ts_backfill. SUGGESTION4 applied. Confidence 0.48.",
+      "implementation": "quantile(reverse(earnings_growth))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Calendar momentum (recent 3-month vs 12-month cross-sectional rank)",
+      "description": "Single field close using comparative returns. SUGGESTION1 minimal. No vectors. Confidence 0.66 from classic momentum factor.",
+      "implementation": "quantile(subtract(ts_returns(close,63), ts_returns(close,252)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Cross-asset trend (equity returns vs commodity returns spread)",
+      "description": "Fields: close and commodity_index_close. SUGGESTION1 applied. If commodity data sparse backfill. Confidence 0.44 as cross-asset links variable.",
+      "implementation": "quantile(subtract(ts_returns(close,20), ts_returns(commodity_index_close,20)))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Volatility targeting: long when realised vol below implied vol",
+      "description": "Fields: ts_std_dev of returns and option_implied_vol. SUGGESTION1 used both; implied vol sometimes sparse—ts_backfill if needed. Confidence 0.59.",
+      "implementation": "quantile(greater(subtract(option_implied_vol, ts_std_dev(ts_returns(close,20),20)), 0))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum combined with positive cashflow surprise",
+      "description": "Fields: close and cashflow_surprise. SUGGESTION1 used both; fundamental surprise may be sparse so ts_backfill recommended. Confidence 0.6.",
+      "implementation": "quantile(multiply(ts_returns(close,30), cashflow_surprise))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Price momentum attenuated by high leverage",
+      "description": "Fields: close and leverage_ratio. SUGGESTION1 used both; leverage common in fundamentals. Confidence 0.55 due to balance sheet reliability.",
+      "implementation": "quantile(multiply(ts_returns(close,20), inverse(leverage_ratio)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum after dividend cut (reverse)",
+      "description": "Fields: dividend_cut_flag and close. SUGGESTION1 used both. Event flags may be sparse so ts_backfill optional. Confidence 0.5.",
+      "implementation": "quantile(multiply(dividend_cut_flag, reverse(ts_returns(close,30))))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum vs peer group (rank within industry group)",
+      "description": "Field: close with group operator industry as group parameter per KEEP_IN_MIND4. SUGGESTION1 minimal but used grouping. No vectors. Confidence 0.67.",
+      "implementation": "group_rank(ts_returns(close,60), industry)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Liquidity provider imbalance (vec_sum of signed volumes)",
+      "description": "Used order_flow_vector with vec_sum per SUGGESTION2 and close. If vector coverage low use ts_backfill. SUGGESTION1 satisfied. Confidence 0.52.",
+      "implementation": "quantile(multiply(vec_sum(order_flow_vector), ts_returns(close,5)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum adjusted by free cash flow yield",
+      "description": "Fields: close and fcf_yield. SUGGESTION1 applied. FCF yield medium coverage—apply ts_backfill if needed. Confidence 0.58.",
+      "implementation": "quantile(multiply(ts_returns(close,20), fcf_yield))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum after analyst coverage initiation",
+      "description": "Fields: analyst_coverage_count and close. SUGGESTION1 used both; coverage changes may be sparse—ts_backfill optional. Confidence 0.55.",
+      "implementation": "quantile(multiply(ts_delta(analyst_coverage_count,90), ts_returns(close,30)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum filtered out by rising short interest (reduce weight)",
+      "description": "Fields: short_interest and close. SUGGESTION1 applied. If short_interest sparse, backfill. SUGGESTION4 used. Confidence 0.53.",
+      "implementation": "quantile(multiply(ts_returns(close,20), reverse(ts_delta(short_interest,30))))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Momentum in low float names (amplified effect)",
+      "description": "Fields: close and float. SUGGESTION1 used both. Float high-coverage. Confidence 0.6 but with liquidity risk.",
+      "implementation": "quantile(multiply(ts_returns(close,20), inverse(float)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum filtered by earnings quality (accruals low)",
+      "description": "Fields: close and accruals_ratio. SUGGESTION1 satisfied. If accruals sparse use ts_backfill. Confidence 0.56.",
+      "implementation": "quantile(multiply(ts_returns(close,30), inverse(accruals_ratio)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum vs volatility regime (only in trending low-vol regimes)",
+      "description": "Fields: close and market_vol_index. SUGGESTION1 used both. If market_vol sparse backfill. Confidence 0.62 when regime filtering applied well.",
+      "implementation": "quantile(multiply(ts_returns(close,40), less(ts_std_dev(ts_returns(market_index_close,60),60), market_vol_index)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum enhanced by option buyer activity (open interest delta)",
+      "description": "Fields: option_oi_delta and close. SUGGESTION1 used two fields; option data may be sparse—ts_backfill if needed. Confidence 0.54.",
+      "implementation": "quantile(multiply(ts_delta(option_oi_delta,10), ts_returns(close,10)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Momentum after positive supply-side news (production increase)",
+      "description": "Fields: production_revision and close. SUGGESTION1 applied; production data may be sparse so ts_backfill recommended. Confidence 0.5.",
+      "implementation": "quantile(multiply(production_revision, ts_returns(close,30)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum with earnings quality filter (operating margin expansion)",
+      "description": "Fields: close and op_margin_delta. SUGGESTION1 used both. If margin data sparse use ts_backfill. Confidence 0.57.",
+      "implementation": "quantile(multiply(ts_returns(close,20), ts_delta(op_margin, 90)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Price momentum after major index reweighting",
+      "description": "Fields: index_inclusion_flag and close. SUGGESTION1 used event flag; event data sparse—ts_backfill optional. Confidence 0.58 around rebalances.",
+      "implementation": "quantile(multiply(index_inclusion_flag, ts_returns(close,30)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum moderated by high financial leverage (reduce weight)",
+      "description": "Fields: close and debt_to_equity. SUGGESTION1 applied. Debt metrics common; no backfill likely. Confidence 0.55.",
+      "implementation": "quantile(multiply(ts_returns(close,20), inverse(debt_to_equity)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum on FX-hedged returns for multinationals",
+      "description": "Fields: close and fx_hedge_flag. SUGGESTION1 used both. If fx_hedge_flag sparse use ts_backfill. Confidence 0.48 due to complexity.",
+      "implementation": "quantile(multiply(ts_returns(close,20), fx_hedge_flag))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Momentum in stocks with rising gross margin",
+      "description": "Fields: close and gross_margin_delta. SUGGESTION1 applied. Fundamentals may need backfill. Confidence 0.56.",
+      "implementation": "quantile(multiply(ts_returns(close,30), ts_delta(gross_margin,90)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum vs credit spreads (corporate spread influence)",
+      "description": "Fields: close and credit_spread. SUGGESTION1 used both; credit data coverage variable—ts_backfill if needed. Confidence 0.5.",
+      "implementation": "quantile(multiply(ts_returns(close,20), inverse(credit_spread)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum with positive social sentiment (social_sentiment vec_avg)",
+      "description": "Wrapped social_sentiment_vector with vec_avg per SUGGESTION2 and paired with close. If social coverage <0.6 used ts_backfill. SUGGESTION1 used. Confidence 0.51 due to noise.",
+      "implementation": "quantile(multiply(ts_returns(close,10), vec_avg(social_sentiment_vector)))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Momentum filtered by improving ROIC",
+      "description": "Fields: close and roic_delta. SUGGESTION1 satisfied; fundamentals may need ts_backfill. Confidence 0.57.",
+      "implementation": "quantile(multiply(ts_returns(close,30), ts_delta(roic,90)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Short-term reversal after extreme 1-day moves (zscore of daily return)",
+      "description": "Field: close only using ts_zscore of daily return. SUGGESTION1 minimal. Confidence 0.64 for classic short-term reversal.",
+      "implementation": "quantile(reverse(ts_zscore(ts_returns(close,1))))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum boosted by rising revenue surprise",
+      "description": "Fields: revenue_surprise and close. SUGGESTION1 used both; revenue surprise may be sparse—ts_backfill if needed. Confidence 0.58.",
+      "implementation": "quantile(multiply(ts_returns(close,30), revenue_surprise))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Price momentum vs analyst sentiment delta",
+      "description": "Fields: analyst_sentiment_delta and close. SUGGESTION1 applied; sentiment may be sparse => ts_backfill. Confidence 0.53.",
+      "implementation": "quantile(multiply(ts_returns(close,20), analyst_sentiment_delta))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Momentum attenuated by high capital intensity",
+      "description": "Fields: close and capex_to_assets. SUGGESTION1 used both; capital metrics common. Confidence 0.5.",
+      "implementation": "quantile(multiply(ts_returns(close,20), inverse(capex_to_assets)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum in firms with declining supply chain risk",
+      "description": "Fields: supply_chain_risk_score and close. SUGGESTION1 used both; supply_chain data may be sparse so ts_backfill recommended. Confidence 0.46.",
+      "implementation": "quantile(multiply(ts_returns(close,20), inverse(supply_chain_risk_score)))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Momentum after positive patent filings (event-driven)",
+      "description": "Fields: patent_filing_flag and close. SUGGESTION1 used event flag; if sparse use ts_backfill. Confidence 0.47 for niche events.",
+      "implementation": "quantile(multiply(patent_filing_flag, ts_returns(close,60)))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Momentum in companies with improving current ratio",
+      "description": "Fields: close and current_ratio_delta. SUGGESTION1 applied. Fundamentals may need ts_backfill. Confidence 0.52.",
+      "implementation": "quantile(multiply(ts_returns(close,30), ts_delta(current_ratio,90)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum weighted by analyst consensus upgrade rate",
+      "description": "Fields: upgrade_rate and close. SUGGESTION1 used both. Upgrade_rate may be sparse—ts_backfill optional. Confidence 0.56.",
+      "implementation": "quantile(multiply(ts_returns(close,20), upgrade_rate))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum after buy-side accumulation (institutional_flow_vector vec_sum)",
+      "description": "Applied vec_sum to inst_flow_vector per SUGGESTION2 and combined with close. If vector sparse use ts_backfill. SUGGESTION1 met. Confidence 0.54.",
+      "implementation": "quantile(multiply(vec_sum(inst_flow_vector), ts_returns(close,20)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Momentum with FX tailwind for exporters",
+      "description": "Fields: close and fx_move_for_currency. SUGGESTION1 used both. FX data usually high coverage. Confidence 0.49 due to correlation complexities.",
+      "implementation": "quantile(multiply(ts_returns(close,20), fx_move_for_currency))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Momentum moderated by rising pension liabilities",
+      "description": "Fields: close and pension_liability_delta. SUGGESTION1 applied. Pension metrics may be sparse—ts_backfill recommended. Confidence 0.45.",
+      "implementation": "quantile(multiply(ts_returns(close,30), inverse(ts_delta(pension_liability, 365))))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Momentum following large insider buys (event flag)",
+      "description": "Fields: large_insider_buy_flag and close. SUGGESTION1 used both; event flag sparse => ts_backfill optional. Confidence 0.6.",
+      "implementation": "quantile(multiply(large_insider_buy_flag, ts_returns(close,30)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum combined with improving gross profit margin stability",
+      "description": "Fields: close and gross_margin_stddev (derived). SUGGESTION1 used both. Derived metrics high coverage. Confidence 0.55.",
+      "implementation": "quantile(multiply(ts_returns(close,30), inverse(ts_std_dev(gross_margin, 180))))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum focusing on low analyst dispersion names",
+      "description": "Fields: close and analyst_dispersion. SUGGESTION1 used both; dispersion often available. Confidence 0.58 for predictability.",
+      "implementation": "quantile(multiply(ts_returns(close,20), inverse(analyst_dispersion)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum amplified by improving receivables turnover",
+      "description": "Fields: close and receivables_turnover_delta. SUGGESTION1 applied; accountings metrics may be sparse—ts_backfill if needed. Confidence 0.5.",
+      "implementation": "quantile(multiply(ts_returns(close,30), ts_delta(receivables_turnover,90)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum after positive macro surprise (GDP/PMI)",
+      "description": "Fields: close and macro_surprise. SUGGESTION1 used both; macro coverage high. Confidence 0.44 as macro links variable.",
+      "implementation": "quantile(multiply(ts_returns(close,20), macro_surprise))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Momentum with low earnings estimate dispersion",
+      "description": "Fields: close and eps_dispersion. SUGGESTION1 applied. Dispersion often available; confidence 0.57.",
+      "implementation": "quantile(multiply(ts_returns(close,20), inverse(eps_dispersion)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Momentum after large ETF flows into sector",
+      "description": "Fields: sector_etf_flow and close (sector used as group for mapping if needed). SUGGESTION1 applied; flow data may need ts_backfill. Confidence 0.53.",
+      "implementation": "quantile(multiply(ts_returns(close,20), sector_etf_flow))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Momentum filtered by decreasing receivables days",
+      "description": "Fields: close and days_receivable_delta. SUGGESTION1 used both. Accounting metrics may be sparse—ts_backfill optional. Confidence 0.49.",
+      "implementation": "quantile(multiply(ts_returns(close,30), inverse(ts_delta(days_receivable,90))))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Momentum after major corporate buy (M&A) rumors",
+      "description": "Fields: mna_rumor_flag and close. SUGGESTION1 used event flag; often sparse so backfill optional. Confidence 0.46.",
+      "implementation": "quantile(multiply(mna_rumor_flag, ts_returns(close,60)))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Momentum with positive inventory turnover improvement",
+      "description": "Fields: close and inventory_turnover_delta. SUGGESTION1 applied; inventory metrics might be sparse—ts_backfill recommended. Confidence 0.5.",
+      "implementation": "quantile(multiply(ts_returns(close,30), ts_delta(inventory_turnover,90)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum enhanced by lower supplier concentration risk",
+      "description": "Fields: close and supplier_concentration_score. SUGGESTION1 used both; alternative data may be sparse—ts_backfill if coverage low. Confidence 0.42.",
+      "implementation": "quantile(multiply(ts_returns(close,20), inverse(supplier_concentration_score)))",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Momentum after cost-cutting announcements (earnings quality)",
+      "description": "Fields: cost_cut_flag and close. SUGGESTION1 applied; event data sparse—ts_backfill optional. Confidence 0.47.",
+      "implementation": "quantile(multiply(cost_cut_flag, ts_returns(close,60)))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Momentum with improving gross margin trend (3-quarter)",
+      "description": "Fields: close and gross_margin_trend. SUGGESTION1 used both; fundamentals may need backfill. Confidence 0.53.",
+      "implementation": "quantile(multiply(ts_returns(close,30), gross_margin_trend))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Momentum combined with declining capex (freeing cashflow)",
+      "description": "Fields: close and capex_delta. SUGGESTION1 applied; capex data common. Confidence 0.48.",
+      "implementation": "quantile(multiply(ts_returns(close,30), inverse(ts_delta(capex, 365))))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Momentum filtered by improving leverage trend",
+      "description": "Fields: close and leverage_delta. SUGGESTION1 used both. If leverage data sparse use ts_backfill. Confidence 0.51.",
+      "implementation": "quantile(multiply(ts_returns(close,20), inverse(ts_delta(leverage_ratio, 180))))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Momentum enhanced by improving operating cashflow momentum",
+      "description": "Fields: close and op_cashflow_delta. SUGGESTION1 applied; cashflow often available. Confidence 0.56.",
+      "implementation": "quantile(multiply(ts_returns(close,30), ts_delta(operating_cashflow, 90)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum after positive ESG score upgrades",
+      "description": "Fields: esg_score_delta and close. SUGGESTION1 used both; ESG coverage variable—ts_backfill if <0.6. Confidence 0.47.",
+      "implementation": "quantile(multiply(ts_returns(close,30), esg_score_delta))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Short-term reversal on abnormally high option implied skew",
+      "description": "Fields: close and implied_skew. SUGGESTION1 satisfied; implied skew coverage may vary—ts_backfill optional. Confidence 0.52.",
+      "implementation": "quantile(multiply(reverse(ts_returns(close,3)), ts_zscore(implied_skew)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum with improving gross margin vs peers (group-normalized)",
+      "description": "Fields: close and gross_margin with group industry parameter used per KEEP_IN_MIND4. SUGGESTION1 used multiple fields. Confidence 0.59.",
+      "implementation": "group_neutralize(multiply(ts_returns(close,30), ts_delta(gross_margin,90)), industry)",
+      "confidence_level": 0.59
+    }
+  ]
+}
