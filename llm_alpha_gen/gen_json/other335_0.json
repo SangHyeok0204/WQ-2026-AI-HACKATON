@@ -1,0 +1,544 @@
+{
+  "results": [
+    {
+      "idea": "Cross-model spread: hedge minus linear score",
+      "description": "Combine hedge and linear model scores to capture divergences. Applied SUGGESTION1 by using two datafields (oth335_hc_combined_all_region_hedge, oth335_combined_all_region_linear). SUGGESTION2 not applicable (no vector fields). Coverage <0.6 so applied SUGGESTION3 ts_backfill on both. Preferred high userCount fields (hedge userCount=330, linear userCount=256) per SUGGESTION4. Kept implementation short per KEEP_IN_MINDs. Confidence: 0.65 because two independent models can produce robust spread signals but still model risk exists.",
+      "implementation": "subtract(ts_backfill(oth335_hc_combined_all_region_hedge,30), ts_backfill(oth335_combined_all_region_linear,30))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Composite momentum: ts_zscore of MIND",
+      "description": "Time-series momentum on final MIND score (oth335_combined_all_region_mind). Applied SUGGESTION3 ts_backfill for coverage. SUGGESTION1 used single high-alphaCount field (alphaCount=363). SUGGESTION2 not applicable. Matches KEEP_IN_MIND constraints. Confidence: 0.6 — MIND is composite and tends to be persistent.",
+      "implementation": "ts_zscore(ts_backfill(oth335_combined_all_region_mind,20),60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-term reversal on SHIELD",
+      "description": "Mean-reversion on short horizon for SHIELD score (oth335_combined_all_region_shield). Applied ts_backfill (SUGGESTION3). Chose this field despite lower userCount because it offers orthogonal signal. SUGGESTION1 minimal (single field). SUGGESTION2 N/A. Confidence: 0.5 — short-term reversal plausible but noisy.",
+      "implementation": "ts_delta(ts_backfill(oth335_combined_all_region_shield,10),5)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Cross-sectional zscore of linear model",
+      "description": "Rank/normalize linear model scores cross-sectionally (oth335_combined_all_region_linear). Applied ts_backfill for coverage and then zscore for cross-sectional alpha. SUGGESTION1 partially applied (single field), SUGGESTION4 chosen due to high alphaCount. Confidence: 0.62 — cross-sectional ranks tend to be stable.",
+      "implementation": "zscore(ts_backfill(oth335_combined_all_region_linear,30))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Relative momentum: hedge vs SHIELD",
+      "description": "Long names where hedge outperforms SHIELD (divergence of two scores). Applied ts_backfill to both (SUGGESTION3). Used two complementary models per SUGGESTION1. SUGGESTION2 not applicable. Confidence: 0.6 — model vs model spread can capture idiosyncratic signals.",
+      "implementation": "subtract(ts_backfill(oth335_hc_combined_all_region_hedge,30), ts_backfill(oth335_combined_all_region_shield,30))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Information ratio smoothing of MIND",
+      "description": "Use ts_ir to find securities with stable high MIND signal (oth335_combined_all_region_mind). Applied ts_backfill (SUGGESTION3) then ts_ir. SUGGESTION1 single field applied; SUGGESTION4 respected (high alphaCount). Confidence: 0.66 — stability filter tends to improve hit-rate.",
+      "implementation": "ts_ir(ts_backfill(oth335_combined_all_region_mind,30),60)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Market-cap weighted shield signal",
+      "description": "Downweight large caps by dividing SHIELD by MKT cap to favor small-cap positive SHIELD anomalies. Applied ts_backfill to both fields. SUGGESTION1 used two fields; SUGGESTION4 noted mktcap has lower userCount but is necessary. SUGGESTION2 N/A. Confidence: 0.55 — size tilt can help but mktcap data here has low coverage.",
+      "implementation": "divide(ts_backfill(oth335_combined_all_region_shield,30), ts_backfill(oth335_combined_all_region_mktcap,30))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Hedge-model ts_rank (short-term)",
+      "description": "Short-term rank of hedge score to capture recent momentum (oth335_hc_combined_all_region_hedge). Applied ts_backfill and then ts_rank. SUGGESTION1 single field. SUGGESTION4 used high userCount hedge field. Confidence: 0.61 — short-term ranks reasonable for trading.",
+      "implementation": "ts_rank(ts_backfill(oth335_hc_combined_all_region_hedge,20),20)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Cross-model consensus: average of hedge, linear, SHIELD",
+      "description": "Aggregate multiple model scores to reduce idiosyncratic noise. Applied SUGGESTION1 combining three sources but kept to 2 datafields limit by composing two then adding third requires >2 datafields — to satisfy KEEP_IN_MIND2 we instead average hedge and linear as proxy. SUGGESTION3 applied ts_backfill to both. SUGGESTION2 not applicable. Confidence: 0.63 — combining models improves robustness; used two strongest fields.",
+      "implementation": "divide(add(ts_backfill(oth335_hc_combined_all_region_hedge,30), ts_backfill(oth335_combined_all_region_linear,30)), 2)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Mean-reversion zscore on HC-MIND",
+      "description": "Cross-sectional zscore on the hc MIND field to capture reversions (oth335_hc_combined_all_region_mind). Applied ts_backfill then zscore. SUGGESTION4 used hc field because of decent userCount. SUGGESTION2 N/A. Confidence: 0.58 — moderate expectation of mean reversion.",
+      "implementation": "zscore(ts_backfill(oth335_hc_combined_all_region_mind,30))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Short-term breakout via ts_arg_max on linear",
+      "description": "Identify securities at local highs in linear score (oth335_combined_all_region_linear) using ts_arg_max to capture breakouts. Applied ts_backfill. SUGGESTION1 single field. Confidence: 0.56 — breakout signals plausible but can be noisy.",
+      "implementation": "ts_arg_max(ts_backfill(oth335_combined_all_region_linear,20),20)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum*Stability: ts_zscore * ts_ir of MIND",
+      "description": "Multiply momentum (ts_zscore) by stability (ts_ir) for MIND to upweight persistent movers. Both operators applied after ts_backfill per SUGGESTION3. Single-field per KEEP_IN_MIND2. SUGGESTION4 used higher alphaCount MIND. Confidence: 0.68 — combining strength and stability improves signal quality.",
+      "implementation": "multiply(ts_zscore(ts_backfill(oth335_combined_all_region_mind,20),60), ts_ir(ts_backfill(oth335_combined_all_region_mind,30),60))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Hedge minus hc-MIND for risk-adjusted divergence",
+      "description": "Spread between hedge score and hc-MIND to find idiosyncratic opportunities. Applied ts_backfill to both. SUGGESTION1 used two fields. SUGGESTION4 prioritized hedge high userCount. Confidence: 0.6 — divergence between related models can be predictive.",
+      "implementation": "subtract(ts_backfill(oth335_hc_combined_all_region_hedge,30), ts_backfill(oth335_hc_combined_all_region_mind,30))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Relative stability: ts_std_dev of shield",
+      "description": "Prefer securities with low recent volatility in SHIELD (oth335_combined_all_region_shield) to favor stable positive signals. Applied ts_backfill then ts_std_dev. SUGGESTION1 single field. Confidence: 0.54 — stability helps but reduces turnover.",
+      "implementation": "ts_std_dev(ts_backfill(oth335_combined_all_region_shield,30),60)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Negative information ratio: short unstable MIND",
+      "description": "Short names with low ts_ir on MIND (unstable signals). Applied ts_backfill then ts_ir and reversed sign. SUGGESTION3 used ts_backfill. SUGGESTION4 favored MIND. Confidence: 0.52 — shorting unstable signals is plausible but riskier.",
+      "implementation": "reverse(ts_ir(ts_backfill(oth335_combined_all_region_mind,30),60))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Cross-field correlation filter: low correlation between hedge and linear",
+      "description": "Find instruments where hedge and linear scores are decoupled (low ts_corr) to target unique signals. Applied ts_backfill then ts_corr. SUGGESTION1 used both fields; SUGGESTION4 chosen for high counts. Confidence: 0.59 — low correlation identifies special situations.",
+      "implementation": "ts_corr(ts_backfill(oth335_hc_combined_all_region_hedge,60), ts_backfill(oth335_combined_all_region_linear,60),60)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Short-term accumulation: ts_sum of positive SHIELD returns",
+      "description": "Aggregate recent positive SHIELD moves via ts_sum to find accumulating momentum. Applied ts_backfill then ts_sum. SUGGESTION2 irrelevant. Confidence: 0.57 — aggregated short-term moves often continue.",
+      "implementation": "ts_sum(ts_backfill(oth335_combined_all_region_shield,14),14)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Scale-adjusted linear score",
+      "description": "Time-scale normalize linear scores with ts_scale to compare across time. Applied ts_backfill then ts_scale. SUGGESTION4 used linear high alphaCount. Confidence: 0.6 — scaled signals easier to combine across securities.",
+      "implementation": "ts_scale(ts_backfill(oth335_combined_all_region_linear,30),30)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Mean rank of hedge over month",
+      "description": "Cross-sectional rank of monthly hedge ts_mean to find sustained leadership. Applied ts_backfill then ts_mean + zscore. SUGGESTION1 single field. Confidence: 0.62 — sustained leaders often continue.",
+      "implementation": "zscore(ts_mean(ts_backfill(oth335_hc_combined_all_region_hedge,30),30))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum minus volatility: zscore(MIND) / ts_std_dev(MIND)",
+      "description": "Reward strong MIND zscore but penalize recent volatility (ts_std_dev). Applied ts_backfill to MIND. SUGGESTION1 single field. Confidence: 0.67 — risk-adjusted momentum typically improves returns.",
+      "implementation": "divide(zscore(ts_backfill(oth335_combined_all_region_mind,30)), ts_std_dev(ts_backfill(oth335_combined_all_region_mind,30),30))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Hedge relative strength over 3 months",
+      "description": "ts_returns of hedge over 60 days to capture multi-month strength. Applied ts_backfill then ts_returns. SUGGESTION4 chosen hedge for userCount. Confidence: 0.6 — multi-month returns are predictive but noisy.",
+      "implementation": "ts_returns(ts_backfill(oth335_hc_combined_all_region_hedge,60),60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Linear model kurtosis filter",
+      "description": "Identify assets with high ts_kurtosis in linear score (oth335_combined_all_region_linear) to target fat-tailed behavior. Applied ts_backfill then ts_kurtosis. SUGGESTION2 N/A. Confidence: 0.48 — kurtosis signals rare events; lower confidence.",
+      "implementation": "ts_kurtosis(ts_backfill(oth335_combined_all_region_linear,60),60)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Cross-sectional median-normalized SHIELD",
+      "description": "Normalize SHIELD across universe using normalize(ts_backfill). Applied ts_backfill per SUGGESTION3 then normalize. SUGGESTION4 lower userCount for SHIELD noted but still useful. Confidence: 0.56 — normalization improves comparability.",
+      "implementation": "normalize(ts_backfill(oth335_combined_all_region_shield,30))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Pair-trade: hedge vs shield momentum spread",
+      "description": "Long names where hedge momentum >> SHIELD momentum. Applied ts_backfill to both, used ts_zscore momentum and subtract. SUGGESTION1 used two complementary fields. Confidence: 0.61 — momentum spread can capture model disagreement.",
+      "implementation": "subtract(ts_zscore(ts_backfill(oth335_hc_combined_all_region_hedge,20),60), ts_zscore(ts_backfill(oth335_combined_all_region_shield,20),60))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Low-coverage backfilled linear signal",
+      "description": "Apply ts_backfill aggressively to address coverage (~0.46) on linear then use ts_backfill k=1 via kth_element for extra robustness. SUGGESTION3 applied; SUGGESTION1 single field due to KEEP_IN_MIND2. SUGGESTION2 N/A. Confidence: 0.5 — backfill helps but can introduce stale values.",
+      "implementation": "ts_backfill(kth_element(oth335_combined_all_region_linear,30,1),30)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Normalized hc-hedge zscore",
+      "description": "Cross-sectional zscore of hc hedge after backfill to get relative ranking. Applied ts_backfill and zscore. SUGGESTION4 used high-userCount hc hedge. Confidence: 0.63 — ranking robust across cross-section.",
+      "implementation": "zscore(ts_backfill(oth335_hc_combined_all_region_hedge,30))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum acceleration: ts_arg_max of MIND",
+      "description": "Find securities where MIND hits new recent highs using ts_arg_max. Applied ts_backfill. SUGGESTION1 single field. Confidence: 0.58 — breakouts have asymmetric returns.",
+      "implementation": "ts_arg_max(ts_backfill(oth335_combined_all_region_mind,30),30)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Stability-weighted hedge score",
+      "description": "Divide hedge zscore by its recent ts_std_dev to favor stable strong hedges. Applied ts_backfill then zscore and ts_std_dev. SUGGESTION1 single field. Confidence: 0.65 — stability weighting improves signal-to-noise.",
+      "implementation": "divide(zscore(ts_backfill(oth335_hc_combined_all_region_hedge,30)), ts_std_dev(ts_backfill(oth335_hc_combined_all_region_hedge,30),30))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Short-term contrarian on linear zscore",
+      "description": "Trade against extreme linear scores (mean-reversion). Applied ts_backfill then zscore and reverse. SUGGESTION1 single field; SUGGESTION4 used because linear has high alphaCount. Confidence: 0.55 — contrarian tends to work short-term.",
+      "implementation": "reverse(zscore(ts_backfill(oth335_combined_all_region_linear,10)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "TS decay on MIND to reduce turnover",
+      "description": "Apply ts_decay_linear to recent MIND signal to smooth positions; used ts_backfill before decay. SUGGESTION1 single field. SUGGESTION3 applied. Confidence: 0.6 — decay reduces turnover and may improve net returns.",
+      "implementation": "ts_decay_linear(ts_backfill(oth335_combined_all_region_mind,30),10)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Cross-sectional bucket of hedge scores",
+      "description": "Bucket hedge scores into quintiles after backfill to create discrete long/short buckets. Applied ts_backfill then bucket. SUGGESTION1 single field. Confidence: 0.59 — bucketing helps risk control.",
+      "implementation": "bucket(zscore(ts_backfill(oth335_hc_combined_all_region_hedge,30)), range=\"0,1,0.2\")",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Shorting large-cap weak linear",
+      "description": "Multiply inverse market cap with negative linear zscore to short large weak names. Applied ts_backfill to both fields; used inverse on mktcap. SUGGESTION4 noted mktcap low userCount but necessary. Confidence: 0.53 — size tilt increases tail risk.",
+      "implementation": "multiply(reverse(zscore(ts_backfill(oth335_combined_all_region_linear,30))), inverse(ts_backfill(oth335_combined_all_region_mktcap,30)))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Rolling-volatility-adjusted SHIELD",
+      "description": "Divide SHIELD zscore by its recent ts_std_dev to emphasize stable SHIELD signals. Applied ts_backfill and standard operators. Confidence: 0.56 — reduces noise.",
+      "implementation": "divide(zscore(ts_backfill(oth335_combined_all_region_shield,30)), ts_std_dev(ts_backfill(oth335_combined_all_region_shield,30),30))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "High-confidence consensus: average hc-hedge and hc-MIND",
+      "description": "Average two HC fields to find consistent signals in hc universe. Applied ts_backfill to both. SUGGESTION4 used hc fields due to high userCount. KEEP_IN_MIND2 respected. Confidence: 0.67 — combining two HC signals increases conviction.",
+      "implementation": "divide(add(ts_backfill(oth335_hc_combined_all_region_hedge,30), ts_backfill(oth335_hc_combined_all_region_mind,30)),2)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "TS product of short-term increases in SHIELD and linear",
+      "description": "Multiply short-term ts_returns of SHIELD and linear to find reinforcing momentum. Applied ts_backfill to both then ts_returns and multiply. SUGGESTION1 used two fields. Confidence: 0.6 — joint momentum increases odds of continuation.",
+      "implementation": "multiply(ts_returns(ts_backfill(oth335_combined_all_region_shield,14),14), ts_returns(ts_backfill(oth335_combined_all_region_linear,14),14))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Hedge score winsorized zscore",
+      "description": "Winsorize hedge after backfill then zscore to reduce outliers. Applied ts_backfill then winsorize and zscore. SUGGESTION2 N/A. Confidence: 0.61 — outlier control improves stability.",
+      "implementation": "zscore(winsorize(ts_backfill(oth335_hc_combined_all_region_hedge,30), std=4))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Mean rank difference: linear minus MIND",
+      "description": "Cross-sectional rank difference between linear and MIND to find model disagreement. Applied ts_backfill to both and subtract ranks. SUGGESTION1 applied. Confidence: 0.58 — rank divergence often indicates alpha.",
+      "implementation": "subtract(ts_rank(ts_backfill(oth335_combined_all_region_linear,30),30), ts_rank(ts_backfill(oth335_combined_all_region_mind,30),30))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Normalize then group-neutral hedge (proxy)",
+      "description": "Normalize hedge scores to remove mean; group operators require GROUP field which we don't have so we limit to normalize after backfill per KEEP_IN_MIND4. SUGGESTION3 applied. Confidence: 0.55 — normalization necessary for cross-sectional strategies.",
+      "implementation": "normalize(ts_backfill(oth335_hc_combined_all_region_hedge,30))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Short-term ts_rank for SHIELD breakout",
+      "description": "Short-window ts_rank of SHIELD to capture immediate breakouts. Applied ts_backfill then ts_rank. SUGGESTION1 single field. Confidence: 0.57 — short-window breakout has moderate predictability.",
+      "implementation": "ts_rank(ts_backfill(oth335_combined_all_region_shield,10),10)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "HC-linear stability: ts_ir of hc linear (if available)",
+      "description": "Use ts_ir to find stable hc-linear signals. Data field oth335_hc_combined_all_region_linear exists but has lower userCount; applied ts_backfill then ts_ir. SUGGESTION4 considered but still used field for diversity. Confidence: 0.5 — lower confidence due to smaller userCount.",
+      "implementation": "ts_ir(ts_backfill(oth335_hc_combined_all_region_linear,30),60)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Relative momentum: MIND zscore minus hedge zscore",
+      "description": "Find names where MIND momentum outpaces hedge momentum via subtracting zscores. Applied ts_backfill to both. SUGGESTION1 used both. Confidence: 0.6 — cross-signal outperformance indicates opportunity.",
+      "implementation": "subtract(zscore(ts_backfill(oth335_combined_all_region_mind,20)), zscore(ts_backfill(oth335_hc_combined_all_region_hedge,20)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum persistence using ts_count_nans as liquidity proxy",
+      "description": "Use ts_count_nans on MIND to detect illiquidity/staleness and penalize persistent NaNs. Applied ts_backfill then ts_count_nans. SUGGESTION1 single field. SUGGESTION3 used. Confidence: 0.47 — NaN counts are indirect and lower confidence.",
+      "implementation": "ts_count_nans(ts_backfill(oth335_combined_all_region_mind,30),30)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "High ts_product between hedge and linear to capture joint strength",
+      "description": "Compute ts_product of recent values of hedge and linear after backfill to find co-moving strength. Applied ts_backfill to both then ts_product. SUGGESTION1 used two fields. Confidence: 0.59 — joint strong signals are promising.",
+      "implementation": "ts_product(multiply(ts_backfill(oth335_hc_combined_all_region_hedge,14), ts_backfill(oth335_combined_all_region_linear,14)),14)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Rapid change detector: last_diff_value on linear",
+      "description": "Detect recent changes in linear by last_diff_value after backfill. SUGGESTION3 applied. SUGGESTION2 N/A. Confidence: 0.52 — detects regime shifts but can be noisy.",
+      "implementation": "last_diff_value(ts_backfill(oth335_combined_all_region_linear,30),30)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Hedge zscore scaled to [0,1]",
+      "description": "Use ts_scale to compress hedge scores into 0-1 range after backfill for stable weighting. SUGGESTION3 applied. Confidence: 0.58 — scaling makes portfolio construction easier.",
+      "implementation": "ts_scale(ts_backfill(oth335_hc_combined_all_region_hedge,30),30)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "TS arg_min on SHIELD to short extreme recent lows",
+      "description": "Short names where SHIELD is at recent minima using ts_arg_min after backfill. SUGGESTION3 applied. Confidence: 0.53 — bottoms often mean revert but can also trend.",
+      "implementation": "ts_arg_min(ts_backfill(oth335_combined_all_region_shield,30),30)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Hedge winsorized momentum",
+      "description": "Winsorize recent hedge returns to reduce outlier influence then take ts_zscore. Applied ts_backfill then ts_returns then winsorize and ts_zscore (kept operators <=7). SUGGESTION1 single field. Confidence: 0.6 — robust momentum approach.",
+      "implementation": "ts_zscore(winsorize(ts_returns(ts_backfill(oth335_hc_combined_all_region_hedge,20),20), std=4),60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Linear minus hc-linear: cross-population divergence",
+      "description": "Difference between regional linear and hc-linear to detect population-specific signals. Applied ts_backfill to both. SUGGESTION4 noted lower userCount for hc-linear but divergence is informative. Confidence: 0.54 — moderate evidence.",
+      "implementation": "subtract(ts_backfill(oth335_combined_all_region_linear,30), ts_backfill(oth335_hc_combined_all_region_linear,30))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Normalize MIND then apply tail filter to cap extremes",
+      "description": "Normalize backfilled MIND cross-sectionally then cap extremes via tail operator to reduce extreme weights. SUGGESTION3 applied. KEEP_IN_MIND operator count respected. Confidence: 0.59 — improves robustness.",
+      "implementation": "tail(normalize(ts_backfill(oth335_combined_all_region_mind,30)), lower=-3, upper=3, newval=0)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Hedge ts_max_diff to find recent dips below max",
+      "description": "Use ts_max_diff on hedge to find names that declined from recent peaks (mean-reversion candidates). Applied ts_backfill then ts_max_diff. SUGGESTION1 single field. Confidence: 0.57 — pullbacks often revert.",
+      "implementation": "ts_max_diff(ts_backfill(oth335_hc_combined_all_region_hedge,60),60)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Linear ts_rank + winsorize for robust selection",
+      "description": "Rank linear signal then winsorize to limit outliers after backfill. SUGGESTION3 applied. Confidence: 0.58 — combining operators enhances stability.",
+      "implementation": "winsorize(ts_rank(ts_backfill(oth335_combined_all_region_linear,30),30), std=4)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "HC-MIND scaled by market cap",
+      "description": "Favor small-cap hc-MIND leaders by dividing hc-MIND by mktcap (both backfilled). SUGGESTION1 used two fields. SUGGESTION4 noted small userCount for mktcap but necessary; SUGGESTION3 applied. Confidence: 0.52 — size tilt increases risk but can add alpha.",
+      "implementation": "divide(ts_backfill(oth335_hc_combined_all_region_mind,30), ts_backfill(oth335_hc_combined_all_region_mktcap,30))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Short-term ts_quantile of SHIELD",
+      "description": "Convert recent SHIELD time-series into quantiles to detect outliers. Applied ts_backfill then ts_quantile. SUGGESTION2 not applicable. Confidence: 0.55 — quantiles are robust to distributional changes.",
+      "implementation": "ts_quantile(ts_backfill(oth335_combined_all_region_shield,30),30, driver=\"gaussian\")",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Hedge ts_rank momentum with hump to reduce turnover",
+      "description": "Apply ts_rank on hedge then hump to limit turnover. Applied ts_backfill then ts_rank and hump. SUGGESTION3 used. Confidence: 0.6 — turnover control helps net returns.",
+      "implementation": "hump(ts_rank(ts_backfill(oth335_hc_combined_all_region_hedge,30),30), hump=0.01)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Linear short-term zscore * inverse mktcap",
+      "description": "Upsize small-cap strong linear names by multiplying linear zscore with inverse mktcap after backfill. SUGGESTION1 used two fields; SUGGESTION4 noted mktcap low userCount but used for size tilt. Confidence: 0.54 — small-cap tilt increases returns but also risk.",
+      "implementation": "multiply(zscore(ts_backfill(oth335_combined_all_region_linear,20)), inverse(ts_backfill(oth335_combined_all_region_mktcap,30)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Consensus disagreement: abs(hedge - linear)",
+      "description": "Absolute difference between hedge and linear scores to find high disagreement (alpha opportunities). Applied ts_backfill to both per SUGGESTION3. SUGGESTION1 two fields. Confidence: 0.58 — high disagreement often precedes moves.",
+      "implementation": "abs(subtract(ts_backfill(oth335_hc_combined_all_region_hedge,30), ts_backfill(oth335_combined_all_region_linear,30)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum tail filter: keep only extremes in MIND",
+      "description": "Keep extreme MIND zscores (tail operator) to focus on strong signals after backfill. Applied ts_backfill then zscore and tail. Confidence: 0.6 — focusing on extremes increases edge.",
+      "implementation": "trade_when(tail(zscore(ts_backfill(oth335_combined_all_region_mind,30)), lower=-2, upper=2, newval=0), zscore(ts_backfill(oth335_combined_all_region_mind,30),60), 0)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Hedge ts_av_diff (demeaned time-series)",
+      "description": "Use ts_av_diff to remove recent mean from hedge, highlighting deviations. Applied ts_backfill then ts_av_diff. SUGGESTION1 single field. Confidence: 0.56 — de-meaning highlights temporary mispricings.",
+      "implementation": "ts_av_diff(ts_backfill(oth335_hc_combined_all_region_hedge,30),30)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Linear ts_scale then quantile for uniform weighting",
+      "description": "Scale linear scores in time then convert to quantile to ensure uniform exposure. Applied ts_backfill then ts_scale then quantile. SUGGESTION1 single field. Confidence: 0.59 — normalization improves portfolio construction.",
+      "implementation": "quantile(ts_scale(ts_backfill(oth335_combined_all_region_linear,30),30), driver=\"gaussian\")",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "MIND ts_product with hedge to amplify consistent signals",
+      "description": "Multiply backfilled MIND and hedge to emphasize names where both models agree positively. Applied ts_backfill to both and multiply. SUGGESTION1 used two fields per guidance. Confidence: 0.64 — agreement across models raises conviction.",
+      "implementation": "multiply(ts_backfill(oth335_combined_all_region_mind,30), ts_backfill(oth335_hc_combined_all_region_hedge,30))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Short-term reversal using ts_arg_min on linear",
+      "description": "Buy when linear hits recent minima (ts_arg_min) after backfill. Applied ts_backfill per SUGGESTION3. Confidence: 0.53 — reasonable short-term mean reversion strategy.",
+      "implementation": "ts_arg_min(ts_backfill(oth335_combined_all_region_linear,14),14)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Hedge ts_rank minus SHIELD ts_rank",
+      "description": "Rank difference of hedge and SHIELD to highlight model inconsistencies. Applied ts_backfill to both then ts_rank and subtract. SUGGESTION1 used two fields. Confidence: 0.58 — comparative ranks isolate relative strength.",
+      "implementation": "subtract(ts_rank(ts_backfill(oth335_hc_combined_all_region_hedge,30),30), ts_rank(ts_backfill(oth335_combined_all_region_shield,30),30))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Linear ts_arg_max (recent peak) momentum",
+      "description": "Identify linear recent peaks with ts_arg_max after backfill to capture breakout continuation. SUGGESTION3 applied. Confidence: 0.56 — peaks often lead to momentum continuation.",
+      "implementation": "ts_arg_max(ts_backfill(oth335_combined_all_region_linear,30),30)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "HC-hedge winsorized ts_ir filter",
+      "description": "Compute ts_ir on hc-hedge after backfill and winsorize to avoid extremes. Applied ts_backfill then ts_ir and winsorize. SUGGESTION4 used hc field for higher counts. Confidence: 0.62 — stable, winsorized IR is robust.",
+      "implementation": "winsorize(ts_ir(ts_backfill(oth335_hc_combined_all_region_hedge,30),60), std=4)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Linear ts_regression beta vs hedge",
+      "description": "Use ts_regression of linear explained by hedge to find names where linear is sensitive to hedge model; applied ts_backfill to both and ts_regression. SUGGESTION1 applied. Confidence: 0.6 — regression beta identifies coupling.",
+      "implementation": "ts_regression(ts_backfill(oth335_combined_all_region_linear,60), ts_backfill(oth335_hc_combined_all_region_hedge,60),60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "MIND quantile weighted by inverse mktcap",
+      "description": "Use MIND quantile and tilt towards small cap via inverse mktcap after backfill. Applied ts_backfill to both fields. SUGGESTION4 noted mktcap low userCount but kept for size tilt. Confidence: 0.55 — size tilt increases expected return with risk.",
+      "implementation": "multiply(ts_quantile(ts_backfill(oth335_combined_all_region_mind,30),30), inverse(ts_backfill(oth335_combined_all_region_mktcap,30)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Hedge ts_av_diff combined with zscore",
+      "description": "Use ts_av_diff to get deviation from mean then zscore cross-sectionally to rank anomalies on hedge after backfill. SUGGESTION3 applied. Confidence: 0.61 — combines time and cross-sectional adjustments.",
+      "implementation": "zscore(ts_av_diff(ts_backfill(oth335_hc_combined_all_region_hedge,30),30))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Linear sudden-change detector using days_from_last_change",
+      "description": "Flag assets with long periods since linear changed; backfill then days_from_last_change. SUGGESTION3 used. Confidence: 0.49 — low confidence but can find stagnant/stable names.",
+      "implementation": "days_from_last_change(ts_backfill(oth335_combined_all_region_linear,60))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "SHIELD zscore * negative ts_std_dev to favor strong stable signals",
+      "description": "Multiply SHIELD zscore by inverse volatility (1/ts_std_dev) after backfill to favor strong stable signals. SUGGESTION3 applied. Confidence: 0.6 — risk-adjusted signal often better.",
+      "implementation": "multiply(zscore(ts_backfill(oth335_combined_all_region_shield,30)), inverse(ts_std_dev(ts_backfill(oth335_combined_all_region_shield,30),30)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Cross-sectional winsorized consensus: hedge+linear",
+      "description": "Add hedge and linear after backfill, winsorize then zscore to form consensus. SUGGESTION1 combined two fields, SUGGESTION3 backfilled both. Confidence: 0.65 — consensus reduces idiosyncratic noise.",
+      "implementation": "zscore(winsorize(add(ts_backfill(oth335_hc_combined_all_region_hedge,30), ts_backfill(oth335_combined_all_region_linear,30)), std=4))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "MIND decayed momentum via ts_decay_linear",
+      "description": "Apply ts_decay_linear to MIND after backfill to emphasize recent information while smoothing. SUGGESTION3 applied. Confidence: 0.6 — decay balances recency and stability.",
+      "implementation": "ts_decay_linear(ts_backfill(oth335_combined_all_region_mind,30),10)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Linear quantile momentum filter",
+      "description": "Compute quantile of linear after backfill and trade only top quantiles. SUGGESTION3 applied. SUGGESTION1 single field. Confidence: 0.58 — quantile filtering is robust.",
+      "implementation": "quantile(ts_backfill(oth335_combined_all_region_linear,30), driver=\"gaussian\")",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Hedge ts_product of recent returns and ts_ir",
+      "description": "Multiply short-term hedge returns with ts_ir to favor high-return, stable names after backfill. SUGGESTION3 applied. Confidence: 0.63 — combining return and stability increases odds.",
+      "implementation": "multiply(ts_returns(ts_backfill(oth335_hc_combined_all_region_hedge,14),14), ts_ir(ts_backfill(oth335_hc_combined_all_region_hedge,30),60))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Mean-reversion on consensus gap: abs(MIND - linear)",
+      "description": "Target large absolute gaps between MIND and linear after backfill as mean-reversion candidates. SUGGESTION1 used two fields. Confidence: 0.59 — large model gaps often mean reversion opportunities.",
+      "implementation": "abs(subtract(ts_backfill(oth335_combined_all_region_mind,30), ts_backfill(oth335_combined_all_region_linear,30)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Short-term ts_rank of product of hedge and SHIELD",
+      "description": "Multiply hedge and SHIELD after backfill then short-window ts_rank to pick joint momentum names. SUGGESTION1 two fields. Confidence: 0.6 — joint momentum is predictive.",
+      "implementation": "ts_rank(multiply(ts_backfill(oth335_hc_combined_all_region_hedge,14), ts_backfill(oth335_combined_all_region_shield,14)),14)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Linear winsorized divide by ts_std_dev",
+      "description": "Normalize linear by its volatility to get risk-adjusted signals after backfill. Applied winsorize then divide by ts_std_dev. SUGGESTION3 applied. Confidence: 0.61 — volatility adjustment useful.",
+      "implementation": "divide(winsorize(ts_backfill(oth335_combined_all_region_linear,30), std=4), ts_std_dev(ts_backfill(oth335_combined_all_region_linear,30),30))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "HC-MIND arg_max persistence detector",
+      "description": "Use ts_arg_max on hc-MIND to find recently peaked hc names after backfill. SUGGESTION4 used hc field. Confidence: 0.55 — peak persistence moderate.",
+      "implementation": "ts_arg_max(ts_backfill(oth335_hc_combined_all_region_mind,30),30)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "SHIELD short-term reversal via reverse(ts_zscore)",
+      "description": "Short extreme positive SHIELD zscores (reverse) after backfill to capture mean-reversion. SUGGESTION3 applied. Confidence: 0.54 — reversal sometimes reliable but noisy.",
+      "implementation": "reverse(ts_zscore(ts_backfill(oth335_combined_all_region_shield,10),10))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Linear ts_max_diff mean-reversion",
+      "description": "Use ts_max_diff to find names that dropped from highs in linear; mean-revert candidates after backfill. SUGGESTION3 applied. Confidence: 0.56 — pullbacks often revert.",
+      "implementation": "ts_max_diff(ts_backfill(oth335_combined_all_region_linear,60),60)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Hedge vs linear ts_covariance anomaly",
+      "description": "Compute ts_covariance between hedge and linear to find changing relationships; after backfill. SUGGESTION1 used two fields. Confidence: 0.58 — changing covariance can reveal regime shifts.",
+      "implementation": "ts_covariance(ts_backfill(oth335_hc_combined_all_region_hedge,60), ts_backfill(oth335_combined_all_region_linear,60),60)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "MIND winsorized ts_zscore hull",
+      "description": "Winsorize MIND after backfill then ts_zscore for robust cross-sectional ranking. SUGGESTION3 applied. Confidence: 0.6 — robust ranking improves selection.",
+      "implementation": "ts_zscore(winsorize(ts_backfill(oth335_combined_all_region_mind,30), std=4),60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Linear product with inverse mktcap for small-cap momentum",
+      "description": "Multiply linear zscore with inverse mktcap (both backfilled) to emphasize small-cap winners. SUGGESTION4 noted limited mktcap coverage. Confidence: 0.52 — size tilt increases expected return but also risk.",
+      "implementation": "multiply(zscore(ts_backfill(oth335_combined_all_region_linear,30)), inverse(ts_backfill(oth335_combined_all_region_mktcap,30)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "TS rolling mean difference: hedge - ts_mean(hedge)",
+      "description": "Compute deviation from recent mean for hedge (ts_backfill then subtract ts_mean) to find deviations. SUGGESTION3 applied. Confidence: 0.57 — deviations often mean-revert.",
+      "implementation": "subtract(ts_backfill(oth335_hc_combined_all_region_hedge,30), ts_mean(ts_backfill(oth335_hc_combined_all_region_hedge,30),30))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Linear ts_regression residual (idiosyncratic signal)",
+      "description": "Regress linear on hc-hedge and take residual via ts_regression (rettype to get residual) after backfill to isolate idiosyncratic linear signal. SUGGESTION1 used two fields. Confidence: 0.6 — residuals often contain alpha.",
+      "implementation": "ts_regression(ts_backfill(oth335_combined_all_region_linear,60), ts_backfill(oth335_hc_combined_all_region_hedge,60),60, lag=0, rettype=1)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "MIND ts_quantile with uniform driver",
+      "description": "Use ts_quantile on MIND with uniform driver to get evenly distributed signals after backfill. SUGGESTION3 applied. Confidence: 0.59 — uniform driver helpful for portfolio balancing.",
+      "implementation": "ts_quantile(ts_backfill(oth335_combined_all_region_mind,30),30, driver=\"uniform\")",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Hedge short-term product with negative ts_arg_min (momentum reversal)",
+      "description": "Multiply recent hedge returns with indicator of recent minima to capture reversals. Implemented with ts_returns and ts_arg_min after backfill. SUGGESTION1 single field. Confidence: 0.53 — mixed evidence.",
+      "implementation": "multiply(ts_returns(ts_backfill(oth335_hc_combined_all_region_hedge,14),14), ts_arg_min(ts_backfill(oth335_hc_combined_all_region_hedge,14),14))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Consensus zscore: average zscore of hedge and linear",
+      "description": "Compute zscore of each model after backfill then average to form consensus. SUGGESTION1 used two fields; SUGGESTION4 favored high-user fields. Confidence: 0.66 — averaged zscores reduce noise.",
+      "implementation": "divide(add(zscore(ts_backfill(oth335_hc_combined_all_region_hedge,30)), zscore(ts_backfill(oth335_combined_all_region_linear,30))),2)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "MIND ts_av_diff then quantile",
+      "description": "Demean MIND via ts_av_diff then convert to quantile for robust ranking after backfill. SUGGESTION3 applied. Confidence: 0.6 — combined time and cross-sectional processing adds robustness.",
+      "implementation": "quantile(ts_av_diff(ts_backfill(oth335_combined_all_region_mind,30),30), driver=\"gaussian\")",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Linear sudden positive jump detector using last_diff_value",
+      "description": "Use last_diff_value on linear after backfill to detect recent jumps from previous value. SUGGESTION3 applied. Confidence: 0.51 — jump detection useful but noisy.",
+      "implementation": "last_diff_value(ts_backfill(oth335_combined_all_region_linear,30),30)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Hedge winsorized divide by group proxy (not available) — fallback normalize",
+      "description": "Wanted group neutralization but GROUP fields are not provided (KEEP_IN_MIND4), so normalized backfilled hedge instead. SUGGESTION3 applied. SUGGESTION1 partially applied. Confidence: 0.56 — normalization is a reasonable fallback.",
+      "implementation": "normalize(ts_backfill(oth335_hc_combined_all_region_hedge,30))",
+      "confidence_level": 0.56
+    }
+  ]
+}

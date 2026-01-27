@@ -1,0 +1,670 @@
+{
+  "results": [
+    {
+      "idea": "Average competitor PageRank momentum",
+      "description": "Use vec_avg of competitors' PageRank to capture rising competitor visibility. S1: used one high-quality field (pv13_com_page_rank) intentionally to keep signal clear; S2: applied vec_avg() because competitor ranks are vector-like; S3: coverage 0.8966>0.6 so no ts_backfill; S4: high userCount/alphaCount chosen. Kept implementation short (<=7 ops, 1 datafield) per KEEP_IN_MINDs. Confidence set to 0.70 based on prior usage and coverage.",
+      "implementation": "zscore(vec_avg(pv13_com_page_rank))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Customer return sign persistence",
+      "description": "Signal: instruments with positive customer-return sign tend to outperform. S1: single datafield (pv13_custretsig_retsig) used for clarity; S2: not applicable (scalar); S3: coverage 0.9276>0.6 so no backfill; S4: strong user/alpha counts. Kept short and under operator limits. Confidence 0.72.",
+      "implementation": "zscore(pv13_custretsig_retsig)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Competitor-average short-term return momentum",
+      "description": "Use recent averaged one-day returns of competitors (rel_ret_comp) to predict instrument moves. S1: single high-signal field; S2: not vector; S3: coverage 0.8228>0.6; S4: very high user/alpha counts applied. Respect KEEP_IN_MINDs. Confidence 0.78.",
+      "implementation": "ts_zscore(rel_ret_comp,5)",
+      "confidence_level": 0.78
+    },
+    {
+      "idea": "Per-competitor return (returns normalized by competitor count)",
+      "description": "Divide averaged competitor returns by competitor count to capture concentrated competitor impact. S1: used two fields (rel_ret_comp, rel_num_comp); S2: none vector; S3: both coverage>0.6 so no backfill; S4: both have high user/alpha counts. Implementation respects operator/datafield limits. Confidence 0.74.",
+      "implementation": "zscore(divide(rel_ret_comp, rel_num_comp))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Customer-average return per customer",
+      "description": "Capture customer-driven pressure: rel_ret_cust divided by rel_num_cust (backfilled). S1: two fields used; S2: not applied; S3: rel_num_cust coverage 0.5068<0.6 so ts_backfill applied to rel_num_cust; S4: user/alpha counts moderate. KEEP_IN_MINDs respected. Confidence 0.52.",
+      "implementation": "zscore(divide(rel_ret_cust, ts_backfill(rel_num_cust,5)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Partners' averaged return momentum",
+      "description": "Use rel_ret_part to capture partner-driven spillovers. S1: single field; S2: not vector; S3: coverage 0.7097>0.6 so no backfill; S4: good user/alpha counts. Short implementation. Confidence 0.66.",
+      "implementation": "ts_zscore(rel_ret_part,5)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Normalized market-cap weighted attractiveness (inverse cap)",
+      "description": "Small-cap tilt from inverse market cap (pv13_revere_index_cap) expecting higher returns for smaller firms. S1: single field used; S2: not vector; S3: coverage 1.0 so no backfill; S4: very high user/alpha counts. KEEP_IN_MINDs applied. Confidence 0.68.",
+      "implementation": "zscore(inverse(pv13_revere_index_cap))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Competitor PageRank vs customer PageRank divergence",
+      "description": "Long instruments whose customers have higher PageRank than competitors (customer pagerank - competitor pagerank). S1: two vector-like fields; S2: applied vec_avg() to both pv13_ustomergraphrank_page_rank and pv13_com_page_rank; S3: both have coverage >0.6 so no backfill; S4: moderate user counts used. Implementation kept concise. Confidence 0.63.",
+      "implementation": "zscore(subtract(vec_avg(pv13_ustomergraphrank_page_rank), vec_avg(pv13_com_page_rank)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "High HITS authority among competitors",
+      "description": "Instruments whose competitors have rising HITS authority (pv13_com_rk_au vector averaged) may face pressure — short; use vec_avg. S1: single vector field; S2: applied vec_avg(pv13_com_rk_au); S3: coverage 0.8966 no backfill; S4: solid user/alpha counts. Confidence 0.60.",
+      "implementation": "zscore(vec_avg(pv13_com_rk_au))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Hub-authority gap between customers and competitors",
+      "description": "Compare customers' hub rank vs competitors' hub rank to detect network-centrality advantage. S1: two vector fields used; S2: vec_avg on pv13_ustomergraphrank_hub_rank and pv13_ompetitorgraphrank_hub_rank; S3: coverage >0.7 for both; S4: userCounts moderate. Respect KEEP_IN_MINDs. Confidence 0.61.",
+      "implementation": "zscore(subtract(vec_avg(pv13_ustomergraphrank_hub_rank), vec_avg(pv13_ompetitorgraphrank_hub_rank)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Relative index value z-score",
+      "description": "Use pv13_revere_index_value zscore to capture deviations in index exposure/value. S1: single field; S2: not vector; S3: coverage 1.0; S4: medium user/alpha counts. Simple and short. Confidence 0.55.",
+      "implementation": "zscore(pv13_revere_index_value)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Sector concentration signal (key sector count)",
+      "description": "Firms with many key sectors (pv13_revere_key_sector_total) may be diversified and less sensitive — short diversification. S1: single field; S2: not vector; S3: coverage 1.0; S4: very high user/alpha counts. Implementation concise. Confidence 0.50.",
+      "implementation": "reverse(zscore(pv13_revere_key_sector_total))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Terminal-sector pureplay premium",
+      "description": "Companies operating in many terminal sectors (pv13_revere_term_sector_total) indicate focused domain — long. S1: single field; S2: not vector; S3: coverage 1.0; S4: high user/alpha counts. Short implementation. Confidence 0.54.",
+      "implementation": "zscore(pv13_revere_term_sector_total)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Zipcode-level momentum (local cluster effect)",
+      "description": "Use pv13_revere_zipcode to bucket and neutralize — implemented via group neutralization not used (GROUP disallowed alone), so use zipcode as categorical filter by quantile. S1: used one categorical field to create buckets (bucket not a group alone); S2: not vector; S3: coverage 0.9238; S4: moderate counts. KEEP_IN_MINDs observed. Confidence 0.45.",
+      "implementation": "quantile(pv13_revere_zipcode)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "High competitor count as negative pressure",
+      "description": "More competitors (rel_num_comp) usually compress margins; reverse zscore(rel_num_comp) used. S1: single field; S2: not vector; S3: coverage 0.8902>0.6; S4: high counts used. Confidence 0.58.",
+      "implementation": "reverse(zscore(rel_num_comp))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Partner concentration premium (few partners)",
+      "description": "Companies with fewer partners (rel_num_part low) may have stronger partnerships; use reverse zscore(rel_num_part). S1: single field; S2: not vector; S3: coverage 0.7837>0.6; S4: very high counts. Confidence 0.53.",
+      "implementation": "reverse(zscore(rel_num_part))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Combined competitor-return and company market cap (risk-adjusted competitor pressure)",
+      "description": "Divide competitor returns by market cap to scale impact: divide(rel_ret_comp, pv13_revere_index_cap). S1: two fields used; S2: none vector; S3: both coverage>0.8; S4: both high user/alpha counts. KEEP_IN_MIND limits respected. Confidence 0.67.",
+      "implementation": "zscore(divide(rel_ret_comp, pv13_revere_index_cap))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Recent change in competitor returns (delta)",
+      "description": "ts_delta(rel_ret_comp,1) to capture last-day jump among competitors. S1: single field; S2: not vector; S3: no backfill needed; S4: strong usage stats. Simple and short per constraints. Confidence 0.70.",
+      "implementation": "ts_zscore(ts_delta(rel_ret_comp,1),5)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Volatility of competitor returns (ts_std_dev)",
+      "description": "High stddev of rel_ret_comp signals unstable competitive environment — short. S1: single field; S2: none vector; S3: coverage OK; S4: high alphaCount. Kept concise. Confidence 0.59.",
+      "implementation": "ts_zscore(ts_std_dev(rel_ret_comp,20),20)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Customer network authority scaled by firm size",
+      "description": "vec_avg(customer authority) divided by market cap to find high-authority-but-small firms. S1: two fields used; S2: vec_avg applied to pv13_ustomergraphrank_auth_rank; S3: both coverage>0.7; S4: userCounts moderate. Implementation short. Confidence 0.64.",
+      "implementation": "zscore(divide(vec_avg(pv13_ustomergraphrank_auth_rank), pv13_revere_index_cap))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Competitor hub rank momentum per competitor",
+      "description": "Average competitor hub rank change divided by competitor count to normalize. S1: two fields; S2: vec_avg for hub ranks; S3: coverage>0.7; S4: used fields with moderate counts. Respect KEEP_IN_MINDs. Confidence 0.57.",
+      "implementation": "zscore(divide(ts_zscore(vec_avg(pv13_ompetitorgraphrank_hub_rank),5), rel_num_comp))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Pagerank skew: max competitor pagerank vs avg",
+      "description": "vec_max(pv13_com_page_rank) - vec_avg(...) to detect dominant competitor. S1: vector ops used; S2: applied vec_max and vec_avg; S3: coverage OK; S4: good user stats. Operators count small. Confidence 0.62.",
+      "implementation": "zscore(subtract(vec_max(pv13_com_page_rank), vec_avg(pv13_com_page_rank)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Customers' PageRank momentum (short-term zscore)",
+      "description": "ts_zscore on vec_avg customer pagerank to capture rising customer influence. S1: single vector field; S2: vec_avg used; S3: coverage 0.7906>0.6; S4: moderate usage. Minimal operators. Confidence 0.60.",
+      "implementation": "ts_zscore(vec_avg(pv13_ustomergraphrank_page_rank),5)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Relative map-density signal (pv13_reveremap intensity)",
+      "description": "Use pv13_reveremap as a proxy for mapping richness; zscore applied. S1: single field; S2: not vector; S3: coverage 0.9926; S4: high user/alpha counts. Short. Confidence 0.48.",
+      "implementation": "zscore(pv13_reveremap)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Sector terminal indicator signaling niche focus",
+      "description": "Use pv13_revere_term (terminal sector flag) to capture niche firms; treat as binary factor using zscore. S1: single field; S2: not vector; S3: coverage 0.4115<0.6 but binary — apply ts_backfill to be safe; S4: moderate counts. Implementation respects limits. Confidence 0.44.",
+      "implementation": "zscore(ts_backfill(pv13_revere_term,5))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Parent-sector divergence: child vs parent level",
+      "description": "Compare sector level (pv13_revere_level) to parent's sector code (pv13_revere_parent) via quantile differences to detect reclassification arbitrage. S1: two fields used; S2: neither vector; S3: both coverage ~0.62 so OK; S4: smaller userCounts but acceptable. Keep short. Confidence 0.40.",
+      "implementation": "subtract(quantile(pv13_revere_level), quantile(pv13_revere_parent))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "High aggregated related companies returns (rel_ret_all) momentum",
+      "description": "Use rel_ret_all ts_zscore to capture ecosystem momentum. S1: single field; S2: not vector; S3: coverage 0.9613>0.6; S4: good counts. Kept concise. Confidence 0.69.",
+      "implementation": "ts_zscore(rel_ret_all,5)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Competitor return persistence (ts_ir)",
+      "description": "Use ts_ir(rel_ret_comp,20) to find stable competitor-return signals (mean/std). S1: single field; S2: not vector; S3: coverage OK; S4: high alphaCount. Operators within limits. Confidence 0.65.",
+      "implementation": "ts_ir(rel_ret_comp,20)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Sector focused company count momentum",
+      "description": "primary_sector_focused_company_count (low coverage) indicates specialization; ts_backfill used then zscore. S1: single low-coverage field; S2: not vector; S3: applied ts_backfill(primary_sector_focused_company_count,10); S4: low userCount so lower confidence. KEEP_IN_MIND kept. Confidence 0.32.",
+      "implementation": "zscore(ts_backfill(primary_sector_focused_company_count,10))",
+      "confidence_level": 0.32
+    },
+    {
+      "idea": "Company total in sector (crowding) signal",
+      "description": "pv13_revere_company_total low-coverage -> backfill then reverse zscore to detect crowded sectors. S1: single field; S2: not vector; S3: ts_backfill applied; S4: moderate userCounts. Short and compliant. Confidence 0.35.",
+      "implementation": "reverse(zscore(ts_backfill(pv13_revere_company_total,10)))",
+      "confidence_level": 0.35
+    },
+    {
+      "idea": "Product-level competitor count effect",
+      "description": "pv13_revere_comproduct_company (coverage 0.4078) backfilled and inverted to find niche product advantage. S1: single field; S2: not vector; S3: ts_backfill used; S4: low userCount so low confidence. Compliance with KEEP_IN_MIND. Confidence 0.30.",
+      "implementation": "zscore(ts_backfill(pv13_revere_comproduct_company,10))",
+      "confidence_level": 0.3
+    },
+    {
+      "idea": "Customer returns zscore scaled by customer count",
+      "description": "Normalizes rel_ret_cust by rel_num_cust (backfilled) to detect per-customer influence. S1: two fields; S2: none vector; S3: rel_num_cust backfilled due to coverage 0.5068; S4: moderate counts. Short. Confidence 0.50.",
+      "implementation": "zscore(divide(ts_backfill(rel_ret_cust,5), ts_backfill(rel_num_cust,5)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High-degree competitor network centrality (vec_count proxy)",
+      "description": "Use vec_count on competitor pagerank vector if available; here approximate with rel_num_comp. S1: used rel_num_comp as proxy; S2: vec_count not applied because pv13_com_page_rank is the vector but we prefer rel_num_comp scalar for coverage; S3: coverage OK; S4: high usage. Simplicity retained. Confidence 0.49.",
+      "implementation": "reverse(zscore(rel_num_comp))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Customer vs partner return differential",
+      "description": "Subtract partner returns from customer returns to see which relationship is driving performance. S1: two fields used (rel_ret_cust, rel_ret_part); S2: no vector; S3: rel_ret_cust coverage low -> ts_backfill applied; S4: counts mixed. KEEP_IN_MINDs met. Confidence 0.46.",
+      "implementation": "zscore(subtract(ts_backfill(rel_ret_cust,5), rel_ret_part))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Long short: high customer return sign & low competitor return",
+      "description": "Combine pv13_custretsig_retsig with negative rel_ret_comp to form a long-short signal. S1: two fields used; S2: none vector; S3: coverage OK for both; S4: both high counts. Operators within limits. Confidence 0.71.",
+      "implementation": "zscore(subtract(pv13_custretsig_retsig, ts_zscore(rel_ret_comp,5)))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Market-cap adjusted PageRank (pagerank per cap)",
+      "description": "Scale competitor PageRank by company's cap to detect notable visibility for small firms. S1: two fields; S2: vec_avg applied to pv13_com_page_rank; S3: cap coverage 1.0; S4: chosen high-usage fields. Short. Confidence 0.66.",
+      "implementation": "zscore(divide(vec_avg(pv13_com_page_rank), pv13_revere_index_cap))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Pagerank kurtosis among customers (vec_stddev proxy)",
+      "description": "Use vec_stddev of customer pageranks to detect concentration of influential customers. S1: vector field used; S2: vec_stddev(pv13_ustomergraphrank_page_rank) applied; S3: coverage OK; S4: moderate counts. Implementation compact. Confidence 0.58.",
+      "implementation": "zscore(vec_stddev(pv13_ustomergraphrank_page_rank))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Competitor influence to customer influence ratio",
+      "description": "Divide vec_avg competitor pagerank by vec_avg customer pagerank to capture imbalance. S1: two vector fields used; S2: vec_avg for both; S3: coverage OK; S4: reasonable userCounts. Respect KEEP_IN_MINDs. Confidence 0.59.",
+      "implementation": "zscore(divide(vec_avg(pv13_com_page_rank), vec_avg(pv13_ustomergraphrank_page_rank)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Short-term ts_max_diff of competitor returns",
+      "description": "ts_max_diff(rel_ret_comp,5) identifies large downside vs recent maxima among competitors. S1: single field; S2: not vector; S3: coverage OK; S4: high alphaCount. Simple and short. Confidence 0.63.",
+      "implementation": "ts_zscore(ts_max_diff(rel_ret_comp,5),5)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Persistent high customer authority (ts_mean of vec_avg)",
+      "description": "Use ts_mean(vec_avg(customer auth),20) to find persistently influential customer bases. S1: vector + time series used; S2: vec_avg applied; S3: coverage OK; S4: moderate counts. Operators limited. Confidence 0.60.",
+      "implementation": "ts_mean(vec_avg(pv13_ustomergraphrank_auth_rank),20)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Low number of overlapping products (niche advantage)",
+      "description": "Use primary_sector_focused_company_count or single_sector_pureplay_company_count to detect pureplays; these are low coverage -> backfill and zscore. S1: single low-coverage field; S2: not vector; S3: ts_backfill applied; S4: small userCount reduces confidence. Compliance with KEEP_IN_MINDs. Confidence 0.28.",
+      "implementation": "zscore(ts_backfill(single_sector_pureplay_company_count,10))",
+      "confidence_level": 0.28
+    },
+    {
+      "idea": "PageRank zscore cross-sectional",
+      "description": "Cross-sectional zscore of vec_avg competitor pagerank to rank within universe. S1: single vector field; S2: vec_avg used; S3: coverage OK; S4: high alphaCount. Kept under op limits. Confidence 0.65.",
+      "implementation": "zscore(vec_avg(pv13_com_page_rank))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Customer hub-authority composite",
+      "description": "Sum of vec_avg customer hub and authority to form a composite importance metric. S1: two vector fields used; S2: vec_avg used on both pv13_ustomergraphrank_hub_rank and pv13_ustomergraphrank_auth_rank; S3: coverage OK; S4: moderate counts. Operators limited. Confidence 0.62.",
+      "implementation": "zscore(add(vec_avg(pv13_ustomergraphrank_hub_rank), vec_avg(pv13_ustomergraphrank_auth_rank)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Competitor hub-authority composite (pressure)",
+      "description": "Sum of competitor hub and authority vec_avgs to detect network pressure. S1: two vector fields; S2: vec_avg applied; S3: coverage >0.89; S4: acceptable counts. Short implementation. Confidence 0.60.",
+      "implementation": "zscore(add(vec_avg(pv13_ompetitorgraphrank_hub_rank), vec_avg(pv13_com_rk_au)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Return acceleration among related companies",
+      "description": "ts_arg_max on rel_ret_all over 5 days to find recent peaks in related returns. S1: single field; S2: not vector; S3: coverage high; S4: moderate counts. KEEP_IN_MINDs met. Confidence 0.56.",
+      "implementation": "ts_arg_max(rel_ret_all,5)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Normalized return by sector key count",
+      "description": "Divide rel_ret_all by pv13_revere_key_sector_total to scale returns by diversification. S1: two fields; S2: none vector; S3: both coverage 1.0; S4: high userCounts. Short and compliant. Confidence 0.57.",
+      "implementation": "zscore(divide(rel_ret_all, pv13_revere_key_sector_total))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Pagerank concentration (vec_range)",
+      "description": "vec_range of competitor pagerank to detect dominance dispersion. S1: vector field used; S2: vec_range applied; S3: coverage OK; S4: decent counts. Minimal operators. Confidence 0.61.",
+      "implementation": "zscore(vec_range(pv13_com_page_rank))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Customer pagerank-to-customer-count ratio",
+      "description": "Scale vec_avg(customer pagerank) by rel_num_cust (backfilled) to find influential customers per customer. S1: two fields; S2: vec_avg used; S3: rel_num_cust backfilled due to coverage 0.5068; S4: moderate counts. Short. Confidence 0.51.",
+      "implementation": "zscore(divide(vec_avg(pv13_ustomergraphrank_page_rank), ts_backfill(rel_num_cust,5)))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "High sector-level PageRank aggregate",
+      "description": "Aggregate company PageRank within sector using group ops is disallowed standalone, so use pv13_revere_key_sector_total as proxy: divide vec_avg(pv13_com_page_rank) by pv13_revere_key_sector_total. S1: two fields; S2: vec_avg applied; S3: coverage OK; S4: high counts. KEEP_IN_MINDs followed. Confidence 0.55.",
+      "implementation": "zscore(divide(vec_avg(pv13_com_page_rank), pv13_revere_key_sector_total))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Short-term reversal in competitor returns",
+      "description": "Negative ts_returns(rel_ret_comp,3) to capture quick mean-reversion among competitors. S1: single field; S2: none vector; S3: coverage OK; S4: high counts. Implementation short. Confidence 0.62.",
+      "implementation": "reverse(ts_zscore(ts_returns(rel_ret_comp,3),5))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Persistent low competitor volatility (stable competitive environment)",
+      "description": "Low ts_std_dev(rel_ret_comp,30) as positive signal (reverse high vol). S1: single field; S2: not vector; S3: coverage OK; S4: robust alphaCount. Short. Confidence 0.54.",
+      "implementation": "reverse(ts_zscore(ts_std_dev(rel_ret_comp,30),30))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "High ratio of customers to competitors",
+      "description": "rel_num_cust divided by rel_num_comp (backfill customers if needed) to find customer-heavy firms. S1: two fields; S2: none vector; S3: rel_num_cust backfilled; S4: strong userCounts for rel_num_comp. Constraints respected. Confidence 0.48.",
+      "implementation": "zscore(divide(ts_backfill(rel_num_cust,5), rel_num_comp))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Return correlation: company vs competitors",
+      "description": "ts_corr of company's own recent returns (not available) vs rel_ret_comp — approximate by ts_zscore(rel_ret_comp) as a proxy for alignment. S1: single field used due to data limits; S2: not vector; S3: coverage OK; S4: acceptable counts. Short. Confidence 0.42.",
+      "implementation": "ts_zscore(rel_ret_comp,10)",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Pagerank momentum trimmed (winsorized)",
+      "description": "Use winsorize(vec_avg(pv13_com_page_rank)) then zscore to reduce outliers in competitor pagerank. S1: vector used; S2: vec_avg applied; S3: coverage OK; S4: applied winsorize to reduce outliers per KEEP_IN_MIND. Confidence 0.59.",
+      "implementation": "zscore(winsorize(vec_avg(pv13_com_page_rank), std=4))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Customer return IR (ts_ir on rel_ret_cust backfilled)",
+      "description": "Compute ts_ir(ts_backfill(rel_ret_cust,10),20) to identify consistent customer-driven returns. S1: single field with backfill; S2: not vector; S3: applied backfill due to coverage <0.6; S4: lower userCount reduces confidence. Short implementation. Confidence 0.47.",
+      "implementation": "ts_ir(ts_backfill(rel_ret_cust,10),20)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Pagerank cross-sectional quantile",
+      "description": "quantile(vec_avg(pv13_com_page_rank)) to get cross-sectional standardized score. S1: single vector field; S2: vec_avg used; S3: coverage OK; S4: high alphaCount. Implementation concise. Confidence 0.63.",
+      "implementation": "quantile(vec_avg(pv13_com_page_rank))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "High number of related companies with positive returns",
+      "description": "rel_num_all combined with rel_ret_all: divide rel_ret_all by rel_num_all to get per-related-company return. S1: two fields used; S2: none vector; S3: both coverage >0.96; S4: strong userCounts. Compliant with limits. Confidence 0.68.",
+      "implementation": "zscore(divide(rel_ret_all, rel_num_all))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Competitor return skewness proxy via ts_kurtosis",
+      "description": "ts_kurtosis(rel_ret_comp,20) to find fat tails in competitor returns. S1: single field; S2: not vector; S3: coverage OK; S4: high alphaCount. Short. Confidence 0.55.",
+      "implementation": "ts_kurtosis(rel_ret_comp,20)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Pagerank stability (ts_std_dev of vec_avg)",
+      "description": "ts_std_dev(vec_avg(pv13_com_page_rank),20) to capture stability of competitor visibility. S1: vector+time; S2: vec_avg used; S3: coverage OK; S4: good counts. Operators minimal. Confidence 0.60.",
+      "implementation": "ts_std_dev(vec_avg(pv13_com_page_rank),20)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Market-cap normalized partner returns",
+      "description": "Scale rel_ret_part by inverse market cap to highlight impact in small firms. S1: two fields used; S2: none vector; S3: coverage OK; S4: high user counts. Keep concise. Confidence 0.61.",
+      "implementation": "zscore(divide(rel_ret_part, pv13_revere_index_cap))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Rapid change in customer pagerank (ts_arg_max of vec_avg)",
+      "description": "ts_arg_max(vec_avg(pv13_ustomergraphrank_page_rank),7) to find recent peaks. S1: vector + ts operator; S2: vec_avg used; S3: coverage OK; S4: moderate counts. Short. Confidence 0.58.",
+      "implementation": "ts_arg_max(vec_avg(pv13_ustomergraphrank_page_rank),7)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "High competitor PageRank but low competitor returns (mean reversion opportunity)",
+      "description": "Subtract ts_zscore(rel_ret_comp,5) from vec_avg(pv13_com_page_rank) to find visibility without returns. S1: two fields; S2: vec_avg used; S3: coverage OK; S4: high userCounts for rel_ret_comp. Kept within op/data limits. Confidence 0.64.",
+      "implementation": "zscore(subtract(vec_avg(pv13_com_page_rank), ts_zscore(rel_ret_comp,5)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Customer-authority concentration vs partner count",
+      "description": "Divide vec_stddev(customer auth) by rel_num_part (partners) to find concentrated authority with few partners. S1: two fields; S2: vec_stddev applied; S3: coverage OK; S4: moderate counts. Short implementation. Confidence 0.50.",
+      "implementation": "zscore(divide(vec_stddev(pv13_ustomergraphrank_auth_rank), rel_num_part))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "PageRank to index value ratio",
+      "description": "Scale competitor PageRank by pv13_revere_index_value to detect visibility relative to index exposure. S1: two fields used; S2: vec_avg applied; S3: coverage 1.0 for index value; S4: moderate userCounts. Keep concise. Confidence 0.56.",
+      "implementation": "zscore(divide(vec_avg(pv13_com_page_rank), pv13_revere_index_value))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Customer vs competitor return co-movement (short window)",
+      "description": "ts_corr(rel_ret_cust backfilled, rel_ret_comp,10) to detect alignment; rel_ret_cust backfilled due to coverage. S1: two fields; S2: neither vector; S3: backfilled rel_ret_cust; S4: moderate counts. Operators within limits. Confidence 0.43.",
+      "implementation": "ts_corr(ts_backfill(rel_ret_cust,10), rel_ret_comp,10)",
+      "confidence_level": 0.43
+    },
+    {
+      "idea": "Pagerank-driven turnover control (hump)",
+      "description": "Apply hump to vec_avg(pv13_com_page_rank) to limit turnover when using pagerank signals. S1: vector used; S2: vec_avg used; S3: coverage OK; S4: used to control trading. KEEP_IN_MIND applied. Confidence 0.57.",
+      "implementation": "hump(vec_avg(pv13_com_page_rank), hump=0.01)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Customer pagerank per key sector count",
+      "description": "Divide vec_avg(customer pagerank) by pv13_revere_key_sector_total to scale influence by firm diversification. S1: two fields used; S2: vec_avg applied; S3: both coverage OK; S4: high userCounts for sector total. Short. Confidence 0.53.",
+      "implementation": "zscore(divide(vec_avg(pv13_ustomergraphrank_page_rank), pv13_revere_key_sector_total))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Pagerank product: customers * competitors",
+      "description": "Multiply vec_avg(customer pagerank) by vec_avg(competitor pagerank) to find firms central in both networks. S1: two vector fields; S2: vec_avg used for both; S3: coverage OK; S4: moderate counts. Keep operators minimal. Confidence 0.58.",
+      "implementation": "zscore(multiply(vec_avg(pv13_ustomergraphrank_page_rank), vec_avg(pv13_com_page_rank)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Relative size: company cap vs sector average (approx)",
+      "description": "Use pv13_revere_index_cap normalized by pv13_revere_key_sector_total to approximate per-sector average cap. S1: two fields used; S2: neither vector; S3: coverage 1.0; S4: high userCounts. Short. Confidence 0.52.",
+      "implementation": "zscore(divide(pv13_revere_index_cap, pv13_revere_key_sector_total))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Competitor return product (ts_product short-window)",
+      "description": "ts_product(rel_ret_comp,3) to capture simultaneous moves among competitors (amplification). S1: single field; S2: not vector; S3: coverage OK; S4: good counts. Minimal operators. Confidence 0.54.",
+      "implementation": "ts_zscore(ts_product(rel_ret_comp,3),5)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Pagerank-based outlier removal (pasteurize)",
+      "description": "Apply pasteurize to vec_avg(pv13_com_page_rank) to remove INF/outliers then zscore. S1: vector field used; S2: vec_avg applied then pasteurize; S3: coverage OK; S4: helps reduce outliers per KEEP_IN_MIND. Confidence 0.59.",
+      "implementation": "zscore(pasteurize(vec_avg(pv13_com_page_rank)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Customer hub-authority imbalance",
+      "description": "Subtract vec_avg customer authority from vec_avg customer hub to detect directional network roles. S1: two vector fields; S2: vec_avg used; S3: coverage OK; S4: moderate counts. Short. Confidence 0.55.",
+      "implementation": "zscore(subtract(vec_avg(pv13_ustomergraphrank_hub_rank), vec_avg(pv13_ustomergraphrank_auth_rank)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Competitor hub-authority imbalance",
+      "description": "Subtract vec_avg competitor authority from vec_avg competitor hub to detect hub-dominated competition. S1: two vector fields; S2: vec_avg used; S3: coverage OK; S4: acceptable counts. Implementation concise. Confidence 0.54.",
+      "implementation": "zscore(subtract(vec_avg(pv13_ompetitorgraphrank_hub_rank), vec_avg(pv13_com_rk_au)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Return count of valid related returns (ts_count_nans complement)",
+      "description": "Use ts_count_nans(rel_ret_all,10) to see data sparsity; convert to usable score by subtracting from window length. S1: single field; S2: not vector; S3: coverage high but operator helps coverage assessment; S4: moderate counts. Short. Confidence 0.41.",
+      "implementation": "reverse(ts_count_nans(rel_ret_all,10))",
+      "confidence_level": 0.41
+    },
+    {
+      "idea": "Competitor PageRank percentile rank",
+      "description": "Apply quantile(vec_avg(pv13_com_page_rank)) to create a percentile score. S1: single vector field; S2: vec_avg used; S3: coverage OK; S4: common approach so reliable. KEEP_IN_MINDs observed. Confidence 0.63.",
+      "implementation": "quantile(vec_avg(pv13_com_page_rank))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Customer influence per terminal sector",
+      "description": "Divide vec_avg customer pagerank by pv13_revere_term_sector_total to scale by terminal-sector focus. S1: two fields; S2: vec_avg used; S3: coverage OK; S4: strong usage for term sector total. Short. Confidence 0.50.",
+      "implementation": "zscore(divide(vec_avg(pv13_ustomergraphrank_page_rank), pv13_revere_term_sector_total))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High competitor PageRank but declining returns (contrarian)",
+      "description": "Subtract ts_zscore(rel_ret_comp,10) from vec_avg(pv13_com_page_rank) and take reverse to capture contrarian. S1: two fields used; S2: vec_avg used; S3: coverage OK; S4: good alphaCount for rel_ret_comp. Short. Confidence 0.65.",
+      "implementation": "reverse(zscore(subtract(vec_avg(pv13_com_page_rank), ts_zscore(rel_ret_comp,10))))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Stable customer-authority (low ts_std_dev)",
+      "description": "Reverse ts_std_dev(vec_avg(customer auth),30) to prefer stable customer authority. S1: vector+ts; S2: vec_avg used; S3: coverage OK; S4: moderate counts. Implementation concise. Confidence 0.57.",
+      "implementation": "reverse(ts_std_dev(vec_avg(pv13_ustomergraphrank_auth_rank),30))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "High related-company returns with few related companies (concentrated positive spillover)",
+      "description": "Divide rel_ret_all by rel_num_all (both high coverage) and zscore to find concentrated ecosystem winners. S1: two fields used; S2: none vector; S3: coverage high; S4: solid userCounts. Short. Confidence 0.70.",
+      "implementation": "zscore(divide(rel_ret_all, rel_num_all))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Competitor PageRank growth rate",
+      "description": "ts_delta(vec_avg(pv13_com_page_rank),7) to detect rising competitor visibility. S1: vector+ts; S2: vec_avg used then ts_delta; S3: coverage OK; S4: decent counts. Keep operators low. Confidence 0.62.",
+      "implementation": "ts_zscore(ts_delta(vec_avg(pv13_com_page_rank),7),7)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Customers' PageRank growth relative to competitors",
+      "description": "Subtract ts_delta(vec_avg(pv13_com_page_rank),7) from ts_delta(vec_avg(pv13_ustomergraphrank_page_rank),7) to find customer-side momentum advantage. S1: two vector+ts fields; S2: vec_avg+ts_delta applied; S3: coverage OK; S4: moderate counts. Short implementation. Confidence 0.60.",
+      "implementation": "zscore(subtract(ts_delta(vec_avg(pv13_ustomergraphrank_page_rank),7), ts_delta(vec_avg(pv13_com_page_rank),7)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Pagerank tail clipping then ranking",
+      "description": "Apply tail to vec_avg(pv13_com_page_rank) to clip midrange then zscore for extreme picks. S1: vector field; S2: vec_avg used; S3: coverage OK; S4: helps focus extremes. KEEP_IN_MIND satisfied. Confidence 0.58.",
+      "implementation": "zscore(tail(vec_avg(pv13_com_page_rank), lower=0.1, upper=0.9, newval=0))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "High partner returns normalized by partner count",
+      "description": "Divide rel_ret_part by rel_num_part to detect high per-partner returns. S1: two fields used; S2: none vector; S3: coverage >0.7; S4: strong counts. Implementation brief. Confidence 0.60.",
+      "implementation": "zscore(divide(rel_ret_part, rel_num_part))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Relative index cap vs index value (valuation proxy)",
+      "description": "Divide pv13_revere_index_cap by pv13_revere_index_value as a normalized valuation proxy. S1: two fields; S2: neither vector; S3: both coverage 1.0; S4: very high userCounts. Short. Confidence 0.55.",
+      "implementation": "zscore(divide(pv13_revere_index_cap, pv13_revere_index_value))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Competitor count volatility",
+      "description": "ts_std_dev(rel_num_comp,20) to detect shifting competitive set. S1: single field; S2: not vector; S3: coverage 0.8902>0.6; S4: high userCount. Simple and short. Confidence 0.46.",
+      "implementation": "ts_zscore(ts_std_dev(rel_num_comp,20),20)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "High pagerank but low sector-term count (standout within few terminal sectors)",
+      "description": "Divide vec_avg(pv13_com_page_rank) by pv13_revere_term_sector_total to find firms visible where terminal sectors are few. S1: two fields used; S2: vec_avg applied; S3: coverage OK; S4: high counts for term sector total. Operators minimal. Confidence 0.52.",
+      "implementation": "zscore(divide(vec_avg(pv13_com_page_rank), pv13_revere_term_sector_total))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Customer-authority to company cap",
+      "description": "Divide vec_avg customer authority by pv13_revere_index_cap to find small firms with strong authorities. S1: two fields; S2: vec_avg used; S3: coverage OK; S4: moderate counts. Short. Confidence 0.60.",
+      "implementation": "zscore(divide(vec_avg(pv13_ustomergraphrank_auth_rank), pv13_revere_index_cap))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Competitor hub rank trend normalized",
+      "description": "ts_mean(vec_avg(pv13_ompetitorgraphrank_hub_rank),10) to capture persistent hubness among competitors. S1: vector+ts; S2: vec_avg used; S3: coverage OK; S4: modest counts. Keep short. Confidence 0.53.",
+      "implementation": "ts_mean(vec_avg(pv13_ompetitorgraphrank_hub_rank),10)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Customer pagerank divided by sector level",
+      "description": "Divide vec_avg customer pagerank by pv13_revere_level to scale by hierarchical level. S1: two fields; S2: vec_avg used; S3: pv13_revere_level coverage 0.6205>0.6 so okay; S4: moderate counts. Short. Confidence 0.47.",
+      "implementation": "zscore(divide(vec_avg(pv13_ustomergraphrank_page_rank), pv13_revere_level))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "High local maxima in competitor pagerank (ts_arg_max)",
+      "description": "ts_arg_max(vec_avg(pv13_com_page_rank),14) to find recent peaks in competitor prominence. S1: vector+ts; S2: vec_avg used; S3: coverage OK; S4: good counts. Implementation concise. Confidence 0.58.",
+      "implementation": "ts_arg_max(vec_avg(pv13_com_page_rank),14)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Customer pagerank percentile momentum",
+      "description": "ts_quantile(vec_avg(pv13_ustomergraphrank_page_rank),7) to get time-series quantile momentum. S1: vector+ts operator; S2: vec_avg used; S3: coverage OK; S4: moderate counts. Short. Confidence 0.56.",
+      "implementation": "ts_quantile(vec_avg(pv13_ustomergraphrank_page_rank),7)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Rel_ret_comp winsorized momentum",
+      "description": "Winsorize rel_ret_comp then ts_zscore to reduce influence of outliers in competitor returns. S1: single field; S2: not vector; S3: coverage OK; S4: high alphaCount. Minimal ops. Confidence 0.66.",
+      "implementation": "ts_zscore(winsorize(rel_ret_comp, std=4),5)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Competitor PageRank scaled by number of competitors",
+      "description": "Divide vec_avg(pv13_com_page_rank) by rel_num_comp to normalize visibility per competitor. S1: two fields; S2: vec_avg applied; S3: coverage >0.8; S4: strong counts. Short and compliant. Confidence 0.60.",
+      "implementation": "zscore(divide(vec_avg(pv13_com_page_rank), rel_num_comp))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Customers' PageRank product with partner returns",
+      "description": "Multiply vec_avg customer pagerank by rel_ret_part to detect partner-driven influence. S1: two fields; S2: vec_avg used; S3: coverage OK; S4: moderate counts. Keep operators short. Confidence 0.54.",
+      "implementation": "zscore(multiply(vec_avg(pv13_ustomergraphrank_page_rank), rel_ret_part))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Rel_num_all growth (ts_delta)",
+      "description": "ts_delta(rel_num_all,7) to detect expanding related-company networks. S1: single field; S2: not vector; S3: coverage 0.9939>0.6; S4: high counts. Short. Confidence 0.45.",
+      "implementation": "ts_zscore(ts_delta(rel_num_all,7),7)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Pagerank variance across competitors scaled by cap",
+      "description": "Divide vec_stddev(pv13_com_page_rank) by pv13_revere_index_cap to detect small firms with fragmented competitor prominence. S1: two fields; S2: vec_stddev used; S3: coverage OK; S4: moderate counts. Short. Confidence 0.50.",
+      "implementation": "zscore(divide(vec_stddev(pv13_com_page_rank), pv13_revere_index_cap))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Competitor returns trimmed mean",
+      "description": "Use kth_element to approximate backfill or pick non-extreme value: kth_element(rel_ret_comp,10,1) as simple backfill then ts_zscore. S1: single field with kth_element to handle missing/outliers; S2: not vector; S3: coverage OK; S4: high alphaCount. Implementation compact. Confidence 0.58.",
+      "implementation": "ts_zscore(kth_element(rel_ret_comp,10,1),10)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Customer return divergence vs competitors",
+      "description": "Subtract ts_zscore(rel_ret_comp,5) from ts_zscore(ts_backfill(rel_ret_cust,5),5) to capture customer-driven divergence. S1: two fields; S2: no vector; S3: backfilled rel_ret_cust; S4: counts mixed. Operators within limits. Confidence 0.49.",
+      "implementation": "zscore(subtract(ts_zscore(ts_backfill(rel_ret_cust,5),5), ts_zscore(rel_ret_comp,5)))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Pagerank mean reversion (reverse ts_zscore)",
+      "description": "Reverse ts_zscore(vec_avg(pv13_com_page_rank),10) to capture reversion in competitor visibility. S1: single vector field; S2: vec_avg used; S3: coverage OK; S4: good counts. Minimal ops. Confidence 0.61.",
+      "implementation": "reverse(ts_zscore(vec_avg(pv13_com_page_rank),10))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "High customer authority but low customer count",
+      "description": "Divide vec_avg(customer auth) by ts_backfill(rel_num_cust,5) to find influential customers concentrated among few. S1: two fields; S2: vec_avg used; S3: backfilled rel_num_cust; S4: moderate counts. Short. Confidence 0.50.",
+      "implementation": "zscore(divide(vec_avg(pv13_ustomergraphrank_auth_rank), ts_backfill(rel_num_cust,5)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Competition intensity index (rel_num_comp * rel_ret_comp)",
+      "description": "Multiply rel_num_comp by rel_ret_comp to capture intensity-weighted returns. S1: two fields; S2: neither vector; S3: coverage OK; S4: high counts. Keep concise. Confidence 0.56.",
+      "implementation": "zscore(multiply(rel_num_comp, rel_ret_comp))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Customer pagerank winsorized growth",
+      "description": "Apply winsorize to vec_avg customer pagerank then ts_delta to capture robust growth. S1: vector+ts; S2: vec_avg used; S3: coverage OK; S4: moderate counts. Operators limited. Confidence 0.55.",
+      "implementation": "ts_zscore(ts_delta(winsorize(vec_avg(pv13_ustomergraphrank_page_rank),std=4),7),7)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Rel_ret_part skew vs rel_ret_comp",
+      "description": "Subtract ts_zscore(rel_ret_comp,5) from ts_zscore(rel_ret_part,5) to find partner-driven vs competitor-driven returns. S1: two fields; S2: none vector; S3: coverage OK; S4: high counts for rel_ret_comp. Short. Confidence 0.52.",
+      "implementation": "zscore(subtract(ts_zscore(rel_ret_part,5), ts_zscore(rel_ret_comp,5)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Index-value momentum scaled by sector key count",
+      "description": "ts_zscore(pv13_revere_index_value,5) divided by pv13_revere_key_sector_total to neutralize diversification. S1: two fields; S2: none vector; S3: coverage 1.0; S4: high userCounts. Operators minimal. Confidence 0.50.",
+      "implementation": "zscore(divide(ts_zscore(pv13_revere_index_value,5), pv13_revere_key_sector_total))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Competitor returns dampened by hump to reduce turnover",
+      "description": "Apply hump to ts_zscore(rel_ret_comp,5) to dampen trading based on competitor returns. S1: single field; S2: not vector; S3: coverage OK; S4: used to control turnover per KEEP_IN_MIND. Confidence 0.58.",
+      "implementation": "hump(ts_zscore(rel_ret_comp,5), hump=0.01)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Low key-sector count with high competitor returns (niche outperformers)",
+      "description": "Combine reverse pv13_revere_key_sector_total with rel_ret_comp: subtract zscores to find niche outperformers. S1: two fields; S2: none vector; S3: coverage OK; S4: high counts for key_sector_total. Short. Confidence 0.53.",
+      "implementation": "zscore(subtract(ts_zscore(rel_ret_comp,5), reverse(zscore(pv13_revere_key_sector_total))))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Pagerank-based rank within universe (normalize then scale)",
+      "description": "normalize(vec_avg(pv13_com_page_rank)) to remove cross-sectional mean before ranking. S1: single vector field; S2: vec_avg used; S3: coverage OK; S4: helps remove mean bias. KEEP_IN_MINDs followed. Confidence 0.62.",
+      "implementation": "normalize(vec_avg(pv13_com_page_rank))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Customer vs partner hub rank spread",
+      "description": "Subtract vec_avg partner hub (not directly available) from vec_avg customer hub to detect customer-centric networks; use pv13_ustomergraphrank_hub_rank and rel_num_part as proxy. S1: two fields used; S2: vec_avg used; S3: coverage OK; S4: moderate counts. Simple ops. Confidence 0.48.",
+      "implementation": "zscore(divide(vec_avg(pv13_ustomergraphrank_hub_rank), rel_num_part))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "High competitor pagerank but low rel_num_comp (few dominant rivals)",
+      "description": "Divide vec_avg(pv13_com_page_rank) by rel_num_comp to capture dominant small competitor sets. S1: two fields; S2: vec_avg used; S3: coverage OK; S4: high counts. Short. Confidence 0.59.",
+      "implementation": "zscore(divide(vec_avg(pv13_com_page_rank), rel_num_comp))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Weighted competitor returns by competitor pagerank",
+      "description": "Multiply rel_ret_comp by vec_avg(pv13_com_page_rank) to emphasize returns from prominent competitors. S1: two fields; S2: vec_avg used; S3: coverage OK; S4: good counts for rel_ret_comp. Operators limited. Confidence 0.65.",
+      "implementation": "zscore(multiply(rel_ret_comp, vec_avg(pv13_com_page_rank)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Customer pagerank difference scaled by market cap",
+      "description": "Subtract vec_avg competitor pagerank from vec_avg customer pagerank and divide by pv13_revere_index_cap to find small-cap customer advantages. S1: three operations but two datafields; S2: vec_avg used for both; S3: coverage OK; S4: concise and within op limits. Confidence 0.61.",
+      "implementation": "zscore(divide(subtract(vec_avg(pv13_ustomergraphrank_page_rank), vec_avg(pv13_com_page_rank)), pv13_revere_index_cap))",
+      "confidence_level": 0.61
+    }
+  ]
+}

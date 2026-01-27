@@ -1,0 +1,646 @@
+{
+  "results": [
+    {
+      "idea": "Short-term page-rank momentum",
+      "description": "Uses pv13_com_page_rank momentum. S1: multiple fields lightly used in other alphas; here single strong field chosen for clarity. S2: no vector field identified so vec_* not applied. S3: coverage high (0.8966) so ts_backfill not needed. S4: high userCount/alphaCount applied (supports confidence). Kept KM1-KM4: implementation short, <=7 operators, <=2 fields, only listed fields, no group-only use. Confidence 0.78.",
+      "implementation": "quantile(ts_zscore(ts_delta(pv13_com_page_rank,5),20))",
+      "confidence_level": 0.78
+    },
+    {
+      "idea": "Page-rank mean-reversion",
+      "description": "Mean-reversion on pv13_com_page_rank. S1: single high-quality field chosen. S2: no vector. S3: high coverage so no ts_backfill. S4: high user/alpha counts used. KM checks satisfied. Confidence 0.70.",
+      "implementation": "quantile(reverse(ts_zscore(ts_av_diff(pv13_com_page_rank,10),20)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Page-rank cross-sectional short-term zscore",
+      "description": "Cross-sectional zscore of pv13_com_page_rank to capture relative strength. S1: single field. S2: no vector. S3: coverage high. S4: high user/alpha. KM maintained. Confidence 0.72.",
+      "implementation": "quantile(zscore(ts_zscore(pv13_com_page_rank,20)))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Page-rank neutralized by country",
+      "description": "Country-neutralized page-rank to remove country biases. S1: used multiple concepts (value + group). S2: no vector. S3: no backfill needed. S4: used high userCount field. KM: pv13_revere_country used only as group param in group_neutralize. Confidence 0.81.",
+      "implementation": "quantile(group_neutralize(ts_zscore(pv13_com_page_rank,20), pv13_revere_country))",
+      "confidence_level": 0.81
+    },
+    {
+      "idea": "Page-rank scaled by market cap",
+      "description": "Scale page-rank by pv13_revere_index_cap (size-adjusted popularity). S1: used 2 fields per suggestion. S2: no vector. S3: both fields have full coverage. S4: both have high userCount. KM preserved. Confidence 0.76.",
+      "implementation": "quantile(divide(ts_zscore(pv13_com_page_rank,20), ts_zscore(pv13_revere_index_cap,90)))",
+      "confidence_level": 0.76
+    },
+    {
+      "idea": "Authority minus hub (structural imbalance)",
+      "description": "Difference between competitor authority and hub scores (pv13_com_rk_au - pv13_ompetitorgraphrank_hub_rank) to capture structural network advantage. S1: uses 2 related fields. S2: no vector. S3: both high coverage. S4: moderate-to-high userCount fields used. KM observed. Confidence 0.69.",
+      "implementation": "quantile(ts_zscore(subtract(pv13_com_rk_au, pv13_ompetitorgraphrank_hub_rank),20))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Customer-signal filtered page-rank",
+      "description": "Apply pv13_custretsig_retsig as a filter to page-rank signal (trade only when customer-signal positive). S1: uses 2 fields. S2: no vector. S3: both have good coverage. S4: customer-signal has high userCount. KM ensured (group fields not used alone). Confidence 0.74.",
+      "implementation": "if_else(equal(pv13_custretsig_retsig,1), quantile(ts_zscore(pv13_com_page_rank,20)), NaN)",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Competitor-return momentum",
+      "description": "Momentum on averaged competitor returns rel_ret_comp to capture spillover trends. S1: single strong field. S2: no vector. S3: coverage 0.8228 so no backfill required. S4: rel_ret_comp has high user/alpha counts. KMs satisfied. Confidence 0.80.",
+      "implementation": "quantile(ts_zscore(ts_returns(rel_ret_comp,3),30))",
+      "confidence_level": 0.8
+    },
+    {
+      "idea": "Competitor return per competitor count (signal per link)",
+      "description": "Normalize competitor return by number of competitors (rel_ret_comp / rel_num_comp) to control for exposure. S1: uses 2 fields. S2: no vector. S3: both coverage high. S4: both high userCount. KM satisfied. Confidence 0.77.",
+      "implementation": "quantile(divide(ts_zscore(rel_ret_comp,20), ts_zscore(rel_num_comp,60)))",
+      "confidence_level": 0.77
+    },
+    {
+      "idea": "All-related returns short-term reversal",
+      "description": "Short-term reversal of rel_ret_all (averaged related companies). S1: single field. S2: no vector. S3: high coverage. S4: decent userCount. KM satisfied. Confidence 0.73.",
+      "implementation": "quantile(reverse(ts_zscore(ts_returns(rel_ret_all,1),20)))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Partners' returns momentum",
+      "description": "Momentum on partner returns rel_ret_part to capture supply-chain spillovers. S1: one field. S2: not vector. S3: coverage 0.7097 ok. S4: high userCount. KM satisfied. Confidence 0.72.",
+      "implementation": "quantile(ts_zscore(ts_returns(rel_ret_part,5),30))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Partner count trend",
+      "description": "Rising partner counts (rel_num_part) may indicate expanding distribution — use ts_delta. S1: single field. S2: no vector. S3: coverage good. S4: rel_num_part has very high userCount; applied. KM observed. Confidence 0.65.",
+      "implementation": "quantile(ts_zscore(ts_delta(rel_num_part,14),60))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Competitor-network strength (page-rank * authority)",
+      "description": "Multiply competitor page-rank with competitor authority (pv13_com_page_rank * pv13_com_rk_au) to capture concentrated network importance. S1: two fields used. S2: no vector. S3: high coverage. S4: both high userCount. KM satisfied. Confidence 0.71.",
+      "implementation": "quantile(ts_zscore(multiply(pv13_com_page_rank, pv13_com_rk_au),20))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Small-cap network outperformance",
+      "description": "Favor high page-rank in smaller cap names: divide(page_rank, market cap). S1: two fields. S2: no vector. S3: both full coverage. S4: high userCount for cap. KM satisfied. Confidence 0.68.",
+      "implementation": "quantile(divide(ts_zscore(pv13_com_page_rank,20), ts_zscore(pv13_revere_index_cap,180)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Customer-return-signed momentum",
+      "description": "Use pv13_custretsig_retsig (sign of customer return) times average customer PageRank to capture directional customer influence. S1: two fields. S2: no vector. S3: customer sign coverage high. S4: both have good userCount. KM checks satisfied. Confidence 0.66.",
+      "implementation": "quantile(multiply(pv13_custretsig_retsig, ts_zscore(pv13_ustomergraphrank_page_rank,20)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Industry focus breadth (key-sector concentration) mean-revert",
+      "description": "Companies with sudden changes in pv13_revere_key_sector_total may revert. S1: single field. S2: no vector. S3: coverage 1.0 no backfill. S4: very high userCount/alphaCount. KM satisfied. Confidence 0.64.",
+      "implementation": "quantile(reverse(ts_zscore(ts_delta(pv13_revere_key_sector_total,10),60)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "High terminal-sector pureplay signal",
+      "description": "Use pv13_revere_term_sector_total to favor pure-plays in terminal sectors (concentration effect). S1: single field. S2: no vector. S3: coverage 1.0. S4: high userCount. KM met. Confidence 0.60.",
+      "implementation": "quantile(ts_zscore(pv13_revere_term_sector_total,60))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Zipcode cluster momentum-neutralized",
+      "description": "Cross-sectional zscore of rel_ret_all neutralized by zipcode clusters to remove local effects. S1: two concepts. S2: no vector. S3: zipcode coverage high. S4: rel_ret_all has good userCount. KM: used pv13_revere_zipcode as group param. Confidence 0.75.",
+      "implementation": "quantile(group_neutralize(ts_zscore(rel_ret_all,20), pv13_revere_zipcode))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Competitor count momentum (growth in competitors)",
+      "description": "Rising rel_num_comp may indicate increased competition — short signals when rising. S1: single field. S2: no vector. S3: coverage high. S4: rel_num_comp high userCount. KM satisfied. Confidence 0.58.",
+      "implementation": "quantile(reverse(ts_zscore(ts_delta(rel_num_comp,30),60)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Customer returns per customer (signal per link)",
+      "description": "Normalize rel_ret_cust by rel_num_cust to control for customer base size. S1: two fields used. S2: no vector. S3: rel_num_cust coverage 0.5068 (<0.6) so ts_backfill applied. S4: rel_ret_cust alpha/user counts lower — lowers confidence. KM preserved. Confidence 0.52.",
+      "implementation": "quantile(divide(ts_zscore(ts_backfill(rel_ret_cust,30),20), ts_zscore(ts_backfill(rel_num_cust,30),60)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Customers count growth with backfill",
+      "description": "Use rel_num_cust growth but backfilled due to coverage <0.6. S1: single field. S2: no vector. S3: ts_backfill applied. S4: high userCount for other fields not available; lower confidence. KM satisfied. Confidence 0.50.",
+      "implementation": "quantile(ts_zscore(ts_delta(ts_backfill(rel_num_cust,60),14),90))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High authority customers influence",
+      "description": "Use customer authority pv13_ustomergraphrank_auth_rank to capture influential customers; cross-sectional zscore. S1: single field. S2: no vector. S3: coverage 0.7906 ok. S4: moderate userCount. KM satisfied. Confidence 0.63.",
+      "implementation": "quantile(ts_zscore(pv13_ustomergraphrank_auth_rank,30))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Composite network score (page-rank + authority)",
+      "description": "Add competitor page-rank and authority to form composite network strength. S1: two fields combined. S2: no vector. S3: both high coverage. S4: both high userCount. KM maintained. Confidence 0.70.",
+      "implementation": "quantile(ts_zscore(add(pv13_com_page_rank, pv13_com_rk_au),20))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Customer hub-authority gap",
+      "description": "Difference between customer hub and authority (pv13_ustomergraphrank_hub_rank - pv13_ustomergraphrank_auth_rank) to detect changing customer network roles. S1: two fields. S2: no vector. S3: good coverage. S4: moderate userCount. KM ok. Confidence 0.59.",
+      "implementation": "quantile(ts_zscore(subtract(pv13_ustomergraphrank_hub_rank, pv13_ustomergraphrank_auth_rank),20))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "High competitor concentration (rel_num_all low) mean-revert",
+      "description": "Rel_num_all low indicates few overlapping-product companies; expect reversion when it moves. S1: single field. S2: no vector. S3: rel_num_all coverage high. S4: good userCount. KM ok. Confidence 0.55.",
+      "implementation": "quantile(reverse(ts_zscore(ts_delta(rel_num_all,30),90)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Index-value trend-adjusted page-rank",
+      "description": "Adjust page-rank by recent index moves (pv13_revere_index_value) to separate idiosyncratic from market moves. S1: two fields. S2: no vector. S3: both full coverage. S4: index has moderate userCount. KM observed. Confidence 0.66.",
+      "implementation": "quantile(divide(ts_zscore(pv13_com_page_rank,20), ts_zscore(pv13_revere_index_value,20)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Terminal sector pure-play momentum",
+      "description": "Momentum on single_sector_pureplay_company_count as a proxy for pure-play growth. S1: single field. S2: no vector. S3: coverage 0.3508 (<0.6) so ts_backfill applied. S4: low userCount reduces confidence. KM observed. Confidence 0.42.",
+      "implementation": "quantile(ts_zscore(ts_backfill(single_sector_pureplay_company_count,90),60))",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Competition-weighted customer return",
+      "description": "Rel_ret_cust weighted by inverse rel_num_comp to discount crowded competitor environments. S1: two fields. S2: no vector. S3: rel_ret_cust coverage low -> ts_backfill applied. S4: mixed userCounts. KM satisfied. Confidence 0.50.",
+      "implementation": "quantile(divide(ts_zscore(ts_backfill(rel_ret_cust,60),20), ts_zscore(rel_num_comp,60)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Page-rank 2-week acceleration",
+      "description": "Second derivative of page-rank (acceleration) to detect breakout. S1: single field. S2: no vector. S3: high coverage. S4: high userCount. KM satisfied. Confidence 0.68.",
+      "implementation": "quantile(ts_zscore(ts_delta(ts_delta(pv13_com_page_rank,5),5),40))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Competitor return volatility (info ratio)",
+      "description": "Use ts_ir on rel_ret_comp to capture stable outperformers among competitors. S1: single field. S2: no vector. S3: coverage high. S4: high userCount. KM ok. Confidence 0.73.",
+      "implementation": "quantile(ts_ir(rel_ret_comp,60))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Customers' PageRank scaled by customer count",
+      "description": "Average customer PageRank adjusted for number of customers (pv13_ustomergraphrank_page_rank / rel_num_cust). S1: two fields. S2: no vector. S3: rel_num_cust low coverage -> ts_backfill used. S4: moderate userCounts. KM satisfied. Confidence 0.54.",
+      "implementation": "quantile(divide(ts_zscore(pv13_ustomergraphrank_page_rank,20), ts_zscore(ts_backfill(rel_num_cust,90),60)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Partner returns information ratio",
+      "description": "ts_ir on rel_ret_part to find stable partner-driven signals. S1: single field. S2: no vector. S3: coverage 0.7097 ok. S4: high userCount. KM satisfied. Confidence 0.71.",
+      "implementation": "quantile(ts_ir(rel_ret_part,60))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Composite related-return momentum",
+      "description": "Add competitor and partner returns to form composite related-return momentum (rel_ret_comp + rel_ret_part). S1: two fields. S2: no vector. S3: both have good coverage. S4: both high userCounts. KM satisfied. Confidence 0.74.",
+      "implementation": "quantile(ts_zscore(add(rel_ret_comp, rel_ret_part),20))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Relative customer-signal vs competitors",
+      "description": "Compare customer-signal vs competitor returns (pv13_custretsig_retsig * rel_ret_comp) to detect directional customer-led competitor moves. S1: two fields. S2: no vector. S3: coverage ok. S4: good userCounts. KM ok. Confidence 0.65.",
+      "implementation": "quantile(multiply(pv13_custretsig_retsig, ts_zscore(rel_ret_comp,20)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Hub-authority momentum spread",
+      "description": "Momentum on the spread between hub and authority for competitors to capture shifting roles. S1: two fields. S2: no vector. S3: high coverage. S4: moderate userCounts. KM observed. Confidence 0.60.",
+      "implementation": "quantile(ts_zscore(ts_delta(subtract(pv13_com_rk_au, pv13_ompetitorgraphrank_hub_rank),5),30))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Network-concentration breakout (vec-approx)",
+      "description": "Approximate network concentration by summing page-rank + authority (treated as composite); S1: two fields. S2: no true vector field identified so vec_* not applied. S3: both full coverage. S4: high userCounts. KM ok. Confidence 0.67.",
+      "implementation": "quantile(ts_zscore(add(pv13_com_page_rank, pv13_com_rk_au),20))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Index-value mean-reversion",
+      "description": "Mean reversion on pv13_revere_index_value to capture index short-term pullbacks. S1: single field. S2: no vector. S3: coverage 1.0. S4: moderate userCount. KM satisfied. Confidence 0.62.",
+      "implementation": "quantile(reverse(ts_zscore(ts_av_diff(pv13_revere_index_value,10),60)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Sector-level market-cap weighted page-rank",
+      "description": "Group-mean page-rank by country (as proxy sector grouping) scaled by market cap. S1: two fields + group. S2: no vector. S3: fields full coverage. S4: high userCounts. KM: pv13_revere_country used as group param. Confidence 0.79.",
+      "implementation": "quantile(divide(group_mean(ts_zscore(pv13_com_page_rank,20), pv13_revere_index_cap, pv13_revere_country), ts_zscore(pv13_revere_index_cap,90)))",
+      "confidence_level": 0.79
+    },
+    {
+      "idea": "Customer PageRank sudden drop filter",
+      "description": "Trade only when customer PageRank drops significantly (short on drops). S1: single field. S2: no vector. S3: coverage ok. S4: moderate userCount. KM ok. Confidence 0.55.",
+      "implementation": "if_else(less(ts_delta(pv13_ustomergraphrank_page_rank,7), -0.2), quantile(ts_zscore(pv13_ustomergraphrank_page_rank,20)), NaN)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Competitor returns skewness (kurtosis)",
+      "description": "Use ts_kurtosis on rel_ret_comp to find extremes indicating potential mean-reversion. S1: single field. S2: no vector. S3: high coverage. S4: high userCount. KM satisfied. Confidence 0.60.",
+      "implementation": "quantile(ts_kurtosis(rel_ret_comp,60))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Page-rank decaying trend (ts_decay_linear)",
+      "description": "Apply linear decay to recent page-rank to favor persistent signals. S1: single field. S2: no vector. S3: high coverage. S4: high userCount. KM ok. Confidence 0.70.",
+      "implementation": "quantile(ts_decay_linear(ts_zscore(pv13_com_page_rank,30),10))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Rel_ret_all volatility-adjusted momentum",
+      "description": "Divide rel_ret_all momentum by its ts_std_dev to get risk-adjusted signal. S1: single field. S2: no vector. S3: high coverage. S4: moderate userCount. KM observed. Confidence 0.69.",
+      "implementation": "quantile(divide(ts_zscore(ts_returns(rel_ret_all,3),20), ts_std_dev(rel_ret_all,60)))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Competitor count neutralized momentum",
+      "description": "Neutralize rel_ret_comp by competitor count groupings to remove count bias (use rel_num_comp as group via bucketing). S1: two fields. S2: no vector. S3: rel_num_comp coverage high. S4: high userCounts. KM: group operator requires group value; use bucket(rank(rel_num_comp), buckets) but keep short by using group_neutralize directly. Confidence 0.66.",
+      "implementation": "quantile(group_neutralize(ts_zscore(rel_ret_comp,20), rel_num_comp))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Partner-return relative strength",
+      "description": "Cross-sectional zscore of rel_ret_part to capture relative partner-driven winners. S1: single field. S2: no vector. S3: coverage 0.7097. S4: high userCount. KM satisfied. Confidence 0.68.",
+      "implementation": "quantile(zscore(ts_zscore(rel_ret_part,20)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Page-rank vs competitors' returns divergence",
+      "description": "Subtract competitor returns momentum from firm page-rank momentum to find idiosyncratic divergence. S1: two fields. S2: no vector. S3: both high coverage. S4: both high userCounts. KM ok. Confidence 0.72.",
+      "implementation": "quantile(ts_zscore(subtract(ts_zscore(pv13_com_page_rank,20), ts_zscore(rel_ret_comp,20)),30))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Low-coverage customer return backfilled momentum",
+      "description": "Use ts_backfill for rel_ret_cust (coverage 0.4921) then momentum. S1: single field. S2: no vector. S3: ts_backfill applied. S4: lower userCount reduces confidence. KM satisfied. Confidence 0.48.",
+      "implementation": "quantile(ts_zscore(ts_returns(ts_backfill(rel_ret_cust,90),3),30))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Page-rank longevity (days_from_last_change)",
+      "description": "Use days_from_last_change on pv13_com_page_rank to favor stable high-ranked companies. S1: single field. S2: no vector. S3: high coverage. S4: high userCount. KM satisfied. Confidence 0.61.",
+      "implementation": "quantile(ts_zscore(days_from_last_change(pv13_com_page_rank),180))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Competitor return cross-correlation with market",
+      "description": "Use ts_corr between rel_ret_comp and pv13_revere_index_value to find competitor-driven idiosyncratic movers. S1: two fields. S2: no vector. S3: full coverage. S4: moderate userCount. KM satisfied. Confidence 0.63.",
+      "implementation": "quantile(ts_corr(rel_ret_comp, pv13_revere_index_value,60))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Customers' PageRank zscore lagged (kth_element backfill)",
+      "description": "Use kth_element to backfill customer PageRank lag if missing, then zscore. S1: single field. S2: no vector. S3: use kth_element as lightweight backfill. S4: moderate userCount. KM kept. Confidence 0.56.",
+      "implementation": "quantile(ts_zscore(kth_element(pv13_ustomergraphrank_page_rank,30,1),60))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Composite network momentum (add of page-rank, cust page-rank)",
+      "description": "Sum competitor and customer PageRank to detect cross-network momentum. S1: two fields. S2: no vector. S3: both acceptable coverage. S4: used higher userCount fields. KM ok. Confidence 0.69.",
+      "implementation": "quantile(ts_zscore(add(pv13_com_page_rank, pv13_ustomergraphrank_page_rank),20))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Page-rank extreme tails winsorized",
+      "description": "Winsorize page-rank extremes then zscore to reduce outliers. S1: single field. S2: no vector. S3: high coverage. S4: high userCount. KM satisfied. Confidence 0.67.",
+      "implementation": "quantile(ts_zscore(winsorize(pv13_com_page_rank,4),20))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Rel_ret_all recent peak detection (ts_arg_max)",
+      "description": "Detect if rel_ret_all is at recent maximum and favor continuation (momentum). S1: single field. S2: no vector. S3: coverage high. S4: moderate userCount. KM satisfied. Confidence 0.60.",
+      "implementation": "if_else(equal(ts_arg_max(rel_ret_all,20),0), quantile(ts_zscore(rel_ret_all,20)), NaN)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Competitor returns scaled by company count in sector",
+      "description": "Scale rel_ret_comp by pv13_revere_company_total to normalize sector size effects (pv13_revere_company_total coverage 0.3508 -> ts_backfill applied). S1: two fields. S2: no vector. S3: backfill for low-coverage field applied. S4: mixed userCounts. KM satisfied. Confidence 0.49.",
+      "implementation": "quantile(divide(ts_zscore(rel_ret_comp,20), ts_zscore(ts_backfill(pv13_revere_company_total,90),180)))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Page-rank rolling min diff (ts_max_diff)",
+      "description": "Use ts_max_diff to capture stocks far below recent highs in page-rank (potential mean-revert). S1: single field. S2: no vector. S3: high coverage. S4: high userCount. KM fine. Confidence 0.63.",
+      "implementation": "quantile(ts_zscore(ts_max_diff(pv13_com_page_rank,30),60))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Competition-adjusted customer momentum",
+      "description": "Customer momentum normalized by competitor count (ts_returns(rel_ret_cust)/rel_num_comp) with backfill on low-coverage rel_ret_cust. S1: two fields. S2: no vector. S3: ts_backfill applied. S4: reduces confidence due to low coverage. KM satisfied. Confidence 0.47.",
+      "implementation": "quantile(divide(ts_zscore(ts_returns(ts_backfill(rel_ret_cust,90),3),30), ts_zscore(rel_num_comp,60)))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Authority acceleration",
+      "description": "Second derivative of pv13_com_rk_au to find accelerating authorities. S1: single field. S2: no vector. S3: high coverage. S4: moderate userCount. KM ok. Confidence 0.62.",
+      "implementation": "quantile(ts_zscore(ts_delta(ts_delta(pv13_com_rk_au,7),7),50))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Group-count-based weight (group_count)",
+      "description": "Use group_count(rel_num_comp, pv13_revere_country) to weight signals by number of valid instruments in country group; then apply zscore to rel_ret_comp. S1: two fields + group. S2: no vector. S3: fields full coverage. S4: high userCounts. KM: group used properly. Confidence 0.70.",
+      "implementation": "quantile(multiply(group_count(rel_num_comp, pv13_revere_country), ts_zscore(rel_ret_comp,20)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Page-rank short-term zscore limited by hump",
+      "description": "Apply hump to page-rank zscore to limit turnover. S1: single field. S2: no vector. S3: high coverage. S4: high userCount. KM satisfied. Confidence 0.65.",
+      "implementation": "quantile(hump(ts_zscore(pv13_com_page_rank,20),0.02))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Competitor return rolling rank",
+      "description": "Use ts_rank on rel_ret_comp to capture relative standing over lookback. S1: single field. S2: no vector. S3: high coverage. S4: high userCount. KM satisfied. Confidence 0.71.",
+      "implementation": "quantile(ts_rank(rel_ret_comp,30))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Customer and competitor divergence",
+      "description": "Subtract competitor returns from customer returns (rel_ret_cust - rel_ret_comp) after backfilling rel_ret_cust to find divergence. S1: two fields. S2: no vector. S3: ts_backfill for rel_ret_cust. S4: moderate userCounts. KM ok. Confidence 0.53.",
+      "implementation": "quantile(ts_zscore(subtract(ts_backfill(rel_ret_cust,60), rel_ret_comp),30))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Hub-score breakout filter",
+      "description": "Trade when competitor hub score pv13_ompetitorgraphrank_hub_rank exceeds recent quantile. S1: single field. S2: no vector. S3: high coverage. S4: moderate userCount. KM satisfied. Confidence 0.58.",
+      "implementation": "if_else(greater(ts_quantile(pv13_ompetitorgraphrank_hub_rank,20), 0.9), quantile(ts_zscore(pv13_ompetitorgraphrank_hub_rank,20)), NaN)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Rel_num_all stability (ts_std_dev low) long",
+      "description": "Favor instruments with low volatility in rel_num_all (stable product overlap). S1: single field. S2: no vector. S3: high coverage. S4: moderate userCount. KM ok. Confidence 0.54.",
+      "implementation": "quantile(inverse(ts_std_dev(rel_num_all,90)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Page-rank vs market divergence (ts_covariance)",
+      "description": "Low covariance between page-rank and index suggests idiosyncratic moves. Use ts_covariance with pv13_revere_index_value. S1: two fields. S2: no vector. S3: full coverage. S4: moderate userCounts. KM satisfied. Confidence 0.59.",
+      "implementation": "quantile(inverse(ts_covariance(pv13_com_page_rank, pv13_revere_index_value,60)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Competitor-return quantile bucket trade",
+      "description": "Bucket competitor returns into quintiles and trade top bucket. S1: single field. S2: no vector. S3: high coverage. S4: high userCount. KM satisfied. Confidence 0.67.",
+      "implementation": "if_else(greater(bucket(rank(rel_ret_comp), range=\"0,1,0.2\"), 0.8), quantile(ts_zscore(rel_ret_comp,20)), NaN)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Page-rank long-term trend (ts_mean)",
+      "description": "Use long-term mean of page-rank to capture secular popularity trends. S1: single field. S2: no vector. S3: high coverage. S4: high userCount. KM satisfied. Confidence 0.64.",
+      "implementation": "quantile(ts_zscore(ts_mean(pv13_com_page_rank,180),180))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Customer returns corrected for group mean",
+      "description": "Subtract country group mean from rel_ret_cust to isolate idiosyncratic customer effects. S1: two fields. S2: no vector. S3: rel_ret_cust low coverage -> ts_backfill applied. S4: mixed userCounts. KM: pv13_revere_country used as group param. Confidence 0.51.",
+      "implementation": "quantile(ts_zscore(subtract(ts_zscore(ts_backfill(rel_ret_cust,60),20), group_mean(ts_zscore(ts_backfill(rel_ret_cust,60),20), 1, pv13_revere_country)),60))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Partners count sudden increase",
+      "description": "Detect sudden increases in rel_num_part (ts_delta) indicating network expansion. S1: single field. S2: no vector. S3: good coverage. S4: very high userCount; applied increasing confidence. KM ok. Confidence 0.69.",
+      "implementation": "quantile(ts_zscore(ts_delta(rel_num_part,14),60))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Page-rank seasonal adjustment (ts_regression)",
+      "description": "Use ts_regression to remove linear trend from page-rank then zscore residuals. S1: single field. S2: no vector. S3: high coverage. S4: high userCount. KM maintained. Confidence 0.66.",
+      "implementation": "quantile(ts_zscore(ts_regression(pv13_com_page_rank, ts_step(1), 90, 0, 1),60))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Composite backfill for low-coverage sector counts",
+      "description": "Backfill pv13_revere_company_total (low coverage) using kth_element then use ts_delta to detect changes. S1: single field. S2: no vector. S3: ts_backfill/kth_element applied. S4: low userCount, lower confidence. KM satisfied. Confidence 0.44.",
+      "implementation": "quantile(ts_zscore(ts_delta(ts_backfill(pv13_revere_company_total,180),30),180))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Customer vs partner return spread",
+      "description": "Spread between rel_ret_cust and rel_ret_part to detect differing demand vs supply trends. S1: two fields. S2: no vector. S3: rel_ret_cust coverage low -> ts_backfill applied. S4: moderate userCounts. KM ok. Confidence 0.52.",
+      "implementation": "quantile(ts_zscore(subtract(ts_backfill(rel_ret_cust,60), rel_ret_part),30))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Page-rank percentile reversion",
+      "description": "Use ts_quantile on page-rank to find extreme percentiles and reverse. S1: single field. S2: no vector. S3: high coverage. S4: high userCount. KM OK. Confidence 0.65.",
+      "implementation": "quantile(reverse(ts_quantile(pv13_com_page_rank,30)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Competition-adjusted authority",
+      "description": "Divide competitor authority by rel_num_comp to get per-competitor authority signal. S1: two fields. S2: no vector. S3: high coverage. S4: moderate userCount. KM satisfied. Confidence 0.58.",
+      "implementation": "quantile(divide(ts_zscore(pv13_com_rk_au,20), ts_zscore(rel_num_comp,60)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Rel_ret_all momentum normalized by group std",
+      "description": "Divide rel_ret_all momentum by group stddev (country) to find idiosyncratic moves. S1: two fields + group. S2: no vector. S3: coverage high. S4: moderate userCounts. KM: group used properly. Confidence 0.70.",
+      "implementation": "quantile(divide(ts_zscore(ts_returns(rel_ret_all,3),30), group_std_dev(ts_returns(rel_ret_all,3), pv13_revere_country)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Authority-based information ratio",
+      "description": "Compute ts_ir on pv13_com_rk_au to find consistently authoritative competitors. S1: single field. S2: no vector. S3: high coverage. S4: moderate userCount. KM satisfied. Confidence 0.61.",
+      "implementation": "quantile(ts_ir(pv13_com_rk_au,60))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Partner-return lagged correlation with firm returns",
+      "description": "Use ts_corr between rel_ret_part and rel_ret_all to detect leading/lagging relationships. S1: two fields. S2: no vector. S3: both good coverage. S4: good userCounts. KM satisfied. Confidence 0.64.",
+      "implementation": "quantile(ts_corr(rel_ret_part, rel_ret_all,60))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Page-rank winsorized momentum by index quantile",
+      "description": "Winsorize page-rank then apply momentum but only trade when index is in certain quantiles to avoid market noise. S1: two fields. S2: no vector. S3: full coverage. S4: used high userCount fields. KM ok. Confidence 0.68.",
+      "implementation": "if_else(less(ts_quantile(pv13_revere_index_value,20),0.3), NaN, quantile(ts_zscore(ts_returns(winsorize(pv13_com_page_rank,4),3),30)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Customer-hub surge short",
+      "description": "Short when customer hub score (pv13_ustomergraphrank_hub_rank) surges above recent max. S1: single field. S2: no vector. S3: coverage ok. S4: moderate userCount. KM satisfied. Confidence 0.57.",
+      "implementation": "if_else(greater(ts_arg_max(pv13_ustomergraphrank_hub_rank,20),0), NaN, quantile(ts_zscore(pv13_ustomergraphrank_hub_rank,20)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Group-scale partner returns",
+      "description": "Scale rel_ret_part within country groups to find relative outperformers. S1: two fields. S2: no vector. S3: coverage ok. S4: used group operator correctly. KM ok. Confidence 0.72.",
+      "implementation": "quantile(group_scale(ts_zscore(rel_ret_part,20), pv13_revere_country))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Rel_num_comp as liquidity proxy (inverse)",
+      "description": "Use inverse of rel_num_comp to favor less-competitive (niche) names. S1: single field. S2: no vector. S3: high coverage. S4: high userCount. KM satisfied. Confidence 0.56.",
+      "implementation": "quantile(inverse(ts_zscore(rel_num_comp,60)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Page-rank minus customer PageRank",
+      "description": "Subtract customer PageRank from competitor page-rank to find mismatches between public network and customer influence. S1: two fields. S2: no vector. S3: coverage ok. S4: used higher userCount fields. KM ok. Confidence 0.63.",
+      "implementation": "quantile(ts_zscore(subtract(pv13_com_page_rank, pv13_ustomergraphrank_page_rank),30))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Partners' return volatility filter",
+      "description": "Only trade partner-return signals when partner return volatility (ts_std_dev) below threshold to avoid noisy regimes. S1: single field. S2: no vector. S3: coverage ok. S4: high userCount. KM observed. Confidence 0.60.",
+      "implementation": "if_else(less(ts_std_dev(rel_ret_part,60), 0.02), quantile(ts_zscore(rel_ret_part,20)), NaN)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Page-rank long-short dispersion (group_rank)",
+      "description": "Within-country group_rank on page-rank to create long-short pairs by country. S1: single field + group. S2: no vector. S3: page-rank coverage high. S4: high userCount. KM used group correctly. Confidence 0.76.",
+      "implementation": "quantile(group_rank(ts_zscore(pv13_com_page_rank,20), pv13_revere_country))",
+      "confidence_level": 0.76
+    },
+    {
+      "idea": "Customer-return momentum with ts_scale",
+      "description": "Time-series scale rel_ret_cust after backfill to mitigate low coverage, then momentum. S1: single field. S2: no vector. S3: ts_backfill used for rel_ret_cust. S4: lower userCount reduces confidence. KM observed. Confidence 0.49.",
+      "implementation": "quantile(ts_zscore(ts_scale(ts_backfill(rel_ret_cust,90),30),30))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Network-role flip detection (ts_arg_min on authority)",
+      "description": "Detect when authority is at recent minimum and expect role flip. S1: single field. S2: no vector. S3: high coverage. S4: moderate userCount. KM satisfied. Confidence 0.55.",
+      "implementation": "if_else(equal(ts_arg_min(pv13_com_rk_au,30),0), quantile(ts_zscore(pv13_com_rk_au,30)), NaN)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Competitor returns pair with rel_num_all weighting",
+      "description": "Weight rel_ret_comp by rel_num_all to emphasize impacts where product overlap is big. S1: two fields. S2: no vector. S3: both high coverage. S4: good userCounts. KM ok. Confidence 0.65.",
+      "implementation": "quantile(multiply(ts_zscore(rel_ret_comp,20), ts_zscore(rel_num_all,60)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Page-rank zscore scaled to booksize (scale)",
+      "description": "Scale page-rank to portfolio booksize using scale operator for position sizing. S1: single field. S2: no vector. S3: high coverage. S4: high userCount. KM satisfied. Confidence 0.66.",
+      "implementation": "scale(ts_zscore(pv13_com_page_rank,20))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Competitor hub sudden drop mean-revert",
+      "description": "Short-term reversion when competitor hub score falls sharply. S1: single field. S2: no vector. S3: high coverage. S4: moderate userCount. KM satisfied. Confidence 0.57.",
+      "implementation": "quantile(reverse(ts_zscore(ts_delta(pv13_ompetitorgraphrank_hub_rank,5),30)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Customer-authority per customer",
+      "description": "Normalize customer authority by customer count (pv13_ustomergraphrank_auth_rank / rel_num_cust) with backfill where needed. S1: two fields. S2: no vector. S3: rel_num_cust low coverage -> ts_backfill used. S4: moderate userCounts. KM ok. Confidence 0.52.",
+      "implementation": "quantile(divide(ts_zscore(pv13_ustomergraphrank_auth_rank,20), ts_zscore(ts_backfill(rel_num_cust,90),60)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Page-rank/authority ratio",
+      "description": "Ratio of page-rank to authority (pv13_com_page_rank / pv13_com_rk_au) to detect structural imbalances. S1: two fields. S2: no vector. S3: high coverage. S4: high userCounts. KM satisfied. Confidence 0.64.",
+      "implementation": "quantile(ts_zscore(divide(pv13_com_page_rank, pv13_com_rk_au),20))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Rel_ret_part rolling product",
+      "description": "Use ts_product on rel_ret_part to detect compounding partner returns patterns. S1: single field. S2: no vector. S3: coverage ok. S4: high userCount. KM satisfied. Confidence 0.59.",
+      "implementation": "quantile(ts_product(rel_ret_part,20))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Customers' PageRank dispersion (vec_stddev proxy)",
+      "description": "No explicit vector field available; so use standard deviation across time (ts_std_dev) on customer PageRank to proxy dispersion. S1: single field. S2: vec_* not applied. S3: coverage ok. S4: moderate userCount. KM met. Confidence 0.56.",
+      "implementation": "quantile(inverse(ts_std_dev(pv13_ustomergraphrank_page_rank,60)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Market-cap quartile rotation",
+      "description": "Bucket market cap pv13_revere_index_cap into quartiles and long/short extremes. S1: single field. S2: no vector. S3: full coverage. S4: very high userCount. KM satisfied. Confidence 0.62.",
+      "implementation": "if_else(greater(bucket(rank(pv13_revere_index_cap), range=\"0,1,0.25\"), 0.75), quantile(ts_zscore(pv13_com_page_rank,20)), NaN)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Page-rank ts_ir to find consistent improvers",
+      "description": "Use ts_ir on pv13_com_page_rank to find consistent momentum vs volatility. S1: single field. S2: no vector. S3: high coverage. S4: high userCount. KM ok. Confidence 0.68.",
+      "implementation": "quantile(ts_ir(pv13_com_page_rank,90))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Competitor return lagged regression beta",
+      "description": "Use ts_regression of rel_ret_comp against index to extract beta; long low-beta when returns positive. S1: two fields. S2: no vector. S3: full coverage. S4: moderate userCount. KM satisfied. Confidence 0.61.",
+      "implementation": "quantile(ts_regression(rel_ret_comp, pv13_revere_index_value,60).beta)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Customer-signal weighted by region (group_mean)",
+      "description": "Compute group_mean of pv13_custretsig_retsig by country then take deviations to identify outliers. S1: two fields (signal + group). S2: no vector. S3: coverage high. S4: good userCount. KM used pv13_revere_country as group. Confidence 0.66.",
+      "implementation": "quantile(subtract(pv13_custretsig_retsig, group_mean(pv13_custretsig_retsig, 1, pv13_revere_country)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Rel_num_all inverse for niche preference",
+      "description": "Favor instruments with low rel_num_all (niche overlap) by inverse. S1: single field. S2: no vector. S3: coverage high. S4: moderate userCount. KM satisfied. Confidence 0.54.",
+      "implementation": "quantile(inverse(ts_zscore(rel_num_all,90)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Page-rank winsorized group-neutralized",
+      "description": "Winsorize page-rank then neutralize by country to reduce outliers and country bias. S1: single field + group. S2: no vector. S3: high coverage. S4: high userCount. KM used group correctly. Confidence 0.73.",
+      "implementation": "quantile(group_neutralize(winsorize(ts_zscore(pv13_com_page_rank,20),4), pv13_revere_country))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Partners count vs partner returns divergence",
+      "description": "Detect when partner counts grow but partner returns fall (divergence). S1: two fields. S2: no vector. S3: rel_num_part coverage good. S4: high userCount. KM satisfied. Confidence 0.57.",
+      "implementation": "quantile(ts_zscore(subtract(ts_zscore(ts_delta(rel_num_part,30),60), ts_zscore(rel_ret_part,30)),90))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Competitor PageRank percentile trend",
+      "description": "Track percentile (ts_quantile) of pv13_com_page_rank and trade on percentile momentum. S1: single field. S2: no vector. S3: high coverage. S4: high userCount. KM satisfied. Confidence 0.69.",
+      "implementation": "quantile(ts_quantile(pv13_com_page_rank,30))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Customer network concentration (vec_range proxy)",
+      "description": "Proxy vector dispersion by computing ts_range across time via ts_max - ts_min on customer PageRank. S1: single field. S2: vec_* not applied due to no vector field. S3: coverage ok. S4: moderate userCount. KM satisfied. Confidence 0.53.",
+      "implementation": "quantile(ts_zscore(subtract(ts_max(pv13_ustomergraphrank_page_rank,30), ts_min(pv13_ustomergraphrank_page_rank,30)),60))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Index-cap normalized competitor authority",
+      "description": "Normalize competitor authority by market cap to find small authoritative competitors. S1: two fields. S2: no vector. S3: full coverage. S4: high userCount for cap. KM satisfied. Confidence 0.62.",
+      "implementation": "quantile(divide(ts_zscore(pv13_com_rk_au,20), ts_zscore(pv13_revere_index_cap,180)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Page-rank plus rel_ret_all composite",
+      "description": "Add page-rank and rel_ret_all momentum to capture both network and return spillover. S1: two fields. S2: no vector. S3: both high coverage. S4: high userCounts. KM satisfied. Confidence 0.75.",
+      "implementation": "quantile(ts_zscore(add(ts_zscore(pv13_com_page_rank,20), ts_zscore(rel_ret_all,20)),30))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Country-level average competitor return filter",
+      "description": "Only trade if country group mean of rel_ret_comp exceeds threshold to align with regional trends. S1: two fields. S2: no vector. S3: full coverage. S4: high userCounts. KM used pv13_revere_country as group. Confidence 0.68.",
+      "implementation": "if_else(greater(group_mean(ts_zscore(rel_ret_comp,20), 1, pv13_revere_country), 0.0), quantile(ts_zscore(rel_ret_comp,20)), NaN)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Page-rank persistent outperformers (ts_count_nans check)",
+      "description": "Use ts_count_nans to ensure page-rank signal is stable (few NaNs) before trading. S1: single field. S2: no vector. S3: coverage high so ts_count_nans low. S4: high userCount. KM satisfied. Confidence 0.63.",
+      "implementation": "if_else(less(ts_count_nans(pv13_com_page_rank,60), 5), quantile(ts_zscore(pv13_com_page_rank,30)), NaN)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Customer-authority zscore timed decay",
+      "description": "Apply ts_decay_linear to customer authority zscore to prefer persistent signals while controlling turnover. S1: single field. S2: no vector. S3: coverage ok. S4: moderate userCount. KM satisfied. Confidence 0.58.",
+      "implementation": "quantile(ts_decay_linear(ts_zscore(pv13_ustomergraphrank_auth_rank,30),10))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Rel_ret_all vs rel_ret_comp spread",
+      "description": "Spread between rel_ret_all and rel_ret_comp to detect broader ecosystem vs competitor-specific moves. S1: two fields. S2: no vector. S3: both high coverage. S4: good userCounts. KM satisfied. Confidence 0.66.",
+      "implementation": "quantile(ts_zscore(subtract(rel_ret_all, rel_ret_comp),30))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Page-rank low-turnover hump plus quantile",
+      "description": "Use hump to limit changes and quantile for cross-section ranking on page-rank. S1: single field. S2: no vector. S3: high coverage. S4: high userCount. KM satisfied. Confidence 0.67.",
+      "implementation": "quantile(hump(ts_zscore(pv13_com_page_rank,20),0.01))",
+      "confidence_level": 0.67
+    }
+  ]
+}
