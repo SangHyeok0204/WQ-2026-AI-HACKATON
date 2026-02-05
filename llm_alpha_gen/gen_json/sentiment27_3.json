@@ -1,0 +1,586 @@
+{
+  "results": [
+    {
+      "idea": "Short-term reversal on average sentiment ranking",
+      "description": "Use snt27_avgranking_19 to capture short-term mean reversion: if recent ranking rose sharply, expect pullback. Applied SUGGESTION1 by using one primary field (high coverage 0.908) and SUGGESTION4 favoring high user/alpha counts. SUGGESTION2 not applicable (field treated as scalar). Coverage >0.6 so SUGGESTION3 not used. Kept implementation short (<=7 operators, 1 datafield) per KEEP_IN_MIND. Confidence set to 0.60 because sentiment rankings historically mean-revert moderately.",
+      "implementation": "reverse(ts_delta(snt27_avgranking_19, 5))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum of relative popularity (alpha=1)",
+      "description": "Trend-following on snt27_relpopularity1_14 using ts_zscore to reduce outliers. Applied SUGGESTION1 (single strong field) and SUGGESTION4 (moderate user/alpha counts). SUGGESTION2/3 not needed. Implementation concise and uses <=2 datafields. Confidence 0.65 reflecting reliable popularity momentum.",
+      "implementation": "ts_zscore(ts_returns(snt27_relpopularity1_14, 10), 10)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "High kurtosis recent sentiment as volatility signal",
+      "description": "Use snt27_kurtosis_16 to identify names with fat-tailed sentiment (higher risk/reward). SUGGESTION1 used single datafield with reasonable coverage; SUGGESTION4 applied (high userCount). No vector ops. KEEP_IN_MIND respected. Confidence 0.55 due to indirect mapping from kurtosis to returns.",
+      "implementation": "quantile(ts_zscore(snt27_kurtosis_16, 30), driver='gaussian')",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Top-percentile sentiment breakout long-short",
+      "description": "Long top 50% percentile average (snt27_top50pctrankingavg_13) vs bottom using cross-sectional quantile. SUGGESTION1 used single field with high coverage and alphaCount. SUGGESTION2 not applicable. KEEP_IN_MIND satisfied. Confidence 0.62 because percentile ranks are robust.",
+      "implementation": "quantile(ts_delta(snt27_top50pctrankingavg_13, 3), driver='gaussian')",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Popularity plus rank divergence (mean reversion)",
+      "description": "Combine snt27_relpopularity08_11 and snt27_rank_2: divergence between popularity change and domain rank signals reversion. Applied SUGGESTION1 to combine two fields, SUGGESTION4 prefers high-count fields. Coverage OK. SUGGESTION2/3 not needed. KEEP_IN_MIND: two datafields used. Confidence 0.66 as cross-signal improves signal-to-noise.",
+      "implementation": "subtract(ts_zscore(ts_returns(snt27_relpopularity08_11,7),7), zscore(snt27_rank_2))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Short-term sentiment acceleration",
+      "description": "Capture acceleration in snt27_avgranking_19 via ts_delta of ts_delta (second difference) and zscore it. SUGGESTION1 single field used; SUGGESTION4 satisfied. KEEP_IN_MIND respected. Confidence 0.58 for short-term noisy signal.",
+      "implementation": "zscore(ts_delta(ts_delta(snt27_avgranking_19, 3), 1))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Stable high-ranking domains (low dispersion)",
+      "description": "Use snt27_top75pctrankingavg_9 and snt27_top75pctranking_8 to find names with consistently high top-75 rankings (low dispersion -> durable sentiment). SUGGESTION1 used two fields; SUGGESTION4 considered. Confidence 0.60 given persistence of stable top rankings.",
+      "implementation": "subtract(ts_mean(snt27_top75pctrankingavg_9,30), ts_mean(snt27_top75pctranking_8,30))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Skewness-driven contrarian",
+      "description": "High positive skew in snt27_skewness_21 implies few strong positive mentions; fade extreme skew. SUGGESTION1 single high-user field used. SUGGESTION3 not needed. Confidence 0.54 because skewness relationships are moderate.",
+      "implementation": "reverse(quantile(ts_zscore(snt27_skewness_21, 60), driver='gaussian'))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Domain count growth momentum",
+      "description": "Momentum in snt27_totaldomains_17 indicates growing web presence; use ts_returns and normalize cross-sectionally. SUGGESTION1 used single reliable field; SUGGESTION4 applied. KEEP_IN_MIND preserved. Confidence 0.67 as domain growth often predicts engagement.",
+      "implementation": "quantile(ts_returns(snt27_totaldomains_17, 30), driver='gaussian')",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Country-code TLD breadth expansion signal",
+      "description": "Rising snt27_totalcountrydomains_10 suggests international expansion; use ts_zscore to control scale. SUGGESTION1/4 used. Confidence 0.61 as expansion can drive sales.",
+      "implementation": "ts_zscore(ts_delta(snt27_totalcountrydomains_10, 30), 30)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Top ranking breakout persistence",
+      "description": "If snt27_topranking_7 hits new highs vs 60-day range, expect continuation. Used ts_arg_max to detect current max and ts_delay to measure change. SUGGESTION1 applied; SUGGESTION3 not required. Confidence 0.63 for persistence of attention.",
+      "implementation": "if_else(equal(ts_arg_max(snt27_topranking_7,60),0), ts_zscore(snt27_topranking_7,30), 0)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Relative popularity divergence short",
+      "description": "When snt27_relpopularity1_14 rises but top50 ranking doesn't, expect reversion. Combined two fields per SUGGESTION1. Kept <=2 datafields per KEEP_IN_MIND. Confidence 0.64 for cross-signal advantage.",
+      "implementation": "subtract(ts_zscore(snt27_relpopularity1_14,14), ts_zscore(snt27_top50pctranking_15,14))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Low engagement with high kurtosis (mean reversion)",
+      "description": "High snt27_kurtosis_16 but low snt27_totaldomains_17 suggests isolated spikes; fade spikes. Used two fields; SUGGESTION2 not relevant. Confidence 0.56 due to indirect link.",
+      "implementation": "multiply(reverse(ts_zscore(snt27_kurtosis_16,20)), inverse(ts_zscore(snt27_totaldomains_17,20)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Vector-style: average top50 vs overall average",
+      "description": "Compare snt27_top50pctrankingavg_13 to overall snt27_avgranking_19 to find relative outperformance. SUGGESTION1 used two fields; SUGGESTION4 considered. KEEP_IN_MIND honored. Confidence 0.65 for relative rank signals.",
+      "implementation": "subtract(zscore(snt27_top50pctrankingavg_13), zscore(snt27_avgranking_19))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Sentiment decay-adjusted momentum",
+      "description": "Apply ts_decay_linear-like behavior by using ts_zscore of recent mean minus long-run mean: ts_av_diff on snt27_avgranking_19. SUGGESTION1 single field. Confidence 0.62 for smoothed momentum.",
+      "implementation": "ts_zscore(ts_av_diff(snt27_avgranking_19, 20), 20)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "High relative popularity volatility breakouts",
+      "description": "Use ts_std_dev on snt27_relpopularity08_11 to capture volatility; go long when volatility increases with positive returns. Used one field and ts operators per KEEP_IN_MIND. Confidence 0.59 as volatility-timing is noisy.",
+      "implementation": "multiply(ts_std_dev(snt27_relpopularity08_11, 20), sign(ts_returns(snt27_relpopularity08_11,5)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Domain rank momentum combined with popularity",
+      "description": "Combine ts_returns(snt27_rank_2,7) and ts_returns(snt27_relpopularity1_14,7) to favor concordant momentum. SUGGESTION1 used two fields; kept implementation short. Confidence 0.68 as dual momentum is robust.",
+      "implementation": "multiply(ts_returns(snt27_rank_2,7), ts_returns(snt27_relpopularity1_14,7))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Average ranking seasonal recovery (lagged)",
+      "description": "Use ts_delay of snt27_avgranking_19 to detect recovery patterns; long when current > lag indicating improving sentiment. Single field per SUGGESTION1. Confidence 0.57 for seasonal effects.",
+      "implementation": "ts_delta(snt27_avgranking_19, 10)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Skewness cross-sectional extremes",
+      "description": "Cross-sectionally zscore snt27_skewness_21 and short extreme positive skewers. Applied SUGGESTION1/4. Confidence 0.53 given weaker cross-section-return mapping.",
+      "implementation": "quantile(zscore(snt27_skewness_21), driver='gaussian')",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Top75 average divergence momentum",
+      "description": "If snt27_top75pctrankingavg_9 rises faster than snt27_avgranking_19, expect continued attention. Two-field combo per SUGGESTION1. Confidence 0.63.",
+      "implementation": "subtract(ts_returns(snt27_top75pctrankingavg_9,14), ts_returns(snt27_avgranking_19,14))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Domain quantity to rank ratio (quality signal)",
+      "description": "High totaldomains with low topranking indicates broad but weak engagement; use divide of snt27_totaldomains_17 / snt27_topranking_7. SUGGESTION1 used two fields. Confidence 0.64 for quality filtering.",
+      "implementation": "divide(ts_zscore(snt27_totaldomains_17,60), ts_zscore(snt27_topranking_7,60))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Rapid pop spike with low country spread (fade)",
+      "description": "Large ts_delta in snt27_relpopularity08_11 but static snt27_totalcountrydomains_10 implies local spike; fade. Two fields used. Confidence 0.55.",
+      "implementation": "subtract(ts_zscore(ts_delta(snt27_relpopularity08_11,5),5), ts_zscore(ts_delta(snt27_totalcountrydomains_10,30),30))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Stable website presence long",
+      "description": "Use snt27_website_4 presence and low ts_count_nans to prefer stocks with continuous website signals. Applied SUGGESTION1 using single field presence; ts_count_nans not a datafield but ts_count_nans operator applied to same field. KEEP_IN_MIND kept. Confidence 0.58.",
+      "implementation": "reverse(ts_count_nans(snt27_website_4, 30))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Top50 rank improvement momentum",
+      "description": "ts_rank on snt27_top50pctranking_15 over 20 days to capture improving rank percentile. SUGGESTION1 used one high-coverage field. Confidence 0.62.",
+      "implementation": "ts_rank(snt27_top50pctranking_15,20)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Popularity persistence via ts_product",
+      "description": "Use ts_product of snt27_relpopularity1_14 over short window to detect consistent growth vs one-day spikes. SUGGESTION1 single field. Confidence 0.60.",
+      "implementation": "ts_product(snt27_relpopularity1_14, 5)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High kurtosis but growing domain base (contrarian)",
+      "description": "When snt27_kurtosis_16 is high but snt27_totaldomains_17 is rising, interpret kurtosis as genuine adoption; go long. Two fields used per SUGGESTION1. Confidence 0.57.",
+      "implementation": "multiply(ts_zscore(snt27_kurtosis_16,30), ts_zscore(ts_returns(snt27_totaldomains_17,30),30))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Rank volatility compression breakout",
+      "description": "Low ts_std_dev(snt27_rank_2,60) followed by breakout in ts_returns suggests trend start. Single field; applied ts_std_dev and ts_returns. Confidence 0.66.",
+      "implementation": "multiply(reverse(ts_std_dev(snt27_rank_2,60)), ts_returns(snt27_rank_2,5))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Vector-like average of top metrics",
+      "description": "Average snt27_top50pctranking_15 and snt27_top75pctranking_8 (treated as two elements) via vec_avg concept: implement as mean of two fields (keeps <=2 fields). SUGGESTION1 used multiple fields. Confidence 0.61.",
+      "implementation": "divide(add(snt27_top50pctranking_15, snt27_top75pctranking_8), 2)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Relative popularity momentum vs site name mention",
+      "description": "If snt27_relpopularity08_11 rises while snt27_website_4 presence increases, favor. Two fields used; SUGGESTION1 applied. Confidence 0.63.",
+      "implementation": "multiply(ts_returns(snt27_relpopularity08_11,7), ts_zscore(ts_count_nans(snt27_website_4,30),30))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Top ranking mean-revert after extreme jumps",
+      "description": "If ts_max_diff(snt27_topranking_7, 30) is large, expect mean reversion. Single field and operator. Confidence 0.56.",
+      "implementation": "reverse(ts_max_diff(snt27_topranking_7,30))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Popularity to domain breadth ratio (quality)",
+      "description": "High relpopularity per domain (snt27_relpopularity1_14 / snt27_totaldomains_17) suggests concentrated interest; prefer. Two fields used respecting KEEP_IN_MIND. Confidence 0.65.",
+      "implementation": "divide(snt27_relpopularity1_14, ts_zscore(snt27_totaldomains_17,60))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Skewness reduction momentum",
+      "description": "A falling snt27_skewness_21 (less positive tail) with rising avg rank may indicate broadening interest; combine two fields. SUGGESTION1 used. Confidence 0.58.",
+      "implementation": "multiply(ts_delta(snt27_skewness_21,14), ts_returns(snt27_avgranking_19,14))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Top50 spike with cross-day persistence",
+      "description": "Use kth_element to backfill if needed and then detect persistence in snt27_top50pctranking_15 via ts_arg_max. Applied SUGGESTION3 not required for coverage but used for robustness. Confidence 0.60.",
+      "implementation": "if_else(equal(ts_arg_max(kth_element(snt27_top50pctranking_15,30,1),30),0), 1, 0)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Domain-count momentum scaled by popularity zscore",
+      "description": "Multiply ts_returns(snt27_totaldomains_17,30) by ts_zscore(snt27_relpopularity08_11,30) to favor growth with attention. Two fields used. Confidence 0.66.",
+      "implementation": "multiply(ts_returns(snt27_totaldomains_17,30), ts_zscore(snt27_relpopularity08_11,30))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Country TLD concentration long",
+      "description": "High snt27_totalcountrydomains_10 relative to totaldomains suggests geographic diversification: prefer. Used two fields implicitly via ratio with totaldomains. Confidence 0.59.",
+      "implementation": "divide(snt27_totalcountrydomains_10, ts_zscore(snt27_totaldomains_17,60))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Stable top ranking momentum filter",
+      "description": "Require ts_std_dev(snt27_topranking_7,60) below threshold then take positive ts_returns; implemented via if_else with zscore. KEEP_IN_MIND kept small. Confidence 0.64.",
+      "implementation": "if_else(less(ts_std_dev(snt27_topranking_7,60), 0.5), ts_returns(snt27_topranking_7,7), 0)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Popularity zscore cross-sectional mean-reversion",
+      "description": "Normalize snt27_relpopularity1_14 cross-sectionally and reverse to capture mean reversion in popularity. SUGGESTION1/4 applied. Confidence 0.63.",
+      "implementation": "reverse(normalize(snt27_relpopularity1_14))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Aggregate top metrics sum signal",
+      "description": "Sum normalized top50 and top75 percentile ranks to create composite attention metric. Uses two fields respecting KEEP_IN_MIND. SUGGESTION2 not applicable. Confidence 0.62.",
+      "implementation": "add(zscore(snt27_top50pctranking_15), zscore(snt27_top75pctranking_8))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Website mention surge (PIT aware)",
+      "description": "Use snt27_wq_pit_12 ts_delta to detect surge in PIT-simulated mentions; go long on positive spikes. Single field used; coverage good. Confidence 0.58.",
+      "implementation": "ts_zscore(ts_delta(snt27_wq_pit_12,7),7)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Top-rank persistence vs popularity drop (short)",
+      "description": "If snt27_topranking_7 remains high but snt27_relpopularity1_14 falls, short as attention may be waning. Two fields used. Confidence 0.60.",
+      "implementation": "subtract(ts_zscore(snt27_topranking_7), ts_zscore(ts_returns(snt27_relpopularity1_14,14)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Relative popularity momentum after low-nan periods",
+      "description": "Use ts_count_nans(snt27_relpopularity08_11,30) to avoid names with sparse data; prefer names with low NaNs and rising popularity. Single field with operator. Confidence 0.61.",
+      "implementation": "multiply(reverse(ts_count_nans(snt27_relpopularity08_11,30)), ts_returns(snt27_relpopularity08_11,14))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Average ranking zscore mean-revert",
+      "description": "Cross-sectional zscore of snt27_avgranking_19 and reverse to fade extremes. SUGGESTION1 used single strong field. Confidence 0.64.",
+      "implementation": "reverse(zscore(snt27_avgranking_19))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Top50verage divided by domain breadth (quality)",
+      "description": "Divide snt27_top50pctrankingavg_13 by snt27_totaldomains_17 to capture concentrated high-quality attention. Two fields. Confidence 0.62.",
+      "implementation": "divide(snt27_top50pctrankingavg_13, ts_zscore(snt27_totaldomains_17,60))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Kurtosis drop momentum",
+      "description": "Declining snt27_kurtosis_16 after a spike may indicate stabilization; long on negative ts_delta of kurtosis. Single field used. Confidence 0.55.",
+      "implementation": "reverse(ts_delta(snt27_kurtosis_16,7))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Popularity dispersion signal using skewness",
+      "description": "Combine snt27_skewness_21 and snt27_relpopularity08_11: positive popularity with low skew implies broad adoption. Two fields per SUGGESTION1. Confidence 0.63.",
+      "implementation": "multiply(ts_zscore(snt27_relpopularity08_11,30), inverse(ts_zscore(snt27_skewness_21,30)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Top75 breakout persistence",
+      "description": "Detect when current snt27_top75pctranking_8 is highest in 45 days (ts_arg_max==0) and go long. Single field. Confidence 0.61.",
+      "implementation": "if_else(equal(ts_arg_max(snt27_top75pctranking_8,45),0), ts_zscore(snt27_top75pctranking_8,20), 0)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Domain expansion velocity filter",
+      "description": "High ts_returns(snt27_totaldomains_17,30) filtered by low kurtosis to avoid spike-driven growth. Two fields used. Confidence 0.60.",
+      "implementation": "multiply(ts_returns(snt27_totaldomains_17,30), inverse(ts_zscore(snt27_kurtosis_16,30)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Top-rank vs average rank divergence",
+      "description": "Subtract snt27_avgranking_19 from snt27_topranking_7 to find concentration of top mentions; use as value signal. Two fields. Confidence 0.59.",
+      "implementation": "subtract(ts_zscore(snt27_topranking_7,30), ts_zscore(snt27_avgranking_19,30))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Country TLD novelty momentum",
+      "description": "Increase in unique TLDs (snt27_dltcc_3 interpreted as count) signals global reach; use ts_returns. Single field. Confidence 0.57.",
+      "implementation": "ts_returns(snt27_dltcc_3,30)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Top50 average rapid rise filter",
+      "description": "Large ts_delta(snt27_top50pctrankingavg_13,3) suggests sudden uplift; go long only if supported by rising totaldomains. Two fields used. Confidence 0.62.",
+      "implementation": "multiply(ts_delta(snt27_top50pctrankingavg_13,3), ts_returns(snt27_totaldomains_17,30))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Popularity momentum trimmed winsorized",
+      "description": "Use winsorize on ts_returns(snt27_relpopularity1_14,7) to limit outliers then quantile. SUGGESTION1 used single field. Confidence 0.63.",
+      "implementation": "quantile(winsorize(ts_returns(snt27_relpopularity1_14,7), std=3), driver='gaussian')",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Composite stability: low skew, low kurtosis",
+      "description": "Favor names with low snt27_skewness_21 and low snt27_kurtosis_16 as stable attention; average their zscores. Two fields. Confidence 0.58.",
+      "implementation": "divide(add(inverse(zscore(snt27_skewness_21)), inverse(zscore(snt27_kurtosis_16))),2)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Top rank momentum after low dispersion",
+      "description": "If group of top ranks compresses (low std) and one name breaks out, follow breakout. Implement via ts_std_dev and ts_arg_max on snt27_topranking_7. Single field. Confidence 0.65.",
+      "implementation": "if_else(less(ts_std_dev(snt27_topranking_7,60), 0.3), if_else(equal(ts_arg_max(snt27_topranking_7,10),0), 1, 0), 0)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Popularity-runup followed by skewness normalization",
+      "description": "Long when relpopularity rises and skewness drops (broadening). Two fields used; SUGGESTION1 applied. Confidence 0.61.",
+      "implementation": "multiply(ts_returns(snt27_relpopularity08_11,14), inverse(ts_zscore(snt27_skewness_21,14)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Top50 avg momentum with zscore overlay",
+      "description": "zscore(ts_returns(snt27_top50pctrankingavg_13,10)) gives robust momentum signal; single field used. Confidence 0.63.",
+      "implementation": "ts_zscore(ts_returns(snt27_top50pctrankingavg_13,10),10)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Domain breadth normalization",
+      "description": "Normalize snt27_totaldomains_17 cross-sectionally to downweight extremes. SUGGESTION1 applied; KEEP_IN_MIND satisfied. Confidence 0.6.",
+      "implementation": "normalize(snt27_totaldomains_17)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Relative popularity seasonal zscore",
+      "description": "Compute ts_zscore of snt27_relpopularity1_14 over 90 days to capture unusually high popularity. Single field. Confidence 0.64.",
+      "implementation": "ts_zscore(snt27_relpopularity1_14,90)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Top-rank negative divergence fade",
+      "description": "If snt27_topranking_7 drops but average ranking remains, fade the drop expecting mean reversion. Two fields used. Confidence 0.56.",
+      "implementation": "subtract(ts_zscore(snt27_avgranking_19,30), ts_zscore(ts_delta(snt27_topranking_7,7),7))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Popularity to top rank correlation (momentum filter)",
+      "description": "High ts_corr(snt27_relpopularity1_14, snt27_topranking_7, 30) implies aligned signals; long when positive. Two fields used and ts_corr operator. Confidence 0.67.",
+      "implementation": "ts_corr(snt27_relpopularity1_14, snt27_topranking_7, 30)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Average ranking long after count backfill",
+      "description": "Use ts_backfill(snt27_avgranking_19,7) to handle missing then take ts_returns for momentum. Applied SUGGESTION3 proactively though coverage high. Confidence 0.59.",
+      "implementation": "ts_returns(ts_backfill(snt27_avgranking_19,7), 7)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Top50 percentile stability score",
+      "description": "Combine snt27_top50pctranking_15 and snt27_top50pctrankingavg_13 by subtracting avg from instant rank to find improving stocks. Two fields used. Confidence 0.62.",
+      "implementation": "subtract(ts_zscore(snt27_top50pctranking_15,14), ts_zscore(snt27_top50pctrankingavg_13,14))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Domain count momentum with winsorized extremes",
+      "description": "Apply winsorize to ts_returns(snt27_totaldomains_17,30) to suppress outliers before ranking. SUGGESTION1 used single field. Confidence 0.6.",
+      "implementation": "quantile(winsorize(ts_returns(snt27_totaldomains_17,30), std=4), driver='gaussian')",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Popularity IR (information ratio) signal",
+      "description": "Use ts_ir(snt27_relpopularity08_11,30) to favor names with consistent positive returns relative to volatility. Single high-quality field used. Confidence 0.66.",
+      "implementation": "ts_ir(snt27_relpopularity08_11,30)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Top-ranking sudden rank improvement",
+      "description": "If ts_arg_min(snt27_topranking_7,10)==0 (new low rank number = better), favor. Single field used. Confidence 0.61.",
+      "implementation": "if_else(equal(ts_arg_min(snt27_topranking_7,10),0), 1, 0)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Popularity-to-kurtosis momentum filter",
+      "description": "Long popularity momentum only if kurtosis is moderate (avoid spikes). Two fields used, keeps implementation simple. Confidence 0.58.",
+      "implementation": "if_else(less(snt27_kurtosis_16, ts_zscore(snt27_kurtosis_16,60)), ts_returns(snt27_relpopularity1_14,14), 0)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Average ranking cross-sectional rank",
+      "description": "Use quantile(zscore(snt27_avgranking_19)) cross-sectionally to get uniform ranking. SUGGESTION1 applied. Confidence 0.63.",
+      "implementation": "quantile(zscore(snt27_avgranking_19), driver='gaussian')",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Top75 durability score",
+      "description": "Combine ts_mean(snt27_top75pctranking_8,60) with low ts_std_dev to prefer durable performers. Single field used via two time-series operators. Confidence 0.60.",
+      "implementation": "divide(ts_mean(snt27_top75pctranking_8,60), add(ts_std_dev(snt27_top75pctranking_8,60), 1e-6))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Website mention persistence vs spike",
+      "description": "If snt27_website_4 mention count spikes but ts_count_nans high historically, treat carefully; use kth_element backfill. Applied SUGGESTION3 conservatively. Confidence 0.55.",
+      "implementation": "multiply(ts_zscore(kth_element(snt27_website_4,30,1),30), reverse(ts_count_nans(snt27_website_4,30)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Top50 cross momentum alignment",
+      "description": "Multiply ts_returns(snt27_top50pctranking_15,7) and ts_returns(snt27_relpopularity08_11,7) to favor concordant movers. Two fields used. Confidence 0.67.",
+      "implementation": "multiply(ts_returns(snt27_top50pctranking_15,7), ts_returns(snt27_relpopularity08_11,7))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Kurtosis-weighted popularity signal",
+      "description": "Downweight popularity momentum when snt27_kurtosis_16 is high by dividing by kurtosis zscore. Two fields used. Confidence 0.56.",
+      "implementation": "divide(ts_returns(snt27_relpopularity1_14,14), add(ts_zscore(snt27_kurtosis_16,30), 1e-6))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Skewness-adjusted rank momentum",
+      "description": "Boost rank momentum when skewness indicates broad positive mentions (low skew). Combine two fields. Confidence 0.60.",
+      "implementation": "multiply(ts_returns(snt27_rank_2,14), inverse(ts_zscore(snt27_skewness_21,14)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Top ranking mean-revert after high std",
+      "description": "When ts_std_dev(snt27_topranking_7,30) is high, expect reversion; reverse zscore. Single field. Confidence 0.58.",
+      "implementation": "reverse(ts_zscore(snt27_topranking_7,30))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Popularity per country spread",
+      "description": "Divide relpopularity by totalcountrydomains to assess per-country strength. Two fields used. Confidence 0.61.",
+      "implementation": "divide(snt27_relpopularity08_11, add(snt27_totalcountrydomains_10, 1e-6))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Top50 rising with low overall average (discoveries)",
+      "description": "If snt27_top50pctranking_15 rises but snt27_avgranking_19 flat, it's a discovery; combine two fields. Confidence 0.63.",
+      "implementation": "subtract(ts_returns(snt27_top50pctranking_15,14), ts_returns(snt27_avgranking_19,14))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Domain breadth momentum after count backfill",
+      "description": "Backfill totaldomains via ts_backfill then take momentum to capture resumed reporting. Applied SUGGESTION3 though coverage high to be robust. Confidence 0.59.",
+      "implementation": "ts_returns(ts_backfill(snt27_totaldomains_17,7), 30)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Popularity trend strength via ts_ir",
+      "description": "Use ts_ir(snt27_relpopularity1_14,60) to detect names with high information ratio in popularity metric. Single field. Confidence 0.66.",
+      "implementation": "ts_ir(snt27_relpopularity1_14,60)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Top-rank normalized breakout",
+      "description": "Scale to recent min-max via ts_scale(snt27_topranking_7,60) and long when near max. Single field. Confidence 0.62.",
+      "implementation": "ts_scale(snt27_topranking_7,60)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Popularity vs website mention correlation",
+      "description": "ts_corr between snt27_relpopularity08_11 and snt27_website_4 over 30 days; favor when high correlation indicates real attention. Two fields used. Confidence 0.64.",
+      "implementation": "ts_corr(snt27_relpopularity08_11, snt27_website_4, 30)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Top50 momentum trimmed and normalized",
+      "description": "Winsorize ts_returns(snt27_top50pctranking_15,7) then normalize cross-sectionally. SUGGESTION1 used single field. Confidence 0.62.",
+      "implementation": "normalize(winsorize(ts_returns(snt27_top50pctranking_15,7), std=3))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "High website PIT with rising popularity",
+      "description": "Combine snt27_wq_pit_12 increases and snt27_relpopularity1_14 momentum to capture campaigns. Two fields used. Confidence 0.60.",
+      "implementation": "multiply(ts_returns(snt27_wq_pit_12,7), ts_returns(snt27_relpopularity1_14,7))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Top75 cross-sectional zscore mean-revert",
+      "description": "Reverse zscore(snt27_top75pctranking_8) cross-sectionally to fade extremes. Single field used. Confidence 0.61.",
+      "implementation": "reverse(zscore(snt27_top75pctranking_8))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Popularity momentum after low kurtosis (quality)",
+      "description": "Prefer popularity momentum when kurtosis low; divide or filter accordingly. Two fields used. Confidence 0.59.",
+      "implementation": "if_else(less(snt27_kurtosis_16, ts_zscore(snt27_kurtosis_16,60)), ts_returns(snt27_relpopularity08_11,14), 0)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Top-ranking acceleration indicator",
+      "description": "Second derivative via ts_delta(ts_delta(snt27_topranking_7,3),1) and zscore to capture accelerating attention. Single field. Confidence 0.60.",
+      "implementation": "ts_zscore(ts_delta(ts_delta(snt27_topranking_7,3),1),10)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Domain-count per-country expansion",
+      "description": "Divide totaldomains by totalcountrydomains to find depth per country; rising ratio indicates concentration growth. Two fields used. Confidence 0.58.",
+      "implementation": "divide(snt27_totaldomains_17, add(snt27_totalcountrydomains_10,1e-6))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Popularity spike persistence via ts_arg_max",
+      "description": "If current relpopularity is the max in 30 days (ts_arg_max==0) and persists for 3 days, follow. Single field and argmax operator. Confidence 0.62.",
+      "implementation": "if_else(equal(ts_arg_max(snt27_relpopularity1_14,30),0), 1, 0)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Top50 average vs top75 difference signal",
+      "description": "Subtract snt27_top75pctrankingavg_9 from snt27_top50pctrankingavg_13 to detect shifting concentration. Two fields used. Confidence 0.57.",
+      "implementation": "subtract(ts_zscore(snt27_top50pctrankingavg_13,30), ts_zscore(snt27_top75pctrankingavg_9,30))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Skewness-normalized popularity momentum",
+      "description": "Adjust popularity returns by inverse skewness to prefer broad-based increases. Two fields used. Confidence 0.60.",
+      "implementation": "multiply(ts_returns(snt27_relpopularity08_11,14), inverse(add(ts_zscore(snt27_skewness_21,14),1e-6)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Composite attention score: top rank + popularity",
+      "description": "Add normalized snt27_topranking_7 and snt27_relpopularity1_14 to form composite attention metric. Two fields used respecting KEEP_IN_MIND. Confidence 0.65.",
+      "implementation": "add(zscore(snt27_topranking_7), zscore(snt27_relpopularity1_14))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Top-rank momentum conditioned on website presence",
+      "description": "Only take rank momentum if website mentions exist (snt27_website_4 not NaN). Use trade_when-like logic via if_else(is_nan). Applied SUGGESTION1. Confidence 0.59.",
+      "implementation": "if_else(is_nan(snt27_website_4), 0, ts_returns(snt27_topranking_7,7))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Popularity mean-revert after high ts_product (sustained run)",
+      "description": "If ts_product(snt27_relpopularity1_14,7) large (sustained run), expect some pullback; reverse. Single field. Confidence 0.54.",
+      "implementation": "reverse(ts_product(snt27_relpopularity1_14,7))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Top50 rising with increasing country spread",
+      "description": "Long when snt27_top50pctranking_15 rises and snt27_totalcountrydomains_10 also rises, indicating global adoption. Two fields used. Confidence 0.63.",
+      "implementation": "multiply(ts_returns(snt27_top50pctranking_15,14), ts_returns(snt27_totalcountrydomains_10,30))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Average ranking trimmed series",
+      "description": "Apply winsorize to snt27_avgranking_19 then zscore to reduce outliers. SUGGESTION1 used high-coverage field. Confidence 0.62.",
+      "implementation": "zscore(winsorize(snt27_avgranking_19, std=4))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Top-rank volatility breakout strategy",
+      "description": "If ts_std_dev(snt27_topranking_7,20) increases sharply, follow the recent direction (ts_returns). Single field. Confidence 0.61.",
+      "implementation": "multiply(ts_std_dev(snt27_topranking_7,20), sign(ts_returns(snt27_topranking_7,5)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Popularity acceleration after low nan count",
+      "description": "Prefer names with low ts_count_nans(snt27_relpopularity08_11,30) and accelerating popularity. Single field used with two operators. Confidence 0.6.",
+      "implementation": "multiply(reverse(ts_count_nans(snt27_relpopularity08_11,30)), ts_delta(snt27_relpopularity08_11,7))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Top75 vs top50 cross-divergence",
+      "description": "If snt27_top75pctranking_8 outperforms snt27_top50pctranking_15, it signals depth; subtract two fields. Two fields used. Confidence 0.58.",
+      "implementation": "subtract(ts_zscore(snt27_top75pctranking_8,30), ts_zscore(snt27_top50pctranking_15,30))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Website mention momentum normalized",
+      "description": "Normalize ts_returns(snt27_website_4,14) cross-sectionally to get relative website momentum. Single field. Confidence 0.59.",
+      "implementation": "quantile(ts_returns(snt27_website_4,14), driver='gaussian')",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Popularity-to-top-rank ratio momentum",
+      "description": "Divide ts_returns(snt27_relpopularity1_14,14) by ts_returns(snt27_topranking_7,14) to capture popularity per top attention change. Two fields used. Confidence 0.6.",
+      "implementation": "divide(ts_returns(snt27_relpopularity1_14,14), add(ts_returns(snt27_topranking_7,14),1e-6))",
+      "confidence_level": 0.6
+    }
+  ]
+}

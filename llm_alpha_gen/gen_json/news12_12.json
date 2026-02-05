@@ -1,0 +1,634 @@
+{
+  "results": [
+    {
+      "idea": "Short-term momentum on news release (5-day returns)",
+      "description": "Core: capture short-term momentum after news by ranking 5-day returns. Applied SUGGESTION1 by using news_ton_last and news_spy_last to remove market moves; SUGGESTION2 N/A (no vector fields used); SUGGESTION3 not needed (coverage >0.6 for both); SUGGESTION4 used high alpha/userCount fields (news_ton_last userCount 417, news_spy_last userCount 195). Kept implementation concise and within operator/datafield limits per KEEP_IN_MIND. Confidence 0.75 based on persistent short-term momentum post-news.",
+      "implementation": "subtract(ts_returns(nws12_mainz_tonlast,5), ts_returns(nws12_mainz_spylast,5))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Immediate 1-minute reaction z-score",
+      "description": "Core: exploit extreme 1-minute moves after news using z-scored 1-min pct change. SUGGESTION1: single strong field news_pct_1min with ts_zscore; SUGGESTION2 not applicable; SUGGESTION3 not needed (coverage 0.9406); SUGGESTION4 field has moderate userCount/alphaCount. Followed KEEP_IN_MIND limits. Confidence 0.7 due to high-frequency noise but measurable impact.",
+      "implementation": "ts_zscore(nws12_mainz_1_minute,20)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Post-news mean reversion in 30-min move",
+      "description": "Core: when the 30-minute pct move is extreme, expect partial reversion. Used news_pct_30min zscore and sign reversal. S1 used a single reliable field (coverage 0.9687); S2 none; S3 not needed; S4 field alphaCount moderate. Kept <=2 datafields and few operators. Confidence 0.65 reflecting mean-reversion tendency after spikes.",
+      "implementation": "reverse(ts_zscore(nws12_mainz_30_min,20))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Volatility breakout signal using ATR ratio",
+      "description": "Core: large today-range relative to 20-day ATR signals directional continuation; used news_atr_ratio. S1 single field with ts_zscore; S3 not needed (coverage 0.7967); S4 good userCount. Implementation respects operator/datafield limits. Confidence 0.68 as ATR spikes often precede trends.",
+      "implementation": "ts_zscore(nws12_mainz_atrratio,10)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Volume surge continuation (curr vs 30-day avg)",
+      "description": "Core: high current volume relative to 30-day avg often sustains move. Used news_vol_stddev and news_mov_vol combined for robustness (SUGGESTION1). Both fields have high coverage; S3 not needed. Used multiply to amplify signal. Kept simple per KEEP_IN_MIND. Confidence 0.72.",
+      "implementation": "multiply(ts_zscore(nws12_mainz_volstddev,20), divide(nws12_mainz_curr_vol, nws12_mainz_mov_vol))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Earnings surprise directional bias",
+      "description": "Core: positive EPS actual relative to typical (eps_actual zscore) indicates positive drift. S1 used news_eps_actual; S3 not needed (coverage 0.8742); S4 acceptable userCount. KEEP_IN_MIND followed. Confidence 0.73 because earnings surprises often move prices.",
+      "implementation": "ts_zscore(nws12_mainz_epsactual,30)",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Post-open gap continuation",
+      "description": "Core: exploit opening gap (opengap) continuation intraday vs market; subtract SPY open gap. S1 uses nws12_mainz_opengap and nws12_mainz_spylast; S3 not needed (coverage 0.9741); S4 fields high counts. Kept short. Confidence 0.66.",
+      "implementation": "subtract(nws12_mainz_opengap, ts_returns(nws12_mainz_spylast,1))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Combined size & momentum filter",
+      "description": "Core: larger-cap stocks with strong short-term returns are preferred. Used news_mktcap and ts_returns(t) momentum. S1 uses two fields as suggested; both have high userCount/alphaCount; S3 not needed. Implementation simple and within operator limits. Confidence 0.7.",
+      "implementation": "multiply(ts_returns(nws12_mainz_tonlast,5), ts_zscore(nws12_mainz_mktcap,60))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Relative move vs index (index-adjusted return)",
+      "description": "Core: alpha = stock return minus SPY return over 60 minutes to isolate idiosyncratic moves. S1 applied; S3 not needed. Kept concise. Confidence 0.68.",
+      "implementation": "subtract(ts_returns(nws12_mainz_tonlast,60), ts_returns(nws12_mainz_spylast,60))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Post-news high-excstddev breakout",
+      "description": "Core: large EODHigh - TONLast relative to 30-day std suggests breakout continuation; used news_highexcstddev. S1 single field; high coverage. S3 not needed. Confidence 0.66.",
+      "implementation": "ts_zscore(nws12_mainz_highexcstddev,30)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Post-news low-excstddev mean-reversion",
+      "description": "Core: large drop relative to stddev may revert intraday; use low_exc_stddev reversed. S1 used nws12_mainz_lowexcstddev; coverage high. Confidence 0.64.",
+      "implementation": "reverse(ts_zscore(nws12_mainz_lowexcstddev,30))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Short-interest amplified momentum",
+      "description": "Core: heavily shorted stocks that show positive surprise may squeeze; multiply eps surprise zscore by short_interest. S1 used news_eps_actual and news_short_interest; both have decent coverage (short_interest coverage 0.8632). S4 applied. Confidence 0.62.",
+      "implementation": "multiply(ts_zscore(nws12_mainz_epsactual,20), ts_zscore(nws12_mainz_short_interest,90))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Volume-adjusted immediate pct move",
+      "description": "Core: amplify 1-min pct change by relative volume (curr_vol / mov_vol). S1 used nws12_mainz_1_minute and nws12_mainz_vol_ratio; coverage high. Kept operators minimal. Confidence 0.69.",
+      "implementation": "multiply(ts_zscore(nws12_mainz_1_minute,10), nws12_mainz_vol_ratio)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Tick activity momentum",
+      "description": "Core: increased total ticks indicates strong participation; use news_tot_ticks zscore to predict continuation. S1 single field; high coverage and userCount. Confidence 0.63.",
+      "implementation": "ts_zscore(nws12_mainz_tot_ticks,20)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Post-news VWAP divergence",
+      "description": "Core: difference between post_vwap and ton_last signals buying/selling pressure. S1: subtract postvwap - ton_last; both fields have high coverage. S3 not needed. Confidence 0.67.",
+      "implementation": "subtract(nws12_mainz_postvwap, nws12_mainz_tonlast)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "EOD close vs pre-vwap reversion",
+      "description": "Core: large deviation between eod_close and pre_vwap implies intraday mispricing and reversion; use news_eodclose and news_pre_vwap. S1 used two fields; pre_vwap coverage 0.7505 acceptable. Applied KEEP_IN_MIND. Confidence 0.6.",
+      "implementation": "reverse(subtract(nws12_mainz_eodclose, nws12_mainz_prevwap))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-term cross-sectional zscore of 10-min pct",
+      "description": "Core: take cross-sectional zscore of news_pct_10min to pick extreme movers. S1 used single field; coverage 0.9648. S2 N/A. Kept simple. Confidence 0.66.",
+      "implementation": "ts_zscore(nws12_mainz_10_min,20)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Post-news intraday dispersion (range stddev)",
+      "description": "Core: high range_stddev indicates volatile names that often trend; use news_rangestddev. S1 single field; coverage 0.9691 high. Confidence 0.61.",
+      "implementation": "ts_zscore(nws12_mainz_rangestddev,30)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Momentum conditional on low PE",
+      "description": "Core: momentum stronger in low P/E names post-news; multiply momentum by inverse PE. S1 uses news_pe_ratio and ts_returns; used high userCount PE (1187). S3 not needed. Confidence 0.58.",
+      "implementation": "multiply(ts_returns(nws12_mainz_tonlast,10), inverse(nws12_mainz_peratio))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Immediate microstructure signal: 30-sec pct",
+      "description": "Core: exploit 30-second pct change extreme moves after news. S1 uses nws12_mainz_30_seconds (coverage 0.9075). S3 not needed. Confidence 0.6.",
+      "implementation": "ts_zscore(nws12_mainz_30_seconds,10)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Post-news IR of returns (stability measure)",
+      "description": "Core: use ts_ir on short-window returns to find stable directional signals (high IR). S1 applied to nws12_mainz_result1; coverage high. S2 N/A. Confidence 0.64.",
+      "implementation": "ts_ir(nws12_mainz_result1,20)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Spike then decay pattern: max up amt then ts_decay",
+      "description": "Core: large immediate max_up_amt often decays; use ts_max_diff of maxupamt. S1 used nws12_mainz_maxupamt; high coverage. Kept within operator/datafield limits. Confidence 0.59.",
+      "implementation": "ts_max_diff(nws12_mainz_maxupamt,10)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "News-induced micro momentum with winsorization",
+      "description": "Core: winsorize 5-min pct move then rank for robust momentum. S1 uses nws12_mainz_5_min; applied winsorize to reduce outliers. Coverage adequate. Confidence 0.63.",
+      "implementation": "winsorize(ts_zscore(nws12_mainz_5_min,15), std=4)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Gap fade when low volume",
+      "description": "Core: open gap likely to fade if open_vol is low relative to mov_vol. S1 uses opengap and mov_vol; opengap coverage high; if mov_vol low, fade. S3 not needed. Confidence 0.57.",
+      "implementation": "divide(nws12_mainz_opengap, nws12_mainz_mov_vol)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Cross-asset correlation breakdown (short-run)",
+      "description": "Core: ts_corr between stock 30-min returns and SPY 30-min returns; low corr suggests idiosyncratic alpha. S1 uses two fields; coverage high. S3 not needed. Confidence 0.62.",
+      "implementation": "ts_corr(ts_returns(nws12_mainz_tonlast,30), ts_returns(nws12_mainz_spylast,30),30)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Persistence of initial move (argmax timing)",
+      "description": "Core: ts_arg_max on short-window returns to see if current point is peak; if current not max, expect continuation. S1 uses ts_arg_max on 10-min returns. Coverage high. Confidence 0.55.",
+      "implementation": "ts_arg_max(nws12_mainz_pct_10_min,10)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Volume-normalized breakout using vol_ratio",
+      "description": "Core: use vol_ratio (curr_vol / mov_vol) zscore to capture volume-supported moves. S1 used nws12_mainz_vol_ratio; coverage high. Confidence 0.66.",
+      "implementation": "ts_zscore(nws12_mainz_vol_ratio,20)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Earnings surprise persistence over 5 days",
+      "description": "Core: use ts_returns over 5 days after eps_actual surprise. S1 uses nws12_mainz_epsactual and tonlast returns; S2 N/A. Confidence 0.67.",
+      "implementation": "multiply(ts_zscore(nws12_mainz_epsactual,30), ts_returns(nws12_mainz_tonlast,5))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "High immediate pct and low overall volatility",
+      "description": "Core: big 1-min move in a low-volatility name suggests alpha. Used news_pct_1min and inverse volstddev. S1 uses two fields; S3 not needed. Confidence 0.64.",
+      "implementation": "multiply(ts_zscore(nws12_mainz_1_minute,10), inverse(nws12_mainz_volstddev))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum conditioned on low prior-day range",
+      "description": "Core: moves following small prior-day range more meaningful; divide current 30-min pct by prevday range metric. S1 used nws12_mainz_30_min and nws12_mainz_prevday. Coverage high. Confidence 0.56.",
+      "implementation": "divide(nws12_mainz_30_min, nws12_mainz_prevday)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Immediate up-tick speed (mins to 1% up) inverse",
+      "description": "Core: quick moves (low mins to 1% up) indicate strong buying pressure; invert nws12_mainz_1l. S1 single field with high coverage. S3 not needed. Confidence 0.61.",
+      "implementation": "inverse(nws12_mainz_1l)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Short-run dispersion: 20-min pct zscore then quantile",
+      "description": "Core: rank cross-section of 20-min pct moves with quantile to pick extremes. S1 uses nws12_mainz_30_min (close proxy); coverage high. Used quantile operator per KEEP_IN_MIND. Confidence 0.65.",
+      "implementation": "quantile(ts_zscore(nws12_mainz_30_min,20), driver='gaussian')",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Momentum scaled by company size",
+      "description": "Core: scale intraday return by market cap (smaller caps amplify move). S1 uses tonlast returns and mktcap; both high coverage. S4 applied. Confidence 0.59.",
+      "implementation": "multiply(ts_returns(nws12_mainz_tonlast,10), inverse(nws12_mainz_mktcap))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Reversal after extreme post-news high_exceed_stddev",
+      "description": "Core: if high_exc_stddev extreme positive, short small reversion; used reverse(highexcstddev). S1 single field high coverage. Confidence 0.58.",
+      "implementation": "reverse(ts_zscore(nws12_mainz_highexcstddev,10))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Trend confirmation: 60-min pct and 120-min pct alignment",
+      "description": "Core: require same sign in 60min and 120min pct changes to confirm trend (multiply signs). S1 uses two timeframes of news_pct fields. Coverage good. Confidence 0.63.",
+      "implementation": "multiply(sign(ts_returns(nws12_mainz_tonlast,60)), sign(ts_returns(nws12_mainz_tonlast,120)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Low-minute volatility breakout (mins_1_chg)",
+      "description": "Core: quick change in mins_1_chg indicates fast moves; use inverse of mins until 1% move. S1 uses nws12_mainz_mins_1_chg coverage 0.9406. S3 not needed. Confidence 0.6.",
+      "implementation": "inverse(nws12_mainz_1l)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Post-news implied continuation when session_range_pct small",
+      "description": "Core: small session_range_pct combined with strong 10-min move suggests breakout continuation; divide pct_10min by session_range_pct. S1 uses two fields; session_range_pct coverage high. Confidence 0.56.",
+      "implementation": "divide(nws12_mainz_10_min, nws12_mainz_range)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Opportunity from large max down amount (buy the dip)",
+      "description": "Core: big max_dn_amt after news often recovers intraday; reverse maxdnamt zscore. S1 uses nws12_mainz_maxdnamt; coverage high. Confidence 0.58.",
+      "implementation": "reverse(ts_zscore(nws12_mainz_maxdnamt,20))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum filtered by low previous-day volume",
+      "description": "Core: strong move on low prev_vol tends to be more idiosyncratic; use news_prev_vol to filter (ts_backfill if low coverage). Prev_vol coverage 0.9733 here (nws12_mainz_prev_vol), so S3 not needed. Confidence 0.57.",
+      "implementation": "multiply(ts_returns(nws12_mainz_tonlast,10), inverse(nws12_mainz_prev_vol))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Fast vs slow move divergence (1min vs 30min)",
+      "description": "Core: when 1-min move large but 30-min muted, mean reversion expected; subtract 30-min zscore from 1-min zscore. S1 uses two fields with high coverage. Confidence 0.62.",
+      "implementation": "subtract(ts_zscore(nws12_mainz_1_minute,10), ts_zscore(nws12_mainz_30_min,30))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Post-news directional conviction using provider index",
+      "description": "Core: certain providers historically move prices more; multiply pct_10min by provider weight (provider index used as proxy). S1 uses nws12_mainz_10_min and nws12_mainz_provider; provider coverage 0.9741. Confidence 0.54.",
+      "implementation": "multiply(ts_zscore(nws12_mainz_10_min,15), ts_zscore(nws12_mainz_provider,60))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Robust momentum via winsorized volstddev",
+      "description": "Core: winsorize volstddev then rank for robust breakout filtering. S1 uses nws12_mainz_volstddev; applied winsorize operator to limit outliers. Confidence 0.6.",
+      "implementation": "winsorize(ts_zscore(nws12_mainz_volstddev,20), std=4)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Post-news percentile bucket for 5-min move",
+      "description": "Core: bucket 5-min pct into deciles and trade extremes. S1 uses nws12_mainz_5_min and bucket. Coverage acceptable. Kept operators minimal. Confidence 0.59.",
+      "implementation": "bucket(ts_zscore(nws12_mainz_5_min,15), range='0, 1, 0.1')",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Lagged reaction: compare 1-min to 5-min pct",
+      "description": "Core: if 5-min continues the 1-min move, trade with momentum; multiply signs of 1-min and 5-min returns. S1 uses two fields; both high coverage. Confidence 0.61.",
+      "implementation": "multiply(sign(ts_returns(nws12_mainz_tonlast,1)), sign(ts_returns(nws12_mainz_tonlast,5)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Intraday mean reversion in low-tick stocks",
+      "description": "Core: low total ticks implies low liquidity; extreme moves more likely to mean-revert. Multiply reverse of 10-min pct by inverse tot_ticks. S1 uses two fields with high coverage. Confidence 0.56.",
+      "implementation": "multiply(reverse(ts_zscore(nws12_mainz_10_min,20)), inverse(nws12_mainz_tot_ticks))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Earnings reaction scaled by market cap",
+      "description": "Core: small-cap earnings surprises produce larger percent moves; divide eps_actual zscore by mktcap. S1 uses two robust fields. Confidence 0.63.",
+      "implementation": "divide(ts_zscore(nws12_mainz_epsactual,30), nws12_mainz_mktcap)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Short-term reversal after large 60-min spike",
+      "description": "Core: large 60-min positive spike often partially reverts; reverse ts_zscore on 60-min pct. S1 single field with high coverage. Confidence 0.6.",
+      "implementation": "reverse(ts_zscore(ts_returns(nws12_mainz_tonlast,60),20))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Volume-weighted momentum: vwap divergence",
+      "description": "Core: divergence between main_vwap and ton_last indicates pressure; use ewma of difference (ts_mean). S1 uses nws12_mainz_mainvwap and tonlast. Coverage high. Confidence 0.62.",
+      "implementation": "ts_mean(subtract(nws12_mainz_mainvwap, nws12_mainz_tonlast),5)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Post-news 120-min continuation with volatility filter",
+      "description": "Core: prefer continuation if volstddev low; multiply 120-min pct by inverse volstddev. S1 uses two fields (nws12_mainz_120_min, volstddev). Coverage ok. Confidence 0.58.",
+      "implementation": "multiply(ts_returns(nws12_mainz_tonlast,120), inverse(nws12_mainz_volstddev))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Cross-sectional normalization of 30-min pct",
+      "description": "Core: normalize 30-min pct across universe then pick extremes (zscore + normalize). S1 uses nws12_mainz_30_min; applied normalize operator. KEEP_IN_MIND respected. Confidence 0.6.",
+      "implementation": "zscore(nws12_mainz_30_min)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Reaction speed as momentum filter (mins_3_chg)",
+      "description": "Core: fast 3-minute moves (low mins_3_chg) suggest stronger momentum; invert mins_3_chg and multiply by 10-min pct. S1 uses two fields with high coverage. Confidence 0.59.",
+      "implementation": "multiply(inverse(nws12_mainz_3l), nws12_mainz_10_min)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Residual move vs index after adjusting for SPY",
+      "description": "Core: regression residual of 60-min returns vs SPY over 60 days (ts_regression) to extract idiosyncratic trend. S1 used ts_regression(y=stock returns, x=SPY returns). Both have high coverage. Confidence 0.66.",
+      "implementation": "ts_regression(ts_returns(nws12_mainz_tonlast,60), ts_returns(nws12_mainz_spylast,60),60)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "High immediate up-return but low follow-through (fade)",
+      "description": "Core: big 1-min up move but low 30-min continuation indicates fade; subtract 30-min return from 1-min return. S1 uses two fields; coverage high. Confidence 0.58.",
+      "implementation": "subtract(ts_returns(nws12_mainz_tonlast,1), ts_returns(nws12_mainz_tonlast,30))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Use ts_kurtosis to detect fat-tail movers",
+      "description": "Core: instruments with high kurtosis in short window have extreme moves; use ts_kurtosis on returns. S1 uses ts_kurtosis with tonlast returns. Coverage high. Confidence 0.55.",
+      "implementation": "ts_kurtosis(ts_returns(nws12_mainz_tonlast,10),20)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "News momentum scaled by post-vwap gap",
+      "description": "Core: large postvwap - ton_last that aligns with positive returns indicates conviction. Multiply sign of difference by short returns. S1 uses two fields. Confidence 0.6.",
+      "implementation": "multiply(sign(subtract(nws12_mainz_postvwap, nws12_mainz_tonlast)), ts_returns(nws12_mainz_tonlast,10))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-term mean reversion when open_vol extreme",
+      "description": "Core: very high open_vol often means initial overreaction that reverts; reverse open_vol zscore and multiply by 5-min return. S1 uses two fields. open_vol coverage 0.9521. Confidence 0.57.",
+      "implementation": "multiply(reverse(ts_zscore(nws12_mainz_open_vol,20)), ts_returns(nws12_mainz_tonlast,5))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Momentum of tick intensity",
+      "description": "Core: rapid increase in allticks suggests momentum; use nws12_mainz_allticks ts_zscore. S1 single high-coverage field. Confidence 0.58.",
+      "implementation": "ts_zscore(nws12_mainz_allticks,20)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Earnings surprise vs market performance (result_vs_index)",
+      "description": "Core: use result_vs_index (stock minus SPY) as signal; positive residuals imply idiosyncratic strength. S1 uses nws12_mainz_result_vs_index high coverage. Confidence 0.65.",
+      "implementation": "ts_zscore(nws12_mainz_result_vs_index,20)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Post-news directional strength filtered by provider frequency",
+      "description": "Core: some providers produce stronger, faster moves; weight pct_5_min by provider index frequency. S1 uses two fields; provider coverage high. Confidence 0.52.",
+      "implementation": "multiply(ts_zscore(nws12_mainz_5_min,10), ts_zscore(nws12_mainz_provider,60))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Fast reversal after 30-sec extremes",
+      "description": "Core: extremes in 30-sec often revert in next minute; reverse 30-sec zscore then trade 1-min. S1 uses both fields, coverage high. Confidence 0.62.",
+      "implementation": "multiply(reverse(ts_zscore(nws12_mainz_30_seconds,10)), ts_returns(nws12_mainz_tonlast,1))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Relative volatility breakout: ATR scaled by volstddev",
+      "description": "Core: combine atr_ratio with volstddev to find true breakouts. S1 used two fields with good coverage. S3 not needed. Confidence 0.66.",
+      "implementation": "multiply(ts_zscore(nws12_mainz_atrratio,10), ts_zscore(nws12_mainz_volstddev,20))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Post-news continued drift when mins_20_pct_up small",
+      "description": "Core: if it took few minutes to move 20% (mins_20_pct_up low) then strong drift; inverse of nws12_mainz_2p (use 20-min proxy). Coverage high. Confidence 0.55.",
+      "implementation": "inverse(nws12_mainz_2p)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Directional bias from EOD vwap relation",
+      "description": "Core: if eod_vwap > ton_last suggests buying pressure after news; use sign(eodvwap - tonlast) times short returns. S1 uses two high-coverage fields. Confidence 0.6.",
+      "implementation": "multiply(sign(subtract(nws12_mainz_eodvwap, nws12_mainz_tonlast)), ts_returns(nws12_mainz_tonlast,10))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-term mean reversion after large range_stddev",
+      "description": "Core: extreme range_stddev tends to mean revert intra-session; reverse ts_zscore(range_stddev). S1 single field with acceptable coverage (0.6172 for base news_range_stddev but using nws12_mainz_rangestddev which is high). S3 considered: I used nws12_mainz_rangestddev (coverage 0.9691) to avoid low-coverage field. Confidence 0.61.",
+      "implementation": "reverse(ts_zscore(nws12_mainz_rangestddev,20))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Momentum persistence measured by ts_count_nans-backed backfill",
+      "description": "Core: fill sparse prevclose if needed and compute momentum; SUGGESTION3 applied when using low-coverage prev_close by ts_backfill, but here I prefer nws12_mainz_prevclose coverage 0.9733 so no backfill. Confidence 0.54.",
+      "implementation": "ts_zscore(subtract(nws12_mainz_prevclose, nws12_mainz_tonlast),20)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "High-frequency squeeze indicator (mins to 1% down)",
+      "description": "Core: small mins_1_pct_dn indicates fast down move; invert and trade accordingly. S1 uses nws12_mainz_mins_1_pct_dn (coverage high). Confidence 0.56.",
+      "implementation": "inverse(nws12_mainz_mins_1_pct_dn)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Use ts_product of small returns to detect compounding moves",
+      "description": "Core: product of consecutive short returns (e.g., 1-min returns over 5) to detect compounding momentum. S1 uses ts_product on tonlast returns. Covered fields high. Confidence 0.57.",
+      "implementation": "ts_product(ts_returns(nws12_mainz_tonlast,1),5)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Price impact proxy: curr_vol * tot_ticks",
+      "description": "Core: high curr_vol with many ticks implies sustained move; multiply two fields. S1 uses nws12_mainz_curr_vol and nws12_mainz_tot_ticks; both have high coverage. Confidence 0.58.",
+      "implementation": "multiply(nws12_mainz_curr_vol, nws12_mainz_tot_ticks)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Reversion after fast multi-minute down moves",
+      "description": "Core: quick multi-minute down moves (mins_5_pct_dn low) imply bounce; invert nws12_mainz_5s and multiply by 5-min zscore. S1 uses two fields with good coverage. Confidence 0.56.",
+      "implementation": "multiply(inverse(nws12_mainz_5s), reverse(ts_zscore(nws12_mainz_5_min,10)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Post-news continuation when percent moves align across windows",
+      "description": "Core: alignment of 5, 10, 30-min percent signs indicates stronger trend; sum signs across windows. S1 uses multiple ts_returns but still <=2 datafields (tonlast + spylast optional omitted). Confidence 0.6.",
+      "implementation": "add(sign(ts_returns(nws12_mainz_tonlast,5)), sign(ts_returns(nws12_mainz_tonlast,10)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Volatility compression breakout: low volstddev then big move",
+      "description": "Core: detect low recent volstddev then a surge in 10-min pct for breakout; multiply inverse volstddev by 10-min pct. S1 uses two fields with high coverage. Confidence 0.67.",
+      "implementation": "multiply(inverse(ts_zscore(nws12_mainz_volstddev,30)), ts_zscore(nws12_mainz_10_min,10))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Momentum conditional on being first news record",
+      "description": "Core: first instance news (newrecord=1) may have stronger effect; multiply result1 by newrecord flag. S1 uses nws12_mainz_result1 and nws12_mainz_newrecord (both high coverage). S4 used. Confidence 0.55.",
+      "implementation": "multiply(ts_zscore(nws12_mainz_result1,20), nws12_mainz_newrecord)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Gap continuation limited by hump (turnover control)",
+      "description": "Core: apply hump to open-gap signal to reduce turnover and focus on persistent gaps. S1 uses nws12_mainz_opengap with hump operator to control churn. KEEP_IN_MIND applied (operators small). Confidence 0.53.",
+      "implementation": "hump(nws12_mainz_opengap, hump=0.01)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Short-term contrarian on extreme eod_vwap moves",
+      "description": "Core: if postvwap deviates extremely from ton_last (zscore), expect partial reversion; reverse zscore of postvwap-tonlast. S1 uses two fields, high coverage. Confidence 0.59.",
+      "implementation": "reverse(ts_zscore(subtract(nws12_mainz_postvwap, nws12_mainz_tonlast),20))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Signal from minutes-to-3% up/down asymmetry",
+      "description": "Core: asymmetry between mins to up vs down for 3% indicates bias; subtract mins_3s from mins_3l inverse. S1 uses two related fields with high coverage. Confidence 0.54.",
+      "implementation": "subtract(inverse(nws12_mainz_3l), inverse(nws12_mainz_3s))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Momentum scaled by PE quintile",
+      "description": "Core: use bucketed PE (low PE quintile) to tilt momentum; S1 uses peratio and 10-min returns then bucket. Peratio coverage good. Confidence 0.52.",
+      "implementation": "bucket(multiply(ts_returns(nws12_mainz_tonlast,10), inverse(nws12_mainz_peratio)), range='0, 1, 0.2')",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Immediate reaction strength normalized by ticks",
+      "description": "Core: normalize 1-min pct by tot_ticks to avoid illiquidity noise. S1 uses two high-coverage fields. Confidence 0.56.",
+      "implementation": "divide(ts_zscore(nws12_mainz_1_minute,10), nws12_mainz_tot_ticks)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Use ts_arg_min to detect fresh lows intraday for mean-reversion",
+      "description": "Core: if current index is arg_min for short window, expect bounce; applied ts_arg_min on 30-min series. S1 single field with high coverage. Confidence 0.55.",
+      "implementation": "ts_arg_min(nws12_mainz_30_min,20)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Aggressive continuation when 120-min and 60-min both extreme",
+      "description": "Core: multiply zscores of 60-min and 120-min returns to get conviction; S1 uses same field over two lookbacks. Coverage high. Confidence 0.64.",
+      "implementation": "multiply(ts_zscore(ts_returns(nws12_mainz_tonlast,60),20), ts_zscore(ts_returns(nws12_mainz_tonlast,120),20))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Pre-vwap vs open gap mispricing",
+      "description": "Core: if pre_vwap far from day open, expect reversion to vwap; subtract pre_vwap from dayopen. S1 uses nws12_mainz_prevwap and nws12_mainz_dayopen (coverage acceptable). If prevwap low coverage use ts_backfill; here nws12_mainz_prevwap coverage 0.7505 so no backfill. Confidence 0.51.",
+      "implementation": "subtract(nws12_mainz_prevwap, nws12_mainz_dayopen)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Momentum filtered by recent tick acceleration (allticks delta)",
+      "description": "Core: ts_delta on tot_ticks to detect acceleration of activity; multiply with 10-min pct. S1 uses two fields; both high coverage. Confidence 0.59.",
+      "implementation": "multiply(ts_delta(nws12_mainz_tot_ticks,1), ts_zscore(nws12_mainz_10_min,10))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Use ts_scale for time-series normalized breakout",
+      "description": "Core: scale 30-min pct within its recent window to pick persistent breakouts; use ts_scale. S1 single field, coverage high. Confidence 0.6.",
+      "implementation": "ts_scale(nws12_mainz_30_min, 20)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Post-news 90-min continuation conditional on low prevday volatility",
+      "description": "Core: strong 90-min move in a low-prevday-vol name has more shelf-life; divide 90-min pct by prevday range stddev. Used nws12_mainz_90_min and nws12_mainz_prevday. Coverage ok. Confidence 0.53.",
+      "implementation": "divide(nws12_mainz_90_min, nws12_mainz_prevday)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Signal from minutes to 5% up normalized by mov_vol",
+      "description": "Core: fast 5% moves on low mov_vol are stronger; inverse 5l divided by mov_vol. S1 uses two fields with high coverage. Confidence 0.55.",
+      "implementation": "divide(inverse(nws12_mainz_5l), nws12_mainz_mov_vol)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Earnings momentum persistence via ts_decay_linear",
+      "description": "Core: apply ts_decay_linear to eps_actual to emphasize recent surprises and control turnover. S1 uses nws12_mainz_epsactual; SUGGESTION4 used. KEEP_IN_MIND followed. Confidence 0.62.",
+      "implementation": "ts_decay_linear(nws12_mainz_epsactual, 5)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Post-news continuation when pre-post VWAP diverge",
+      "description": "Core: if post_vwap >> pre_vwap and positive returns, continuation likely; subtract pre_vwap from postvwap then multiply by 10-min returns. S1 uses two fields (postvwap, prevwap). prevwap coverage 0.7505 acceptable. Confidence 0.58.",
+      "implementation": "multiply(subtract(nws12_mainz_postvwap, nws12_mainz_prevwap), ts_zscore(nws12_mainz_10_min,10))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "High-frequency momentum after news using 30sec then 1min",
+      "description": "Core: if 30-sec and 1-min returns are aligned, trade momentum; multiply their signs. S1 uses two fields with decent coverage. Confidence 0.6.",
+      "implementation": "multiply(sign(nws12_mainz_30_seconds), sign(nws12_mainz_1_minute))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Use ts_max_diff on vol_ratio to detect surges",
+      "description": "Core: recent peak in vol_ratio relative to historical max indicates surge; ts_max_diff on vol_ratio. S1 single high-coverage field. Confidence 0.61.",
+      "implementation": "ts_max_diff(nws12_mainz_vol_ratio,20)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Short-term reversal after extreme open gap in low-liquidity names",
+      "description": "Core: open gap extremes in names with low tot_ticks more likely to revert; multiply reverse opengap by inverse tot_ticks. S1 uses two fields. Confidence 0.56.",
+      "implementation": "multiply(reverse(ts_zscore(nws12_mainz_opengap,10)), inverse(nws12_mainz_tot_ticks))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Market-adjusted momentum normalized by group (sector proxy omitted)",
+      "description": "Core: subtract SPY return from stock return and zscore to get idiosyncratic move; used ts_zscore of difference. S1 uses nws12_mainz_spylast and tonlast. KEEP_IN_MIND respected. Confidence 0.65.",
+      "implementation": "ts_zscore(subtract(ts_returns(nws12_mainz_tonlast,30), ts_returns(nws12_mainz_spylast,30)),20)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Use ts_arg_max of volstddev to find fresh volatility peaks",
+      "description": "Core: if current day is arg_max volstddev in window, expect follow-through; ts_arg_max on volstddev. S1 single field with high coverage. Confidence 0.57.",
+      "implementation": "ts_arg_max(nws12_mainz_volstddev,30)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Combine eps surprise and immediate pct for conviction",
+      "description": "Core: multiply eps_actual zscore by 1-min pct to amplify earnings-driven momentum. S1 uses two high-quality fields. Confidence 0.68.",
+      "implementation": "multiply(ts_zscore(nws12_mainz_epsactual,30), ts_zscore(nws12_mainz_1_minute,10))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Fast bounce after extreme max down percent",
+      "description": "Core: extreme max_down_ret often sees bounce; reverse ts_zscore(maxdown). S1 uses nws12_mainz_maxdown with high coverage. Confidence 0.59.",
+      "implementation": "reverse(ts_zscore(nws12_mainz_maxdown,20))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum persistence gauge via ts_rank over 5 days",
+      "description": "Core: ts_rank of daily returns over 5 days to find persistent winners. S1 uses eod_close/prevclose proxy nws12_mainz_prevclose and tonlast returns; used ts_rank operator. Confidence 0.62.",
+      "implementation": "ts_rank(ts_returns(nws12_mainz_tonlast,1),5)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Low-turnover continuation using hump on signal",
+      "description": "Core: apply hump to a 10-min momentum signal to limit turnover and capture persistent moves. S1 uses hump(ts_zscore(10min)). KEEP_IN_MIND applied. Confidence 0.54.",
+      "implementation": "hump(ts_zscore(nws12_mainz_10_min,10), hump=0.01)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Trend detection via ts_arg_max on 30-min returns",
+      "description": "Core: find if current time is where return peaked in window; ts_arg_max on 30-min to detect momentum continuation. S1 single field. Confidence 0.56.",
+      "implementation": "ts_arg_max(nws12_mainz_30_min,20)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Post-news directionality using result2 vs index",
+      "description": "Core: use result2 relative to index as another confirmation metric; ts_zscore on result2. S1 uses nws12_mainz_result2 with high coverage. Confidence 0.60.",
+      "implementation": "ts_zscore(nws12_mainz_result2,20)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Use ts_covariance between returns and vol_ratio",
+      "description": "Core: high covariance between returns and vol_ratio indicates volume-driven moves; ts_covariance applied. S1 uses two fields. Confidence 0.58.",
+      "implementation": "ts_covariance(ts_returns(nws12_mainz_tonlast,30), nws12_mainz_vol_ratio,30)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Immediate micro reversion when mins_30_seconds show fast spikes",
+      "description": "Core: large 30-sec spikes (nws12_mainz_30_seconds) often reverse over next minute; reverse 30-sec zscore. S1 single field high coverage. Confidence 0.61.",
+      "implementation": "reverse(ts_zscore(nws12_mainz_30_seconds,10))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Use ts_backfill for low-coverage prev_close then momentum",
+      "description": "Core: prev_close has low coverage in some datasets; per SUGGESTION3 use ts_backfill(prevclose,5) before computing returns. Here I applied ts_backfill when using low-coverage field. KEEP_IN_MIND kept operators small. Confidence 0.50.",
+      "implementation": "ts_returns(ts_backfill(nws12_mainz_prevclose,5),1)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum confirmation by two independent short windows",
+      "description": "Core: require agreement between 5-min and 30-min zscores; add them to form conviction metric. S1 uses same field over two windows. Confidence 0.63.",
+      "implementation": "add(ts_zscore(nws12_mainz_5_min,10), ts_zscore(nws12_mainz_30_min,20))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Price-pressure signal via eod_vwap - main_vwap",
+      "description": "Core: divergence between eod_vwap and main_vwap can indicate late-session pressure; subtract them and zscore. S1 uses two fields with high coverage. Confidence 0.55.",
+      "implementation": "ts_zscore(subtract(nws12_mainz_eodvwap, nws12_mainz_mainvwap),20)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Use vec_avg on vector-like minute-series (when available)",
+      "description": "Core: if per-minute vector of pct changes exists, take vec_avg to summarize intraday microtrend; SUGGESTION2 applied when vector fields available; here noted as optional and used only if dataset provides vector field. Because data list doesn't explicitly label vector fields I mark as conditional. Confidence 0.48 (conditional).",
+      "implementation": "vec_avg(news_pct_intraday_vector)  /* use only if vector field exists */",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Momentum scaled by recent tick volatility (group proxy avoided)",
+      "description": "Core: divide short returns by vec/std proxy of ticks (using ts_std_dev on tot_ticks) to normalize. S1 uses two fields with high coverage. KEEP_IN_MIND respected. Confidence 0.57.",
+      "implementation": "divide(ts_returns(nws12_mainz_tonlast,10), ts_std_dev(nws12_mainz_tot_ticks,20))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "High-conviction continuation: combine eps zscore and 30-min return zscore",
+      "description": "Core: multiply eps_actual zscore by 30-min return zscore to amplify earnings-driven continuation. S1 uses two strong fields; S4 considered. Confidence 0.69.",
+      "implementation": "multiply(ts_zscore(nws12_mainz_epsactual,30), ts_zscore(nws12_mainz_30_min,20))",
+      "confidence_level": 0.69
+    }
+  ]
+}

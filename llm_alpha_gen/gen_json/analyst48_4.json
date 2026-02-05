@@ -1,0 +1,676 @@
+{
+  "results": [
+    {
+      "idea": "Momentum in projected 12-month dividend yield",
+      "description": "Uses anl48_bp12m_yld (high userCount 106, alphaCount 248) to capture momentum in analyst-projected dividend yield. Applied SUGGESTION1 by focusing on a strong single field with high user/alpha counts for signal robustness. SUGGESTION3 applied: coverage 0.5144 < 0.6, so ts_backfill used. SUGGESTION2 not relevant (field not vector). KEEP_IN_MINDs respected: short implementation, ≤7 operators, ≤2 fields. Confidence set to 0.78 due to high community use and direct economic link to yield changes.",
+      "implementation": "zscore(ts_delta(ts_backfill(anl48_bp12m_yld,60),20))",
+      "confidence_level": 0.78
+    },
+    {
+      "idea": "Short-term reversal in latest net dividend amount",
+      "description": "Uses anl48_equity_dvd_sh_last to capture short-term mean-reversion after dividend surprises. SUGGESTION1: single reliable field with moderate userCount 9/alpha29. SUGGESTION3 applied: coverage 0.5089 < 0.6 so ts_backfill used. SUGGESTION2 not applicable. KEEP_IN_MIND honored. Confidence 0.65 because dividend amounts can be sticky but occasionally mean-revert.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(anl48_equity_dvd_sh_last,30),5),10)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Dividend health improvement signal",
+      "description": "Trade on increasing anl48_bdvd_curr_dvd_health (health score). SUGGESTION1: single field with decent userCount 10/alpha15. Coverage 0.5239 <0.6 so ts_backfill applied per SUGGESTION3. Simple momentum measured by ts_delta; SUGGESTION2 not needed. KEEP_IN_MIND followed. Confidence 0.72 — health score aggregates fundamentals and ratings.",
+      "implementation": "zscore(ts_delta(ts_backfill(anl48_bdvd_curr_dvd_health,60),30))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Dividend growth surprise vs historical 3-year growth",
+      "description": "Compare short-term change in anl48_bpda (next DPS) to 3-year projected growth anl48_bp3y_dg. SUGGESTION1 used two fields to form relative signal. Both coverages ~0.5133 and 0.4842 (<0.6) so ts_backfill applied to both per SUGGESTION3. SUGGESTION4 partially applied: bpda has moderate userCount 8. KEEP_IN_MIND respected. Confidence 0.6 due to lower coverage for bp3y_dg.",
+      "implementation": "subtract(ts_delta(ts_backfill(anl48_bpda,60),20), ts_backfill(anl48_bp3y_dg,60))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High recent dividend frequency vs 12-month yield",
+      "description": "Combine anl48_equity_m21_dly_dvd_yqe (12m gross dividends/price) with anl48_bp12m_yld. SUGGESTION1 used two complementary fields. Both have reasonable userCounts (19 and 106). Coverage of bp12m_yld <0.6 so ts_backfill applied to it; equity_m21 coverage 0.513 so also backfilled. TAKE difference to detect relative under/overpricing. KEEP_IN_MIND satisfied. Confidence 0.7 due to combined fundamentals and community validation.",
+      "implementation": "subtract(ts_backfill(anl48_equity_m21_dly_dvd_yqe,60), ts_backfill(anl48_bp12m_yld,60))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Dividend yield acceleration signal",
+      "description": "Second derivative of anl48_bp12m_yld to find acceleration in projected yields. SUGGESTION3 applied (backfill); SUGGESTION1 single high-quality field used. KEEP_IN_MIND followed. Confidence 0.66: acceleration can precede repricing.",
+      "implementation": "ts_delta(ts_delta(ts_backfill(anl48_bp12m_yld,60),10),5)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Relative last dividend vs index last dividend yield",
+      "description": "Compare company's anl48_equity_dvd_sh_last to index anl48_index_dvd_sh_last to find relative payout strength. SUGGESTION1 used two fields; index field has high coverage 0.8096. Both backfilled (company coverage 0.5089). KEEP_IN_MIND respected. Confidence 0.68 because relative dividend strength is informative.",
+      "implementation": "subtract(ts_backfill(anl48_equity_dvd_sh_last,60), ts_backfill(anl48_index_dvd_sh_last,60))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Divergence between announced gross dividend and net last",
+      "description": "Measure difference between anl48_equity_ldg (gross dividend) and anl48_equity_dvd_sh_last (net last) to detect tax/credit changes or adjustments. Both fields have moderate userCounts. Applied ts_backfill to both (coverage ~0.51). SUGGESTION2 not needed. KEEP_IN_MIND observed. Confidence 0.57: useful for select cases.",
+      "implementation": "subtract(ts_backfill(anl48_equity_ldg,60), ts_backfill(anl48_equity_dvd_sh_last,60))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Spike in projected next dividend vs historical series sum",
+      "description": "Compare anl48_bpda (next DPS) to recent historical average of gross dividend history anl48_bedhga to find surprises. Both backfilled (coverage <0.6). Used two fields per SUGGESTION1. KEEP_IN_MIND satisfied. Confidence 0.62 due to moderate data quality.",
+      "implementation": "subtract(ts_backfill(anl48_bpda,60), ts_backfill(anl48_bedhga,60))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Implied option range vs projected dividend (volatility of dividend expectations)",
+      "description": "Use anl48_bc_bdvd_opt_implied_range_low and anl48_bc_bdvd_opt_implied_range_high to measure implied dispersion around dividend forecasts. Coverage ~0.4282 (<0.6) so ts_backfill applied. SUGGESTION2 not applicable. KEEP_IN_MIND: two fields used. Confidence 0.52 because low coverage/userCount.",
+      "implementation": "subtract(ts_backfill(anl48_bc_bdvd_opt_implied_range_high,90), ts_backfill(anl48_bc_bdvd_opt_implied_range_low,90))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Decay in dividend record-to-pay timing (liquidity/timing anomaly)",
+      "description": "Track change in anl48_bdhrd (record date) proximity via ts_arg_min to detect earlier/later scheduling. Backfill used (coverage 0.5153). SUGGESTION1 single field. KEEP_IN_MIND met. Confidence 0.5: calendaring has occasional tradable effects but noisier.",
+      "implementation": "ts_arg_min(ts_backfill(anl48_bdhrd,120),60)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Confluence: rising dividend health and rising projected yield",
+      "description": "Combine anl48_bdvd_curr_dvd_health and anl48_bp12m_yld to long names with both improving health and rising projected yield. Both backfilled (coverages <0.6). SUGGESTION1 and SUGGESTION4 used to pick fields with good user counts. KEEP_IN_MIND followed. Confidence 0.75 due to combined fundamental+market signal.",
+      "implementation": "multiply(zscore(ts_delta(ts_backfill(anl48_bdvd_curr_dvd_health,60),30)), zscore(ts_delta(ts_backfill(anl48_bp12m_yld,60),30)))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Low recent dividend count but large next forecast",
+      "description": "Spot firms with low recent anl48_m21_hs_dvd but large anl48_bpda forecast. Both fields coverage <0.6 so backfilled; m21 field has coverage 0.7743 but included. SUGGESTION1 applied. KEEP_IN_MIND obeyed. Confidence 0.6: forecast overshoots often revert.",
+      "implementation": "subtract(ts_backfill(anl48_bpda,60), ts_backfill(anl48_m21_hs_dvd,60))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Rapid reduction in dividend projections (bearish)",
+      "description": "Negative ts_delta on anl48_bp12m_dip (total dividend projection index points) signals cuts. Field coverage 0.8291 (good). SUGGESTION3 not needed. SUGGESTION4 not necessary but coverage high. KEEP_IN_MIND kept. Confidence 0.8 due to strong direct link to cashflow.",
+      "implementation": "reverse(ts_delta(anl48_bp12m_dip,30))",
+      "confidence_level": 0.8
+    },
+    {
+      "idea": "Stocks with late ex-dividend dates vs index (calendar arbitrage)",
+      "description": "Use anl48_td_xe_dvd (security ex-date) vs anl48_index_td_xe_dvd to find relative scheduling differences. Both coverage ~0.5243 and 0.8541; backfill applied to lower coverage field. SUGGESTION1 applied. KEEP_IN_MIND satisfied. Confidence 0.55: trading around ex-date can be exploited but costs/time-sensitive.",
+      "implementation": "subtract(ts_backfill(anl48_td_xe_dvd,60), ts_backfill(anl48_index_td_xe_dvd,90))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Normalized dividend yield z-score cross-sectionally",
+      "description": "Create cross-sectional zscore of anl48_bp12m_yld to pick extremes. SUGGESTION4 applied: high user/alpha counts. SUGGESTION3 applied to backfill coverage<0.6. KEEP_IN_MIND: one field. Confidence 0.77 because cross-sectional extremes in yield often mean-revert.",
+      "implementation": "zscore(ts_backfill(anl48_bp12m_yld,60))",
+      "confidence_level": 0.77
+    },
+    {
+      "idea": "Dividend forecast dispersion (analyst disagreement)",
+      "description": "Use vec_stddev on a bulk projection vector field anl48_bulk_bdvd_all_projections_ibs (vector-like) to measure dispersion; wrap with vec_stddev per SUGGESTION2. Coverage 0.5242 (<0.6) so ts_backfill may be used prior to vector ops but keep simple. SUGGESTION1 used multiple senses. KEEP_IN_MIND kept. Confidence 0.54 due to uncertain vector status and low userCount.",
+      "implementation": "vec_stddev(anl48_bulk_bdvd_all_projections_ibs)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "High dividend history volatility",
+      "description": "Measure volatility of historical dividends using vec_range of anl48_bulk_dvd_hist_ibs (vector-like). Applied SUGGESTION2 to use vec_range. Coverage ~0.5153 <0.6; ts_backfill optional but vector op used. KEEP_IN_MIND followed. Confidence 0.56: dividend volatility signals inconsistent payouts.",
+      "implementation": "vec_range(anl48_bulk_dvd_hist_ibs)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Underpriced names: high bp12m_yld but falling dividend health",
+      "description": "Long stocks with high anl48_bp12m_yld but declining anl48_bdvd_curr_dvd_health. Both backfilled. SUGGESTION1 used two fields; SUGGESTION4 used high-use yield field. KEEP_IN_MIND observed. Confidence 0.7: yield compensation for deteriorating fundamentals often overpriced.",
+      "implementation": "multiply(zscore(ts_backfill(anl48_bp12m_yld,60)), reverse(zscore(ts_delta(ts_backfill(anl48_bdvd_curr_dvd_health,60),30))))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Earnings-run like dividend surprises: ts_arg_max on bpda",
+      "description": "If next DPS (anl48_bpda) is the maximum in lookback, flag as positive momentum. Backfill bpda. SUGGESTION1 single field; KEEP_IN_MIND kept. Confidence 0.58: occasional but actionable.",
+      "implementation": "if_else(ts_arg_max(ts_backfill(anl48_bpda,120),120)==0,1,0)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Mean reversion in gross dividend announce dates (timing arbitrage)",
+      "description": "Track changes in anl48_bedhgad (gross announce date) with days_from_last_change to detect unusual scheduling gaps. Backfill applied. SUGGESTION1 used single field. KEEP_IN_MIND respected. Confidence 0.48 due to calendar noise.",
+      "implementation": "reverse(days_from_last_change(ts_backfill(anl48_bedhgad,360)))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Relative index member count change (index turnover alpha)",
+      "description": "Use anl48_count_index_members for sudden index membership changes that can create trading opportunities. Field coverage 0.832/userCount 1: high coverage, no backfill needed. SUGGESTION1 single field. KEEP_IN_MIND met. Confidence 0.6: index changes can move prices.",
+      "implementation": "ts_delta(anl48_count_index_members,5)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-term divergence between gross dividend history and projected next",
+      "description": "Compare recent gross dividend history anl48_bedhga to next projected anl48_bpda. Both backfilled. SUGGESTION1 used two fields. KEEP_IN_MIND satisfied. Confidence 0.61: forecasts diverging from history often revert.",
+      "implementation": "subtract(ts_backfill(anl48_bpda,60), ts_backfill(anl48_bedhga,60))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Stocks with large vector sum of past dividend payments",
+      "description": "Use vec_sum on anl48_bulk_dvd_hist_ibs to get cumulative past dividends; SUGGESTION2 applied for vector field. Coverage ~0.5153 so backfill considered at aggregation stage. KEEP_IN_MIND observed. Confidence 0.59: historical payout size matters for yield valuation.",
+      "implementation": "vec_sum(anl48_bulk_dvd_hist_ibs)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Immediate drop in projected dividend pay date (risk signal)",
+      "description": "Monitor ts_delta on anl48_bnepd (next forecasted dividend pay date) to detect cancellations/delays. Coverage 0.5243 so backfill applied. SUGGESTION1 single field. KEEP_IN_MIND kept. Confidence 0.53: timing shifts are noisy but sometimes precede cuts.",
+      "implementation": "reverse(ts_delta(ts_backfill(anl48_bnepd,90),30))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Relative 12-month yield to index 12-month yield spread",
+      "description": "Compute spread between company anl48_bp12m_yld and anl48_index_m21_dly_dvd_yqe to find idiosyncratic yield dislocations. Both backfilled. SUGGESTION1 used two fields, SUGGESTION4 favored high-use company field. KEEP_IN_MIND met. Confidence 0.74: cross-sectional yield spreads are strong signals.",
+      "implementation": "subtract(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_index_m21_dly_dvd_yqe,60))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Stocks with consistently missing dividend history (data-driven liquidity anomaly)",
+      "description": "Count NaNs in anl48_bulk_dvd_hist_ibs using ts_count_nans to detect firms with spotty dividend records that might misprice. Coverage ~0.5153 — backfill not applied to count. SUGGESTION1 used single field. KEEP_IN_MIND met. Confidence 0.45: signal is indirect and weak.",
+      "implementation": "ts_count_nans(anl48_bulk_dvd_hist_ibs,180)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "High information ratio in short-term dividend forecasts",
+      "description": "Apply ts_ir to anl48_bpda to find names where forecast moves are consistent vs noisy. Backfill applied. SUGGESTION1 used high-quality field. KEEP_IN_MIND respected. Confidence 0.66: ts_ir signals reliability of forecast time-series.",
+      "implementation": "ts_ir(ts_backfill(anl48_bpda,120),60)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Stocks whose next ex-dividend date is unusually close",
+      "description": "Short horizon ts_arg_min on anl48_dvd_xe to detect imminently ex-dividend names. Coverage 0.8088; backfill optional. SUGGESTION1 used single field. KEEP_IN_MIND followed. Confidence 0.56: ex-date proximity often moves price.",
+      "implementation": "if_else(ts_arg_min(anl48_dvd_xe,30)==0,1,0)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum in index-level dividend per share (index_ldg)",
+      "description": "Track ts_delta on anl48_index_ldg to capture sector/index dividend momentum that could drive constituent moves. High coverage ~0.8199 so no backfill. SUGGESTION1 single field. KEEP_IN_MIND satisfied. Confidence 0.6: index dividend trends influence allocation.",
+      "implementation": "ts_zscore(ts_delta(anl48_index_ldg,20),20)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Rapid increase in projected index dividend yield vs components",
+      "description": "Compare ts_delta of anl48_index_m21_dly_dvd_yqe with company anl48_bp12m_yld; both backfilled when needed. SUGGESTION1 two fields. KEEP_IN_MIND observed. Confidence 0.63: relative moves can signal mispricing.",
+      "implementation": "subtract(ts_delta(ts_backfill(anl48_index_m21_dly_dvd_yqe,60),20), ts_delta(ts_backfill(anl48_bp12m_yld,60),20))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Stocks with low current gross dividend but high projected next (recovery play)",
+      "description": "Long where anl48_bedhga (gross history) low and anl48_bpda high. Both backfilled. SUGGESTION1 applied. KEEP_IN_MIND satisfied. Confidence 0.59: good for recovery picks but risky.",
+      "implementation": "multiply(reverse(zscore(ts_backfill(anl48_bedhga,60))), zscore(ts_backfill(anl48_bpda,60)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Dividend forecast cut probability via ts_kurtosis",
+      "description": "Use ts_kurtosis on anl48_bpda to identify fat-tailed forecast behavior that may predict cuts. Backfill applied. SUGGESTION1 single field. KEEP_IN_MIND satisfied. Confidence 0.49: kurtosis signal is exploratory.",
+      "implementation": "ts_kurtosis(ts_backfill(anl48_bpda,120),60)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Stocks with unusually high dividend projection count (analyst attention)",
+      "description": "Use anl48_bulk_bdvd_all_projections_ibs count (vector) via vec_count to proxy analyst attention. SUGGESTION2 applied. Coverage 0.5242 so backfill considered. KEEP_IN_MIND followed. Confidence 0.55: attention often precedes moves.",
+      "implementation": "vec_count(anl48_bulk_bdvd_all_projections_ibs)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Recent increases in index member dividend totals",
+      "description": "Monitor anl48_bp12m_dip (index total) ts_delta to spot index-level dividend flows. Coverage 0.8291 high. SUGGESTION1 single field. KEEP_IN_MIND met. Confidence 0.64: index dividend changes can shift capital flows.",
+      "implementation": "ts_delta(anl48_bp12m_dip,30)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Cross-sectional quantile on dividend health",
+      "description": "Rank companies by anl48_bdvd_curr_dvd_health and take top quantile longs. Backfill applied (coverage <0.6). SUGGESTION4 used due to moderate userCount. KEEP_IN_MIND observed. Confidence 0.67: health score is informative.",
+      "implementation": "quantile(ts_backfill(anl48_bdvd_curr_dvd_health,60))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Stocks with unexpectedly large gross dividend pay date shifts",
+      "description": "Track ts_max_diff on anl48_bedhgpd (gross pay date) to detect unusual schedule changes. Backfill applied. SUGGESTION1 single field. KEEP_IN_MIND satisfied. Confidence 0.5 due to calendaring noise.",
+      "implementation": "ts_max_diff(ts_backfill(anl48_bedhgpd,180),90)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Dividend yield zscore combined with recent returns (contrarian)",
+      "description": "Combine zscore(bp12m_yld) with negative recent returns ts_returns to long high-yield losers. Applied SUGGESTION1 two fields (bp12m_yld and ts_returns on price-like field; using bp12m_yld only plus ts_returns synthetically via ts_delta on bp12m_yld proxy). Backfill for bp12m_yld used. KEEP_IN_MIND kept. Confidence 0.7: value+momentum combo often effective.",
+      "implementation": "multiply(zscore(ts_backfill(anl48_bp12m_yld,60)), reverse(ts_zscore(ts_delta(ts_backfill(anl48_bp12m_yld,60),10))))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Stationary measure: ts_av_diff on projected DPS",
+      "description": "Use ts_av_diff on anl48_bpda to remove local mean and find idiosyncratic moves. Backfill applied. SUGGESTION1 single field. KEEP_IN_MIND satisfied. Confidence 0.6: de-meaned series clearer.",
+      "implementation": "ts_av_diff(ts_backfill(anl48_bpda,90),30)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Stocks with low historical dividend but high index weight (index mispricing)",
+      "description": "Compare vec_sum of company history (vec_sum(anl48_bulk_dvd_hist_ibs)) to anl48_count_index_members or index features to find misweighted names. Uses two fields; vector op applied per SUGGESTION2; backfill where needed. KEEP_IN_MIND kept. Confidence 0.53: indirect but can find arbitrage.",
+      "implementation": "subtract(vec_sum(anl48_bulk_dvd_hist_ibs), ts_backfill(anl48_count_index_members,60))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Signal from consecutive increases in announced dividends",
+      "description": "If anl48_bdha (dividend history amount) shows consecutive ts_rank increases (ts_rank over lookback), flag trend. Backfill applied (coverage 0.5137). SUGGESTION1 single field. KEEP_IN_MIND followed. Confidence 0.58: trend persistence plausible.",
+      "implementation": "ts_rank(ts_backfill(anl48_bdha,120),30)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Stocks with rising gross dividend history vs stable projections",
+      "description": "Long where anl48_bedhga increases while anl48_bpda flat: subtract ts_delta(bpda) from ts_delta(bedhga). Both backfilled. SUGGESTION1 two fields. KEEP_IN_MIND respected. Confidence 0.6: history outpacing forecasts may anticipate upgrades.",
+      "implementation": "subtract(ts_delta(ts_backfill(anl48_bedhga,60),30), ts_delta(ts_backfill(anl48_bpda,60),30))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Stocks with unusually high vector standard deviation of past dividends",
+      "description": "Compute vec_stddev on anl48_bulk_dvd_hist_ibs to detect payout instability. SUGGESTION2 applied. Coverage ~0.5153 so treat accordingly. KEEP_IN_MIND kept. Confidence 0.55: instability often priced negatively.",
+      "implementation": "vec_stddev(anl48_bulk_dvd_hist_ibs)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Rapid change in index divisor implying index corporate actions",
+      "description": "Monitor anl48_bulk_idivisor ts_delta for corporate action signals that may cause rebalancing. Coverage 0.4389 low but field present; backfill applied per SUGGESTION3. KEEP_IN_MIND respected. Confidence 0.5: rare but actionable.",
+      "implementation": "ts_delta(ts_backfill(anl48_bulk_idivisor,180),30)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Stocks with high recent count of ex-dividend events relative to peers",
+      "description": "Use anl48_equity_m21_dly_dvd_yqe and ts_rank to find names with many ex events historically. Backfill applied to company field. SUGGESTION1 used. KEEP_IN_MIND satisfied. Confidence 0.57: frequent payouts are characteristic of certain strategies.",
+      "implementation": "ts_rank(ts_backfill(anl48_equity_m21_dly_dvd_yqe,180),90)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Forecast durability: ts_count_nans on bp12m_yld",
+      "description": "Count NaNs in anl48_bp12m_yld time series to identify unstable forecast coverage; backfill used for smoothing. SUGGESTION3 applied. KEEP_IN_MIND respected. Confidence 0.44: more a data-quality signal.",
+      "implementation": "ts_count_nans(ts_backfill(anl48_bp12m_yld,120),120)",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Stocks where announced dividend amount > historical max (one-off signal)",
+      "description": "Compare anl48_bdha to vec_max of bulk history (vec_max(anl48_bulk_dvd_hist_ibs)) to detect one-time outsized payouts. SUGGESTION2 used for vector max; backfill applied when needed. KEEP_IN_MIND followed. Confidence 0.52: one-offs often non-repeatable but can cause price jumps.",
+      "implementation": "greater(ts_backfill(anl48_bdha,120), vec_max(anl48_bulk_dvd_hist_ibs))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Stocks with consecutive reductions in dividend health but stable yields",
+      "description": "Detect names where anl48_bdvd_curr_dvd_health declines while anl48_bp12m_yld flat: use ts_delta on both and subtract. Backfill both. SUGGESTION1 used two fields. KEEP_IN_MIND kept. Confidence 0.65: risk mispricing when yields don't reflect health deterioration.",
+      "implementation": "subtract(ts_delta(ts_backfill(anl48_bp12m_yld,60),30), ts_delta(ts_backfill(anl48_bdvd_curr_dvd_health,60),30))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Stocks with low number of projection entries but high projected yield (thin coverage anomaly)",
+      "description": "Use vec_count on anl48_bulk_bdvd_all_projections_ibs to find thinly covered names and compare to bp12m_yld; SUGGESTION2 used for vector count and SUGGESTION3 backfilled for bp12m_yld. KEEP_IN_MIND satisfied. Confidence 0.5: thin coverage risky but can hide mispricings.",
+      "implementation": "multiply(inverse(vec_count(anl48_bulk_bdvd_all_projections_ibs)), ts_backfill(anl48_bp12m_yld,60))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Stocks with historically clustered ex-dates (seasonal payout trades)",
+      "description": "Use vec_count or vec_sum on bulk ex-date vector (anl48_bulk_dvd_hist_ibs) to detect seasonality. SUGGESTION2 applied. KEEP_IN_MIND respected. Confidence 0.51: seasonal patterns exist for many firms.",
+      "implementation": "vec_count(anl48_bulk_dvd_hist_ibs)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Stocks where announced record date advances (signal of faster payouts)",
+      "description": "ts_delta on anl48_bdhrd (record date) to detect moving-forward record dates; backfill applied. SUGGESTION1 single field. KEEP_IN_MIND satisfied. Confidence 0.48: timing shifts often administrative.",
+      "implementation": "reverse(ts_delta(ts_backfill(anl48_bdhrd,120),30))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Persistent leader in dividend growth across its vector history",
+      "description": "Use vec_avg of historical dividends (anl48_bulk_dvd_hist_ibs) then compare to current bpda; SUGGESTION2 applied for vec_avg. Backfill bpda. KEEP_IN_MIND followed. Confidence 0.6: consistency above historical average is attractive.",
+      "implementation": "subtract(ts_backfill(anl48_bpda,60), vec_avg(anl48_bulk_dvd_hist_ibs))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Stocks with sudden jump in index dividend per share rank",
+      "description": "Use ts_rank on anl48_index_m21_dly_dvd_yqe to detect sudden index-level jumps and pick most impacted constituents (proxy via company bp12m_yld). Backfill company field. SUGGESTION1 used two levels. KEEP_IN_MIND respected. Confidence 0.55: indirect but can catch sector flows.",
+      "implementation": "multiply(ts_rank(anl48_index_m21_dly_dvd_yqe,30), ts_backfill(anl48_bp12m_yld,60))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Stocks where projected dividend growth exceeds historical 3-year pace",
+      "description": "Compare anl48_bp3y_dg (3-year projected) to ts_mean of historical gross dividends anl48_bedhga. Both backfilled when needed. SUGGESTION1 two fields. KEEP_IN_MIND kept. Confidence 0.62: growth overshoots can be predictive.",
+      "implementation": "subtract(ts_backfill(anl48_bp3y_dg,120), ts_mean(ts_backfill(anl48_bedhga,120),120))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Stocks with elevated projection information ratio",
+      "description": "Compute ts_ir on anl48_bp12m_yld to find stable forecast names; backfill used. SUGGESTION4 leveraged high userCount. KEEP_IN_MIND met. Confidence 0.68: high IR forecasts are more tradable.",
+      "implementation": "ts_ir(ts_backfill(anl48_bp12m_yld,120),60)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Cross-sectional outlier in gross dividend announce delays",
+      "description": "Use ts_arg_max on anl48_bedhgad to find names with most recent latest announce date relative to history; backfill applied. SUGGESTION1 single field. KEEP_IN_MIND observed. Confidence 0.47: timing anomalies noisy.",
+      "implementation": "ts_arg_max(ts_backfill(anl48_bedhgad,180),90)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Stocks with high vec_range but low current yield (contradiction)",
+      "description": "Compute vec_range(anl48_bulk_dvd_hist_ibs) and compare to current anl48_bp12m_yld; applies SUGGESTION2 and SUGGESTION3 for bp12m_yld. KEEP_IN_MIND respected. Confidence 0.56: payout instability with low yield may be mispriced.",
+      "implementation": "subtract(vec_range(anl48_bulk_dvd_hist_ibs), ts_backfill(anl48_bp12m_yld,60))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Stocks where pay date has been advanced consistently (liquidity timing)",
+      "description": "Use days_from_last_change on anl48_bdhpd (pay date) to find accelerated payment cadence. Backfill applied. SUGGESTION1 single field. KEEP_IN_MIND respected. Confidence 0.46: subtle calendar signal.",
+      "implementation": "reverse(days_from_last_change(ts_backfill(anl48_bdhpd,360)))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Stocks with high projection-to-history ratio",
+      "description": "Compute ratio of anl48_bpda to ts_mean(anl48_bedhga) to find large forecast upgrades. Both backfilled. SUGGESTION1 two fields. KEEP_IN_MIND obeyed. Confidence 0.63: upgrades often generate alpha.",
+      "implementation": "divide(ts_backfill(anl48_bpda,60), ts_mean(ts_backfill(anl48_bedhga,120),120))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Index-type mismatch: price-weighted index members with high company yield",
+      "description": "Use anl48_indx_typ to detect index type and overlay with high anl48_bp12m_yld to find structural biases. anl48_indx_typ coverage high 0.8541; bp12m_yld backfilled. SUGGESTION1 two fields. KEEP_IN_MIND respected. Confidence 0.52: structural index effects subtle.",
+      "implementation": "multiply(anl48_indx_typ, ts_backfill(anl48_bp12m_yld,60))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Stocks with sudden drop in vec_sum of historical dividends",
+      "description": "Monitor vec_sum(anl48_bulk_dvd_hist_ibs) over rolling window to detect abrupt declines in cumulative payouts (vector op per SUGGESTION2). KEEP_IN_MIND kept. Confidence 0.5: declines may signal payout policy shifts.",
+      "implementation": "ts_delta(vec_sum(anl48_bulk_dvd_hist_ibs),30)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Stocks where index dividend count rises but company forecasts fall",
+      "description": "Contrast ts_delta(anl48_index_m21_dly_dvd_yqe) with ts_delta(anl48_bp12m_yld). Backfill company field. SUGGESTION1 applied. KEEP_IN_MIND followed. Confidence 0.58: divergence reveals idiosyncratic weakness.",
+      "implementation": "subtract(ts_delta(anl48_index_m21_dly_dvd_yqe,30), ts_delta(ts_backfill(anl48_bp12m_yld,30),30))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Stocks with consistent low dividend health but rising price (contradiction)",
+      "description": "Combine negative anl48_bdvd_curr_dvd_health zscore with rising implied price proxy (use bp12m_yld inverse as rough proxy). Both backfilled. SUGGESTION1 used. KEEP_IN_MIND respected. Confidence 0.6: identifies potential bubbles.",
+      "implementation": "multiply(reverse(zscore(ts_backfill(anl48_bdvd_curr_dvd_health,60))), zscore(inverse(ts_backfill(anl48_bp12m_yld,60))))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Stocks with high recent ts_ir on bpda and rising vec_avg of history",
+      "description": "Combine ts_ir(ts_backfill(bpda)) with vec_avg(anl48_bulk_dvd_hist_ibs) to favor stable, growing payers. SUGGESTION2 and SUGGESTION3 applied. KEEP_IN_MIND adhered to. Confidence 0.66: robust combination of forecast stability and historical strength.",
+      "implementation": "multiply(ts_ir(ts_backfill(anl48_bpda,120),60), vec_avg(anl48_bulk_dvd_hist_ibs))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Stocks with high recent winsorized projection jumps",
+      "description": "Use winsorize on ts_delta(bp12m_yld) to limit outliers and capture robust jumps. Backfill applied. SUGGESTION1 used. KEEP_IN_MIND kept. Confidence 0.58: robust to outliers.",
+      "implementation": "winsorize(ts_delta(ts_backfill(anl48_bp12m_yld,60),20),std=3)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Stocks where projected pay date moves into quarter end (earnings-like effect)",
+      "description": "Flag when ts_arg_min of anl48_bnepd indicates pay date is current quarter end; backfill applied. SUGGESTION1 single field. KEEP_IN_MIND respected. Confidence 0.49: timing may have muted effect.",
+      "implementation": "if_else(ts_arg_min(ts_backfill(anl48_bnepd,180),90)==0,1,0)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Cross-sectional quantile on vec_sum of past dividends (top payers)",
+      "description": "Rank vec_sum(anl48_bulk_dvd_hist_ibs) cross-sectionally to pick consistent large payers. SUGGESTION2 used. KEEP_IN_MIND respected. Confidence 0.61: large historical payers often continue payouts.",
+      "implementation": "quantile(vec_sum(anl48_bulk_dvd_hist_ibs))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Stocks with high ts_arg_max on bp12m_yld (recent peak)",
+      "description": "Flag names where current bp12m_yld is max over lookback (momentum peak). Backfill applied. SUGGESTION1 single field. KEEP_IN_MIND followed. Confidence 0.6: peaks can attract flows.",
+      "implementation": "if_else(ts_arg_max(ts_backfill(anl48_bp12m_yld,120),120)==0,1,0)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Stocks where index has rising dividend but company bpda falls (idiosyncratic weakness)",
+      "description": "Subtract ts_delta(company bpda) from ts_delta(index_m21_dly_dvd_yqe). Both backfilled where needed. SUGGESTION1 used. KEEP_IN_MIND satisfied. Confidence 0.59: good for short candidates.",
+      "implementation": "subtract(ts_delta(ts_backfill(anl48_index_m21_dly_dvd_yqe,60),30), ts_delta(ts_backfill(anl48_bpda,60),30))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Stocks with low vec_count but high vec_sum (few large past dividends)",
+      "description": "Compute vec_sum/vec_count on anl48_bulk_dvd_hist_ibs to find few big payouts vs many small ones; SUGGESTION2 applied. KEEP_IN_MIND kept. Confidence 0.54: payout profile matters for valuation.",
+      "implementation": "divide(vec_sum(anl48_bulk_dvd_hist_ibs), vec_count(anl48_bulk_dvd_hist_ibs))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Stocks where gross dividend record date moved earlier rapidly (liquidity sign)",
+      "description": "Reverse ts_delta on anl48_bedhgrd to detect advancing record dates; backfill applied. SUGGESTION1 single field. KEEP_IN_MIND observed. Confidence 0.47: subtle signal.",
+      "implementation": "reverse(ts_delta(ts_backfill(anl48_bedhgrd,180),30))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Stocks with high ts_std_dev of bp12m_yld (forecast volatility)",
+      "description": "Measure ts_std_dev on anl48_bp12m_yld to find unstable yield forecasts. Backfill applied. SUGGESTION1 single field. KEEP_IN_MIND respected. Confidence 0.56: volatility indicates risk premium.",
+      "implementation": "ts_std_dev(ts_backfill(anl48_bp12m_yld,120),60)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Stocks where bpda is high but index bp12m_dip stagnant (idiosyncratic upgrade)",
+      "description": "Contrast company bpda ts_delta vs index bp12m_dip ts_delta. Backfill company field. SUGGESTION1 used. KEEP_IN_MIND obeyed. Confidence 0.62: idiosyncratic upgrades often outperform.",
+      "implementation": "subtract(ts_delta(ts_backfill(anl48_bpda,60),30), ts_delta(anl48_bp12m_dip,30))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Stocks with missing upcoming declared dates (bnedd) — potential stealth cuts",
+      "description": "Flag NaNs in anl48_bnedd (next declared date) after backfill; coverage 0.5243 low so ts_backfill used. SUGGESTION3 applied. KEEP_IN_MIND satisfied. Confidence 0.46: missing dates sometimes presage cuts.",
+      "implementation": "is_nan(ts_backfill(anl48_bnedd,90))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Stocks where recent dividend projections have low ts_ir but high yield (risky yield)",
+      "description": "Combine low ts_ir(ts_backfill(bp12m_yld)) with high bp12m_yld to avoid high but unreliable yields. SUGGESTION1 used. KEEP_IN_MIND kept. Confidence 0.64: filters for quality of yield.",
+      "implementation": "multiply(inverse(ts_ir(ts_backfill(anl48_bp12m_yld,120),60)), zscore(ts_backfill(anl48_bp12m_yld,60)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Stocks with large ts_covariance between bpda and bp12m_yld (co-movement)",
+      "description": "Compute ts_covariance(ts_backfill(bpda), ts_backfill(bp12m_yld)) to find names where forecast amount strongly drives yield — select highest covariance. SUGGESTION1 applied. KEEP_IN_MIND satisfied. Confidence 0.55: covariance sometimes indicates strong signal.",
+      "implementation": "ts_covariance(ts_backfill(anl48_bpda,120), ts_backfill(anl48_bp12m_yld,120),60)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Stocks with recent narrowing between gross and net dividends",
+      "description": "Subtract anl48_equity_dvd_sh_last from anl48_equity_ldg; backfill both. SUGGESTION1 used. KEEP_IN_MIND followed. Confidence 0.53: narrowing may reflect tax/credit changes.",
+      "implementation": "subtract(ts_backfill(anl48_equity_ldg,60), ts_backfill(anl48_equity_dvd_sh_last,60))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Stocks where historical dividend vector shows increasing minimums",
+      "description": "Use vec_min(anl48_bulk_dvd_hist_ibs) and compare over time (ts_delta of vec_min) to detect rising floor in payouts. SUGGESTION2 used. KEEP_IN_MIND satisfied. Confidence 0.57: rising floor indicates resilience.",
+      "implementation": "ts_delta(vec_min(anl48_bulk_dvd_hist_ibs),90)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Stocks with decreasing vec_count of historical payouts (less frequent payouts)",
+      "description": "Track vec_count(anl48_bulk_dvd_hist_ibs) ts_delta to identify reduced payout frequency. SUGGESTION2 applied. KEEP_IN_MIND kept. Confidence 0.5: frequency reductions often precede cuts.",
+      "implementation": "ts_delta(vec_count(anl48_bulk_dvd_hist_ibs),180)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Stocks with large divergence between bulk gross history and announced last",
+      "description": "Compare vec_sum(anl48_bulk_dvd_hist_ibs) to anl48_equity_dvd_sh_last; SUGGESTION2 used. Backfill company field. KEEP_IN_MIND satisfied. Confidence 0.54: divergence reveals structural shifts.",
+      "implementation": "subtract(vec_sum(anl48_bulk_dvd_hist_ibs), ts_backfill(anl48_equity_dvd_sh_last,60))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Stocks with rising bp12m_yld but falling index bp12m_dip (idiosyncratic yield demand)",
+      "description": "Subtract ts_delta(anl48_bp12m_yld) minus ts_delta(anl48_bp12m_dip). Backfill company field. SUGGESTION1 used. KEEP_IN_MIND satisfied. Confidence 0.6: idiosyncratic moves can be exploited.",
+      "implementation": "subtract(ts_delta(ts_backfill(anl48_bp12m_yld,60),30), ts_delta(anl48_bp12m_dip,30))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Stocks with unusually low index bulk nfields (index data thin) but high company yield",
+      "description": "Use anl48_index_nfields (high coverage) and bp12m_yld to find thin index data pockets combined with high company yield; backfill company field. SUGGESTION1 used. KEEP_IN_MIND followed. Confidence 0.48: indirect signal.",
+      "implementation": "multiply(anl48_index_nfields, ts_backfill(anl48_bp12m_yld,60))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Stocks where vec_max of dividend history is much larger than current bpda (potential one-off)",
+      "description": "Compute vec_max(anl48_bulk_dvd_hist_ibs) and compare to bpda; SUGGESTION2 applied. Backfill bpda. KEEP_IN_MIND respected. Confidence 0.53: one-offs caution.",
+      "implementation": "subtract(vec_max(anl48_bulk_dvd_hist_ibs), ts_backfill(anl48_bpda,60))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Stocks with high ts_arg_min on bp12m_yld (recent low) combined with improving dividend health",
+      "description": "Combine ts_arg_min(ts_backfill(bp12m_yld))==0 with positive ts_delta on anl48_bdvd_curr_dvd_health. Backfill both. SUGGESTION1 used. KEEP_IN_MIND adhered. Confidence 0.69: turnaround in health from lows promising.",
+      "implementation": "multiply(if_else(ts_arg_min(ts_backfill(anl48_bp12m_yld,120),120)==0,1,0), ts_delta(ts_backfill(anl48_bdvd_curr_dvd_health,60),30))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Stocks where bulk history shows long-run increasing mean (vec_avg trending)",
+      "description": "Compute vec_avg(anl48_bulk_dvd_hist_ibs) and compare to prior vec_avg; SUGGESTION2 applied. KEEP_IN_MIND kept. Confidence 0.58: persistent rising averages hint at sustainable payouts.",
+      "implementation": "subtract(vec_avg(anl48_bulk_dvd_hist_ibs), kth_element(vec_avg(anl48_bulk_dvd_hist_ibs),90,1))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Stocks where ts_rank of bp12m_yld has steep ascent (momentum breakout)",
+      "description": "Use ts_rank(ts_backfill(bp12m_yld)) to identify breakout ranks. Backfill applied. SUGGESTION1 single field. KEEP_IN_MIND satisfied. Confidence 0.66: rank momentum robust cross-sectionally.",
+      "implementation": "ts_rank(ts_backfill(anl48_bp12m_yld,60),30)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Stocks with decreasing group-like index Ł (using index_ibc) and rising company yield",
+      "description": "Use anl48_index_ibc (index id) multiplicatively with bp12m_yld to detect index moves affecting company yield; backfill company field. SUGGESTION1 used. KEEP_IN_MIND respected. Confidence 0.47: indirect mapping.",
+      "implementation": "multiply(anl48_index_ibc, ts_backfill(anl48_bp12m_yld,60))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Stocks with high ts_product of recent bpda moves (consistent growth)",
+      "description": "Use ts_product(ts_backfill(bpda),d) to find multiplicative growth in forecasts. Backfill applied. SUGGESTION1 single field. KEEP_IN_MIND followed. Confidence 0.6: multiplicative growth rarer but strong.",
+      "implementation": "ts_product(ts_backfill(anl48_bpda,120),60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Stocks with recent negative ts_returns in projected yield but increasing bpda (contradiction)",
+      "description": "Combine reverse ts_returns on bp12m_yld with positive ts_delta on bpda; backfill both. SUGGESTION1 applied. KEEP_IN_MIND observed. Confidence 0.58: inconsistency may signal re-rating.",
+      "implementation": "multiply(reverse(ts_returns(ts_backfill(anl48_bp12m_yld,60),20)), ts_delta(ts_backfill(anl48_bpda,60),30))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Stocks with stable bp12m_yld (low ts_std_dev) but rising bpda (quality growth)",
+      "description": "Identify low ts_std_dev(ts_backfill(bp12m_yld)) combined with positive ts_delta(bpda). Backfill both. SUGGESTION1 used. KEEP_IN_MIND followed. Confidence 0.67: stable yield with growth is attractive.",
+      "implementation": "multiply(inverse(ts_std_dev(ts_backfill(anl48_bp12m_yld,120),60)), ts_delta(ts_backfill(anl48_bpda,60),30))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Stocks where index_td_xe_dvd differs materially from company td_xe_dvd (calendar mismatch)",
+      "description": "Subtract anl48_index_td_xe_dvd from anl48_td_xe_dvd to find scheduling mismatches; backfill company field. SUGGESTION1 used. KEEP_IN_MIND satisfied. Confidence 0.5: calendar mismatches can be tactical.",
+      "implementation": "subtract(ts_backfill(anl48_td_xe_dvd,60), anl48_index_td_xe_dvd)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Stocks where bulk_eqy_dvd_hist_gross_ibc vector indicates unusually high gross payouts",
+      "description": "Use vec_max on anl48_equity_bulk_eqy_dvd_hist_gross_ibc to detect outliers; SUGGESTION2 applied. Coverage ~0.516 so backfill as needed. KEEP_IN_MIND observed. Confidence 0.52: outliers need careful interpretation.",
+      "implementation": "vec_max(anl48_equity_bulk_eqy_dvd_hist_gross_ibc)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Stocks with falling dividend health but rising gross history (mixed signals)",
+      "description": "Subtract ts_delta(bdvd_curr_dvd_health) from ts_delta(bedhga); backfill both fields. SUGGESTION1 used. KEEP_IN_MIND followed. Confidence 0.55: conflicting signals can precede revision.",
+      "implementation": "subtract(ts_delta(ts_backfill(anl48_bedhga,60),30), ts_delta(ts_backfill(anl48_bdvd_curr_dvd_health,60),30))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Stocks where announced net dividend last is an outlier relative to vector history",
+      "description": "Compute zscore of anl48_equity_dvd_sh_last relative to vec_avg(vec) or vec_stddev; use vec_avg(vec) and vec_stddev per SUGGESTION2. KEEP_IN_MIND respected. Confidence 0.58: outliers often lead to re-pricing.",
+      "implementation": "divide(subtract(ts_backfill(anl48_equity_dvd_sh_last,60), vec_avg(anl48_bulk_dvd_hist_ibs)), vec_stddev(anl48_bulk_dvd_hist_ibs))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Stocks with sustained high vec_stddev but improving bpda (risk-reward)",
+      "description": "Multiply vec_stddev(anl48_bulk_dvd_hist_ibs) with ts_delta(bpda). SUGGESTION2 and SUGGESTION3 applied. KEEP_IN_MIND kept. Confidence 0.53: risk-return trade-off signal.",
+      "implementation": "multiply(vec_stddev(anl48_bulk_dvd_hist_ibs), ts_delta(ts_backfill(anl48_bpda,60),30))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Stocks with sudden increase in bulk_eqy_dvd_hist_gross_ibc (corporate action)",
+      "description": "ts_arg_max on anl48_equity_bulk_eqy_dvd_hist_gross_ibc to flag recent maxima; SUGGESTION2 applied if vector. KEEP_IN_MIND respected. Confidence 0.51: corporate actions significant but rare.",
+      "implementation": "ts_arg_max(anl48_equity_bulk_eqy_dvd_hist_gross_ibc,120)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Stocks where index bulk ibc changes correlate with company bpda (index-driven upgrades)",
+      "description": "Compute ts_corr between anl48_index_bulk_ibc and company bpda to find index-driven forecast moves. Backfill company field. SUGGESTION1 used. KEEP_IN_MIND satisfied. Confidence 0.5: indirect signal.",
+      "implementation": "ts_corr(anl48_index_bulk_ibc, ts_backfill(anl48_bpda,120),60)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Stocks with unusually high announced dividend vs index average",
+      "description": "Subtract company anl48_equity_dvd_sh_last from index anl48_index_dvd_sh_last to find outliers; backfill company field. SUGGESTION1 applied. KEEP_IN_MIND adhered. Confidence 0.56: relative payout anomalies can be exploited.",
+      "implementation": "subtract(ts_backfill(anl48_equity_dvd_sh_last,60), anl48_index_dvd_sh_last)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Stocks where bpda growth outpaces bp3y_dg (near-term upgrade signal)",
+      "description": "Compare ts_delta(bpda) with bp3y_dg; backfill both if needed. SUGGESTION1 used. KEEP_IN_MIND satisfied. Confidence 0.61: near-term upgrades beating long-term expectations attractive.",
+      "implementation": "subtract(ts_delta(ts_backfill(anl48_bpda,60),30), ts_backfill(anl48_bp3y_dg,60))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Stocks with low vec_min historically but rising current bp12m_yld",
+      "description": "Combine vec_min(anl48_bulk_dvd_hist_ibs) with ts_delta(bp12m_yld); SUGGESTION2 used. Backfill company field. KEEP_IN_MIND respected. Confidence 0.55: rising yields from low base often mean higher upside.",
+      "implementation": "multiply(inverse(vec_min(anl48_bulk_dvd_hist_ibs)), ts_delta(ts_backfill(anl48_bp12m_yld,60),30))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Stocks where announced pay date deviates from historical median (operational risk)",
+      "description": "Compare anl48_bdhpd to kth_element of its history using kth_element to backfill; backfill applied. SUGGESTION1 used. KEEP_IN_MIND followed. Confidence 0.46: operational timing risk subtle.",
+      "implementation": "subtract(ts_backfill(anl48_bdhpd,120), kth_element(ts_backfill(anl48_bdhpd,120),120,1))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Stocks where projected dividend yield falls but gross history avg rises (forecast downgrade risk)",
+      "description": "Subtract ts_delta(bp12m_yld) from ts_mean(bedhga); backfill both. SUGGESTION1 used. KEEP_IN_MIND met. Confidence 0.6: mismatch suggests forecast downgrade risk.",
+      "implementation": "subtract(ts_delta(ts_backfill(anl48_bp12m_yld,60),30), ts_mean(ts_backfill(anl48_bedhga,120),120))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Stocks with stable index divisor but company dividend spikes (idiosyncratic)",
+      "description": "Multiply reverse ts_delta(anl48_bulk_idivisor) with ts_delta(bpda) to find company-specific spikes. Backfill company field. KEEP_IN_MIND kept. Confidence 0.49: indirect but occasionally useful.",
+      "implementation": "multiply(inverse(ts_delta(ts_backfill(anl48_bulk_idivisor,180),30)), ts_delta(ts_backfill(anl48_bpda,60),30))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Stocks with strong ts_regression slope between bpda and bp12m_yld (sensitivity)",
+      "description": "Use ts_regression(bp12m_yld, bpda) to get sensitivity of yield to DPS and trade on high slopes. Backfill both. SUGGESTION1 used. KEEP_IN_MIND observed. Confidence 0.6: sensitivity informative for valuation.",
+      "implementation": "ts_regression(ts_backfill(anl48_bp12m_yld,120), ts_backfill(anl48_bpda,120),60,0,1)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Stocks with decreasing count of index members but rising index dividend (concentration)",
+      "description": "Compare ts_delta(anl48_count_index_members) with ts_delta(anl48_bp12m_dip) to detect concentration risk/opportunity. Both fields coverage high; backfill optional. KEEP_IN_MIND met. Confidence 0.52: structural.",
+      "implementation": "subtract(ts_delta(anl48_bp12m_dip,60), ts_delta(anl48_count_index_members,60))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Stocks with high recent winsorized change in vec_sum history",
+      "description": "Compute winsorize(ts_delta(vec_sum(anl48_bulk_dvd_hist_ibs))) to capture robust jumps in cumulative history. SUGGESTION2 applied. KEEP_IN_MIND kept. Confidence 0.53: historical jumps may precede guidance changes.",
+      "implementation": "winsorize(ts_delta(vec_sum(anl48_bulk_dvd_hist_ibs),90),std=3)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Stocks with rising bp12m_yld but falling vec_avg of bulk history (forecast risk)",
+      "description": "Subtract vec_avg(anl48_bulk_dvd_hist_ibs) from ts_backfill(bp12m_yld) to find divergence between forecasted yield and historical average. SUGGESTION2 and SUGGESTION3 applied. KEEP_IN_MIND satisfied. Confidence 0.57: divergence can revert.",
+      "implementation": "subtract(ts_backfill(anl48_bp12m_yld,60), vec_avg(anl48_bulk_dvd_hist_ibs))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Stocks where bulk projection nfields drop (fewer analyst inputs) and yield rises (fragile yield)",
+      "description": "Use anl48_bulk_bdvd_all_projections_nfields and compare to ts_backfill(bp12m_yld); backfill bp12m_yld. SUGGESTION1 used. KEEP_IN_MIND respected. Confidence 0.48: fewer inputs increase forecast risk.",
+      "implementation": "multiply(inverse(anl48_bulk_bdvd_all_projections_nfields), ts_backfill(anl48_bp12m_yld,60))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Stocks with repeated ex-date clustering in vec history (predictable payout windows)",
+      "description": "Use vec_count of ex events in anl48_bulk_dvd_hist_ibs and ts_rank to find predictable windows. SUGGESTION2 applied. KEEP_IN_MIND kept. Confidence 0.52: seasonality exploitable.",
+      "implementation": "ts_rank(vec_count(anl48_bulk_dvd_hist_ibs),180)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Stocks with long-run increase in index_m21_dly_dvd_yqe vs company yield (sector tailwinds)",
+      "description": "Subtract ts_delta(index_m21_dly_dvd_yqe) from ts_delta(company bp12m_yld) to find sector-led leaders. Backfill company field. SUGGESTION1 used. KEEP_IN_MIND followed. Confidence 0.59: sector tailwinds often lift leaders.",
+      "implementation": "subtract(ts_delta(ts_backfill(anl48_bp12m_yld,60),30), ts_delta(anl48_index_m21_dly_dvd_yqe,30))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Stocks where recent bp12m_yld has low ts_quantile (left tail) but improving health",
+      "description": "Combine ts_quantile(ts_backfill(bp12m_yld)) low values with positive ts_delta on dvd health; backfill both. SUGGESTION1 applied. KEEP_IN_MIND satisfied. Confidence 0.68: value with improving fundamentals",
+      "implementation": "multiply(less(ts_quantile(ts_backfill(anl48_bp12m_yld,60),60),0.2), ts_delta(ts_backfill(anl48_bdvd_curr_dvd_health,60),30))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Stocks where announced dvd_xe is earlier than historical median (tax/timing advantage)",
+      "description": "Compare anl48_dvd_xe to kth_element of its history; backfill applied. SUGGESTION1 single field. KEEP_IN_MIND met. Confidence 0.47: marginally exploitable.",
+      "implementation": "subtract(ts_backfill(anl48_dvd_xe,120), kth_element(ts_backfill(anl48_dvd_xe,120),120,1))",
+      "confidence_level": 0.47
+    }
+  ]
+}

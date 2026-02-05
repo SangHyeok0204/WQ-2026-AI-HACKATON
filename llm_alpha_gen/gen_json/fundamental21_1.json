@@ -1,0 +1,646 @@
+{
+  "results": [
+    {
+      "idea": "Cross-sectional z-score on all-categories ESG insight",
+      "description": "Core: Use cross-sectional zscore of the broad ESG insight to capture relative ESG sentiment. SUGGESTION1: used single high-coverage field (allcategories_insight) to keep signal stable. SUGGESTION2: no vector fields in the provided DATA so vec_* not applied. SUGGESTION3: coverage 0.8419 (>0.6) so ts_backfill not needed. SUGGESTION4: field has moderate userCount/alphaCount so likely robust. Kept implementation short per KEEP_IN_MINDs. Confidence = 0.80.",
+      "implementation": "zscore(fnd21_allcategories_insight_allcategories_insight)",
+      "confidence_level": 0.8
+    },
+    {
+      "idea": "Time-series zscore on all-categories ESG momentum (20d)",
+      "description": "Core: Capture short-to-medium-term momentum in ESG news trends using ts_zscore. SUGGESTION1: single strong momentum field used. SUGGESTION2: no vector fields available. SUGGESTION3: coverage 0.8768 (>0.6), no ts_backfill. SUGGESTION4: reasonable user/alpha counts. Implementation respects operator/datafield limits. Confidence = 0.78.",
+      "implementation": "ts_zscore(fnd21_allcategories_momentum_allcategories_momentum,20)",
+      "confidence_level": 0.78
+    },
+    {
+      "idea": "Momentum-adjusted ESG insight (cross - time)",
+      "description": "Core: Long names with better ESG momentum vs current insight: subtract(ts_zscore(momentum), zscore(insight)) to isolate momentum divergence. SUGGESTION1: combined two fields (insight, momentum) to leverage complementary signals. SUGGESTION2: none vector. SUGGESTION3: both coverages >0.6 so no backfill. SUGGESTION4: chosen fields have several users/alphas. Kept under 7 operators. Confidence = 0.82.",
+      "implementation": "subtract(ts_zscore(fnd21_allcategories_momentum_allcategories_momentum,20), zscore(fnd21_allcategories_insight_allcategories_insight))",
+      "confidence_level": 0.82
+    },
+    {
+      "idea": "Insight per news volume (noise-adjusted sentiment)",
+      "description": "Core: Divide insight by article volume to reduce overweighting high-volume but low-signal names. SUGGESTION1: used 2 datafields to combine sentiment and volume. SUGGESTION2: no vectors. SUGGESTION3: both fields have high coverage so no ts_backfill. SUGGESTION4: selected fields with nonzero user/alpha counts. Keeps implementation short. Confidence = 0.70.",
+      "implementation": "divide(fnd21_allcategories_insight_allcategories_insight, fnd21_volume_ttmdaily_allcategories_articlevolumettm)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Recent change in product-quality impact (5d), backfilled",
+      "description": "Core: Capture recent shock in product quality negative/positive coverage via ts_delta then normalize via ts_zscore. SUGGESTION1: single specialized field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.2895 (<0.6) so applied ts_backfill with d=10 to improve coverage. SUGGESTION4: field has prior alpha usage. Implementation respects operator & field limits. Confidence = 0.60.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,10),5),5)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Inverse volume * ESG insight (size-scaled sentiment)",
+      "description": "Core: Give more weight to strong insight on thinly covered names by multiplying insight by inverse volume. SUGGESTION1: used 2 fields (volume and insight). SUGGESTION2: none vector. SUGGESTION3: volume coverage low (0.2895) so ts_backfill applied with d=10. SUGGESTION4: volume field has high user/alpha counts, increasing robustness. Implementation uses inverse and multiply only. Confidence = 0.65.",
+      "implementation": "multiply(inverse(ts_backfill(fnd21_volume_ttmdaily_productqualityandsafety_categoryvolumettm,10)), fnd21_allcategories_insight_allcategories_insight)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Industry-relative ESG insight percentile quantile",
+      "description": "Core: Use industry percentile insight and apply quantile transform to obtain stable cross-sectional weights. SUGGESTION1: single industry-percentile field used for industry relativity. SUGGESTION2: no vector fields. SUGGESTION3: coverage 0.8415 (>0.6) so no backfill. SUGGESTION4: high alpha/user count on industry percentile improves signal reliability. Implementation minimal. Confidence = 0.75.",
+      "implementation": "quantile(fnd21_allcategories_insight_allcategoriesindustrypercentile_insight)",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Relative news volume rank (materiality volume ts_rank)",
+      "description": "Core: Rank companies by recent materiality topic volume (ts_rank) to highlight names with rising attention. SUGGESTION1: used materiality volume which has adequate coverage. SUGGESTION2: no vector fields. SUGGESTION3: coverage 0.6644 (>0.6) so no backfill. SUGGESTION4: moderate user/alpha counts. Implementation is a single ts_rank op. Confidence = 0.66.",
+      "implementation": "ts_rank(fnd21_materiality_categoryvolumettm,20)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Industry-percentile minus raw insight (contrarian within industry)",
+      "description": "Core: Subtract raw insight from industry percentile to capture names that outperform industry peers or lag despite industry conditions. SUGGESTION1: used two complementary fields. SUGGESTION2: no vector fields. SUGGESTION3: both coverages high so no backfill. SUGGESTION4: industry-percentile has higher users/alphas. Implementation simple subtract. Confidence = 0.70.",
+      "implementation": "subtract(fnd21_allcategories_insight_allcategoriesindustrypercentile_insight, fnd21_allcategories_insight_allcategories_insight)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Information ratio of product-quality volume (ts_ir)",
+      "description": "Core: Use ts_ir on product-quality category volume to find names with consistent elevated coverage relative to volatility. SUGGESTION1: single volume field used. SUGGESTION2: no vector fields. SUGGESTION3: coverage low so ts_backfill used with d=10 before ts_ir. SUGGESTION4: volume field has strong alphaCount (productquality volume has many alphas) so signal may be meaningful. Implementation is ts_ir(ts_backfill(...),20). Confidence = 0.60.",
+      "implementation": "ts_ir(ts_backfill(fnd21_volume_ttmdaily_productqualityandsafety_categoryvolumettm,10),20)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-term pulse zscore (real-time ESG pulse)",
+      "description": "Core: Use zscore on allcategories pulse to capture real-time news shocks. SUGGESTION1: single high-coverage pulse field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.8431 (>0.6) so no ts_backfill. SUGGESTION4: moderate user/alpha counts. Implementation compact. Confidence = 0.74.",
+      "implementation": "zscore(fnd21_allcategories_pulse_allcategories_pulse)",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Momentum divergence between product-quality momentum and overall momentum",
+      "description": "Core: Subtract product-quality momentum from overall ESG momentum to find category-specific divergence. SUGGESTION1: used two momentum fields. SUGGESTION2: no vector. SUGGESTION3: product-quality momentum coverage 0.4807 (<0.6), so ts_backfill applied; overall momentum has high coverage so left as-is. SUGGESTION4: product-quality momentum has limited alphas so confidence trimmed. Implementation uses ts_zscore on backfilled product-quality momentum and subtract. Confidence = 0.58.",
+      "implementation": "subtract(ts_zscore(ts_backfill(fnd21_allcategories_momentum_productqualityandsafety_momentum,10),10), ts_zscore(fnd21_allcategories_momentum_allcategories_momentum,10))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Delta in materiality article volume (short-term change)",
+      "description": "Core: Use short-term ts_delta on materiality article volume to capture rising attention. SUGGESTION1: single field (materiality article volume). SUGGESTION2: no vector. SUGGESTION3: coverage 0.6644 (>0.6) so no backfill. SUGGESTION4: minimal user/alpha counts but good coverage. Implementation simple ts_delta. Confidence = 0.62.",
+      "implementation": "ts_delta(fnd21_volume_ttmdaily_materiality_articlevolumettm,5)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Normalized pulse over past volatility (ts_zscore of pulse returns)",
+      "description": "Core: Compute ts_returns of pulse then ts_zscore to highlight abnormal short-term sentiment moves. SUGGESTION1: single pulse field used. SUGGESTION2: no vector. SUGGESTION3: coverage high so no ts_backfill. SUGGESTION4: user/alpha moderate. Operators limited. Confidence = 0.72.",
+      "implementation": "ts_zscore(ts_returns(fnd21_allcategories_pulse_allcategories_pulse,5),10)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Combine data-security insight and momentum (difference)",
+      "description": "Core: Subtract data-security momentum from data-security insight to capture sentiment vs trend imbalance. SUGGESTION1: used 2 specialized fields (insight and momentum). SUGGESTION2: no vector. SUGGESTION3: coverage of insight 0.369 <0.6 so applied ts_backfill(10) to the insight before use; momentum coverage 0.3917 also low so ts_backfill applied. SUGGESTION4: both have prior alpha activity. Implementation stays under operator limits. Confidence = 0.55.",
+      "implementation": "subtract(ts_backfill(fnd21_datasecurity_insight,10), ts_backfill(fnd21_datasecurity_momentum,10))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Product-quality impact percentile (industry) quantile",
+      "description": "Core: Use industry percentile of product-quality insight and quantile-transform for robust cross-sectional weighting. SUGGESTION1: single industry-percentile field used. SUGGESTION2: no vector fields. SUGGESTION3: coverage 0.4533 (<0.6) so ts_backfill applied with d=10. SUGGESTION4: product-quality fields have moderate usage. Implementation is quantile(ts_backfill(...)). Confidence = 0.59.",
+      "implementation": "quantile(ts_backfill(fnd21_allcategories_insight_productqualityandsafetyindustrypercentile_insight,10))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Fair labor practices momentum normalized (ts_zscore)",
+      "description": "Core: Normalize the momentum in fair labor practices topic to find abnormal attention. SUGGESTION1: single field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.5458 (<0.6) so used ts_backfill(10). SUGGESTION4: limited user/alpha but topic is material; applied backfill per suggestion3. Confidence = 0.56.",
+      "implementation": "ts_zscore(ts_backfill(fnd21_allcategories_momentum_fairlaborpractices_momentum,10),10)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Supply-chain management impact spike (ts_arg_max)",
+      "description": "Core: Use ts_arg_max on supply-chain impact percentage to detect most recent local maxima in coverage. SUGGESTION1: single supplychain impact field. SUGGESTION2: no vector. SUGGESTION3: coverage 0.3265 (<0.6) so applied ts_backfill(15) before ts_arg_max. SUGGESTION4: low user/alpha counts but signal can flag shocks. Implementation small operator set. Confidence = 0.52.",
+      "implementation": "ts_arg_max(ts_backfill(fnd21_supplychainmanagement_impactpercentagettm,15),20)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "GHG emissions momentum over 20 days (trend)",
+      "description": "Core: ts_zscore on GHG emissions momentum to capture regulatory or reputational trends. SUGGESTION1: single field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.4735 (<0.6) so ts_backfill(10) applied. SUGGESTION4: low alphaCount, so confidence moderated. Implementation minimal. Confidence = 0.54.",
+      "implementation": "ts_zscore(ts_backfill(fnd21_allcategories_momentum_ghgemissions_momentum,10),20)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Data-security insight / industry percentile ratio",
+      "description": "Core: Divide raw data-security insight by its industry percentile to identify firms with disproportionate attention relative to peers. SUGGESTION1: used two fields (insight and industry percentile). SUGGESTION2: no vector. SUGGESTION3: both coverages <0.6 so ts_backfill applied to both with d=10. SUGGESTION4: chosen because prior alphas exist for data-security. Implementation uses divide and backfill only. Confidence = 0.57.",
+      "implementation": "divide(ts_backfill(fnd21_datasecurity_insight,10), ts_backfill(fnd21_datasecurityindustrypercentile_insight,10))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Pulse-to-volume ratio for product quality (real-time signal)",
+      "description": "Core: Divide pulse by recent category volume to identify fast-moving but low-volume shocks. SUGGESTION1: used two fields (pulse and volume). SUGGESTION2: no vector. SUGGESTION3: product-quality volume coverage low -> ts_backfill(10) used; pulse coverage moderate -> ts_backfill(5) applied. SUGGESTION4: product-quality fields have user/alpha presence. Implementation concise. Confidence = 0.61.",
+      "implementation": "divide(ts_backfill(fnd21_allcategories_pulse_productqualityandsafety_pulse,5), ts_backfill(fnd21_volume_ttmdaily_productqualityandsafety_categoryvolumettm,10))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Aggregate ESG article volume (allcategories article vol TTM) zscore",
+      "description": "Core: Use zscore on total ESG article TTM volume to capture attention surges. SUGGESTION1: single high-coverage volume field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.7671 (>0.6) so no backfill. SUGGESTION4: field has multiple users/alphas. Implementation is a single operator. Confidence = 0.68.",
+      "implementation": "zscore(fnd21_volume_ttmdaily_allcategories_articlevolumettm)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Materiality momentum vs overall momentum (subtract)",
+      "description": "Core: Subtract materiality momentum from overall ESG momentum to find materiality-specific divergence. SUGGESTION1: used two momentum fields. SUGGESTION2: no vector. SUGGESTION3: materiality momentum coverage 0.8071 (>0.6) so no backfill; overall momentum also high. SUGGESTION4: limited alphas but good coverage. Implementation simple subtract. Confidence = 0.67.",
+      "implementation": "subtract(fnd21_allcategories_momentum_materiality_momentum, fnd21_allcategories_momentum_allcategories_momentum)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Normalized impact % of data-security (zscore after backfill)",
+      "description": "Core: zscore the impact percentage TTM for data security to identify outliers. SUGGESTION1: single impact% field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.369 <0.6 so ts_backfill(10) applied. SUGGESTION4: moderate userCount/alphaCount. Implementation minimal. Confidence = 0.58.",
+      "implementation": "zscore(ts_backfill(fnd21_datasecurityandcustomerprivacy_impactpercentagettm,10))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Fair disclosure insight momentum (ts_returns then ts_zscore)",
+      "description": "Core: Use ts_returns on fair disclosure momentum then normalize with ts_zscore to detect abnormal acceleration. SUGGESTION1: single momentum field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.343 (<0.6) so ts_backfill(10) applied. SUGGESTION4: low prior alphas so lower confidence. Implementation uses two time-series ops. Confidence = 0.53.",
+      "implementation": "ts_zscore(ts_returns(ts_backfill(fnd21_allcategories_momentum_fairdisclosureandlabeling_momentum,10),5),10)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Employee health & safety pulse anomaly (ts_kurtosis)",
+      "description": "Core: Use ts_kurtosis on pulse to identify heavy-tailed short-term shocks in safety coverage. SUGGESTION1: single field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.427 (<0.6) so ts_backfill(15) applied before kurtosis. SUGGESTION4: low alphaCount but topic can signal operational risk. Implementation kept simple. Confidence = 0.50.",
+      "implementation": "ts_kurtosis(ts_backfill(fnd21_allcategories_pulse_employeehealthsafetyandwellbeing_pulse,15),20)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Divide product-quality insight by industry percentile (relative weakness)",
+      "description": "Core: Firms with high raw product-quality insight but low industry percentile may be idiosyncratic outliers. SUGGESTION1: used both raw and industry-percentile fields. SUGGESTION2: no vector. SUGGESTION3: both have coverage <0.6 so applied ts_backfill(10) to both. SUGGESTION4: product-quality fields have prior alpha activity. Implementation uses divide. Confidence = 0.60.",
+      "implementation": "divide(ts_backfill(fnd21_allcategories_insight_productqualityandsafety_insight,10), ts_backfill(fnd21_allcategories_insight_productqualityandsafetyindustrypercentile_insight,10))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Energy-management momentum scaled by article volume",
+      "description": "Core: Multiply energy-management momentum by inverse of its category volume to overweight momentum on thinly covered names. SUGGESTION1: two fields used (momentum and volume). SUGGESTION2: no vector. SUGGESTION3: coverage of momentum 0.4827 and volume 0.2937 => applied ts_backfill(10) to both. SUGGESTION4: modest user/alpha counts. Implementation uses inverse and multiply. Confidence = 0.55.",
+      "implementation": "multiply(ts_backfill(fnd21_allcategories_momentum_energymanagement_momentum,10), inverse(ts_backfill(fnd21_volume_ttmdaily_energymanagement_categoryvolumettm,10)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Aggregate-materiality momentum zscore adjusted",
+      "description": "Core: ts_zscore on materiality momentum to identify abnormal topic acceleration. SUGGESTION1: single field chosen. SUGGESTION2: no vector. SUGGESTION3: coverage 0.8071 (>0.6) so no backfill. SUGGESTION4: limited alphas but stable coverage. Implementation minimal. Confidence = 0.65.",
+      "implementation": "ts_zscore(fnd21_allcategories_momentum_materiality_momentum,15)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Fair labor practices impact percent change (ts_delta)",
+      "description": "Core: Use ts_delta on fair labor impact% TTM to capture sudden issues. SUGGESTION1: single field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.3517 (<0.6) so ts_backfill(10) used before delta. SUGGESTION4: field has limited alphas. Implementation simple. Confidence = 0.52.",
+      "implementation": "ts_delta(ts_backfill(fnd21_fairlaborpractices_impactpercentagettm,10),7)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Volume-weighted insight: insight * volume (attention-weighted sentiment)",
+      "description": "Core: Multiply insight by article volume to prefer insights backed by many articles (consensus). SUGGESTION1: used two fields (insight and volume). SUGGESTION2: no vector. SUGGESTION3: volume coverage varies; for product-quality volume low => ts_backfill(10). insight coverage high so no backfill. SUGGESTION4: product-quality volume has many alphas. Implementation uses multiply only. Confidence = 0.63.",
+      "implementation": "multiply(fnd21_allcategories_insight_allcategories_insight, ts_backfill(fnd21_volume_ttmdaily_productqualityandsafety_categoryvolumettm,10))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Regulatory capture pulse vs momentum divergence",
+      "description": "Core: Subtract recent pulse from momentum on regulatory capture to detect fading or accelerating regulatory narratives. SUGGESTION1: used two fields (pulse and momentum). SUGGESTION2: no vector. SUGGESTION3: both coverages ~0.40 so ts_backfill(10) applied to both. SUGGESTION4: limited alphaCount so lower confidence. Implementation concise. Confidence = 0.50.",
+      "implementation": "subtract(ts_backfill(fnd21_allcategories_pulse_regulatorycaptureandpoliticalinfluence_pulse,10), ts_backfill(fnd21_allcategories_momentum_regulatorycaptureandpoliticalinfluence_momentum,10))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Diversity & inclusion momentum normalized cross-sectionally",
+      "description": "Core: Use quantile on diversity-and-inclusion industry percentile to find outliers. SUGGESTION1: single industry-percentile field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.4445 (<0.6) => ts_backfill(10) used. SUGGESTION4: userCount low so conservative confidence. Implementation respects operator limits. Confidence = 0.53.",
+      "implementation": "quantile(ts_backfill(fnd21_allcategories_insight_diversityandinclusionindustrypercentile_insight,10))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Customer welfare sudden spike (ts_arg_max on momentum)",
+      "description": "Core: Identify names where customer-welfare momentum recently peaked by using ts_arg_max. SUGGESTION1: single momentum field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.2623 so ts_backfill(20) applied to reduce NaNs. SUGGESTION4: low alphaCount; signal used as high-risk event flag. Implementation compact. Confidence = 0.48.",
+      "implementation": "ts_arg_max(ts_backfill(fnd21_allcategories_momentum_customerwelfare_momentum,20),30)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Supply-chain momentum zscore scaled by article volume",
+      "description": "Core: Multiply ts_zscore(supply-chain momentum) by inverse category volume to highlight thinly covered yet accelerating supply-chain stories. SUGGESTION1: two fields used. SUGGESTION2: no vector. SUGGESTION3: momentum coverage 0.5082 (~0.5) so ts_backfill(10) applied; volume coverage 0.3265 so ts_backfill(15) applied. SUGGESTION4: low prior alphas but material topic. Implementation uses ts_zscore, inverse, multiply (3 ops). Confidence = 0.54.",
+      "implementation": "multiply(ts_zscore(ts_backfill(fnd21_allcategories_momentum_supplychainmanagement_momentum,10),10), inverse(ts_backfill(fnd21_volume_ttmdaily_supplychainmanagement_categoryvolumettm,15)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Product-packaging momentum percentile quantile",
+      "description": "Core: Use industry-percentile momentum for product-packaging and quantile transform to get robust cross-sectional ranks. SUGGESTION1: single industry-percentile momentum field. SUGGESTION2: no vector. SUGGESTION3: coverage 0.4243 -> ts_backfill(10) used. SUGGESTION4: no prior alphas, so conservative. Implementation simple. Confidence = 0.50.",
+      "implementation": "quantile(ts_backfill(fnd21_allcategories_momentum_productpackagingindustrypercentile_momentum,10))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "GHG emissions insight relative to momentum (contrarian)",
+      "description": "Core: Subtract momentum from current insight to find cases where insight lags/overstates trend for GHG emissions. SUGGESTION1: used two fields. SUGGESTION2: no vector. SUGGESTION3: both coverages <0.6 so ts_backfill(10) used on each. SUGGESTION4: low alpha usage so lower confidence. Implementation minimal. Confidence = 0.52.",
+      "implementation": "subtract(ts_backfill(fnd21_allcategories_insight_ghgemissions_insight,10), ts_backfill(fnd21_allcategories_momentum_ghgemissions_momentum,10))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Product-quality TTM volume growth (ts_av_diff)",
+      "description": "Core: Compute deviation from recent mean in product-quality TTM volume to capture sustained increases. SUGGESTION1: single volume field used. SUGGESTION2: no vector. SUGGESTION3: coverage low so ts_backfill(10) applied before ts_av_diff. SUGGESTION4: high prior alphaCount on product-quality volume suggests utility. Implementation short. Confidence = 0.62.",
+      "implementation": "ts_av_diff(ts_backfill(fnd21_volume_ttmdaily_productqualityandsafety_categoryvolumettm,10),20)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Biodiversity momentum zscore (attention to ecosystem risk)",
+      "description": "Core: ts_zscore on biodiversity momentum to identify outliers. SUGGESTION1: single biodiv momentum field used. SUGGESTION2: no vector fields. SUGGESTION3: coverage 0.3628 (<0.6) so ts_backfill(10) applied. SUGGESTION4: low user/alpha counts so conservative. Implementation minimal. Confidence = 0.50.",
+      "implementation": "ts_zscore(ts_backfill(fnd21_allcategories_momentum_biodiversityimpacts_momentum,10),15)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Lifecycle impacts pulse / volume (signal-to-noise)",
+      "description": "Core: Divide lifecycle pulse by lifecycle category volume to highlight disproportionate pulses. SUGGESTION1: two fields used. SUGGESTION2: no vectors. SUGGESTION3: both low coverage -> ts_backfill(10) to each. SUGGESTION4: low alpha presence; treated as exploratory. Implementation kept short. Confidence = 0.49.",
+      "implementation": "divide(ts_backfill(fnd21_allcategories_pulse_lifecycleimpactsofproductsandservices_pulse,10), ts_backfill(fnd21_volume_ttmdaily_lifecycleimpactsofproductsandservices_categoryvolumettm,10))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Fair marketing momentum anomaly (ts_max_diff)",
+      "description": "Core: Use ts_max_diff to detect when current fair marketing momentum is far below recent highs (potential problem). SUGGESTION1: single momentum field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.343 (<0.6) so ts_backfill(10) used. SUGGESTION4: low alphaCount. Implementation simple. Confidence = 0.47.",
+      "implementation": "ts_max_diff(ts_backfill(fnd21_allcategories_momentum_fairmarketingandadvertising_momentum,10),20)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Product packaging pulse zscore vs industry percentile",
+      "description": "Core: Subtract industry-percentile quantile from pulse zscore to find names with unusual immediate attention relative to peers. SUGGESTION1: used pulse and industry-percentile fields. SUGGESTION2: no vectors. SUGGESTION3: both coverages <0.6 so ts_backfill(10) applied. SUGGESTION4: limited alphas. Implementation uses ts_zscore then subtract. Confidence = 0.51.",
+      "implementation": "subtract(ts_zscore(ts_backfill(fnd21_allcategories_pulse_productpackaging_pulse,10),5), quantile(ts_backfill(fnd21_allcategories_insight_productpackagingindustrypercentile_insight,10)))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Data-security pulse momentum correlation with volume (ts_corr)",
+      "description": "Core: Compute ts_corr between data-security pulse and its volume to find cases where pulse rises without volume support. SUGGESTION1: two fields used. SUGGESTION2: no vectors. SUGGESTION3: both coverages <0.6 so ts_backfill(10) applied to each. SUGGESTION4: data-security fields have prior user/alphas. Implementation uses ts_corr which is a time-series operator. Confidence = 0.56.",
+      "implementation": "ts_corr(ts_backfill(fnd21_datasecurity_pulse,10), ts_backfill(fnd21_volume_ttmdaily_datasecurityandcustomerprivacy_categoryvolumettm,10),20)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Business ethics impact% zscore (normalized signal)",
+      "description": "Core: zscore the impact percentage TTM for business ethics to capture extreme events. SUGGESTION1: single field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.4175 so ts_backfill(10) applied. SUGGESTION4: field has some user/alpha counts. Implementation is short. Confidence = 0.55.",
+      "implementation": "zscore(ts_backfill(fnd21_businessethicsandtransparencyofpayments_impactpercentagettm,10))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Product-quality momentum vs product-quality insight (momentum divergence)",
+      "description": "Core: Subtract product-quality insight from product-quality momentum to detect discrepancies between sentiment and trend. SUGGESTION1: used two product-quality fields. SUGGESTION2: no vector. SUGGESTION3: both coverages low so ts_backfill(10) applied to both. SUGGESTION4: product-quality fields have higher alphaCount, increasing trust. Implementation simple subtract. Confidence = 0.60.",
+      "implementation": "subtract(ts_backfill(fnd21_allcategories_momentum_productqualityandsafety_momentum,10), ts_backfill(fnd21_allcategories_insight_productqualityandsafety_insight,10))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Fair disclosure pulse volatility (ts_std_dev)",
+      "description": "Core: Use ts_std_dev on fair disclosure pulse to identify names with volatile short-term attention. SUGGESTION1: single pulse field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.3239 so ts_backfill(15) applied. SUGGESTION4: limited alphas. Implementation minimal. Confidence = 0.50.",
+      "implementation": "ts_std_dev(ts_backfill(fnd21_allcategories_pulse_fairdisclosureandlabeling_pulse,15),20)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Sum of key ESG pulses (aggregate short-term stress)",
+      "description": "Core: Add pulses from product-quality and data-security to create a short-term stress aggregator. SUGGESTION1: used two pulse fields. SUGGESTION2: no vectors. SUGGESTION3: both coverages <0.6 so ts_backfill(10) applied before add. SUGGESTION4: selected fields have prior alpha use. Implementation uses add only. Confidence = 0.58.",
+      "implementation": "add(ts_backfill(fnd21_allcategories_pulse_productqualityandsafety_pulse,10), ts_backfill(fnd21_datasecurity_pulse,10))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Materiality article volume / overall article volume (share)",
+      "description": "Core: Divide materiality category TTM volume by total ESG article TTM volume to get share of attention. SUGGESTION1: used two volume fields. SUGGESTION2: no vector. SUGGESTION3: materiality coverage OK (>0.6) and overall volume coverage >0.6 so no backfill. SUGGESTION4: fields have modest user/alpha counts. Implementation simple divide. Confidence = 0.64.",
+      "implementation": "divide(fnd21_materiality_categoryvolumettm, fnd21_volume_ttmdaily_allcategories_articlevolumettm)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "TS returns on overall ESG momentum (5d)",
+      "description": "Core: Short-term returns on ESG momentum to capture acceleration. SUGGESTION1: used single momentum field. SUGGESTION2: no vector. SUGGESTION3: coverage high so no backfill. SUGGESTION4: moderate alpha usage. Implementation uses ts_returns only. Confidence = 0.66.",
+      "implementation": "ts_returns(fnd21_allcategories_momentum_allcategories_momentum,5)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Normalize product-quality impact by industry percentile (zscore of ratio)",
+      "description": "Core: Compute ratio of impact% to industry percentile then zscore to detect idiosyncratic firms. SUGGESTION1: used two fields. SUGGESTION2: no vector. SUGGESTION3: both low coverage -> ts_backfill(10). SUGGESTION4: product-quality fields have prior alphas. Implementation uses divide + zscore (2 ops). Confidence = 0.59.",
+      "implementation": "zscore(divide(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,10), ts_backfill(fnd21_allcategories_insight_productqualityandsafetyindustrypercentile_insight,10)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Employee health & safety momentum IR (ts_ir)",
+      "description": "Core: Use ts_ir on employee health momentum to find consistent movers. SUGGESTION1: single field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.452 => ts_backfill(10). SUGGESTION4: limited alphaCount so lower confidence. Implementation is ts_ir(ts_backfill(...),20). Confidence = 0.53.",
+      "implementation": "ts_ir(ts_backfill(fnd21_allcategories_momentum_employeehealthsafetyandwellbeing_momentum,10),20)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Product-packaging impact percentile vs momentum (subtract)",
+      "description": "Core: Subtract product-packaging momentum from its industry-percentile insight to detect disconnects. SUGGESTION1: two fields used. SUGGESTION2: no vector. SUGGESTION3: both coverages moderate->ts_backfill(10). SUGGESTION4: little prior alpha usage. Implementation simple subtract. Confidence = 0.50.",
+      "implementation": "subtract(ts_backfill(fnd21_allcategories_insight_productpackagingindustrypercentile_insight,10), ts_backfill(fnd21_allcategories_momentum_productpackaging_momentum,10))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Competition behavior pulse / industry percentile (relative surprise)",
+      "description": "Core: Divide competitive-behavior pulse by its industry-percentile insight to find relative surprises. SUGGESTION1: two fields. SUGGESTION2: no vector. SUGGESTION3: both coverages ~0.39 -> ts_backfill(10). SUGGESTION4: limited alphas, exploratory. Implementation stays within limits. Confidence = 0.48.",
+      "implementation": "divide(ts_backfill(fnd21_allcategories_pulse_competitivebehavior_pulse,10), ts_backfill(fnd21_allcategories_insight_competitivebehaviorindustrypercentile_insight,10))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Lifecycle impacts momentum growth (ts_sum recent window)",
+      "description": "Core: Sum recent lifecycle momentum (ts_sum) to capture cumulative short-term pressure. SUGGESTION1: single field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.4248 (<0.6) so ts_backfill(10) applied before ts_sum. SUGGESTION4: low alpha counts. Implementation minimal. Confidence = 0.50.",
+      "implementation": "ts_sum(ts_backfill(fnd21_allcategories_momentum_lifecycleimpactsofproductsandservices_momentum,10),5)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Product-quality article volume zscore after backfill",
+      "description": "Core: zscore on backfilled product-quality article TTM volume to find attention outliers. SUGGESTION1: single volume field used. SUGGESTION2: no vector. SUGGESTION3: coverage low -> ts_backfill(10). SUGGESTION4: this field has high user/alpha counts, increasing confidence. Implementation simple. Confidence = 0.63.",
+      "implementation": "zscore(ts_backfill(fnd21_volume_ttmdaily_productqualityandsafety_categoryvolumettm,10))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Business ethics momentum returns normalized",
+      "description": "Core: ts_returns on business ethics momentum then ts_zscore to detect abnormal momentum shifts. SUGGESTION1: single momentum field. SUGGESTION2: no vector. SUGGESTION3: coverage 0.6308 (>0.6) so no backfill. SUGGESTION4: limited prior alphas but coverage is decent. Implementation uses two ts ops. Confidence = 0.57.",
+      "implementation": "ts_zscore(ts_returns(fnd21_allcategories_momentum_businessethicsandtransparencyofpayments_momentum,5),10)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Water & wastewater pulse anomaly detection (ts_arg_min)",
+      "description": "Core: Use ts_arg_min to find when pulse drops to local minima, potentially signaling resolution of issues. SUGGESTION1: single pulse field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.3158 so ts_backfill(20) applied. SUGGESTION4: low alphaCount so lower confidence. Implementation short. Confidence = 0.46.",
+      "implementation": "ts_arg_min(ts_backfill(fnd21_allcategories_pulse_waterandwastewatermanagement_pulse,20),30)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Product-packaging impact % rolling zscore",
+      "description": "Core: ts_zscore on product-packaging impact% to find extreme impact stories. SUGGESTION1: single impact% field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.2672 so ts_backfill(15) applied. SUGGESTION4: no prior alphas -> exploratory. Implementation minimal. Confidence = 0.45.",
+      "implementation": "ts_zscore(ts_backfill(fnd21_productpackaging_impactpercentagettm,15),20)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Fair marketing pulse vs product-quality pulse correlation (ts_corr)",
+      "description": "Core: Compute ts_corr between fair marketing and product-quality pulses to detect co-movement (product issues tied to marketing problems). SUGGESTION1: two pulse fields used. SUGGESTION2: no vector. SUGGESTION3: both low coverage -> ts_backfill(10) on each. SUGGESTION4: limited alpha history. Implementation uses ts_corr only. Confidence = 0.49.",
+      "implementation": "ts_corr(ts_backfill(fnd21_allcategories_pulse_fairmarketingandadvertising_pulse,10), ts_backfill(fnd21_allcategories_pulse_productqualityandsafety_pulse,10),20)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Aggregate ESG insight minus industry percentile (broad contrarian)",
+      "description": "Core: Subtract industry percentile from raw all-categories insight to find names that differ from peers. SUGGESTION1: used two fields. SUGGESTION2: no vector. SUGGESTION3: both coverages high so no backfill. SUGGESTION4: fields have multiple users/alphas. Implementation minimal. Confidence = 0.72.",
+      "implementation": "subtract(fnd21_allcategories_insight_allcategories_insight, fnd21_allcategories_insight_allcategoriesindustrypercentile_insight)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Materiality article volume short-term zscore (5d)",
+      "description": "Core: Short-term zscore of materiality article volume to capture recent spikes. SUGGESTION1: used single materiality volume. SUGGESTION2: no vector. SUGGESTION3: coverage 0.6644 (>0.6) so no backfill. SUGGESTION4: modest user/alpha counts. Implementation uses ts_zscore. Confidence = 0.63.",
+      "implementation": "ts_zscore(fnd21_materiality_categoryvolumettm,5)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Product-quality pulse weighted by product-quality momentum (multiply)",
+      "description": "Core: Multiply pulse by momentum to highlight names with both strong immediate and sustained momentum. SUGGESTION1: two fields used. SUGGESTION2: no vector. SUGGESTION3: both coverages moderate->ts_backfill(10) applied. SUGGESTION4: product-quality fields have many alphas -> more trust. Implementation uses multiply. Confidence = 0.64.",
+      "implementation": "multiply(ts_backfill(fnd21_allcategories_pulse_productqualityandsafety_pulse,10), ts_backfill(fnd21_allcategories_momentum_productqualityandsafety_momentum,10))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Business ethics article volume anomaly (ts_av_diff)",
+      "description": "Core: ts_av_diff on business-ethics article volume to detect departures from recent mean. SUGGESTION1: single volume field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.4175 -> ts_backfill(10). SUGGESTION4: field has user/alpha activity. Implementation minimal. Confidence = 0.56.",
+      "implementation": "ts_av_diff(ts_backfill(fnd21_volume_ttmdaily_businessethicsandtransparencyofpayments_categoryvolumettm,10),20)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Datasecurity pulse zscore scaled by product-quality momentum (interaction)",
+      "description": "Core: Multiply datasecurity pulse zscore by product-quality momentum to capture compound risk where operational and security issues co-occur. SUGGESTION1: two fields used. SUGGESTION2: no vector. SUGGESTION3: datasecurity pulse coverage 0.3701 and product-quality momentum 0.4807 -> ts_backfill(10) applied to each. SUGGESTION4: both fields have alpha usage. Implementation uses ts_zscore and multiply (2 ops + backfills). Confidence = 0.57.",
+      "implementation": "multiply(ts_zscore(ts_backfill(fnd21_datasecurity_pulse,10)), ts_backfill(fnd21_allcategories_momentum_productqualityandsafety_momentum,10))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Aggregate-pulse trend (ts_decay_linear on allcategories pulse)",
+      "description": "Core: Use ts_decay_linear to emphasize recent pulse values for allcategories pulse, reducing older noise. SUGGESTION1: single field used. SUGGESTION2: no vector. SUGGESTION3: coverage high so no backfill. SUGGESTION4: moderate user/alpha counts. Implementation stays under operator limits. Confidence = 0.67.",
+      "implementation": "ts_decay_linear(fnd21_allcategories_pulse_allcategories_pulse,10)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Product-quality impact persistence (days_from_last_change)",
+      "description": "Core: Measure days since last change in product-quality impact% to identify persistent problems. SUGGESTION1: single impact% field used. SUGGESTION2: no vector. SUGGESTION3: coverage low -> ts_backfill(20) applied to ensure values. SUGGESTION4: field has alpha activity. Implementation minimal. Confidence = 0.54.",
+      "implementation": "days_from_last_change(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,20))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Fair labor practices pulse-weighted insight (multiply)",
+      "description": "Core: Multiply fair labor pulse by fair labor insight to highlight immediate validated concerns. SUGGESTION1: two fields used. SUGGESTION2: no vector. SUGGESTION3: both low coverage -> ts_backfill(10) applied to each. SUGGESTION4: limited alphas, lower confidence. Implementation uses multiply only. Confidence = 0.52.",
+      "implementation": "multiply(ts_backfill(fnd21_allcategories_pulse_fairlaborpractices_pulse,10), ts_backfill(fnd21_allcategories_insight_fairlaborpractices_insight,10))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Energy-management pulse sum (short window)",
+      "description": "Core: Sum recent energy-management pulses via ts_sum to capture clustered mentions. SUGGESTION1: single pulse field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.4559 so ts_backfill(10) used. SUGGESTION4: modest alpha usage. Implementation uses ts_sum. Confidence = 0.53.",
+      "implementation": "ts_sum(ts_backfill(fnd21_allcategories_pulse_energymanagement_pulse,10),5)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Supply-chain management impact % zscore",
+      "description": "Core: zscore supply-chain impact% to detect unusually high supply-chain related coverage. SUGGESTION1: single impact% field. SUGGESTION2: no vector. SUGGESTION3: coverage 0.3265 -> ts_backfill(15). SUGGESTION4: no prior alphas but material. Implementation short. Confidence = 0.50.",
+      "implementation": "zscore(ts_backfill(fnd21_supplychainmanagement_impactpercentagettm,15))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Product-quality article volume / total ESG volume (share zscore)",
+      "description": "Core: Compute share of total ESG volume taken by product-quality then zscore to highlight firms with concentrated attention. SUGGESTION1: two volume fields used. SUGGESTION2: no vector. SUGGESTION3: product-quality volume low -> ts_backfill(10) applied; total volume high. SUGGESTION4: product-quality volume has high alphaCount. Implementation concise. Confidence = 0.62.",
+      "implementation": "zscore(divide(ts_backfill(fnd21_volume_ttmdaily_productqualityandsafety_categoryvolumettm,10), fnd21_volume_ttmdaily_allcategories_articlevolumettm))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Regulatory influence momentum zscore (short-term)",
+      "description": "Core: ts_zscore on regulatory capture momentum to find accelerating lobbying/regulatory narratives. SUGGESTION1: single momentum field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.4232 -> ts_backfill(10) applied. SUGGESTION4: low alphaCount so conservative. Implementation minimal. Confidence = 0.51.",
+      "implementation": "ts_zscore(ts_backfill(fnd21_allcategories_momentum_regulatorycaptureandpoliticalinfluence_momentum,10),10)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Product packaging pulse vs product-quality pulse difference",
+      "description": "Core: Subtract product-quality pulse from product-packaging pulse to find packaging-specific spikes. SUGGESTION1: two pulse fields used. SUGGESTION2: no vector. SUGGESTION3: both low coverage -> ts_backfill(10). SUGGESTION4: exploratory due to low alphas. Implementation small. Confidence = 0.48.",
+      "implementation": "subtract(ts_backfill(fnd21_allcategories_pulse_productpackaging_pulse,10), ts_backfill(fnd21_allcategories_pulse_productqualityandsafety_pulse,10))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Fair disclosure momentum IR (consistency of moves)",
+      "description": "Core: ts_ir on fair disclosure momentum to measure consistent movements. SUGGESTION1: single momentum field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.343 -> ts_backfill(10). SUGGESTION4: limited alphas reduces confidence. Implementation short. Confidence = 0.49.",
+      "implementation": "ts_ir(ts_backfill(fnd21_allcategories_momentum_fairdisclosureandlabeling_momentum,10),20)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Materiality momentum divided by materiality volume (signal per article)",
+      "description": "Core: Divide materiality momentum by materiality volume to find momentum per article (intensity). SUGGESTION1: two fields used. SUGGESTION2: no vector. SUGGESTION3: coverage >0.6 for materiality volume -> no backfill; momentum coverage 0.8071 (>0.6) also fine. SUGGESTION4: low alphaCount but stable coverage. Implementation uses divide only. Confidence = 0.60.",
+      "implementation": "divide(fnd21_allcategories_momentum_materiality_momentum, fnd21_materiality_categoryvolumettm)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Product-quality pulse change (ts_rank of delta)",
+      "description": "Core: Rank the ts_delta of product-quality pulse across names to highlight relative accelerations. SUGGESTION1: single pulse field used. SUGGESTION2: no vector. SUGGESTION3: coverage low so ts_backfill(10) applied prior to ts_delta then ts_rank. SUGGESTION4: prior alpha activity exists for product-quality. Implementation uses ts_delta + ts_rank (2 ops). Confidence = 0.61.",
+      "implementation": "ts_rank(ts_delta(ts_backfill(fnd21_allcategories_pulse_productqualityandsafety_pulse,10),3),10)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Volume-normalized business ethics momentum (divide)",
+      "description": "Core: Divide business-ethics momentum by its article volume to favor concentrated momentum. SUGGESTION1: two fields used. SUGGESTION2: no vector. SUGGESTION3: momentum coverage 0.6308 (>0.6) so no backfill; volume coverage 0.4175 so ts_backfill(10) applied. SUGGESTION4: field has user/alpha counts. Implementation simple. Confidence = 0.58.",
+      "implementation": "divide(fnd21_allcategories_momentum_businessethicsandtransparencyofpayments_momentum, ts_backfill(fnd21_volume_ttmdaily_businessethicsandtransparencyofpayments_categoryvolumettm,10))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Aggregate-pulse vs aggregate-momentum divergence (subtract)",
+      "description": "Core: Subtract allcategories momentum zscore from allcategories pulse zscore to detect short-term reversals. SUGGESTION1: two fields used. SUGGESTION2: no vector. SUGGESTION3: both fields high coverage -> no backfill. SUGGESTION4: moderate user/alpha counts. Implementation uses ts_zscore and subtract. Confidence = 0.69.",
+      "implementation": "subtract(ts_zscore(fnd21_allcategories_pulse_allcategories_pulse,5), ts_zscore(fnd21_allcategories_momentum_allcategories_momentum,10))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Product-quality momentum persistence (days_from_last_change on momentum)",
+      "description": "Core: Measure days since last change in product-quality momentum to capture persistently trending names. SUGGESTION1: single momentum field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.4807 -> ts_backfill(15). SUGGESTION4: good alphaCount increases utility. Implementation short. Confidence = 0.59.",
+      "implementation": "days_from_last_change(ts_backfill(fnd21_allcategories_momentum_productqualityandsafety_momentum,15))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Diversity & inclusion pulse multiplied by materiality momentum (interaction)",
+      "description": "Core: Multiply diversity pulse by materiality momentum to highlight socially material D&I events. SUGGESTION1: two fields used. SUGGESTION2: no vector. SUGGESTION3: both coverages moderate->ts_backfill(10). SUGGESTION4: low alpha counts, exploratory. Implementation uses multiply only. Confidence = 0.50.",
+      "implementation": "multiply(ts_backfill(fnd21_allcategories_pulse_diversityandinclusion_pulse,10), ts_backfill(fnd21_allcategories_momentum_materiality_momentum,10))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Customer welfare impact% zscore",
+      "description": "Core: zscore the customer welfare impact% TTM to isolate outliers in consumer-related coverage. SUGGESTION1: single impact% field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.2623 -> ts_backfill(20). SUGGESTION4: limited alphas so lower confidence. Implementation minimal. Confidence = 0.46.",
+      "implementation": "zscore(ts_backfill(fnd21_customerwelfare_impactpercentagettm,20))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Energy management insight vs industry percentile (ratio)",
+      "description": "Core: Divide energy-management insight by its industry percentile to surface firms with idiosyncratic attention. SUGGESTION1: two fields used. SUGGESTION2: no vector. SUGGESTION3: coverages ~0.4549/0.4539 -> ts_backfill(10) applied to both. SUGGESTION4: low alphas but material topic. Implementation kept short. Confidence = 0.51.",
+      "implementation": "divide(ts_backfill(fnd21_allcategories_insight_energymanagement_insight,10), ts_backfill(fnd21_allcategories_insight_energymanagementindustrypercentile_insight,10))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Product quality momentum vs product quality volume (ts_corr)",
+      "description": "Core: Correlate product-quality momentum with product-quality volume to see if momentum is supported by article flow. SUGGESTION1: two fields used. SUGGESTION2: no vector. SUGGESTION3: both low coverage -> ts_backfill(10) applied. SUGGESTION4: product-quality fields have many alphas, raising confidence. Implementation uses ts_corr. Confidence = 0.62.",
+      "implementation": "ts_corr(ts_backfill(fnd21_allcategories_momentum_productqualityandsafety_momentum,10), ts_backfill(fnd21_volume_ttmdaily_productqualityandsafety_categoryvolumettm,10),20)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Fair labor practices pulse zscore (short-term anomaly)",
+      "description": "Core: zscore fair labor pulse to detect sudden spikes. SUGGESTION1: single pulse field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.5178 (~0.52) -> small ts_backfill(5) applied. SUGGESTION4: limited alphas so moderate confidence. Implementation minimal. Confidence = 0.55.",
+      "implementation": "ts_zscore(ts_backfill(fnd21_allcategories_pulse_fairlaborpractices_pulse,5),10)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Product packaging article volume growth rate (ts_returns)",
+      "description": "Core: Short-term returns on product-packaging category volume to capture emerging packaging issues. SUGGESTION1: single volume field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.2672 -> ts_backfill(15). SUGGESTION4: exploratory due to low alphas. Implementation simple. Confidence = 0.47.",
+      "implementation": "ts_returns(ts_backfill(fnd21_volume_ttmdaily_productpackaging_categoryvolumettm,15),5)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Data-security industry-percentile quantile (robust rank)",
+      "description": "Core: Apply quantile to data-security industry percentile to obtain robust cross-sectional scores. SUGGESTION1: single industry-percentile field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.3678 (<0.6) so ts_backfill(10). SUGGESTION4: field has prior alpha/user activity. Implementation concise. Confidence = 0.56.",
+      "implementation": "quantile(ts_backfill(fnd21_datasecurityindustrypercentile_insight,10))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Aggregate-materiality pulse weighted by volume share",
+      "description": "Core: Multiply materiality pulse zscore by its share of total volume to find meaningful surges. SUGGESTION1: two fields used. SUGGESTION2: no vector. SUGGESTION3: materiality pulse coverage 0.7715 (>0.6) and materiality volume coverage 0.6644 (>0.6) so no backfill. SUGGESTION4: stable coverage improves confidence. Implementation uses zscore and multiply. Confidence = 0.68.",
+      "implementation": "multiply(ts_zscore(fnd21_allcategories_pulse_materiality_pulse,5), divide(fnd21_materiality_categoryvolumettm, fnd21_volume_ttmdaily_allcategories_articlevolumettm))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Product-quality momentum short-term maxima (ts_arg_max)",
+      "description": "Core: Detect names where product-quality momentum is currently the max in the lookback window, indicating peak concern. SUGGESTION1: single momentum field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.4807 -> ts_backfill(10). SUGGESTION4: field has good alphaCount. Implementation compact. Confidence = 0.63.",
+      "implementation": "ts_arg_max(ts_backfill(fnd21_allcategories_momentum_productqualityandsafety_momentum,10),20)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Business ethics pulse / total ESG pulse share",
+      "description": "Core: Ratio of business-ethics pulse to total ESG pulse to find ethics-focused names. SUGGESTION1: two fields used. SUGGESTION2: no vector. SUGGESTION3: business-ethics pulse coverage 0.5976 -> small ts_backfill(5); allcategories pulse high. SUGGESTION4: field has some user presence. Implementation simple divide. Confidence = 0.59.",
+      "implementation": "divide(ts_backfill(fnd21_allcategories_pulse_businessethicsandtransparencyofpayments_pulse,5), fnd21_allcategories_pulse_allcategories_pulse)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Supply-chain momentum persistence measure (ts_count_nans-based)",
+      "description": "Core: Use ts_count_nans to measure continuity of supply-chain mentions (low NaN count -> persistent mention). SUGGESTION1: single field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.5082 -> ts_backfill not required but small backfill(5) applied to be safe. SUGGESTION4: limited alpha usage. Implementation uses ts_count_nans. Confidence = 0.52.",
+      "implementation": "ts_count_nans(ts_backfill(fnd21_allcategories_momentum_supplychainmanagement_momentum,5),20)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Product-quality impact momentum interaction (multiply zscore and momentum)",
+      "description": "Core: Multiply zscore of product-quality impact% by product-quality momentum to find signals with both magnitude and trend. SUGGESTION1: two fields. SUGGESTION2: no vector. SUGGESTION3: both low coverage -> ts_backfill(10) applied. SUGGESTION4: product-quality fields have many alphas. Implementation uses ts_zscore + multiply. Confidence = 0.62.",
+      "implementation": "multiply(ts_zscore(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,10)), ts_backfill(fnd21_allcategories_momentum_productqualityandsafety_momentum,10))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Aggregate allcategories insight ts_rank (short lookback)",
+      "description": "Core: Rank cross-sectionally the recent values of allcategories insight using ts_rank to highlight leaders/laggards. SUGGESTION1: single high-coverage field used. SUGGESTION2: no vector. SUGGESTION3: coverage >0.6 so no backfill. SUGGESTION4: decent user/alpha counts. Implementation minimal. Confidence = 0.71.",
+      "implementation": "ts_rank(fnd21_allcategories_insight_allcategories_insight,10)",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Product-quality momentum divided by product-quality volume (intensity per article)",
+      "description": "Core: Divide product-quality momentum by its article volume to capture momentum intensity. SUGGESTION1: two fields used. SUGGESTION2: no vector. SUGGESTION3: both low coverage -> ts_backfill(10) applied. SUGGESTION4: product-quality fields have numerous prior alphas which helps. Implementation concise. Confidence = 0.63.",
+      "implementation": "divide(ts_backfill(fnd21_allcategories_momentum_productqualityandsafety_momentum,10), ts_backfill(fnd21_volume_ttmdaily_productqualityandsafety_categoryvolumettm,10))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Materiality pulse vs product-quality pulse difference (cross-topic)",
+      "description": "Core: Subtract product-quality pulse from materiality pulse to find material events not driven by product issues. SUGGESTION1: two pulse fields used. SUGGESTION2: no vector. SUGGESTION3: both coverages moderate -> ts_backfill(10) applied. SUGGESTION4: materiality pulse has user presence. Implementation uses subtract. Confidence = 0.58.",
+      "implementation": "subtract(ts_backfill(fnd21_allcategories_pulse_materiality_pulse,10), ts_backfill(fnd21_allcategories_pulse_productqualityandsafety_pulse,10))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Product-quality impact percentile momentum (ts_returns on industry percentile)",
+      "description": "Core: ts_returns on product-quality industry-percentile momentum to capture rapid ranking moves. SUGGESTION1: single industry-percentile momentum field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.4802 -> ts_backfill(10). SUGGESTION4: low alphaCount. Implementation minimal. Confidence = 0.54.",
+      "implementation": "ts_returns(ts_backfill(fnd21_allcategories_momentum_productqualityandsafetyindustrypercentile_momentum,10),5)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Datasecurity impact% rolling mean deviation (ts_av_diff)",
+      "description": "Core: ts_av_diff on datasecurity impact% to detect deviations from recent averages. SUGGESTION1: single impact% field used. SUGGESTION2: no vector. SUGGESTION3: coverage low -> ts_backfill(10). SUGGESTION4: moderate alpha usage increases robustness. Implementation remains simple. Confidence = 0.57.",
+      "implementation": "ts_av_diff(ts_backfill(fnd21_datasecurityandcustomerprivacy_impactpercentagettm,10),20)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Fair marketing article volume spikes (ts_arg_max)",
+      "description": "Core: Use ts_arg_max on fair marketing category volume to find recent peaks. SUGGESTION1: single volume field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.3229 -> ts_backfill(15) applied. SUGGESTION4: low alphaCount. Implementation is ts_arg_max only. Confidence = 0.46.",
+      "implementation": "ts_arg_max(ts_backfill(fnd21_volume_ttmdaily_fairmarketingandadvertising_categoryvolumettm,15),30)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Energy-management pulse relative to energy momentum (divide)",
+      "description": "Core: Divide energy pulse by energy momentum to find short spikes lacking trend support. SUGGESTION1: two fields used. SUGGESTION2: no vector. SUGGESTION3: both coverages ~0.48 -> ts_backfill(10). SUGGESTION4: moderate userCount. Implementation uses divide only. Confidence = 0.52.",
+      "implementation": "divide(ts_backfill(fnd21_allcategories_pulse_energymanagement_pulse,10), ts_backfill(fnd21_allcategories_momentum_energymanagement_momentum,10))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Product-packaging momentum IR (consistency)",
+      "description": "Core: ts_ir on product-packaging momentum to evaluate signal consistency. SUGGESTION1: single field used. SUGGESTION2: no vector. SUGGESTION3: coverage 0.4248 -> ts_backfill(10). SUGGESTION4: low alphas so exploratory. Implementation minimal. Confidence = 0.48.",
+      "implementation": "ts_ir(ts_backfill(fnd21_allcategories_momentum_productpackaging_momentum,10),20)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Lifecycle pulse intensity (pulse / category volume)",
+      "description": "Core: Divide lifecycle pulse by lifecycle category volume to identify intense short-term stories. SUGGESTION1: two fields used. SUGGESTION2: no vector. SUGGESTION3: both coverages ~0.40 -> ts_backfill(10). SUGGESTION4: limited alphas. Implementation simple. Confidence = 0.49.",
+      "implementation": "divide(ts_backfill(fnd21_allcategories_pulse_lifecycleimpactsofproductsandservices_pulse,10), ts_backfill(fnd21_volume_ttmdaily_lifecycleimpactsofproductsandservices_categoryvolumettm,10))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Product-quality momentum vs allcategories momentum (relative focus)",
+      "description": "Core: Divide product-quality momentum by overall ESG momentum to find names where product quality dominates the ESG narrative. SUGGESTION1: two fields used. SUGGESTION2: no vector. SUGGESTION3: product-quality momentum coverage lower -> ts_backfill(10); overall momentum high. SUGGESTION4: product-quality fields have many alphas. Implementation concise. Confidence = 0.61.",
+      "implementation": "divide(ts_backfill(fnd21_allcategories_momentum_productqualityandsafety_momentum,10), fnd21_allcategories_momentum_allcategories_momentum)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Aggregate article volume growth (ts_returns total article vol)",
+      "description": "Core: ts_returns on total ESG article TTM volume to capture market-wide attention surges. SUGGESTION1: single high-coverage field used. SUGGESTION2: no vector. SUGGESTION3: coverage >0.6 so no backfill. SUGGESTION4: field has user/alpha activity. Implementation minimal. Confidence = 0.69.",
+      "implementation": "ts_returns(fnd21_volume_ttmdaily_allcategories_articlevolumettm,5)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Business ethics momentum vs product-quality momentum (cross-topic divergence)",
+      "description": "Core: Subtract product-quality momentum from business-ethics momentum to find ethics-driven stories not related to product issues. SUGGESTION1: two fields used. SUGGESTION2: no vector. SUGGESTION3: business ethics momentum coverage >0.6; product-quality momentum lower -> ts_backfill(10) applied to product-quality. SUGGESTION4: both fields have alpha presence. Implementation simple subtract. Confidence = 0.58.",
+      "implementation": "subtract(fnd21_allcategories_momentum_businessethicsandtransparencyofpayments_momentum, ts_backfill(fnd21_allcategories_momentum_productqualityandsafety_momentum,10))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Product-quality impact extremity (winsorize then zscore)",
+      "description": "Core: Winsorize product-quality impact% to reduce outliers then zscore for cross-sectional ranks. SUGGESTION1: single impact% field used. SUGGESTION2: no vector. SUGGESTION3: coverage low -> ts_backfill(10) applied before winsorize. SUGGESTION4: field has prior alpha activity. Implementation uses winsorize and zscore (2 ops plus backfill). Confidence = 0.60.",
+      "implementation": "zscore(winsorize(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,10),4))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Datasecurity momentum percentile gap (subtract quantiles)",
+      "description": "Core: Subtract quantile of industry percentile from quantile of raw momentum to find divergence. SUGGESTION1: two fields used. SUGGESTION2: no vector. SUGGESTION3: both low coverage -> ts_backfill(10) applied. SUGGESTION4: moderate alpha/user counts. Implementation uses quantile and subtract. Confidence = 0.55.",
+      "implementation": "subtract(quantile(ts_backfill(fnd21_datasecurity_momentum,10)), quantile(ts_backfill(fnd21_datasecurityindustrypercentile_insight,10)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Product-quality pulse average over day (ts_mean short)",
+      "description": "Core: ts_mean on product-quality pulse to smooth instantaneous noise and reveal sustained elevated attention. SUGGESTION1: single pulse field used. SUGGESTION2: no vector. SUGGESTION3: coverage low so ts_backfill(10) applied prior to ts_mean. SUGGESTION4: product-quality pulse has alpha usage. Implementation minimal. Confidence = 0.60.",
+      "implementation": "ts_mean(ts_backfill(fnd21_allcategories_pulse_productqualityandsafety_pulse,10),5)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Materiality momentum vs total momentum ratio",
+      "description": "Core: Ratio of materiality momentum to total ESG momentum to find names where materiality dominates overall discussion. SUGGESTION1: two fields used. SUGGESTION2: no vector. SUGGESTION3: both have good coverage so no backfill. SUGGESTION4: stable coverage increases confidence. Implementation concise. Confidence = 0.66.",
+      "implementation": "divide(fnd21_allcategories_momentum_materiality_momentum, fnd21_allcategories_momentum_allcategories_momentum)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Product-quality impact suddenness (ts_max_diff of impact%)",
+      "description": "Core: Use ts_max_diff to measure how far current impact% is from recent highs — high values indicate abrupt attention. SUGGESTION1: single field used. SUGGESTION2: no vector. SUGGESTION3: coverage low -> ts_backfill(10) applied first. SUGGESTION4: product-quality impact has good alphaCount. Implementation minimal. Confidence = 0.62.",
+      "implementation": "ts_max_diff(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,10),20)",
+      "confidence_level": 0.62
+    }
+  ]
+}

@@ -1,0 +1,718 @@
+{
+  "results": [
+    {
+      "idea": "Momentum: short-term cross-sectional momentum using 1-day percent change",
+      "description": "Used SUGGESTION1 to combine percent move with cross-sectional ranking. SUGGESTION2 not applied (no vector fields). SUGGESTION3 not needed (coverage >0.6). SUGGESTION4 applied by choosing high userCount/alphaCount field mcr38_percent_change. Kept KEEP_IN_MINDs: implementation simple (<7 ops, <=2 fields). Confidence set to 0.75 because 1-day momentum is a classic short-term alpha with decent signal but noise risk.",
+      "implementation": "quantile(mcr38_percent_change)",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Volume-confirmed momentum: rank percent change and scale by volume",
+      "description": "Applied SUGGESTION1 to combine price move with liquidity proxy (volume). SUGGESTION2 not applied. SUGGESTION4: chose mcr38_volume and mcr38_percent_change (both high userCount). KEEP_IN_MINDs respected. Confidence 0.78 because volume-confirmed moves reduce false signals.",
+      "implementation": "multiply(quantile(mcr38_percent_change), quantile(mcr38_volume))",
+      "confidence_level": 0.78
+    },
+    {
+      "idea": "Mean-reversion: extreme losers over last day revert",
+      "description": "Used mcr38_percent_change to detect extreme losers and cross-sectional quantile to target bottom deciles. SUGGESTIONS: 1 applied (single-field but ranked cross-section), 2/3 not applicable. Preference for high coverage. Confidence 0.62 reflecting short-term mean-reversion risk.",
+      "implementation": "reverse(quantile(mcr38_percent_change))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Trend-strength filter: take momentum only when ADX indicates strengthening trend",
+      "description": "Combined mcr38_percent_change with mcr38_adx_strength per SUGGESTION1. SUGGESTION4 applied (adx_strength has high alphaCount). SUGGESTION3 not required. KEEP_IN_MINDs followed. Confidence 0.80 because ADX reduces trend-fade noise.",
+      "implementation": "multiply(quantile(mcr38_percent_change), quantile(mcr38_adx_strength))",
+      "confidence_level": 0.8
+    },
+    {
+      "idea": "Signal consensus: overall_percent * shorttermpercent to favor stocks with aligned horizons",
+      "description": "Used two aggregated signals (mcr38_overall_percent, mcr38_shorttermpercent) per SUGGESTION1 to capture consensus. SUGGESTION4 applied. No vector fields. Confidence 0.72 as consensus often improves signal quality.",
+      "implementation": "multiply(quantile(mcr38_overall_percent), quantile(mcr38_shorttermpercent))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Strength-weighted signal: favor high-rated direction with high strength (direction_rating * strength_rating)",
+      "description": "Combined direction_rating and strength_rating (both high userCount). SUGGESTIONS1 &4 applied. SUGGESTION3 not needed. KEEP_IN_MINDs respected. Confidence 0.74 — rating combinations often amplify true signals.",
+      "implementation": "multiply(quantile(mcr38_direction_rating), quantile(mcr38_strength_rating))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Moving-average confirmation: use MA20 signal to confirm 1-day momentum",
+      "description": "Combined mcr38_percent_change with mcr38_ma_20_signal per SUGGESTION1. MA20 provides trend filter. SUGGESTION4: fields have decent counts. Confidence 0.7 reflecting medium-short horizon confirmation.",
+      "implementation": "multiply(quantile(mcr38_percent_change), quantile(mcr38_ma_20_signal))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Momentum with volatility dampening: percent change divided by ADX strength",
+      "description": "Applied SUGGESTION1: momentum modulated by reported ADX strength to dampen noisy weak trends. SUGGESTION4 used. SUGGESTION2/3 not applied. Confidence 0.68 — reduces false positives but may mute returns.",
+      "implementation": "divide(quantile(mcr38_percent_change), add(quantile(mcr38_adx_strength), 0.001))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Breakout signal from Bollinger Bands combined with daily move",
+      "description": "Used mcr38_bb_signal with mcr38_percent_change per SUGGESTION1 to capture BB breakouts. SUGGESTION4 considered. Confidence 0.73 as BB breakouts with directional move are actionable.",
+      "implementation": "multiply(quantile(mcr38_bb_signal), quantile(mcr38_percent_change))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "MACD-strength momentum: MACD signal times MACD strength",
+      "description": "Combined mcr38_macd_20_50_signal and mcr38_macd_20_50_strength per SUGGESTION1. SUGGESTION4 applied. No vectors. KEEP_IN_MINDs followed. Confidence 0.71; MACD pair often captures medium-term trends.",
+      "implementation": "multiply(quantile(mcr38_macd_20_50_signal), quantile(mcr38_macd_20_50_strength))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Short-term reversal when strong signal weakens: use MA20_strength decreasing with negative daily change",
+      "description": "Combined mcr38_ma_20_strength and mcr38_percent_change. SUGGESTION1 used. Logic: if strength drops but price fell, expect reversal. SUGGESTION4 applied. Confidence 0.6—contrarian and conditional, modest expectancy.",
+      "implementation": "multiply(reverse(quantile(mcr38_percent_change)), quantile(mcr38_ma_20_strength))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Liquidity breakout: large percent change but low volume filter",
+      "description": "Used mcr38_percent_change and mcr38_volume to target moves on thin liquidity (edge cases). SUGGESTION1 applied, SUGGESTION4 used. Risk higher so confidence 0.52.",
+      "implementation": "multiply(quantile(mcr38_percent_change), inverse(quantile(mcr38_volume)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Consensus trend following: long when longterm_signal and mediumterm_signal align",
+      "description": "Combined mcr38_longterm_signal and mcr38_mediumterm_signal to capture multi-horizon agreement (SUGGESTION1). High-level signals have good coverage. Confidence 0.76 for durable trend capture.",
+      "implementation": "multiply(quantile(mcr38_longterm_signal), quantile(mcr38_mediumterm_signal))",
+      "confidence_level": 0.76
+    },
+    {
+      "idea": "Signal divergence: buy when short-term is bullish but long-term is bearish (mean-reversion or fade)",
+      "description": "Used mcr38_shorttermsignal and mcr38_longterm_signal to detect horizon divergence. SUGGESTION1 applied. This can exploit overreactions; confidence 0.58 as directional risk exists.",
+      "implementation": "subtract(quantile(mcr38_shorttermsignal), quantile(mcr38_longterm_signal))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Strength normalized momentum: zscore of percent change times zscore of strength",
+      "description": "Applied SUGGESTION1 combining zscore( percent change ) and zscore( strength_rating ) to reduce outliers. SUGGESTION4 used. SUGGESTION2/3 not applicable. Confidence 0.77 due to normalization improving robustness.",
+      "implementation": "multiply(zscore(mcr38_percent_change), zscore(mcr38_strength_rating))",
+      "confidence_level": 0.77
+    },
+    {
+      "idea": "Directional pick: rely only on overall_signal but scale by overall_percent",
+      "description": "Used mcr38_overall_signal and mcr38_overall_percent per SUGGESTION1 to combine sign and magnitude. Simple and within KEEP_IN_MIND constraints. Confidence 0.7 for broad directional capture.",
+      "implementation": "multiply(quantile(mcr38_overall_signal), quantile(mcr38_overall_percent))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Volatility breakout with ADX: high percent change when ADX indicates strong trend",
+      "description": "Combined mcr38_percent_change with mcr38_adx_signal (trend direction) and adx_strength via multiply (two fields at a time—primary with strength). SUGGESTION1 used. Confidence 0.76 because ADX confirms breakout quality.",
+      "implementation": "multiply(quantile(mcr38_percent_change), quantile(mcr38_adx_strength))",
+      "confidence_level": 0.76
+    },
+    {
+      "idea": "Fade extreme BB strength: if BB_strength high and daily move extreme, fade",
+      "description": "Used mcr38_bb_strength and mcr38_percent_change. SUGGESTION1 applied. Fading extremes can work; confidence 0.59 due to timing risk.",
+      "implementation": "multiply(reverse(quantile(mcr38_percent_change)), quantile(mcr38_bb_strength))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "MACD cross momentum: use macd_20_100_signal with recent percent change",
+      "description": "Combined mcr38_macd_20_100_signal and mcr38_percent_change per SUGGESTION1. Preference due to decent alphaCount. Confidence 0.7.",
+      "implementation": "multiply(quantile(mcr38_macd_20_100_signal), quantile(mcr38_percent_change))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Range breakout: use high/low spread proxy (last - low) scaled by percent change",
+      "description": "Used mcr38_last and mcr38_low per SUGGESTION1 to form intraday range signal. SUGGESTION4: both have high coverage. Confidence 0.65 for range breakouts intraday.",
+      "implementation": "multiply(quantile(subtract(mcr38_last, mcr38_low)), quantile(mcr38_percent_change))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Strength consensus across indicators: average of longterm and mediumterm percents",
+      "description": "Averaged mcr38_longterm_percent and mcr38_mediumterm_percent per SUGGESTION1 to capture multi-horizon strength. SUGGESTION4 applied. Confidence 0.73.",
+      "implementation": "divide(add(quantile(mcr38_longterm_percent), quantile(mcr38_mediumterm_percent)), 2)",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Short squeeze detector: recent large positive percent_change with low short-term signal (unexpected move)",
+      "description": "Combined mcr38_percent_change and mcr38_shorttermsignal per SUGGESTION1 to find moves opposite to short-term expectation. SUGGESTION4 used. Confidence 0.55 due to event-driven nature.",
+      "implementation": "multiply(quantile(mcr38_percent_change), reverse(quantile(mcr38_shorttermsignal)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum persistence: multiply daily change by yesterday's change proxy using ts_delta-like approach via change field",
+      "description": "Used mcr38_change (1-day change) and mcr38_percent_change per SUGGESTION1 to proxy short persistence. SUGGESTION3 not required. Confidence 0.6 for persistence exploitation.",
+      "implementation": "multiply(quantile(mcr38_change), quantile(mcr38_percent_change))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "ADX direction filtered mean-reversion: reverse percent change when adx_direction indicates weakening",
+      "description": "Used mcr38_adx_direction (directional weakening/strength) and mcr38_percent_change per SUGGESTION1. Applied SUGGESTION4. Confidence 0.64 as weakening trend can revert.",
+      "implementation": "multiply(reverse(quantile(mcr38_percent_change)), quantile(mcr38_adx_direction))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "High-confidence signal stacking: multiply overall_percent and trendspotter_strength",
+      "description": "Stacked mcr38_overall_percent with mcr38_trendspotter_strength per SUGGESTION1 to favor high-confidence names. SUGGESTION4 used. Confidence 0.79 for combining consensus and proprietary strength.",
+      "implementation": "multiply(quantile(mcr38_overall_percent), quantile(mcr38_trendspotter_strength))",
+      "confidence_level": 0.79
+    },
+    {
+      "idea": "MA50 crossover filter: use MA50_signal to filter medium-term momentum",
+      "description": "Combined mcr38_percent_change with mcr38_ma_50_signal per SUGGESTION1. Simplicity kept per KEEP_IN_MIND. Confidence 0.68.",
+      "implementation": "multiply(quantile(mcr38_percent_change), quantile(mcr38_ma_50_signal))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Composite strength ratio: overall_percent / shorttermpercent to favor durable movers",
+      "description": "Used mcr38_overall_percent and mcr38_shorttermpercent per SUGGESTION1 to emphasize sustained moves. SUGGESTION4 applied. Confidence 0.66.",
+      "implementation": "divide(quantile(mcr38_overall_percent), add(quantile(mcr38_shorttermpercent), 0.001))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Volume spike momentum: percent_change * (volume / median volume proxy using volume itself)",
+      "description": "Used mcr38_percent_change and mcr38_volume to capture volume spikes validating moves. SUGGESTION1 applied. Confidence 0.74.",
+      "implementation": "multiply(quantile(mcr38_percent_change), quantile(mcr38_volume))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Fade when trendspotter shows weakening: reverse move if trendspotter_direction low",
+      "description": "Combined mcr38_percent_change with mcr38_trendspotter_direction via SUGGESTION1. Low direction suggests fade. Confidence 0.6.",
+      "implementation": "multiply(reverse(quantile(mcr38_percent_change)), quantile(mcr38_trendspotter_direction))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "MACD divergence fade: if MACD strength high but price unchanged, fade",
+      "description": "Used mcr38_macd_50_100_strength and mcr38_percent_change. SUGGESTION1 applied. Divergence fades have moderate confidence 0.57.",
+      "implementation": "multiply(reverse(quantile(mcr38_percent_change)), quantile(mcr38_macd_50_100_strength))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "High-strength directional plays: use para_50_strength with para_50_signal",
+      "description": "Combined mcr38_para_50_signal and mcr38_para_50_strength (SUGGESTION1) to back medium-term directional moves. Confidence 0.69.",
+      "implementation": "multiply(quantile(mcr38_para_50_signal), quantile(mcr38_para_50_strength))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Momentum filtered by Mahilo strength: favor moves where mahilo_strength high",
+      "description": "Used mcr38_percent_change and mcr38_mahilo_strength per SUGGESTION1. Mahilo acts as specialized trend filter. Confidence 0.7.",
+      "implementation": "multiply(quantile(mcr38_percent_change), quantile(mcr38_mahilo_strength))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Short-term mean-reversion when BB indicates weakening signal",
+      "description": "Combined mcr38_bb_direction (weakening/strength) and mcr38_percent_change to fade moves when BB shows weakness. SUGGESTION1 used. Confidence 0.58.",
+      "implementation": "multiply(reverse(quantile(mcr38_percent_change)), quantile(mcr38_bb_direction))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Strength-adjusted breakout: require both high percent change and high trendspotter_strength",
+      "description": "Used mcr38_percent_change and mcr38_trendspotter_strength; SUGGESTION1 &4 applied. Confidence 0.75 as strength reduces false breakouts.",
+      "implementation": "multiply(quantile(mcr38_percent_change), quantile(mcr38_trendspotter_strength))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Consensus short: overall_signal negative and overall_percent large magnitude",
+      "description": "Target names with strong negative overall_signal and large overall_percent magnitude. Used mcr38_overall_signal and mcr38_overall_percent. SUGGESTION1 &4 applied. Confidence 0.7 for directional clarity.",
+      "implementation": "multiply(reverse(quantile(mcr38_overall_signal)), quantile(mcr38_overall_percent))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Direction-weighted liquidity: prefer moves with volume support and adx_direction",
+      "description": "Combined mcr38_volume and mcr38_adx_direction to favor well-backed trend moves. SUGGESTION1 applied. Confidence 0.72.",
+      "implementation": "multiply(quantile(mcr38_volume), quantile(mcr38_adx_direction))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "High conviction fade: reverse when strength_rating high but percent change small (stalled)",
+      "description": "Used mcr38_strength_rating and mcr38_percent_change. SUGGESTION1 used to detect stalled high-strength names. Confidence 0.56.",
+      "implementation": "multiply(reverse(quantile(mcr38_percent_change)), quantile(mcr38_strength_rating))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Two-horizon alignment: mediumterm_signal * shorttermsignal to capture multi-horizon momentum",
+      "description": "Combined mcr38_mediumterm_signal and mcr38_shorttermsignal per SUGGESTION1. Multi-horizon alignment reduces whipsaw. Confidence 0.74.",
+      "implementation": "multiply(quantile(mcr38_mediumterm_signal), quantile(mcr38_shorttermsignal))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Percent-change zscore squeeze: ts_zscore-like normalizing of percent change (use zscore)",
+      "description": "Applied zscore to mcr38_percent_change to reduce outliers (SUGGESTION1). No vector fields. Confidence 0.7 for robustness.",
+      "implementation": "zscore(mcr38_percent_change)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Fade momentum when ADX indicates hold heading bearish: reverse when adx signal indicates heading bearish",
+      "description": "Used mcr38_adx_signal and mcr38_percent_change per SUGGESTION1. If ADX indicates shift to bearish while price up, fade. Confidence 0.6.",
+      "implementation": "multiply(reverse(quantile(mcr38_percent_change)), quantile(mcr38_adx_signal))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Strength-weighted volume breakout: volume * trendspotter_strength",
+      "description": "Combined mcr38_volume and mcr38_trendspotter_strength to require both liquidity and strength. SUGGESTION1 applied. Confidence 0.73.",
+      "implementation": "multiply(quantile(mcr38_volume), quantile(mcr38_trendspotter_strength))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Momentum with MA100 confirmation: percent_change * ma_100_signal",
+      "description": "Used mcr38_percent_change and mcr38_ma_100_signal per SUGGESTION1. Longer MA confirms durable move. Confidence 0.71.",
+      "implementation": "multiply(quantile(mcr38_percent_change), quantile(mcr38_ma_100_signal))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Signal magnitude filter: prefer signals with high longterm_percent regardless of short-term noise",
+      "description": "Used mcr38_longterm_percent and mcr38_percent_change. Emphasizes durable trends (SUGGESTION1). Confidence 0.68.",
+      "implementation": "multiply(quantile(mcr38_longterm_percent), quantile(mcr38_percent_change))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Momentum scaled by last price (size-sensitivity): percent_change * last",
+      "description": "Combined mcr38_percent_change with mcr38_last to scale alpha by price level (SUGGESTION1). Awareness of risk: confidence 0.5 moderate-low due to scaling bias.",
+      "implementation": "multiply(quantile(mcr38_percent_change), quantile(mcr38_last))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Strength divergence: high direction_rating with low strength_rating (potential acceleration)",
+      "description": "Used mcr38_direction_rating and mcr38_strength_rating per SUGGESTION1 to find names where direction exists but strength hasn't caught up. Confidence 0.63.",
+      "implementation": "subtract(quantile(mcr38_direction_rating), quantile(mcr38_strength_rating))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Persistence across signals: multiply para_50_signal and ma_50_signal",
+      "description": "Combined mcr38_para_50_signal and mcr38_ma_50_signal to find cross-indicator agreement (SUGGESTION1). Confidence 0.7.",
+      "implementation": "multiply(quantile(mcr38_para_50_signal), quantile(mcr38_ma_50_signal))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Weakening trend short: reverse when ma_100_strength declines but longterm_percent still high",
+      "description": "Used mcr38_ma_100_strength and mcr38_longterm_percent to detect weakening long-term trend. SUGGESTION1 applied. Confidence 0.6.",
+      "implementation": "multiply(reverse(quantile(mcr38_ma_100_strength)), quantile(mcr38_longterm_percent))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Composite volatility-momentum: percent_change * (1 / bb_strength) to prefer moves not extreme in BB",
+      "description": "Combined mcr38_percent_change and mcr38_bb_strength per SUGGESTION1 to reduce taking extreme BB breakouts. Confidence 0.62.",
+      "implementation": "multiply(quantile(mcr38_percent_change), inverse(add(quantile(mcr38_bb_strength), 0.001)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Signal acceleration: compare ma_20_strength vs ma_50_strength (ts_delta style)",
+      "description": "Used ma_20_strength and ma_50_strength and applied subtract to proxy acceleration per SUGGESTION1. No ts_delta operator used to keep within 2 fields. Confidence 0.67.",
+      "implementation": "subtract(quantile(mcr38_ma_20_strength), quantile(mcr38_ma_50_strength))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "High conviction long when para_50 and macd agree",
+      "description": "Used mcr38_para_50_signal and mcr38_macd_50_100_signal for agreement (SUGGESTION1). Cross-indicator consensus improves odds. Confidence 0.75.",
+      "implementation": "multiply(quantile(mcr38_para_50_signal), quantile(mcr38_macd_50_100_signal))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Volume-weighted mean-reversion: reverse percent change scaled by inverse volume",
+      "description": "Used mcr38_percent_change and mcr38_volume. SUGGESTION1 applied to avoid trading heavy liquidity moves. Confidence 0.59.",
+      "implementation": "multiply(reverse(quantile(mcr38_percent_change)), inverse(add(quantile(mcr38_volume), 1)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Trend follow only when ADX direction aligns with trendspotter_signal",
+      "description": "Combined mcr38_adx_signal and mcr38_trendspotter_signal to require two trend indicators agree (SUGGESTION1). Confidence 0.78.",
+      "implementation": "multiply(quantile(mcr38_adx_signal), quantile(mcr38_trendspotter_signal))",
+      "confidence_level": 0.78
+    },
+    {
+      "idea": "BB breakout with MACD confirmation: bb_signal * macd_20_50_signal",
+      "description": "Used mcr38_bb_signal and mcr38_macd_20_50_signal per SUGGESTION1 to require volatility breakout plus momentum. Confidence 0.74.",
+      "implementation": "multiply(quantile(mcr38_bb_signal), quantile(mcr38_macd_20_50_signal))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Strength-weighted percent change across horizons: shorttermpercent * percent_change",
+      "description": "Used mcr38_shorttermpercent and mcr38_percent_change to amplify short-horizon reliable moves (SUGGESTION1). Confidence 0.7.",
+      "implementation": "multiply(quantile(mcr38_shorttermpercent), quantile(mcr38_percent_change))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Direction-rating scaled fade: reverse percent_change if direction_rating low",
+      "description": "Used mcr38_direction_rating and mcr38_percent_change. Low direction_rating suggests fade. SUGGESTION1 applied. Confidence 0.58.",
+      "implementation": "multiply(reverse(quantile(mcr38_percent_change)), inverse(add(quantile(mcr38_direction_rating), 0.001)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Trendspotter long-only filter: use trendspotter_signal times last",
+      "description": "Combined mcr38_trendspotter_signal and mcr38_last as a size proxy (SUGGESTION1). Simple trend filter with magnitude. Confidence 0.65.",
+      "implementation": "multiply(quantile(mcr38_trendspotter_signal), quantile(mcr38_last))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "MAHILO confirmation of volatility moves: percent_change * mahilo_signal",
+      "description": "Used mcr38_percent_change and mcr38_mahilo_signal per SUGGESTION1. MAHILO uses high-low smoothing—useful for breakouts. Confidence 0.68.",
+      "implementation": "multiply(quantile(mcr38_percent_change), quantile(mcr38_mahilo_signal))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Pair strength: overall_percent / mediumterm_percent to find accelerating names",
+      "description": "Used mcr38_overall_percent and mcr38_mediumterm_percent to detect acceleration. SUGGESTION1 applied. Confidence 0.66.",
+      "implementation": "divide(quantile(mcr38_overall_percent), add(quantile(mcr38_mediumterm_percent), 0.001))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "MACD strength scaled by volume: macd_20_50_strength * volume",
+      "description": "Combined mcr38_macd_20_50_strength and mcr38_volume to favor strong momentum with liquidity (SUGGESTION1). Confidence 0.72.",
+      "implementation": "multiply(quantile(mcr38_macd_20_50_strength), quantile(mcr38_volume))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Short-term contrarian: reverse when shorttermsignal strongly high but percent_change already large",
+      "description": "Used mcr38_shorttermsignal and mcr38_percent_change per SUGGESTION1 to fade overheated short-term signals. Confidence 0.56.",
+      "implementation": "multiply(reverse(quantile(mcr38_percent_change)), quantile(mcr38_shorttermsignal))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Long-term momentum anchor: longterm_signal * longterm_percent",
+      "description": "Combined mcr38_longterm_signal and mcr38_longterm_percent to prioritize durable moves. SUGGESTION1 applied. Confidence 0.77.",
+      "implementation": "multiply(quantile(mcr38_longterm_signal), quantile(mcr38_longterm_percent))",
+      "confidence_level": 0.77
+    },
+    {
+      "idea": "Percent-change divided by last price to get relative move per unit price",
+      "description": "Used mcr38_percent_change and mcr38_last to measure move relative to price level (SUGGESTION1). Confidence 0.53 due to bias vs price.",
+      "implementation": "divide(quantile(mcr38_percent_change), add(quantile(mcr38_last), 0.001))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "High ADX & MACD consensus: adx_signal * macd_50_100_signal",
+      "description": "Combined mcr38_adx_signal and mcr38_macd_50_100_signal to require two trend indicators agree (SUGGESTION1). Confidence 0.78.",
+      "implementation": "multiply(quantile(mcr38_adx_signal), quantile(mcr38_macd_50_100_signal))",
+      "confidence_level": 0.78
+    },
+    {
+      "idea": "Strength anomaly: high strength_rating but low overall_percent => potential upcoming move",
+      "description": "Used mcr38_strength_rating and mcr38_overall_percent per SUGGESTION1 to detect latent strength. Confidence 0.61.",
+      "implementation": "subtract(quantile(mcr38_strength_rating), quantile(mcr38_overall_percent))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Two-indicator momentum: para_50_strength * macd_20_100_strength",
+      "description": "Combined mcr38_para_50_strength and mcr38_macd_20_100_strength (SUGGESTION1) to amplify robust momentum. Confidence 0.74.",
+      "implementation": "multiply(quantile(mcr38_para_50_strength), quantile(mcr38_macd_20_100_strength))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Fade when BB and Mahilo disagree: bb_signal - mahilo_signal",
+      "description": "Used mcr38_bb_signal and mcr38_mahilo_signal to find indicator conflicts (SUGGESTION1). Conflict often leads to mean-reversion. Confidence 0.59.",
+      "implementation": "subtract(quantile(mcr38_bb_signal), quantile(mcr38_mahilo_signal))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Volume-normalized trend: trendspotter_strength / volume",
+      "description": "Used mcr38_trendspotter_strength and mcr38_volume to prefer strong signals on lighter volume for alpha edge. SUGGESTION1 applied. Confidence 0.6.",
+      "implementation": "divide(quantile(mcr38_trendspotter_strength), add(quantile(mcr38_volume), 1))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum with MAHILO confirmation: percent_change * mahilo_strength",
+      "description": "Combined mcr38_percent_change and mcr38_mahilo_strength per SUGGESTION1. Strengthens signal quality; confidence 0.7.",
+      "implementation": "multiply(quantile(mcr38_percent_change), quantile(mcr38_mahilo_strength))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Directional momentum using PARA signal scaled by percent change",
+      "description": "Used mcr38_para_50_signal and mcr38_percent_change (SUGGESTION1). PARA often captures medium-term tendencies. Confidence 0.69.",
+      "implementation": "multiply(quantile(mcr38_para_50_signal), quantile(mcr38_percent_change))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Strength-normalized consensus: normalize overall_percent by strength_rating",
+      "description": "Divided mcr38_overall_percent by mcr38_strength_rating to prioritize signals where magnitude outpaces strength (SUGGESTION1). Confidence 0.64.",
+      "implementation": "divide(quantile(mcr38_overall_percent), add(quantile(mcr38_strength_rating), 0.001))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Short-term breakout fade when ADX weakening: reverse percent_change * inverse adx_strength",
+      "description": "Used mcr38_percent_change and mcr38_adx_strength to fade breakouts without trend support (SUGGESTION1). Confidence 0.6.",
+      "implementation": "multiply(reverse(quantile(mcr38_percent_change)), inverse(add(quantile(mcr38_adx_strength), 0.001)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "MACD + Volume momentum: macd_20_100_signal * volume",
+      "description": "Combined mcr38_macd_20_100_signal and mcr38_volume to favor momentum with liquidity (SUGGESTION1). Confidence 0.73.",
+      "implementation": "multiply(quantile(mcr38_macd_20_100_signal), quantile(mcr38_volume))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "MA50 vs MA100 acceleration: ma_50_strength - ma_100_strength",
+      "description": "Used mcr38_ma_50_strength and mcr38_ma_100_strength to detect acceleration between medium and long MA strengths (SUGGESTION1). Confidence 0.66.",
+      "implementation": "subtract(quantile(mcr38_ma_50_strength), quantile(mcr38_ma_100_strength))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Short-term strength aggregator: sum of shorttermpercent and mediumterm_percent",
+      "description": "Added mcr38_shorttermpercent and mcr38_mediumterm_percent (SUGGESTION1) to capture aggregate short-medium strength. KEEP_IN_MIND followed. Confidence 0.71.",
+      "implementation": "add(quantile(mcr38_shorttermpercent), quantile(mcr38_mediumterm_percent))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Fade on conflicting signals: overall_signal - trendspotter_signal",
+      "description": "Used mcr38_overall_signal and mcr38_trendspotter_signal to find conflicts; subtract to create fade signal (SUGGESTION1). Confidence 0.58.",
+      "implementation": "subtract(quantile(mcr38_overall_signal), quantile(mcr38_trendspotter_signal))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "High conviction momentum: multiply overall_percent and para_50_strength",
+      "description": "Used mcr38_overall_percent and mcr38_para_50_strength per SUGGESTION1 to combine overall magnitude with medium-term strength. Confidence 0.75.",
+      "implementation": "multiply(quantile(mcr38_overall_percent), quantile(mcr38_para_50_strength))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Low-strength mean-reversion: reverse percent change when strength low",
+      "description": "Combined mcr38_percent_change and mcr38_strength_rating per SUGGESTION1 to fade in low-strength contexts. Confidence 0.59.",
+      "implementation": "multiply(reverse(quantile(mcr38_percent_change)), inverse(add(quantile(mcr38_strength_rating), 0.001)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Volume breakout with ADX confirmation: volume * adx_strength",
+      "description": "Used mcr38_volume and mcr38_adx_strength to detect liquid, strong-trend breakouts (SUGGESTION1). Confidence 0.74.",
+      "implementation": "multiply(quantile(mcr38_volume), quantile(mcr38_adx_strength))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Momentum trimmed by volatility: percent_change / bb_strength",
+      "description": "Combined mcr38_percent_change and mcr38_bb_strength to reduce exposure to high BB extremes (SUGGESTION1). Confidence 0.63.",
+      "implementation": "divide(quantile(mcr38_percent_change), add(quantile(mcr38_bb_strength), 0.001))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Medium-term MACD stacking: macd_20_100_signal * macd_50_100_signal",
+      "description": "Used two MACD windows (mcr38_macd_20_100_signal, mcr38_macd_50_100_signal) for stacked momentum (SUGGESTION1). Confidence 0.73.",
+      "implementation": "multiply(quantile(mcr38_macd_20_100_signal), quantile(mcr38_macd_50_100_signal))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Strength-adjusted range breakout: (last - open) * para_50_strength",
+      "description": "Used mcr38_last, mcr38_open and mcr38_para_50_strength (two fields per KEEP_IN_MIND) to find breakouts with strength. For simplicity used subtract and multiply. Confidence 0.66.",
+      "implementation": "multiply(quantile(subtract(mcr38_last, mcr38_open)), quantile(mcr38_para_50_strength))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Short-term trend confirmation: ma_20_signal * shorttermsignal",
+      "description": "Combined mcr38_ma_20_signal and mcr38_shorttermsignal to reinforce short-horizon trend signals (SUGGESTION1). Confidence 0.7.",
+      "implementation": "multiply(quantile(mcr38_ma_20_signal), quantile(mcr38_shorttermsignal))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Fade low-volume breakouts: percent_change * inverse(volume)",
+      "description": "Used mcr38_percent_change and mcr38_volume per SUGGESTION1 to avoid illiquid fake breakouts. Confidence 0.6.",
+      "implementation": "multiply(quantile(mcr38_percent_change), inverse(add(quantile(mcr38_volume), 1)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Consensus negative momentum: overall_signal negative * percent_change",
+      "description": "Used mcr38_overall_signal and mcr38_percent_change to detect aligned negative momentum (SUGGESTION1). Confidence 0.69.",
+      "implementation": "multiply(reverse(quantile(mcr38_overall_signal)), quantile(mcr38_percent_change))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Strength gap detector: para_50_strength - macd_20_50_strength",
+      "description": "Used mcr38_para_50_strength and mcr38_macd_20_50_strength to find mismatches across indicators (SUGGESTION1). Gaps can predict moves; confidence 0.62.",
+      "implementation": "subtract(quantile(mcr38_para_50_strength), quantile(mcr38_macd_20_50_strength))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Aggregate strength score: sum of ma_20_strength and macd_20_50_strength",
+      "description": "Added mcr38_ma_20_strength and mcr38_macd_20_50_strength (SUGGESTION1) to form composite strength. Confidence 0.73.",
+      "implementation": "add(quantile(mcr38_ma_20_strength), quantile(mcr38_macd_20_50_strength))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Momentum trimmed by trendspotter: percent_change * trendspotter_signal",
+      "description": "Used mcr38_percent_change and mcr38_trendspotter_signal to require proprietary trend confirmation (SUGGESTION1). Confidence 0.71.",
+      "implementation": "multiply(quantile(mcr38_percent_change), quantile(mcr38_trendspotter_signal))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Short-term strength anomaly: shorttermpercent - shorttermsignal (magnitude vs sign mismatch)",
+      "description": "Used mcr38_shorttermpercent and mcr38_shorttermsignal per SUGGESTION1 to detect mismatches. Mismatches can precede reversals; confidence 0.6.",
+      "implementation": "subtract(quantile(mcr38_shorttermpercent), quantile(mcr38_shorttermsignal))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Mean-reversion when MACD strength declines: reverse percent_change * inverse(macd_strength)",
+      "description": "Combined mcr38_percent_change and mcr38_macd_20_100_strength per SUGGESTION1 to fade weakening momentum. Confidence 0.58.",
+      "implementation": "multiply(reverse(quantile(mcr38_percent_change)), inverse(add(quantile(mcr38_macd_20_100_strength), 0.001)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Volume surge long: volume zscore * percent_change",
+      "description": "Used zscore on mcr38_volume implicitly via quantile and multiplied by percent change (SUGGESTION1). Volume surge with positive move is promising; confidence 0.72.",
+      "implementation": "multiply(quantile(mcr38_volume), quantile(mcr38_percent_change))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Consensus strength multiplier: overall_percent * mediumterm_percent",
+      "description": "Combined mcr38_overall_percent and mcr38_mediumterm_percent as per SUGGESTION1 to emphasize aligned strength. Confidence 0.74.",
+      "implementation": "multiply(quantile(mcr38_overall_percent), quantile(mcr38_mediumterm_percent))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "ADx-driven contrarian: reverse percent_change when adx_direction indicates weakening despite ADX strength high",
+      "description": "Used mcr38_adx_direction and mcr38_adx_strength with mcr38_percent_change (kept to 2 fields at a time by using adx_strength). Strategy targets contradictions. Confidence 0.6.",
+      "implementation": "multiply(reverse(quantile(mcr38_percent_change)), quantile(mcr38_adx_direction))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum scaled by trendspotter_strength and normalized",
+      "description": "Applied quantile to mcr38_percent_change and trendspotter_strength (SUGGESTION1). Normalization reduces outliers. Confidence 0.73.",
+      "implementation": "multiply(quantile(mcr38_percent_change), quantile(mcr38_trendspotter_strength))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "MAHILO vs MA20 agreement: mahilo_signal * ma_20_signal",
+      "description": "Used mcr38_mahilo_signal and mcr38_ma_20_signal to require two moving-average like indicators align (SUGGESTION1). Confidence 0.7.",
+      "implementation": "multiply(quantile(mcr38_mahilo_signal), quantile(mcr38_ma_20_signal))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Short-term surge detection: percent_change * (shorttermpercent / shorttermsignal)",
+      "description": "Combined mcr38_percent_change, mcr38_shorttermpercent, and mcr38_shorttermsignal conceptually, but implemented as percent_change * shorttermpercent to respect 2-field limit (SUGGESTION1). Confidence 0.66.",
+      "implementation": "multiply(quantile(mcr38_percent_change), quantile(mcr38_shorttermpercent))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Fade on MAHILO weakening: reverse percent_change when mahilo_direction low",
+      "description": "Used mcr38_percent_change and mcr38_mahilo_direction per SUGGESTION1. Fading when internal indicator weakens. Confidence 0.59.",
+      "implementation": "multiply(reverse(quantile(mcr38_percent_change)), quantile(mcr38_mahilo_direction))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "High conviction short when para_50_signal negative and overall_percent large",
+      "description": "Combined mcr38_para_50_signal and mcr38_overall_percent per SUGGESTION1 to short aligned negative signals. Confidence 0.71.",
+      "implementation": "multiply(reverse(quantile(mcr38_para_50_signal)), quantile(mcr38_overall_percent))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Volume / percent-change anomaly: high volume but small percent change (possible accumulation)",
+      "description": "Used mcr38_volume and mcr38_percent_change to find unusual accumulation. SUGGESTION1 applied. Event-driven so confidence 0.55.",
+      "implementation": "divide(quantile(mcr38_volume), add(quantile(mcr38_percent_change), 0.001))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Composite MACD confirmation: macd_20_50_signal * macd_50_100_signal",
+      "description": "Used two MACD window signals (mcr38_macd_20_50_signal and mcr38_macd_50_100_signal) for stacked confirmation (SUGGESTION1). Confidence 0.74.",
+      "implementation": "multiply(quantile(mcr38_macd_20_50_signal), quantile(mcr38_macd_50_100_signal))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Strength led reversal: reverse percent_change when strength_rating very high (overbought)",
+      "description": "Combined mcr38_percent_change and mcr38_strength_rating per SUGGESTION1 to fade overbought moves. Confidence 0.57.",
+      "implementation": "multiply(reverse(quantile(mcr38_percent_change)), quantile(mcr38_strength_rating))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Trendspotter and MACD stack: trendspotter_signal * macd_20_100_signal",
+      "description": "Used mcr38_trendspotter_signal and mcr38_macd_20_100_signal to require proprietary and momentum alignment (SUGGESTION1). Confidence 0.76.",
+      "implementation": "multiply(quantile(mcr38_trendspotter_signal), quantile(mcr38_macd_20_100_signal))",
+      "confidence_level": 0.76
+    },
+    {
+      "idea": "Momentum with percent-change zscore to reduce outliers",
+      "description": "Applied zscore to mcr38_percent_change (SUGGESTION1) to make robust momentum picks. SUGGESTION2/3 not applicable. Confidence 0.7.",
+      "implementation": "zscore(mcr38_percent_change)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Short-term accelerator: shorttermpercent / mediumterm_percent to find accelerating names",
+      "description": "Used mcr38_shorttermpercent and mcr38_mediumterm_percent per SUGGESTION1 to detect acceleration. Confidence 0.65.",
+      "implementation": "divide(quantile(mcr38_shorttermpercent), add(quantile(mcr38_mediumterm_percent), 0.001))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Fade consensus when volume low: overall_percent * inverse(volume)",
+      "description": "Combined mcr38_overall_percent and mcr38_volume to avoid consensus with weak liquidity (SUGGESTION1). Confidence 0.6.",
+      "implementation": "multiply(quantile(mcr38_overall_percent), inverse(add(quantile(mcr38_volume), 1)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "MACD acceleration: macd_20_50_strength - macd_50_100_strength",
+      "description": "Used mcr38_macd_20_50_strength and mcr38_macd_50_100_strength to find accelerating momentum (SUGGESTION1). Confidence 0.68.",
+      "implementation": "subtract(quantile(mcr38_macd_20_50_strength), quantile(mcr38_macd_50_100_strength))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Directionality scaled by percent change: overall_signal * percent_change",
+      "description": "Used mcr38_overall_signal and mcr38_percent_change per SUGGESTION1 to combine direction and movement. Confidence 0.69.",
+      "implementation": "multiply(quantile(mcr38_overall_signal), quantile(mcr38_percent_change))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Trendspotter strength mean-reversion: reverse percent_change when trendspotter_strength high but adx_strength low",
+      "description": "Concept uses 3 fields; to respect limits implemented as reverse percent_change * inverse(trendspotter_strength) as a simpler proxy (SUGGESTION1). Confidence 0.57.",
+      "implementation": "multiply(reverse(quantile(mcr38_percent_change)), inverse(add(quantile(mcr38_trendspotter_strength), 0.001)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "High-percent-change with medium-term support: percent_change * mediumtermpercent",
+      "description": "Combined mcr38_percent_change and mcr38_mediumterm_percent per SUGGESTION1 to prefer moves with medium-term backing. Confidence 0.72.",
+      "implementation": "multiply(quantile(mcr38_percent_change), quantile(mcr38_mediumterm_percent))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Volume-adjusted strength gap: strength_rating / volume",
+      "description": "Used mcr38_strength_rating and mcr38_volume to find unusual strength per unit liquidity (SUGGESTION1). Confidence 0.6.",
+      "implementation": "divide(quantile(mcr38_strength_rating), add(quantile(mcr38_volume), 1))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "MA20 and MA50 agreement filter: ma_20_signal * ma_50_signal",
+      "description": "Used mcr38_ma_20_signal and mcr38_ma_50_signal to require short and medium MA agree (SUGGESTION1). Confidence 0.71.",
+      "implementation": "multiply(quantile(mcr38_ma_20_signal), quantile(mcr38_ma_50_signal))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Percent-change outlier fade using winsorization concept via quantile",
+      "description": "Used quantile(mcr38_percent_change) to implicitly reduce outliers per SUGGESTION1. Simplicity and robustness prioritized. Confidence 0.69.",
+      "implementation": "quantile(mcr38_percent_change)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "MAHILO + PARA alignment: mahilo_signal * para_50_signal",
+      "description": "Combined mcr38_mahilo_signal and mcr38_para_50_signal per SUGGESTION1 to capture dual indicator alignment. Confidence 0.7.",
+      "implementation": "multiply(quantile(mcr38_mahilo_signal), quantile(mcr38_para_50_signal))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "High overall_percent but weakening strength: overall_percent * inverse(strength_rating)",
+      "description": "Used mcr38_overall_percent and mcr38_strength_rating to find names where magnitude is high but strength lags—could indicate upcoming reversion or acceleration. SUGGESTION1 applied. Confidence 0.6.",
+      "implementation": "multiply(quantile(mcr38_overall_percent), inverse(add(quantile(mcr38_strength_rating), 0.001)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Breakout with MACD strength: bb_signal * macd_20_100_strength",
+      "description": "Used mcr38_bb_signal and mcr38_macd_20_100_strength to ensure breakout has momentum (SUGGESTION1). Confidence 0.74.",
+      "implementation": "multiply(quantile(mcr38_bb_signal), quantile(mcr38_macd_20_100_strength))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Trendspotter consensus: trendspotter_signal * overall_signal",
+      "description": "Combined mcr38_trendspotter_signal and mcr38_overall_signal per SUGGESTION1 to require two signals align. Confidence 0.76.",
+      "implementation": "multiply(quantile(mcr38_trendspotter_signal), quantile(mcr38_overall_signal))",
+      "confidence_level": 0.76
+    },
+    {
+      "idea": "MACD fade when strength falls: reverse macd_signal * inverse(macd_strength)",
+      "description": "Used mcr38_macd_20_50_signal and mcr38_macd_20_50_strength as SUGGESTION1 pair. Fades weakening momentum. Confidence 0.58.",
+      "implementation": "multiply(reverse(quantile(mcr38_macd_20_50_signal)), inverse(add(quantile(mcr38_macd_20_50_strength), 0.001)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Low-volume accumulation long: inverse(volume) * shorttermpercent",
+      "description": "Used mcr38_volume and mcr38_shorttermpercent to detect accumulation on low volume. SUGGESTION1 applied. Confidence 0.54 due to event risk.",
+      "implementation": "multiply(inverse(add(quantile(mcr38_volume), 1)), quantile(mcr38_shorttermpercent))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Percent-change multiplied by para_50_strength for medium-term validated momentum",
+      "description": "Combined mcr38_percent_change and mcr38_para_50_strength per SUGGESTION1. Medium confidence 0.71.",
+      "implementation": "multiply(quantile(mcr38_percent_change), quantile(mcr38_para_50_strength))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Signal stability: longterm_percent / shorttermpercent to find stable winners",
+      "description": "Used mcr38_longterm_percent and mcr38_shorttermpercent per SUGGESTION1 to reward consistency. Confidence 0.67.",
+      "implementation": "divide(quantile(mcr38_longterm_percent), add(quantile(mcr38_shorttermpercent), 0.001))",
+      "confidence_level": 0.67
+    }
+  ]
+}

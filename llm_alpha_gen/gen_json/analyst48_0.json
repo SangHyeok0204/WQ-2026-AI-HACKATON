@@ -1,0 +1,670 @@
+{
+  "results": [
+    {
+      "idea": "Momentum on projected 12m dividend yield",
+      "description": "Use anl48_bp12m_yld momentum (high userCount/alphaCount). SUG1: used single high-usage field for clarity. SUG2: not applicable (field scalar). SUG3: coverage 0.5144 <0.6 -> used ts_backfill. SUG4: chosen because userCount=106. KEEP_IN_MINDs: implementation short, <=2 fields, <=7 operators. Confidence set to 0.72 based on large user adoption and intuitive economic link.",
+      "implementation": "ts_zscore(ts_backfill(anl48_bp12m_yld, 30), 21)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Dividend health mean-reversion",
+      "description": "Mean-revert dividend health score (anl48_bdvd_curr_dvd_health). SUG1: single sensible field. SUG2: not vector. SUG3: coverage 0.5239 <0.6 -> apply ts_backfill. SUG4: userCount=10 moderate. Kept implementation compact. Confidence 0.62.",
+      "implementation": "reverse(ts_zscore(ts_backfill(anl48_bdvd_curr_dvd_health, 60), 30))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Short-term rebound after recent dividend increase",
+      "description": "Signal picks stocks with recent jump in announced dividend amount (anl48_equity_ldg) -> short-term momentum decays. SUG1: used equity_ldg. SUG3: coverage 0.5114 <0.6 -> ts_backfill. SUG4: userCount=11. Kept operators minimal. Confidence 0.58.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(anl48_equity_ldg, 30), 5), 21)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Dividend yield acceleration vs 3y growth",
+      "description": "Compare projected 12m yield to 3y projected DPS growth (anl48_bp12m_yld & anl48_bp3y_dg). SUG1: used 2 fields. SUG2: not vector. SUG3: bp12m_yld backfilled (coverage<0.6); bp3y_dg coverage 0.4842 backfilled. SUG4: prioritized bp12m_yld high users. Kept <=2 fields. Confidence 0.55.",
+      "implementation": "ts_zscore(divide(ts_backfill(anl48_bp12m_yld,30), ts_backfill(anl48_bp3y_dg,90)), 21)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Ex-dividend date proximity trade",
+      "description": "Short-term squeeze before ex-date using next forecasted ex-date distance (anl48_bdvd_next_est_ex_dt). SUG1: single date field. SUG3: coverage 0.5243 <0.6 -> ts_backfill. SUG2 not applicable. Implementation kept simple using ts_arg_min to find nearest. Confidence 0.50.",
+      "implementation": "ts_arg_min(ts_backfill(anl48_bdvd_next_est_ex_dt, 60), 30)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Dividend surprise momentum: actual vs forecast",
+      "description": "Compare last announced dividend vs next forecast (anl48_equity_dvd_sh_last & anl48_bpda). SUG1: used two complementary fields. SUG3: bpda coverage 0.5133 <0.6 -> backfill; dvd_sh_last coverage 0.5089 -> backfill. SUG4: dvd_sh_last has good alphaCount. Kept ops minimal. Confidence 0.6.",
+      "implementation": "ts_zscore(subtract(ts_backfill(anl48_equity_dvd_sh_last,60), ts_backfill(anl48_bpda,60)), 21)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High recent dividend frequency with rising yield",
+      "description": "Combine recent 12m gross dividends per price (anl48_equity_m21_dly_dvd_yqe) with bp12m_yld momentum. SUG1: used two related fields. SUG3: both fields coverage ~0.51 -> ts_backfill applied. SUG4: equity_m21 has userCount 19. Limited operators. Confidence 0.64.",
+      "implementation": "ts_zscore(add(ts_backfill(anl48_equity_m21_dly_dvd_yqe,60), ts_backfill(anl48_bp12m_yld,60)), 21)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Dividend growth breakout",
+      "description": "Spot stocks where bp3y_dg accelerated vs history. SUG1: single growth field. SUG3: coverage 0.4842 -> ts_backfill. SUG4: low userCount but signal interpretable. KEEP_IN_MINDs honored. Confidence 0.48.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(anl48_bp3y_dg,365), 90), 180)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Stable dividend payer tilt",
+      "description": "Pick stocks with low variability of historical gross dividends (anl48_bedhga vec-style aggregate). SUG2: treat bulk/gross history as vector and use vec_stddev. SUG3: bedhga coverage 0.5171 <0.6 -> ts_backfill not applicable to vector; used vec_stddev. SUG4: moderate userCount. Kept operators simple. Confidence 0.53.",
+      "implementation": "reverse(vec_stddev(anl48_bedhga))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Dividend yield vs index dividend yield gap",
+      "description": "Cross compare stock bp12m_yld to index_m21_dly_dvd_yqe. SUG1: two fields used. SUG3: both <0.6 -> ts_backfill applied. SUG4: index field has decent coverage. Simple divide to get gap. Confidence 0.66.",
+      "implementation": "divide(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_index_m21_dly_dvd_yqe,60))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Revert high dividend-health outliers",
+      "description": "Short top tail of dividend health (anl48_bdvd_curr_dvd_health) expecting reversion. SUG1: single field. SUG3: backfilled. SUG4 used moderate userCount. Applied zscore and reverse. Confidence 0.59.",
+      "implementation": "reverse(ts_zscore(ts_backfill(anl48_bdvd_curr_dvd_health,90), 60))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Dividend cut risk: drop in gross dividend history",
+      "description": "Detect sharp drop in gross dividend history sum (anl48_bedhga). SUG2: use vec_sum if field is vector; else use ts_sum. bedhga described as Gross Dividend History Amount -> interpret scalar series -> ts_delta of ts_sum. SUG3: backfill since coverage ~0.5171. Confidence 0.56.",
+      "implementation": "ts_zscore(ts_delta(ts_sum(ts_backfill(anl48_bedhga,365),365), 30), 90)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Dividend yield momentum normalized cross-section",
+      "description": "Cross-sectionally rank bp12m_yld and take zscore to get relative yield seekers. SUG1: single field but cross-sectional normalize applied. SUG3: backfill bp12m_yld. SUG4 chosen for userCount. KEEP_IN_MINDs: one field only. Confidence 0.68.",
+      "implementation": "zscore(ts_backfill(anl48_bp12m_yld,60))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Post-ex-date reversal",
+      "description": "Pick stocks that experienced max negative price move at ex-date (use td_xe_dvd proximity). Field anl48_equity_td_xe_dvd is a date; use ts_arg_min to find recently ex'ed. SUG3: coverage 0.5243 -> backfill. SUG2 N/A. Confidence 0.51.",
+      "implementation": "ts_arg_min(ts_backfill(anl48_equity_td_xe_dvd,120), 60)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "High dividend index membership momentum",
+      "description": "Favor stocks in indices with rising index dividend metrics (anl48_index_m21_dly_dvd_yqe). SUG1: single index field. SUG3: coverage 0.7118 >0.6 so no backfill. SUG4 moderate userCount. Kept implementation short. Confidence 0.54.",
+      "implementation": "ts_zscore(anl48_index_m21_dly_dvd_yqe, 90)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Dividend announcement recency signal",
+      "description": "Use last announced dividend date recency (anl48_bdhad). SUG1: single date field. SUG3: coverage 0.5153 -> backfill. SUG2 N/A. Short implementation. Confidence 0.47.",
+      "implementation": "ts_arg_min(ts_backfill(anl48_bdhad,365), 365)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "High payout stability + yield",
+      "description": "Combine low vec_stddev of past dividends (vec_stddev(anl48_bedhga)) with high bp12m_yld. SUG1: two fields; SUG2: used vec_stddev for history. SUG3: bp12m_yld backfilled. Kept ops <=7. Confidence 0.65.",
+      "implementation": "multiply(reverse(vec_stddev(anl48_bedhga)), ts_zscore(ts_backfill(anl48_bp12m_yld,60),21))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Dividend yield momentum vs price returns",
+      "description": "Correlation between bp12m_yld and recent price returns (ts_corr with price returns implied via ts_returns on bp12m_yld proxy). SUG1: single field used for returns proxy. SUG3: backfilled. SUG2 N/A. Confidence 0.46.",
+      "implementation": "ts_corr(ts_returns(ts_backfill(anl48_bp12m_yld,90),20), ts_backfill(anl48_bp12m_yld,90), 60)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Dividend yield re-rating after surprise",
+      "description": "Signal: large positive delta between announced equity_dvd_sh_last and forecast bpda -> upward re-rating. SUG1: used two fields. SUG3: backfilled both. SUG4: equity_sh_last has alphaCount. Confidence 0.61.",
+      "implementation": "ts_zscore(divide(subtract(ts_backfill(anl48_equity_dvd_sh_last,90), ts_backfill(anl48_bpda,90)), ts_backfill(anl48_bpda,90)), 30)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Low coverage robustness: backfill+stability",
+      "description": "When using low-coverage fields, use ts_backfill then ts_zscore to reduce noise (pattern applies generically to any low coverage field). SUG1: generic approach. SUG3: explicitly applied. SUG4: pick fields with reasonable users. KEEP_IN_MIND: short operator chain. Confidence 0.52.",
+      "implementation": "ts_zscore(ts_backfill(anl48_bp3y_dg,180), 90)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Dividend momentum scaled by index type",
+      "description": "Scale stock bp12m_yld by index type indicator (anl48_indx_typ) to prefer certain index weights. SUG1: two fields. SUG3: bp12m_yld backfilled; indx_typ coverage 0.8541 so no backfill. SUG4: index field low userCount but stable. Confidence 0.49.",
+      "implementation": "divide(ts_backfill(anl48_bp12m_yld,60), anl48_indx_typ)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Dividend yield rank dispersion trade",
+      "description": "Use cross-sectional zscore of bp12m_yld to take long high relative yields. SUG1: single field high userCount. Applied zscore cross-sectionally. SUG3: backfilled. Confidence 0.67.",
+      "implementation": "quantile(ts_backfill(anl48_bp12m_yld,60))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Short-term reversal after record date",
+      "description": "Detect stocks just after dvd_record_dt (anl48_dvd_record_dt) and expect mean-reversion. SUG3: backfill record dates (coverage 0.5243). SUG1: single field. Confidence 0.46.",
+      "implementation": "ts_arg_min(ts_backfill(anl48_dvd_record_dt,120), 60)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "High gross dividend history growth",
+      "description": "Signal uses ts_zscore on ts_sum of gross historical dividends (anl48_bedhga) to find sustained increases. SUG2: treated as time series scalar. SUG3: backfilled. Confidence 0.57.",
+      "implementation": "ts_zscore(ts_sum(ts_backfill(anl48_bedhga,365),365), 180)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Dividend yield stability filter",
+      "description": "Filter stocks with low ts_std_dev of bp12m_yld to reduce turnover. SUG1: single field. SUG3: backfilled. SUG4 used high userCount. KEEP_IN_MINDs minimal ops. Confidence 0.6.",
+      "implementation": "reverse(ts_std_dev(ts_backfill(anl48_bp12m_yld,180), 180))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Dividend increase persistence (hump smoothing)",
+      "description": "Use hump operator to smooth changes in bp12m_yld and capture persistent increases. SUG1: single field. SUG3: backfill bp12m_yld. SUG2 N/A. Confidence 0.55.",
+      "implementation": "hump(ts_backfill(anl48_bp12m_yld,90), hump=0.02)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Dividend yield acceleration vs 1y history",
+      "description": "Compute ts_av_diff of bp12m_yld relative to 1y mean to find acceleration. SUG3: backfilled. SUG1: single field. Confidence 0.63.",
+      "implementation": "ts_av_diff(ts_backfill(anl48_bp12m_yld,365), 252)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Detect dividend policy shifts via trend field",
+      "description": "Use anl48_bbt (Trend Column Info) as signal of analyst trend changes. SUG3: coverage 0.5095 -> ts_backfill. SUG1: single field. Confidence 0.45.",
+      "implementation": "ts_zscore(ts_backfill(anl48_bbt,180), 90)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Dividend event clustering from bulk records",
+      "description": "Use vec_count on bulk_dvd_hist_ibs to detect clustered past dividend events. SUG2: applied vec_count for vector bulk field. SUG3: coverage 0.5153 -> ts_backfill not needed for vec_count. Confidence 0.5.",
+      "implementation": "vec_count(anl48_bulk_dvd_hist_ibs)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High yield + rising announcement frequency",
+      "description": "Combine bp12m_yld with days-since-last-announcement using bdhad/date field. SUG1: two fields. SUG3: both backfilled where coverage<0.6. SUG4 chosen bp12m_yld. Confidence 0.62.",
+      "implementation": "multiply(ts_zscore(ts_backfill(anl48_bp12m_yld,90),21), inverse(days_from_last_change(ts_backfill(anl48_bdhad,365))))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Dividend yield vs recent price drops",
+      "description": "Use bp12m_yld zscore * recent returns (proxy using ts_returns on bp12m_yld). SUG3: backfilled. SUG1 single field processed twice. KEEP_IN_MIND short ops. Confidence 0.53.",
+      "implementation": "multiply(ts_zscore(ts_backfill(anl48_bp12m_yld,90),21), ts_returns(ts_backfill(anl48_bp12m_yld,90),5))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Dividend announcement lead indicator",
+      "description": "Flag stocks with rising count of bulk projections (anl48_bulk_bdvd_all_projections_ibs). SUG1: single bulk field. SUG3: coverage 0.5242 -> backfill. Confidence 0.48.",
+      "implementation": "ts_zscore(ts_backfill(anl48_bulk_bdvd_all_projections_ibs,180),90)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Dividend yield jump detection",
+      "description": "Detect sudden jumps in bp12m_yld by comparing recent value to 30-day lag. SUG3: backfill applied. SUG1: single field. Confidence 0.6.",
+      "implementation": "ts_delta(ts_backfill(anl48_bp12m_yld,90), 30)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Relative dividend yield vs index zscore",
+      "description": "Cross-sectional zscore of stock bp12m_yld minus index level (anl48_index_m21_dly_dvd_yqe). SUG1: 2 fields. SUG3: backfilled only where needed. Confidence 0.65.",
+      "implementation": "substract?ERROR",
+      "confidence_level": 0.0
+    },
+    {
+      "idea": "Dividend health momentum scaled by yield",
+      "description": "Momentum in dividend health (bdvd_curr_dvd_health) multiplied by bp12m_yld to prefer healthy high yields. SUG1: two fields; SUG3: backfilled both. SUG2 N/A. Confidence 0.6.",
+      "implementation": "multiply(ts_zscore(ts_backfill(anl48_bdvd_curr_dvd_health,90),30), ts_zscore(ts_backfill(anl48_bp12m_yld,90),30))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Dividend payout surprise ratio",
+      "description": "Ratio of last net dividend to expected next (equity_dvd_sh_last / bpda). SUG1: two fields. SUG3: backfilled both. SUG4: equity_sh_last alphaCount high. Confidence 0.62.",
+      "implementation": "divide(ts_backfill(anl48_equity_dvd_sh_last,90), ts_backfill(anl48_bpda,90))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Dividend announcement clustering reduces risk",
+      "description": "Use group_count-like proxy via vec_count on bulk index members (anl48_bulk_count_index_members) to find stocks in active dividend clusters. SUG1: single bulk field. SUG3: coverage 0.8259 >0.6 so no backfill. SUG2 used vec_count. Confidence 0.5.",
+      "implementation": "vec_count(anl48_bulk_count_index_members)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum of gross dividend announce cadence",
+      "description": "Use ts_arg_max on gross dividend announce date (bedhgad) to find recently peaked announcers. SUG3: backfill (coverage 0.516). SUG1 single field. Confidence 0.49.",
+      "implementation": "ts_arg_max(ts_backfill(anl48_bedhgad,365), 365)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Yield expansion combined with low payout volatility",
+      "description": "Combine bp12m_yld increase (ts_delta) with low vec_stddev of bedhga. SUG1: two fields; SUG2: vec_stddev used. SUG3: backfilled bp12m_yld. Confidence 0.66.",
+      "implementation": "multiply(ts_delta(ts_backfill(anl48_bp12m_yld,180),30), reverse(vec_stddev(anl48_bedhga)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Dividend growth consistency overlay",
+      "description": "Use ts_std_dev on bp3y_dg low volatility indicates consistent growers. SUG3: backfilled bp3y_dg. SUG1 single field. Confidence 0.44.",
+      "implementation": "reverse(ts_std_dev(ts_backfill(anl48_bp3y_dg,365),365))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Ex-date proximity with high expected dividend",
+      "description": "Combine proximity to next ex-date (bdvd_next_est_ex_dt) with high bp12m_yld. SUG1: two fields; SUG3: backfilled both. KEEP_IN_MINDs simple ops. Confidence 0.58.",
+      "implementation": "multiply(inverse(ts_arg_min(ts_backfill(anl48_bdvd_next_est_ex_dt,120),60)), ts_zscore(ts_backfill(anl48_bp12m_yld,90),21))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Dividend history depth as safety",
+      "description": "Use anl48_m21_hs_dvd (12-month gross total) as stability proxy. SUG1 single field; coverage 0.7743 >0.6 -> no backfill. Confidence 0.52.",
+      "implementation": "ts_zscore(anl48_m21_hs_dvd, 180)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Large index members dividend weight signal",
+      "description": "Use anl48_count_index_members and index dividend metric to target crowded index dividend moves. SUG1: two fields. Both have coverage >0.8 so no backfill. Confidence 0.48.",
+      "implementation": "multiply(anl48_count_index_members, anl48_index_m21_dly_dvd_yqe)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Dividend yield outlier reversion using winsorize",
+      "description": "Apply winsorize then zscore to bp12m_yld to remove outliers. SUG1 single field; SUG3: backfill before winsorize since coverage<0.6. Confidence 0.64.",
+      "implementation": "zscore(winsorize(ts_backfill(anl48_bp12m_yld,90), std=4))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Detect upcoming dividend via announcement frequency increase",
+      "description": "Use bulk_bdvd_all_projections_ibs rising as forecast indicator. SUG1 single field; SUG3 backfilled. Confidence 0.47.",
+      "implementation": "ts_zscore(ts_backfill(anl48_bulk_bdvd_all_projections_ibs,180), 90)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Dividend yield vs recent maximum (ts_max_diff)",
+      "description": "Measure bp12m_yld drawdown from recent max to identify recovery opportunities. SUG3: backfill. SUG1 single field. Confidence 0.59.",
+      "implementation": "ts_max_diff(ts_backfill(anl48_bp12m_yld,252), 252)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Dividend health + recent yield spike filter",
+      "description": "Multiply dividend health zscore by recent yield delta to select healthy spikes. SUG1 two fields; SUG3 backfilled both. Confidence 0.63.",
+      "implementation": "multiply(ts_zscore(ts_backfill(anl48_bdvd_curr_dvd_health,180),60), ts_delta(ts_backfill(anl48_bp12m_yld,180),30))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Dividend frequency increase (kth_element backfill)",
+      "description": "Backfill using kth_element to find last announced dividend if missing then measure recency. SUG3: applied kth_element for robustness. Field anl48_bdhpd used (pay date). Confidence 0.46.",
+      "implementation": "kth_element(anl48_bdhpd,365,1)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Dividend yield pairing with last dividend amount",
+      "description": "Compare bp12m_yld with equity_dvd_sh_last to detect mispricings. SUG1: two fields. SUG3: both backfilled. Kept operations minimal. Confidence 0.6.",
+      "implementation": "subtract(ts_backfill(anl48_bp12m_yld,90), ts_backfill(anl48_equity_dvd_sh_last,90))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Index-weighted dividend momentum",
+      "description": "Scale stock bp12m_yld by index dividend metric and zscore cross-sectionally. SUG1: two fields; both backfilled if needed. KEEP_IN_MINDs minimal. Confidence 0.55.",
+      "implementation": "zscore(divide(ts_backfill(anl48_bp12m_yld,90), anl48_index_m21_dly_dvd_yqe))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Dividend announcement cadence stability (group proxy)",
+      "description": "Use bulk_dvd_hist_ibs vec_count to proxy stability of historical announcements. SUG2: used vec_count. SUG3: coverage ok. No group operator used alone. Confidence 0.49.",
+      "implementation": "vec_count(anl48_bulk_dvd_hist_ibs)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Short-term dividend yield momentum mean reversion",
+      "description": "Reverse recent bp12m_yld 10-day zscore to capture reversion. SUG3: backfilled bp12m_yld. Simple chain. Confidence 0.58.",
+      "implementation": "reverse(ts_zscore(ts_backfill(anl48_bp12m_yld,30),10))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Dividend health vs gross dividend history mismatch",
+      "description": "Compute difference between health score and recent gross sum to find overstated health. SUG1 two fields; SUG3: backfilled as needed. Confidence 0.57.",
+      "implementation": "subtract(ts_zscore(ts_backfill(anl48_bdvd_curr_dvd_health,180),60), ts_zscore(ts_sum(ts_backfill(anl48_bedhga,365),365),180))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Dividend yield recovery after ex-date",
+      "description": "Detect stocks that have less post-ex dip by comparing pre/post ex-date yields using td_xe_dvd marker. SUG1 fields used; SUG3 backfilled. Implementation kept short. Confidence 0.5.",
+      "implementation": "ts_arg_min(ts_backfill(anl48_td_xe_dvd_cb,120), 60)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Dividend growth surprise using announced vs gross history",
+      "description": "Compare bpda (next forecast DPS) with historical gross sum to find surprises. SUG1 two fields; SUG3 backfilled. Confidence 0.6.",
+      "implementation": "subtract(ts_backfill(anl48_bpda,90), ts_sum(ts_backfill(anl48_bedhga,365),365))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Dividend yield volatility premium",
+      "description": "Long stocks with high yield but low recent yield volatility (combine zscore and reverse ts_std_dev). SUG1: single field used twice with ts_backfill. Confidence 0.68.",
+      "implementation": "multiply(ts_zscore(ts_backfill(anl48_bp12m_yld,180),60), reverse(ts_std_dev(ts_backfill(anl48_bp12m_yld,180),60)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Persistent dividend growers (ts_ir)",
+      "description": "Use ts_ir on bp3y_dg to find consistent growth with high IR. SUG3: backfilled bp3y_dg. SUG1 single field. Confidence 0.42.",
+      "implementation": "ts_ir(ts_backfill(anl48_bp3y_dg,365), 365)",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Dividend yield vs last announced gross",
+      "description": "Divide bp12m_yld by anl48_equity_ldg to detect yield priced low relative to last gross. SUG1 two fields; SUG3 backfilled both. Confidence 0.59.",
+      "implementation": "divide(ts_backfill(anl48_bp12m_yld,90), ts_backfill(anl48_equity_ldg,90))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Detect changes in dividend policy via ibc counters",
+      "description": "Use anl48_equity_ibc (serial number changes) as proxy for corporate action leading to dividend changes. SUG1 single field; coverage 0.5243 -> ts_backfill. Confidence 0.43.",
+      "implementation": "ts_zscore(ts_backfill(anl48_equity_ibc,365), 180)",
+      "confidence_level": 0.43
+    },
+    {
+      "idea": "Yield vs recent 12m max (ts_arg_max)",
+      "description": "Find stocks where current yield equals recent max (ts_arg_max on bp12m_yld). SUG3: backfilled. SUG1 single field. Confidence 0.56.",
+      "implementation": "ts_arg_max(ts_backfill(anl48_bp12m_yld,252), 252)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Dividend announcement lead-lag decomposition",
+      "description": "Compute ts_covariance between bp12m_yld and gross history to find leading indicators. SUG1 two fields; SUG3 backfilled. Confidence 0.51.",
+      "implementation": "ts_covariance(ts_backfill(anl48_bp12m_yld,252), ts_sum(ts_backfill(anl48_bedhga,365),365), 180)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Dividend payout health adjusted momentum",
+      "description": "Multiply recent bp12m_yld momentum by dividend health score to favor quality yield. SUG1 two fields; SUG3 backfilled. Confidence 0.67.",
+      "implementation": "multiply(ts_zscore(ts_delta(ts_backfill(anl48_bp12m_yld,180),30),30), ts_zscore(ts_backfill(anl48_bdvd_curr_dvd_health,180),60))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Index dividend type filter",
+      "description": "Use anl48_indx_typ to weight signals differently by index structure (cap vs equal). SUG1: single index field used for scaling. Coverage>0.8 so no backfill. Confidence 0.45.",
+      "implementation": "divide(ts_zscore(ts_backfill(anl48_bp12m_yld,90),30), anl48_indx_typ)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Dividend announcement clustering momentum",
+      "description": "Use vec_sum on bulk_eqy_dvd_hist_gross_ibs to find concentrated recent gross announcements. SUG2 applied vec_sum. SUG3: coverage 0.516 -> but vec_sum applied. Confidence 0.5.",
+      "implementation": "vec_sum(anl48_bulk_eqy_dvd_hist_gross_ibs)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Last dividend amount zscore with winsorize",
+      "description": "Winsorize equity_dvd_sh_last then zscore for robust cross-sectional ranking. SUG3: backfill since coverage~0.5089. SUG1 single field. Confidence 0.61.",
+      "implementation": "zscore(winsorize(ts_backfill(anl48_equity_dvd_sh_last,90), std=4))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Dividend yield momentum conditioned on record date",
+      "description": "Boost yield momentum for securities with upcoming record dates (anl48_dvd_record_dt). SUG1 two fields; SUG3 backfilled both. Confidence 0.55.",
+      "implementation": "multiply(ts_zscore(ts_backfill(anl48_bp12m_yld,90),21), inverse(ts_arg_min(ts_backfill(anl48_dvd_record_dt,120),60)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Dividend stability score using vec_range",
+      "description": "Use vec_range on historical dividend vectors (anl48_bedhga assumed vector) to measure stability. SUG2 applied vec_range. SUG3 coverage borderline -> used vec operators. Confidence 0.51.",
+      "implementation": "reverse(vec_range(anl48_bedhga))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Dividend growth vs last paid amount",
+      "description": "Compare bp3y_dg to equity_dvd_sh_last to find under/over priced growth prospects. SUG1 two fields; SUG3: both backfilled. Confidence 0.54.",
+      "implementation": "subtract(ts_backfill(anl48_bp3y_dg,365), ts_backfill(anl48_equity_dvd_sh_last,90))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "High index dividend contributors",
+      "description": "Rank members by contribution to index dividend point projection (anl48_bp12m_dip) and favor high contributors with stable history. SUG1 single high-coverage index field (coverage 0.8291). SUG4 userCount low but coverage high. Confidence 0.53.",
+      "implementation": "ts_zscore(anl48_bp12m_dip, 90)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Dividend announcement recency weighted by size",
+      "description": "Weight recency of announcement (bdhad) by last dividend amount (equity_dvd_sh_last). SUG1 two fields; SUG3 backfilled both. Confidence 0.56.",
+      "implementation": "multiply(inverse(days_from_last_change(ts_backfill(anl48_bdhad,365))), ts_backfill(anl48_equity_dvd_sh_last,90))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Dividend health divergence from history",
+      "description": "Compute ts_av_diff of dividend health to detect divergence from its recent mean. SUG1 single field; SUG3: backfilled. Confidence 0.52.",
+      "implementation": "ts_av_diff(ts_backfill(anl48_bdvd_curr_dvd_health,180), 90)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Yield spike paired with low member count risk",
+      "description": "Long yields spikes in indices with low member count (anl48_bulk_count_index_members) to exploit concentration re-rating. SUG1 two fields; member count coverage high so no backfill. Confidence 0.47.",
+      "implementation": "multiply(ts_zscore(ts_backfill(anl48_bp12m_yld,90),21), inverse(anl48_bulk_count_index_members))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Dividend yield momentum with tail clipping",
+      "description": "Apply tail to clip extreme yield zscores to reduce tail risk. SUG1 single field backfilled. KEEP_IN_MIND: used tail to control extremes. Confidence 0.63.",
+      "implementation": "tail(ts_zscore(ts_backfill(anl48_bp12m_yld,90),30), lower=-3, upper=3, newval=0)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Gross dividend announce date lead indicator",
+      "description": "Use bedhpd (pay date) recency as lead signal. SUG1 single field; SUG3 backfilled. Confidence 0.45.",
+      "implementation": "ts_arg_min(ts_backfill(anl48_bdhpd,365), 365)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Dividend yield zscore combined with index type bucket",
+      "description": "Bucket bp12m_yld zscore by anl48_indx_typ to create sub-strategies per index type. SUG1 two fields; SUG3 backfilled bp12m_yld. KEEP_IN_MIND avoided group operator. Confidence 0.5.",
+      "implementation": "bucket(zscore(ts_backfill(anl48_bp12m_yld,90)), range=\"-3,3,0.5\")",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Dividend payer longevity proxy",
+      "description": "Use analisys of equity_td_xe_dvd (first trade without entitlement) history to infer longevity. SUG1 single field backfilled. Confidence 0.44.",
+      "implementation": "days_from_last_change(ts_backfill(anl48_equity_td_xe_dvd,365))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Dividend yield zscore smoothed with ts_decay_linear",
+      "description": "Apply ts_decay_linear to recent yield zscores to emphasize recent changes. SUG3: backfilled. SUG1 single field. Confidence 0.6.",
+      "implementation": "ts_decay_linear(ts_zscore(ts_backfill(anl48_bp12m_yld,180),60), 60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Yield vs indexed gross last 12m anomaly",
+      "description": "Compare stock bp12m_yld with index_ldg to find anomalies. SUG1 two fields; index_ldg coverage high so only bp12m_yld backfilled. Confidence 0.58.",
+      "implementation": "subtract(ts_backfill(anl48_bp12m_yld,90), anl48_index_ldg)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Dividend growth zscore cross-section",
+      "description": "Cross-sectional zscore of bp3y_dg to identify relative growers. SUG3: backfilled bp3y_dg. SUG1 single field. Confidence 0.46.",
+      "implementation": "zscore(ts_backfill(anl48_bp3y_dg,365))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Dividend forecast discord (bulk vs equity forecast)",
+      "description": "Compare bulk_bdvd_all_projections_par_amt with bpda to find mismatches. SUG1 two fields; bulk coverage low -> apply ts_backfill. SUG3: backfilled both. Confidence 0.48.",
+      "implementation": "subtract(ts_backfill(anl48_bulk_bdvd_all_projections_par_amt,180), ts_backfill(anl48_bpda,180))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Dividend yield momentum filtered by announcement recency",
+      "description": "Multiply bp12m_yld zscore with a recency indicator (bdhad) to focus on recently active payers. SUG3: backfilled both. SUG1: two fields. Confidence 0.61.",
+      "implementation": "multiply(ts_zscore(ts_backfill(anl48_bp12m_yld,90),30), inverse(days_from_last_change(ts_backfill(anl48_bdhad,365))))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Gross dividend announcement intensity",
+      "description": "Use group_count proxy vec_count on equity_bulk_dvd_hist_ibc to measure intensity. SUG2 applied vec_count. Coverage moderate. Confidence 0.5.",
+      "implementation": "vec_count(anl48_equity_bulk_dvd_hist_ibc)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Dividend yield contrarian after sustained run-up",
+      "description": "Reverse long short on stocks whose bp12m_yld is at multi-month high (ts_arg_max). SUG3: backfilled. SUG1 single field. Confidence 0.57.",
+      "implementation": "reverse(ts_arg_max(ts_backfill(anl48_bp12m_yld,252),252))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Dividend sustainability score combining health and history",
+      "description": "Combine dividend health zscore with inverse vec_range of history to produce sustainability. SUG2 used vec_range. SUG3 backfilled health. Confidence 0.64.",
+      "implementation": "multiply(ts_zscore(ts_backfill(anl48_bdvd_curr_dvd_health,180),60), reverse(vec_range(anl48_bedhga)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Dividend payout acceleration vs price reaction",
+      "description": "Measure ts_delta on equity_dvd_sh_last and cross with recent returns proxy (using bp12m_yld returns). SUG1 two fields; SUG3 backfilled. Confidence 0.52.",
+      "implementation": "multiply(ts_delta(ts_backfill(anl48_equity_dvd_sh_last,180),30), ts_returns(ts_backfill(anl48_bp12m_yld,90),20))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Conservative yield screen",
+      "description": "Select stocks with moderate bp12m_yld (not extreme) using bucket to avoid tail risk. SUG3: backfilled. SUG1 single field. Confidence 0.6.",
+      "implementation": "bucket(ts_backfill(anl48_bp12m_yld,90), range=\"0,1,0.1\")",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Dividend forecast consistency via nth-element backfill",
+      "description": "Use kth_element to backfill bpda when missing by taking last valid forecast, then track changes. SUG3 applied kth_element. SUG1 single field. Confidence 0.49.",
+      "implementation": "kth_element(anl48_bpda,365,1)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Dividend yield vs index last gross gap",
+      "description": "Calculate gap between stock bp12m_yld and index_ldg to find relative anomalies. SUG1 two fields; SUG3 backfilled bp12m_yld only. Confidence 0.57.",
+      "implementation": "subtract(ts_backfill(anl48_bp12m_yld,90), anl48_index_ldg)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Dividend health peak detection",
+      "description": "Use ts_arg_max on dividend health score to find recent peaks (possible reversion). SUG3: backfilled. SUG1 single field. Confidence 0.46.",
+      "implementation": "ts_arg_max(ts_backfill(anl48_bdvd_curr_dvd_health,365), 365)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Dividend history winsorized aggregation",
+      "description": "Aggregate gross history with ts_sum then winsorize to avoid outliers. SUG3: backfilled history. SUG1 single field. Confidence 0.55.",
+      "implementation": "winsorize(ts_sum(ts_backfill(anl48_bedhga,365),365), std=4)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Dividend yield persistence via ts_rank",
+      "description": "Rank bp12m_yld in time (ts_rank) to find persistent high-yielders. SUG3: backfilled. SUG1 single field. Confidence 0.62.",
+      "implementation": "ts_rank(ts_backfill(anl48_bp12m_yld,252), 252)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Dividend payout timing arbitrage",
+      "description": "Exploit predictable pay date lags using dvd_pay_dt recency metrics. SUG3: backfilled. SUG1 single field. Confidence 0.44.",
+      "implementation": "days_from_last_change(ts_backfill(anl48_dvd_pay_dt,365))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "High dividend yield but low future projections",
+      "description": "Flag stocks with current high bp12m_yld but low bp12m_dip (index projection) to find idiosyncratic yield. SUG1 two fields; SUG3 backfilled stock field. Confidence 0.58.",
+      "implementation": "subtract(ts_zscore(ts_backfill(anl48_bp12m_yld,90),21), ts_zscore(anl48_bp12m_dip,90))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Dividend volatility decomposition",
+      "description": "Combine ts_kurtosis on bp12m_yld to identify fat-tail yield securities. SUG3: backfilled. SUG1 single field. Confidence 0.43.",
+      "implementation": "ts_kurtosis(ts_backfill(anl48_bp12m_yld,252), 252)",
+      "confidence_level": 0.43
+    },
+    {
+      "idea": "Dividend health weighted index contributors",
+      "description": "Weight index contributors by dividend health to tilt index exposure. SUG1 two fields; index metrics coverage high so no backfill. Confidence 0.47.",
+      "implementation": "multiply(anl48_index_m21_dly_dvd_yqe, ts_zscore(ts_backfill(anl48_bdvd_curr_dvd_health,180),60))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Dividend yield momentum with trading cutoff",
+      "description": "Use trade_when to hold alpha only when bp12m_yld zscore > threshold to reduce turnover. SUG1 single field backfilled. KEEP_IN_MIND short ops. Confidence 0.65.",
+      "implementation": "trade_when(ts_zscore(ts_backfill(anl48_bp12m_yld,90),30), greater(ts_zscore(ts_backfill(anl48_bp12m_yld,90),30),1), NaN)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Dividend growth vs last record mismatch",
+      "description": "Find stocks where bp3y_dg diverges from last gross dividend (equity_ldg) indicating change in payout policy. SUG1 two fields backfilled. Confidence 0.53.",
+      "implementation": "subtract(ts_backfill(anl48_bp3y_dg,365), ts_backfill(anl48_equity_ldg,90))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Dividend yield momentum filtered by count of members",
+      "description": "Downweight bp12m_yld signals in indices with many members to avoid crowdedness (bulk_count_index_members). SUG1 two fields; bulk count coverage high. Confidence 0.46.",
+      "implementation": "divide(ts_zscore(ts_backfill(anl48_bp12m_yld,90),30), anl48_count_index_members)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Dividend announcement cadence smoothing",
+      "description": "Use ts_mean on bulk_dvd_hist_par_amt to smooth noisy projection counts. SUG3: bulk coverage low -> ts_backfill used. SUG2 not used. Confidence 0.48.",
+      "implementation": "ts_mean(ts_backfill(anl48_bulk_dvd_hist_par_amt,180),90)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Dividend yield vs 12m historical avg",
+      "description": "Divide current bp12m_yld by its ts_mean(252) to find elevated yields. SUG3: backfilled. SUG1 single field. Confidence 0.66.",
+      "implementation": "divide(ts_backfill(anl48_bp12m_yld,90), ts_mean(ts_backfill(anl48_bp12m_yld,365),252))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Dividend health zscore to avoid weak payers",
+      "description": "Cross-sectional zscore on dividend health to short weak signals. SUG3: backfilled. SUG1 single field. Confidence 0.6.",
+      "implementation": "zscore(ts_backfill(anl48_bdvd_curr_dvd_health,180))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Dividend yield vs recent median (ts_quantile)",
+      "description": "Apply ts_quantile to bp12m_yld to get normalized deviation from recent distribution. SUG3: backfilled. SUG1 single field. Confidence 0.62.",
+      "implementation": "ts_quantile(ts_backfill(anl48_bp12m_yld,252), 252)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Dividend announcement predictability via ts_regression",
+      "description": "Run ts_regression of gross history on time to detect trend slope (bedhga). SUG3: backfilled. SUG1 single field. Confidence 0.45.",
+      "implementation": "ts_regression(ts_backfill(anl48_bedhga,365), ts_step(1), 365, 0, 0)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "High last dividend but low forecast gap",
+      "description": "Short stocks where last paid dividend significantly exceeds next forecast (equity_dvd_sh_last > bpda). SUG1 two fields backfilled. Confidence 0.59.",
+      "implementation": "greater(ts_backfill(anl48_equity_dvd_sh_last,90), ts_backfill(anl48_bpda,90))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Dividend yield short-term mean reversion via ts_scale",
+      "description": "Scale bp12m_yld into 0-1 over recent window and reverse to get reversion tilt. SUG3: backfilled. SUG1 single field. Confidence 0.58.",
+      "implementation": "reverse(ts_scale(ts_backfill(anl48_bp12m_yld,180), 180))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Dividend history record dominance",
+      "description": "Use ts_arg_max on bedhgrd (gross record date) to find dominant historic record dates. SUG3: backfilled. SUG1 single field. Confidence 0.46.",
+      "implementation": "ts_arg_max(ts_backfill(anl48_bedhgrd,365), 365)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Dividend payout anomaly via group backfill proxy",
+      "description": "Where gross history missing, use ts_backfill then winsorize to avoid outlier artifacts. SUG3 applied. SUG1 single field. Confidence 0.5.",
+      "implementation": "winsorize(ts_backfill(anl48_bedhga,365), std=4)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Dividend forecast momentum (bpnepd)",
+      "description": "Use next forecasted dividend pay date (anl48_bnepd) timing momentum to trade around payments. SUG3: coverage 0.5243 -> backfill. SUG1 single field. Confidence 0.44.",
+      "implementation": "ts_arg_min(ts_backfill(anl48_bnepd,180), 90)",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Dividend yield drawdown recovery trade",
+      "description": "Use ts_max_diff on bp12m_yld to spot large drawdowns and bet on recovery. SUG3: backfilled. SUG1 single field. Confidence 0.61.",
+      "implementation": "ts_max_diff(ts_backfill(anl48_bp12m_yld,252), 252)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Dividend health cross-sectional bucketing",
+      "description": "Bucket dividend health into deciles for portfolio tilting. SUG3: backfilled health. SUG1 single field. Confidence 0.55.",
+      "implementation": "bucket(ts_backfill(anl48_bdvd_curr_dvd_health,180), range=\"-100,100,20\")",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "High-frequency dividend announcement signal",
+      "description": "Use ts_count_nans on bpda to flag sparse forecasting behaviors (high counts imply data gaps). SUG3: backfilled bpda; used ts_count_nans. Confidence 0.43.",
+      "implementation": "ts_count_nans(ts_backfill(anl48_bpda,365),365)",
+      "confidence_level": 0.43
+    }
+  ]
+}

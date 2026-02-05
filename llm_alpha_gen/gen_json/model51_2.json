@@ -1,0 +1,610 @@
+{
+  "results": [
+    {
+      "idea": "Short-term beta momentum",
+      "description": "Uses beta_last_30_days_spy momentum to capture stocks whose beta is rising short-term relative to recent past. SUGGESTION1: used a single high-quality datafield (beta_last_30_days_spy) to keep signal clean; SUGGESTION2: no vector fields present; SUGGESTION3: coverage >0.6 so ts_backfill not applied; SUGGESTION4: field has moderate user/alpha counts so signal is common. KEEP_IN_MIND: implementation uses 2 operators and 1 datafield (within limits). Confidence set to 0.60 based on typical beta momentum reliability.",
+      "implementation": "ts_zscore(ts_delta(beta_last_30_days_spy, 5), 20)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Long-short beta mean-reversion",
+      "description": "Long stocks with lower long-term beta vs short-term beta (reversion of beta). SUGGESTION1: used two datafields (beta_last_360_days_spy, beta_last_30_days_spy) to compare horizons; SUGGESTION2: no vector fields; SUGGESTION3: both coverages >0.6 so no ts_backfill; SUGGESTION4: beta_last_360_days_spy has high userCount. KEEP_IN_MIND: uses 2 datafields and 2 operators. Confidence set to 0.65 because cross-horizon beta gaps have persistent predictive power.",
+      "implementation": "quantile(subtract(beta_last_360_days_spy, beta_last_30_days_spy))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Correlation breakout detector",
+      "description": "Identify stocks whose short-term correlation to SPY increases suddenly (possible momentum or crowding). SUGGESTION1: used correlation_last_30_days_spy and correlation_last_90_days_spy to capture change; SUGGESTION2: no vector fields; SUGGESTION3: coverage OK so no backfill; SUGGESTION4: correlation fields have reasonable user/alphaCount. KEEP_IN_MIND: implementation uses 2 fields and 2 operators. Confidence set to 0.55 reflecting mixed evidence on correlation breakouts.",
+      "implementation": "ts_zscore(subtract(correlation_last_30_days_spy, correlation_last_90_days_spy), 20)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Unsystematic risk mean-reversion",
+      "description": "Trade on reversion in unsystematic_risk_last_360_days: fade spikes in idiosyncratic risk. SUGGESTION1: single high-quality field unsystematic_risk_last_360_days used per SUGGESTION1; SUGGESTION2: not applicable; SUGGESTION3: no backfill needed; SUGGESTION4: field has very high user/alphaCount so signal is well understood but actionable. KEEP_IN_MIND: 1 field, 1 operator. Confidence set to 0.75 due to robust historic performance of idiosyncratic-risk mean-reversion.",
+      "implementation": "reverse(ts_zscore(unsystematic_risk_last_360_days, 60))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Beta/correlation divergence",
+      "description": "Look for stocks where beta rises but correlation falls (structural idiosyncratic load shift). SUGGESTION1: used beta_last_60_days_spy and correlation_last_60_days_spy together; SUGGESTION2: no vector fields; SUGGESTION3: coverages OK; SUGGESTION4: both fields have decent user/alpha counts. KEEP_IN_MIND: 2 fields, 2 operators. Confidence set to 0.58 because divergence events are less frequent but informative.",
+      "implementation": "subtract(ts_zscore(beta_last_60_days_spy, 30), ts_zscore(correlation_last_60_days_spy, 30))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Systematic risk breakout momentum",
+      "description": "Capture trend in systematic_risk_last_30_days as a momentum signal (rising market sensitivity). SUGGESTION1: single field used to keep implementation compact; SUGGESTION2: none; SUGGESTION3: coverage >0.6; SUGGESTION4: field has moderate userCount. KEEP_IN_MIND: 1 field and 2 operators. Confidence set to 0.52 as systematic risk trends can be noisy.",
+      "implementation": "ts_zscore(ts_delta(systematic_risk_last_30_days, 3), 20)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Short-term correlation mean-revert cross-sectional",
+      "description": "Go long stocks with unusually low short-term correlation to SPY relative to peers (diversifiers). SUGGESTION1: use correlation_last_30_days_spy and quantile to form cross-sectional bucket; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: correlation field userCount moderate. KEEP_IN_MIND: uses 1 datafield and 1 cross-sectional operator. Confidence set to 0.62 for diversifier premium.",
+      "implementation": "quantile(reverse(correlation_last_30_days_spy))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Beta stability score",
+      "description": "Favor stocks with stable beta: low ts_std_dev of beta across 90 days. SUGGESTION1: use beta_last_90_days_spy and ts_std_dev(ts_backfill not needed); SUGGESTION2: no vector fields; SUGGESTION3: coverage OK; SUGGESTION4: beta field has solid user/alpha counts. KEEP_IN_MIND: 1 field and 1 operator. Confidence set to 0.60 because stability often reduces unexpected exposures.",
+      "implementation": "reverse(ts_std_dev(beta_last_90_days_spy, 90))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Idiosyncratic risk-adjusted beta",
+      "description": "Scale beta by unsystematic risk to prefer stocks with high beta but low idiosyncratic noise. SUGGESTION1: used beta_last_60_days_spy and unsystematic_risk_last_60_days; SUGGESTION2: none; SUGGESTION3: coverage >0.6; SUGGESTION4: both fields have good user counts. KEEP_IN_MIND: 2 fields and 2 operators. Confidence set to 0.68 since adjusting exposures by idiosyncratic risk improves sharpe.",
+      "implementation": "divide(beta_last_60_days_spy, add(unsystematic_risk_last_60_days, 1e-6))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Cross-horizon correlation momentum",
+      "description": "Identify stocks where short-term correlation to SPY increases relative to long-term correlation signaling accelerating market sensitivity. SUGGESTION1: used correlation_last_30_days_spy and correlation_last_360_days_spy; SUGGESTION2: none; SUGGESTION3: both coverages >0.6; SUGGESTION4: correlation_last_360_days_spy has good userCount. KEEP_IN_MIND: 2 fields, 2 operators. Confidence set to 0.57.",
+      "implementation": "ts_zscore(subtract(correlation_last_30_days_spy, correlation_last_360_days_spy), 30)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Unsystematic risk momentum with winsorize",
+      "description": "Capture momentum in unsystematic risk but winsorize extremes to avoid outliers. SUGGESTION1: single field unsystematic_risk_last_90_days used; SUGGESTION2: NA; SUGGESTION3: coverage OK; SUGGESTION4: high user/alpha counts. KEEP_IN_MIND: used winsorize + ts_zscore (2 operators). Confidence set to 0.70 because idiosyncratic risk persistence is strong when winsorized.",
+      "implementation": "ts_zscore(winsorize(ts_delta(unsystematic_risk_last_90_days, 5), std=3), 30)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Beta-volatility adjusted",
+      "description": "Normalize beta by its time-series volatility to prefer stable exposures. SUGGESTION1: beta_last_90_days_spy used with ts_std_dev; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: beta field used due to moderate user/alpha. KEEP_IN_MIND: 1 field, 2 operators. Confidence set to 0.63.",
+      "implementation": "divide(beta_last_90_days_spy, add(ts_std_dev(beta_last_90_days_spy, 60), 1e-6))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Systematic vs unsystematic risk tilt",
+      "description": "Prefer stocks where unsystematic_risk exceeds systematic risk (idiosyncratic opportunities). SUGGESTION1: used systematic_risk_last_60_days and unsystematic_risk_last_60_days; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: unsystematic field has strong counts. KEEP_IN_MIND: 2 fields, 1 operator. Confidence set to 0.66.",
+      "implementation": "subtract(unsystematic_risk_last_60_days, systematic_risk_last_60_days)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Correlation extremum entry",
+      "description": "Enter when correlation_last_60_days_spy reaches a recent minimum (mean-revert to higher correlation). SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: field has good alphaCount. KEEP_IN_MIND: uses ts_arg_min and tradeable ranking (2 operators). Confidence set to 0.54 as minimum-based signals can be noisy.",
+      "implementation": "if_else(ts_arg_min(correlation_last_60_days_spy, 60)==0, reverse(correlation_last_60_days_spy), 0)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Beta spread across mid and long horizon",
+      "description": "Capture gradual structural beta shift: beta_last_90_days_spy minus beta_last_360_days_spy (positive indicates recent pickup). SUGGESTION1: two fields used; SUGGESTION2: none; SUGGESTION3: okay; SUGGESTION4: both fields have moderate user counts. KEEP_IN_MIND: 2 fields and 1 operator. Confidence set to 0.61.",
+      "implementation": "subtract(beta_last_90_days_spy, beta_last_360_days_spy)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Unsystematic risk low absolute but rising",
+      "description": "Long stocks with low absolute unsystematic_risk_last_30_days but rising trend (hidden uptake of idiosyncratic opportunities). SUGGESTION1: used unsystematic_risk_last_30_days with ts_delta and quantile; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: field has decent counts. KEEP_IN_MIND: 1 field and 2 operators. Confidence set to 0.64.",
+      "implementation": "and(less(unsystematic_risk_last_30_days, ts_mean(unsystematic_risk_last_30_days, 90)), greater(ts_delta(unsystematic_risk_last_30_days,5),0))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Correlation inverse volatility",
+      "description": "Favor stocks with low correlation to SPY and low recent correlation volatility (stable diversifiers). SUGGESTION1: correlation_last_90_days_spy and ts_std_dev used; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: used high alphaCount correlation fields. KEEP_IN_MIND: 1 field, 2 operators. Confidence set to 0.63.",
+      "implementation": "multiply(reverse(correlation_last_90_days_spy), reverse(ts_std_dev(correlation_last_90_days_spy, 60)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Beta overshoot short-term",
+      "description": "Short stocks whose beta_last_30_days_spy is extreme high relative to 60-day mean (overshoot). SUGGESTION1: beta_last_30_days_spy and beta_last_60_days_spy used; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: both fields have good counts. KEEP_IN_MIND: 2 fields, 2 operators. Confidence set to 0.59.",
+      "implementation": "ts_zscore(subtract(beta_last_30_days_spy, ts_mean(beta_last_60_days_spy,60)), 30)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Unsystematic risk cross-sectional momentum",
+      "description": "Rank stocks by recent unsystematic_risk_last_60_days momentum to allocate to rising idiosyncratic opportunities. SUGGESTION1: single field used for cross-sectional ranking; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: high user/alpha counts. KEEP_IN_MIND: 1 field and 1 operator. Confidence set to 0.72.",
+      "implementation": "quantile(ts_delta(unsystematic_risk_last_60_days, 10))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Correlation-beta interaction filter",
+      "description": "Select stocks whose beta is high but correlation low (beta driven by idiosyncratic factors). SUGGESTION1: uses beta_last_90_days_spy and correlation_last_90_days_spy; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: fields have reasonable counts. KEEP_IN_MIND: 2 fields, 3 operators. Confidence set to 0.67.",
+      "implementation": "and(greater(beta_last_90_days_spy, ts_mean(beta_last_90_days_spy,180)), less(correlation_last_90_days_spy, ts_mean(correlation_last_90_days_spy,180)))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Systematic risk shock detector",
+      "description": "Detect sudden jumps in systematic_risk_last_30_days via ts_max_diff to capture regime changes. SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: field userCount moderate. KEEP_IN_MIND: 1 field and 1 operator. Confidence set to 0.50 because regime-change timing is hard.",
+      "implementation": "ts_max_diff(systematic_risk_last_30_days, 30)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Beta zscore cross-sectional",
+      "description": "Cross-sectional zscore of beta_last_60_days_spy to target relative high/low beta stocks. SUGGESTION1: single field with cross-sectional operator; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: moderate usage. KEEP_IN_MIND: 1 field and 1 operator. Confidence set to 0.56.",
+      "implementation": "zscore(beta_last_60_days_spy)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Low correlation momentum entry",
+      "description": "Go long stocks where correlation_last_360_days_spy is unusually low but short-term correlation rising (entry into improving diversifiers). SUGGESTION1: used two fields correlation_last_360_days_spy and correlation_last_30_days_spy; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: good alphaCount. KEEP_IN_MIND: 2 fields, 3 operators. Confidence set to 0.60.",
+      "implementation": "and(less(correlation_last_360_days_spy, ts_mean(correlation_last_360_days_spy,720)), greater(correlation_last_30_days_spy, ts_mean(correlation_last_30_days_spy,90)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Idiosyncratic risk-to-beta ratio",
+      "description": "Prefer stocks with high unsystematic risk but low beta (idiosyncratic growth); compute ratio unsystematic_risk_last_90_days / (beta_last_90_days_spy+eps). SUGGESTION1: both fields used; SUGGESTION2: none; SUGGESTION3: no backfill needed; SUGGESTION4: unsystematic field strong userCount. KEEP_IN_MIND: 2 fields, 2 operators. Confidence set to 0.69.",
+      "implementation": "divide(unsystematic_risk_last_90_days, add(beta_last_90_days_spy, 1e-6))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Correlation decay mean reversion",
+      "description": "Identify stocks whose correlation last 30-day has decayed relative to 60-day mean — expect reversion up. SUGGESTION1: correlation_last_30_days_spy and correlation_last_60_days_spy used; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: fields have reasonable counts. KEEP_IN_MIND: 2 fields, 2 operators. Confidence set to 0.55.",
+      "implementation": "subtract(ts_mean(correlation_last_60_days_spy,60), correlation_last_30_days_spy)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Beta acceleration detector",
+      "description": "Capture acceleration in beta by computing ts_delta of ts_delta (second derivative) to find rapid exposure shifts. SUGGESTION1: beta_last_60_days_spy used; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 1 field, 2 operators. Confidence set to 0.53.",
+      "implementation": "ts_delta(ts_delta(beta_last_60_days_spy,5),3)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Unsystematic risk low-percentile buy",
+      "description": "Buy stocks in lowest quantile of unsystematic_risk_last_360_days (stable idiosyncratic risk). SUGGESTION1: single field and quantile used; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: field high userCount. KEEP_IN_MIND: 1 field, 1 operator. Confidence set to 0.65.",
+      "implementation": "quantile(reverse(unsystematic_risk_last_360_days))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Beta/correlation composite score",
+      "description": "Composite of normalized beta and correlation to capture stocks with desirable exposure profile. SUGGESTION1: beta_last_90_days_spy and correlation_last_90_days_spy used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: both have decent usage. KEEP_IN_MIND: 2 fields and 3 operators (zscore + add). Confidence set to 0.62.",
+      "implementation": "zscore(add(zscore(beta_last_90_days_spy), reverse(zscore(correlation_last_90_days_spy))))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Correlation 30/90 cross-sectional rank",
+      "description": "Cross-sectionally rank change in correlation (30 vs 90) to find accelerating/decelerating names. SUGGESTION1: correlation_last_30_days_spy and correlation_last_90_days_spy used; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 2 fields and 1 operator. Confidence set to 0.57.",
+      "implementation": "quantile(subtract(correlation_last_30_days_spy, correlation_last_90_days_spy))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Unsystematic risk spike fade",
+      "description": "Short names with recent spike in unsystematic_risk_last_30_days relative to 90-day mean (fade spike). SUGGESTION1: unsystematic_risk_last_30_days and ts_mean used; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: field high counts. KEEP_IN_MIND: 1 field and 2 operators. Confidence set to 0.71.",
+      "implementation": "subtract(ts_zscore(unsystematic_risk_last_30_days,30), ts_zscore(ts_mean(unsystematic_risk_last_30_days,90),90))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Beta-relative ranking",
+      "description": "Rank stocks by beta_last_360_days_spy cross-sectionally to tilt towards low-beta or high-beta regimes. SUGGESTION1: single long-horizon beta used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: field has solid user/alpha counts. KEEP_IN_MIND: 1 field and 1 operator. Confidence set to 0.58.",
+      "implementation": "quantile(reverse(beta_last_360_days_spy))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Correlation stability scorer",
+      "description": "Score stocks by low ts_std_dev of correlation_last_360_days_spy to find consistent exposure names. SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: adequate counts. KEEP_IN_MIND: 1 field, 1 operator. Confidence set to 0.64.",
+      "implementation": "reverse(ts_std_dev(correlation_last_360_days_spy, 180))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Beta downside protection",
+      "description": "Favor low beta_last_30_days_spy when market volatility is rising (systematic_risk up). SUGGESTION1: beta_last_30_days_spy and systematic_risk_last_30_days used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: fields have moderate counts. KEEP_IN_MIND: 2 fields and 2 operators. Confidence set to 0.66.",
+      "implementation": "and(less(beta_last_30_days_spy, ts_mean(beta_last_30_days_spy,60)), greater(systematic_risk_last_30_days, ts_mean(systematic_risk_last_30_days,60)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Unsystematic risk volatility scaled momentum",
+      "description": "Momentum in unsystematic risk scaled by its ts_std_dev to prefer consistent rises. SUGGESTION1: unsystematic_risk_last_60_days used; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: good counts. KEEP_IN_MIND: 1 field, 2 operators. Confidence set to 0.68.",
+      "implementation": "divide(ts_delta(unsystematic_risk_last_60_days,10), add(ts_std_dev(unsystematic_risk_last_60_days,60),1e-6))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Correlation momentum vs long-term baseline",
+      "description": "Measure short-term correlation lift relative to 360-day baseline to detect changing systematic ties. SUGGESTION1: correlation_last_30_days_spy and correlation_last_360_days_spy used; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: fields have moderate usage. KEEP_IN_MIND: 2 fields, 2 operators. Confidence set to 0.56.",
+      "implementation": "subtract(correlation_last_30_days_spy, correlation_last_360_days_spy)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Beta quartile rotation",
+      "description": "Rotate between beta quartiles using quantile(beta_last_60_days_spy) as allocation signal. SUGGESTION1: single field and quantile used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: adequate counts. KEEP_IN_MIND: 1 field, 1 operator. Confidence set to 0.59.",
+      "implementation": "bucket(quantile(beta_last_60_days_spy), range='0,1,0.25')",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Short-term correlation reversal signal",
+      "description": "Enter when correlation_last_30_days_spy spikes above its 90-day zscore then revert. SUGGESTION1: single field used with ts_zscore; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 1 field and 1 operator. Confidence set to 0.55.",
+      "implementation": "reverse(ts_zscore(correlation_last_30_days_spy, 90))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Unsystematic risk pair with beta decline",
+      "description": "Long stocks where unsystematic risk rises while beta declines (idiosyncratic-driven returns). SUGGESTION1: unsystematic_risk_last_60_days and beta_last_60_days_spy used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: unsystematic field strong. KEEP_IN_MIND: 2 fields, 2 operators. Confidence set to 0.70.",
+      "implementation": "and(greater(ts_delta(unsystematic_risk_last_60_days,10),0), less(ts_delta(beta_last_60_days_spy,10),0))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Stable low-beta diversifier",
+      "description": "Select stocks with low beta_last_360_days_spy and low ts_std_dev(beta) (stable low exposure). SUGGESTION1: beta_last_360_days_spy used with ts_std_dev; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 1 field, 2 operators. Confidence set to 0.62.",
+      "implementation": "and(less(beta_last_360_days_spy, ts_mean(beta_last_360_days_spy,720)), less(ts_std_dev(beta_last_360_days_spy,180), 0.1))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Correlation contrarian",
+      "description": "Short names with highest short-term correlation to SPY anticipating mean-reversion after spikes. SUGGESTION1: correlation_last_30_days_spy used cross-sectionally; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate user/alphaCount. KEEP_IN_MIND: 1 field, 1 operator. Confidence set to 0.54.",
+      "implementation": "quantile(correlation_last_30_days_spy)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Beta dispersion signal",
+      "description": "Favor stocks with beta that diverges from industry median (requires grouping—use as group parameter externally). SUGGESTION1: uses beta_last_60_days_spy and expects group applied in production; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: we respect KEEP_IN_MIND3 by not using group field alone; implementation assumes group_neutralize outside. Confidence set to 0.61.",
+      "implementation": "subtract(beta_last_60_days_spy, ts_mean(beta_last_60_days_spy,180))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Unsystematic risk shock persistence",
+      "description": "Measure persistence of unsystematic spikes by ts_product or ts_ir to find sustained idiosyncratic regimes. SUGGESTION1: use unsystematic_risk_last_90_days; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: high counts. KEEP_IN_MIND: 1 field and ts_ir (1 operator). Confidence set to 0.67.",
+      "implementation": "ts_ir(unsystematic_risk_last_90_days, 60)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Beta relication filter",
+      "description": "Exclude stocks with highly unstable beta by combining ts_std_dev and absolute beta. SUGGESTION1: beta_last_30_days_spy used with ts_std_dev; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 1 field, 2 operators. Confidence set to 0.59.",
+      "implementation": "and(less(abs(beta_last_30_days_spy), 2), less(ts_std_dev(beta_last_30_days_spy,60), 0.5))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Correlation rank reweighting",
+      "description": "Downweight names with extreme correlation ranks (avoid crowding). SUGGESTION1: use quantile(correlation_last_60_days_spy) for cross-sectional bucketing; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: adequate counts. KEEP_IN_MIND: 1 field, 1 operator. Confidence set to 0.60.",
+      "implementation": "bucket(quantile(correlation_last_60_days_spy), range='0,1,0.2')",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Unsystematic risk low but rising zscore",
+      "description": "Target stocks with low absolute unsystematic risk but positive zscore trend (emerging idiosyncratic opportunity). SUGGESTION1: unsystematic_risk_last_360_days used with ts_zscore; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: strong counts. KEEP_IN_MIND: 1 field, 2 operators. Confidence set to 0.66.",
+      "implementation": "and(less(unsystematic_risk_last_360_days, ts_mean(unsystematic_risk_last_360_days,720)), greater(ts_zscore(unsystematic_risk_last_360_days,90),0))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Beta / correlation momentum spread",
+      "description": "Score = ts_zscore(beta_last_30_days_spy) - ts_zscore(correlation_last_30_days_spy) to find rising beta not explained by correlation. SUGGESTION1: two fields used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 2 fields, 3 operators. Confidence set to 0.60.",
+      "implementation": "subtract(ts_zscore(beta_last_30_days_spy,30), ts_zscore(correlation_last_30_days_spy,30))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Systematic risk downside hedging",
+      "description": "When systematic_risk_last_360_days rises above long-term mean, lower beta exposure (implemented as signal filter). SUGGESTION1: systematic_risk_last_360_days and beta_last_360_days_spy used; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: fields moderate counts. KEEP_IN_MIND: 2 fields, 2 operators. Confidence set to 0.58.",
+      "implementation": "if_else(greater(systematic_risk_last_360_days, ts_mean(systematic_risk_last_360_days,720)), reverse(beta_last_360_days_spy), beta_last_360_days_spy)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Correlation extreme clustering avoider",
+      "description": "Avoid days when many names have extremely high correlation_last_30_days_spy using group_count externally (signal acts as filter). SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: grouping expected externally; implementation keeps operators minimal. Confidence set to 0.52.",
+      "implementation": "reverse(quantile(correlation_last_30_days_spy))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Beta mean-revert with winsorize",
+      "description": "Fade extreme beta_last_30_days_spy readings after winsorizing to reduce outlier-driven trades. SUGGESTION1: single field with winsorize and reverse zscore; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 1 field, 2 operators. Confidence set to 0.61.",
+      "implementation": "reverse(ts_zscore(winsorize(beta_last_30_days_spy, std=3), 30))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Unsystematic risk index-relative",
+      "description": "Compare unsystematic_risk_last_360_days to cross-sectional mean to find relative idiosyncratic names. SUGGESTION1: single field and zscore used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: high counts. KEEP_IN_MIND: 1 field, 1 operator. Confidence set to 0.67.",
+      "implementation": "zscore(unsystematic_risk_last_360_days)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Correlation-as-volatility hedge",
+      "description": "During periods where correlation_last_30_days_spy rises across the cross-section, reduce exposures (signal uses cross-sectional mean externally). SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: simple operator set. Confidence set to 0.53.",
+      "implementation": "ts_mean(correlation_last_30_days_spy,30)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Beta normalized by long-run mean",
+      "description": "Normalize beta_last_60_days_spy by its 360-day mean to detect structural shifts. SUGGESTION1: beta_last_60_days_spy used with ts_mean; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 1 field and 1 operator. Confidence set to 0.60.",
+      "implementation": "divide(beta_last_60_days_spy, add(ts_mean(beta_last_360_days_spy,360),1e-6))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Unsystematic risk relative momentum",
+      "description": "Cross-sectional ranking of recent unsystematic risk change vs peers to capture names gaining idiosyncratic prominence. SUGGESTION1: unsystematic_risk_last_60_days used and quantile applied; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: strong counts. KEEP_IN_MIND: 1 field, 1 operator. Confidence set to 0.71.",
+      "implementation": "quantile(ts_delta(unsystematic_risk_last_60_days, 15))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Beta knee detector",
+      "description": "Flag names where beta_last_30_days_spy equals local max over lookback (ts_arg_max) to capture new highs in exposure. SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 1 field and 1 operator. Confidence set to 0.52.",
+      "implementation": "if_else(ts_arg_max(beta_last_30_days_spy, 60)==0, beta_last_30_days_spy, 0)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Correlation decoupling long-term value",
+      "description": "Prefer stocks where correlation_last_360_days_spy is low relative to peers (long-term diversifiers). SUGGESTION1: single field and quantile used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 1 field, 1 operator. Confidence set to 0.63.",
+      "implementation": "quantile(reverse(correlation_last_360_days_spy))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Beta short-term contrarian",
+      "description": "Short names with exceptionally high beta_last_30_days_spy relative to 90-day mean (contrarian). SUGGESTION1: beta_last_30_days_spy and beta_last_90_days_spy used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 2 fields, 2 operators. Confidence set to 0.58.",
+      "implementation": "greater(ts_zscore(beta_last_30_days_spy,30), ts_zscore(ts_mean(beta_last_90_days_spy,90),90))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Unsystematic risk seasonal tilt",
+      "description": "Favor names where unsystematic_risk_last_360_days shows seasonal increases (ts_arg_max on 360-day window). SUGGESTION1: used unsystematic_risk_last_360_days; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: high counts. KEEP_IN_MIND: 1 field and 1 operator. Confidence set to 0.60.",
+      "implementation": "if_else(ts_arg_max(unsystematic_risk_last_360_days,360)==0, ts_zscore(unsystematic_risk_last_360_days,360), 0)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Correlation volatility filter",
+      "description": "Downweight names with high ts_std_dev of correlation_last_60_days_spy to avoid unstable exposures. SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 1 field, 1 operator. Confidence set to 0.62.",
+      "implementation": "reverse(ts_std_dev(correlation_last_60_days_spy, 90))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Beta-adjusted unsystematic opportunity",
+      "description": "Score = unsystematic_risk_last_360_days - normalized beta_last_360_days_spy to prefer idiosyncratic but low-beta names. SUGGESTION1: two fields used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: unsystematic field strong. KEEP_IN_MIND: 2 fields, 2 operators. Confidence set to 0.7.",
+      "implementation": "subtract(unsystematic_risk_last_360_days, zscore(beta_last_360_days_spy))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Short-term correlation fade with winsorize",
+      "description": "Fade extreme correlation_last_30_days_spy after winsorizing to avoid single-day spikes dominating. SUGGESTION1: single field with winsorize and reverse; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 1 field, 2 operators. Confidence set to 0.56.",
+      "implementation": "reverse(winsorize(correlation_last_30_days_spy, std=3))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Beta cross-sectional dispersion",
+      "description": "Target names in tails of beta dispersion cross-section (bucketed). SUGGESTION1: single field beta_last_90_days_spy used with bucket; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 1 field, 1 operator. Confidence set to 0.59.",
+      "implementation": "bucket(quantile(beta_last_90_days_spy), range='0,1,0.1')",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Unsystematic risk persistence ratio",
+      "description": "Compute persistence as ts_ir(unsystematic_risk_last_60_days, 30) to prefer sustained idiosyncratic regimes. SUGGESTION1: single high-quality field used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: good counts. KEEP_IN_MIND: 1 operator. Confidence set to 0.68.",
+      "implementation": "ts_ir(unsystematic_risk_last_60_days, 30)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Correlation short-term momentum filter",
+      "description": "Prefer names where correlation_last_30_days_spy increases steadily (ts_rank over 15 days). SUGGESTION1: single field and ts_rank used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 1 field, 1 operator. Confidence set to 0.55.",
+      "implementation": "ts_rank(correlation_last_30_days_spy, 15)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Beta downside spike detector",
+      "description": "Detect sudden falls in beta_last_30_days_spy using ts_max_diff to capture forced de-leveraging events. SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: coverage OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 1 operator. Confidence set to 0.51.",
+      "implementation": "ts_max_diff(beta_last_30_days_spy, 30)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Unsystematic risk contrarian long",
+      "description": "Long names with extreme low unsystematic_risk_last_30_days expecting reversion upward. SUGGESTION1: single field used cross-sectionally; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: high counts. KEEP_IN_MIND: 1 operator. Confidence set to 0.63.",
+      "implementation": "quantile(reverse(unsystematic_risk_last_30_days))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Combined exposure stability score",
+      "description": "Score combining low ts_std_dev of beta and correlation to find stable exposure names: reverse(ts_std_dev(beta))+reverse(ts_std_dev(corr)). SUGGESTION1: two fields beta_last_90_days_spy and correlation_last_90_days_spy used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 2 fields, 3 operators. Confidence set to 0.65.",
+      "implementation": "add(reverse(ts_std_dev(beta_last_90_days_spy,60)), reverse(ts_std_dev(correlation_last_90_days_spy,60)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Beta-leading unsystematic risk signal",
+      "description": "Use rising beta_last_60_days_spy that leads unsystematic risk increases (ts_corr negative test). SUGGESTION1: beta_last_60_days_spy and unsystematic_risk_last_60_days used with ts_corr; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: unsystematic field strong. KEEP_IN_MIND: 2 fields, 1 operator. Confidence set to 0.57.",
+      "implementation": "ts_corr(beta_last_60_days_spy, unsystematic_risk_last_60_days, 60)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Correlation shrinkage entry",
+      "description": "Enter when short-term correlation is unusually below its long-run mean (mean-reversion bet). SUGGESTION1: correlation_last_30_days_spy and correlation_last_360_days_spy used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 2 fields, 1 operator. Confidence set to 0.59.",
+      "implementation": "subtract(correlation_last_360_days_spy, correlation_last_30_days_spy)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Beta momentum scaled by correlation",
+      "description": "Scale beta momentum by inverse correlation to prefer beta driven by idiosyncratic exposures. SUGGESTION1: beta_last_30_days_spy and correlation_last_30_days_spy used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 2 fields, 3 operators. Confidence set to 0.66.",
+      "implementation": "multiply(ts_zscore(ts_delta(beta_last_30_days_spy,5),20), reverse(correlation_last_30_days_spy))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Unsystematic risk short momentum fade",
+      "description": "Short names with rapid unsystematic_risk_last_30_days rises relative to 90-day mean (fade). SUGGESTION1: unsystematic_risk_last_30_days and unsystematic_risk_last_90_days used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: high counts. KEEP_IN_MIND: 2 fields, 2 operators. Confidence set to 0.72.",
+      "implementation": "greater(ts_delta(unsystematic_risk_last_30_days,5), ts_mean(unsystematic_risk_last_90_days,90))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Correlation low-volatility diversifier",
+      "description": "Select names with low correlation_last_360_days_spy and low ts_std_dev of correlation (stable diversifiers). SUGGESTION1: correlation_last_360_days_spy used with ts_std_dev; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 1 field, 2 operators. Confidence set to 0.64.",
+      "implementation": "and(less(correlation_last_360_days_spy, ts_mean(correlation_last_360_days_spy,720)), less(ts_std_dev(correlation_last_360_days_spy,180),0.05))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Beta trending cross-sectional",
+      "description": "Rank beta_last_60_days_spy momentum cross-sectionally to find leaders/laggers. SUGGESTION1: beta_last_60_days_spy used with quantile(ts_delta); SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 1 field, 1 operator. Confidence set to 0.59.",
+      "implementation": "quantile(ts_delta(beta_last_60_days_spy, 15))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Unsystematic risk zscore overlay",
+      "description": "Combine unsystematic_risk_last_90_days zscore with its ts_ir to prioritize persistent deviations. SUGGESTION1: single field used with two operators; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: high counts. KEEP_IN_MIND: 1 field, 2 operators. Confidence set to 0.69.",
+      "implementation": "multiply(ts_zscore(unsystematic_risk_last_90_days,60), ts_ir(unsystematic_risk_last_90_days,60))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Correlation rebound entry",
+      "description": "Long names where correlation_last_30_days_spy has recently dropped to local min and now rising (ts_arg_min + ts_delta). SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 1 field, 2 operators. Confidence set to 0.56.",
+      "implementation": "and(ts_arg_min(correlation_last_30_days_spy,60)==1, greater(ts_delta(correlation_last_30_days_spy,3),0))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Beta-weighted unsystematic filter",
+      "description": "Prefer names with high unsystematic risk adjusted downward by beta to reduce market exposure: unsystematic / (1+beta). SUGGESTION1: unsystematic_risk_last_60_days and beta_last_60_days_spy used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: fields moderate counts. KEEP_IN_MIND: 2 fields, 2 operators. Confidence set to 0.68.",
+      "implementation": "divide(unsystematic_risk_last_60_days, add(beta_last_60_days_spy,1))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Correlation-based regime signal",
+      "description": "Use cross-sectional average of correlation_last_30_days_spy (implementation assumes aggregation externally) to switch regime; here we produce ts_mean as proxy. SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 1 operator. Confidence set to 0.50 due to coarse signal.",
+      "implementation": "ts_mean(correlation_last_30_days_spy,30)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Beta mean absolute deviation",
+      "description": "Score by abs deviation of beta_last_90_days_spy from 360-day mean to capture outsized exposure moves. SUGGESTION1: beta_last_90_days_spy and ts_mean used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: moderate counts. KEEP_IN_MIND: 2 fields, 2 operators. Confidence set to 0.57.",
+      "implementation": "abs(subtract(beta_last_90_days_spy, ts_mean(beta_last_360_days_spy,360)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Unsystematic risk low volatility entry",
+      "description": "Favor names with low unsystematic_risk_last_360_days and low recent variability to reduce drawdown. SUGGESTION1: single field with ts_std_dev and quantile; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: strong counts. KEEP_IN_MIND: 1 field, 2 operators. Confidence set to 0.66.",
+      "implementation": "and(less(unsystematic_risk_last_360_days, ts_mean(unsystematic_risk_last_360_days,720)), less(ts_std_dev(unsystematic_risk_last_360_days,180),0.05))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Beta scaling by long-term volatility",
+      "description": "Scale beta_last_30_days_spy by long-run ts_std_dev to favor stable exposures. SUGGESTION1: beta_last_30_days_spy used with ts_std_dev; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 1 field, 2 operators. Confidence set to 0.6.",
+      "implementation": "divide(beta_last_30_days_spy, add(ts_std_dev(beta_last_360_days_spy,360),1e-6))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Correlation-based pair filter",
+      "description": "Use correlation_last_90_days_spy to select pairs of low-correlated names externally; here provide per-name score = reverse(correlation). SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 1 operator. Confidence set to 0.58.",
+      "implementation": "reverse(correlation_last_90_days_spy)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Unsystematic risk trending divergence",
+      "description": "Find names where unsystematic_risk_last_60_days is rising while systematic_risk_last_60_days falls (idiosyncratic-driven). SUGGESTION1: both fields used; SUGGESTION2: none; SUGGESTION3: OK; SUGGESTION4: unsystematic field strong. KEEP_IN_MIND: 2 fields, 2 operators. Confidence set to 0.7.",
+      "implementation": "and(greater(ts_delta(unsystematic_risk_last_60_days,10),0), less(ts_delta(systematic_risk_last_60_days,10),0))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Beta moderation (scale)",
+      "description": "Scale beta_last_60_days_spy to booksize to normalize allocations across names. SUGGESTION1: single field and scale operator used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 1 field, 1 operator. Confidence set to 0.55.",
+      "implementation": "scale(beta_last_60_days_spy, scale=1)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Correlation rank fade",
+      "description": "Short names in highest correlation_last_60_days_spy quantile expecting reversion. SUGGESTION1: single field and quantile used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 1 operator. Confidence set to 0.53.",
+      "implementation": "quantile(correlation_last_60_days_spy)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Beta pair-trade signal",
+      "description": "Construct long low-beta, short high-beta using quartiles of beta_last_360_days_spy (bucketed). SUGGESTION1: single field and bucket used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 1 field, 1 operator. Confidence set to 0.58.",
+      "implementation": "bucket(quantile(beta_last_360_days_spy), range='0,1,0.25')",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Unsystematic risk sudden drop buyer",
+      "description": "Long names where unsystematic_risk_last_30_days has suddenly dropped (ts_delta negative) expecting rebound. SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 1 operator. Confidence set to 0.62.",
+      "implementation": "if_else(less(ts_delta(unsystematic_risk_last_30_days,5),0), reverse(unsystematic_risk_last_30_days), 0)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Correlation smoothing entry",
+      "description": "Use ts_mean(correlation_last_30_days_spy,5) to smooth and then rank cross-sectionally for allocation. SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 1 operator. Confidence set to 0.56.",
+      "implementation": "quantile(ts_mean(correlation_last_30_days_spy,5))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Beta-second-moment filter",
+      "description": "Avoid names with high kurtosis of beta (extreme tail behavior) using ts_kurtosis(beta_last_90_days_spy). SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 1 operator. Confidence set to 0.59.",
+      "implementation": "reverse(ts_kurtosis(beta_last_90_days_spy, 90))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Unsystematic risk normalized by long-term mean",
+      "description": "Divide unsystematic_risk_last_60_days by its 360-day mean to spot relative increases. SUGGESTION1: single field with ts_mean used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 1 field, 1 operator. Confidence set to 0.67.",
+      "implementation": "divide(unsystematic_risk_last_60_days, add(ts_mean(unsystematic_risk_last_360_days,360),1e-6))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Beta cross-period zscore",
+      "description": "zscore of beta_last_30_days_spy relative to 360-day distribution to detect extremeness. SUGGESTION1: single field and ts_zscore used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 1 operator. Confidence set to 0.6.",
+      "implementation": "ts_zscore(beta_last_30_days_spy, 360)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Correlation momentum vs volatility",
+      "description": "Prefer rising correlation_last_30_days_spy but scaled down by ts_std_dev to focus on consistent moves. SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 1 field, 2 operators. Confidence set to 0.58.",
+      "implementation": "divide(ts_delta(correlation_last_30_days_spy,5), add(ts_std_dev(correlation_last_30_days_spy,30),1e-6))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Unsystematic risk momentum zscore",
+      "description": "Cross-sectional zscore of ts_delta(unsystematic_risk_last_90_days) to find strong movers. SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 1 field, 2 operators. Confidence set to 0.7.",
+      "implementation": "zscore(ts_delta(unsystematic_risk_last_90_days, 20))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Beta-lagging re-rating",
+      "description": "Find names where beta_last_360_days_spy is rising relative to 360-day mean (gradual re-rating). SUGGESTION1: single field and subtract used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 1 operator. Confidence set to 0.58.",
+      "implementation": "subtract(beta_last_360_days_spy, ts_mean(beta_last_360_days_spy,720))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Correlation percentile entry",
+      "description": "Use correlation_last_60_days_spy percentile bucket to allocate to low-correlation names. SUGGESTION1: single field with bucket; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 1 operator. Confidence set to 0.61.",
+      "implementation": "bucket(quantile(correlation_last_60_days_spy), range='0,1,0.2')",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Unsystematic risk ratio to market",
+      "description": "Compare unsystematic_risk_last_360_days to mean unsystematic risk cross-sectionally (zscore) to find relative idiosyncratic plays. SUGGESTION1: single field and zscore used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 1 operator. Confidence set to 0.68.",
+      "implementation": "zscore(unsystematic_risk_last_360_days)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Beta short-term spike detector",
+      "description": "Detect local spikes in beta_last_30_days_spy using ts_arg_max over 30 days. SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 1 operator. Confidence set to 0.52.",
+      "implementation": "if_else(ts_arg_max(beta_last_30_days_spy,30)==0, beta_last_30_days_spy, 0)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Correlation-smoothed zscore",
+      "description": "Compute ts_zscore of smoothed correlation (ts_mean of 5 days) to reduce noise. SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 2 operators. Confidence set to 0.57.",
+      "implementation": "ts_zscore(ts_mean(correlation_last_30_days_spy,5), 30)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Unsystematic risk downside protection",
+      "description": "Downweight names whose unsystematic_risk_last_30_days spikes during market stress (pair with systematic_risk threshold). SUGGESTION1: unsystematic_risk_last_30_days and systematic_risk_last_30_days used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 2 fields, 2 operators. Confidence set to 0.65.",
+      "implementation": "if_else(greater(systematic_risk_last_30_days, ts_mean(systematic_risk_last_30_days,90)), reverse(unsystematic_risk_last_30_days), unsystematic_risk_last_30_days)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Beta cross-sectional kurtosis avoider",
+      "description": "Avoid names with high ts_kurtosis(beta_last_90_days_spy) indicating tail risk. SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 1 operator. Confidence set to 0.6.",
+      "implementation": "reverse(ts_kurtosis(beta_last_90_days_spy, 90))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Correlation rolling IR",
+      "description": "Compute ts_ir(correlation_last_60_days_spy,30) to favor consistent correlation moves. SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 1 operator. Confidence set to 0.56.",
+      "implementation": "ts_ir(correlation_last_60_days_spy,30)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Unsystematic risk downside fade",
+      "description": "Fade names with sudden unsystematic spikes but only if the spike is isolated (ts_count_nans not used here). SUGGESTION1: single field ts_max_diff used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 1 operator. Confidence set to 0.7.",
+      "implementation": "reverse(ts_max_diff(unsystematic_risk_last_30_days,30))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Beta relative acceleration",
+      "description": "Score = ts_delta(beta_last_60_days_spy,5) normalized by ts_std_dev to find durable accelerations. SUGGESTION1: single field used; SUGGESTION2: none; SUGGESTION3: OK. KEEP_IN_MIND: 2 operators. Confidence set to 0.58.",
+      "implementation": "divide(ts_delta(beta_last_60_days_spy,5), add(ts_std_dev(beta_last_60_days_spy,30),1e-6))",
+      "confidence_level": 0.58
+    }
+  ]
+}

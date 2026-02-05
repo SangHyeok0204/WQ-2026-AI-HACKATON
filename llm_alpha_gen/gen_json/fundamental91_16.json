@@ -1,0 +1,706 @@
+{
+  "results": [
+    {
+      "idea": "Cross-file sentiment imbalance (positive minus negative)",
+      "description": "Core: long filings with higher positive-than-negative dictionary sentiment. Applied SUGGESTION1 by using two sentiment fields (fnd91_sentiment2_0 and fnd91_sentiment2_1). SUGGESTION2 not applicable (no vector field used). SUGGESTION3 not needed—both fields coverage >0.6. SUGGESTION4 applied by choosing high userCount/alphaCount fields. Kept KEEP_IN_MIND: implementation short and uses 2 datafields and 2 operators. Confidence set to 0.72 because dictionary sentiment often correlates with short-term post-filing moves.",
+      "implementation": "zscore(subtract(fnd91_sentiment2_0, fnd91_sentiment2_1))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Negative sentiment concentration per sentence",
+      "description": "Core: penalize filings with high negative words per sentence (negativity density). SUGGESTION1 used fnd91_sentiment2_1 and fnd91_measure_0. SUGGESTION2 not used. SUGGESTION3 not required (coverage high). SUGGESTION4: both fields have good user/alpha counts. Observed KEEP_IN_MIND limits. Confidence 0.68 based on plausibility of density signal.",
+      "implementation": "zscore(divide(fnd91_sentiment2_1, fnd91_measure_0))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Readability improvement surprise",
+      "description": "Core: long if readability suddenly improves vs historical (clearer messaging may indicate positive news). SUGGESTION1 used fnd91_readability_2 with ts_delta to capture change. SUGGESTION3 not needed (coverage high). SUGGESTION4 applied (high userCount). KEEP_IN_MIND honored. Confidence 0.60 because readability-change effects are moderate.",
+      "implementation": "ts_zscore(ts_delta(fnd91_readability_2, 1), 20)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Increase in numeric mentions (numeric_count momentum)",
+      "description": "Core: filings with growing numeric_count indicate operational updates; long when numeric mentions rise. SUGGESTION1 used fnd91_numeric_count and ts_delta. SUGGESTION3 not needed. SUGGESTION4: numeric_count has multiple alphas so favorable. Implementation compact. Confidence 0.57 reflecting modest expectation.",
+      "implementation": "zscore(ts_delta(fnd91_numeric_count, 1))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Topic 12 exposure as idiosyncratic signal",
+      "description": "Core: favor firms with high exposure to topic_12 (topic historically predictive). SUGGESTION1 used fnd91_topic_12. SUGGESTION2 not applicable. Coverage high so no ts_backfill. SUGGESTION4: topic fields have user/alpha presence. KEEP_IN_MIND observed. Confidence 0.63 due to topic plausibility.",
+      "implementation": "zscore(fnd91_topic_12)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Topic novelty spike (topic_13 delta)",
+      "description": "Core: long when topic_13 exposure jumps vs last filing (new focus). Used fnd91_topic_13 and ts_delta per SUGGESTION1. SUGGESTION3 unnecessary. SUGGESTION4 applied. Implementation simple and within operator/data limits. Confidence 0.61.",
+      "implementation": "zscore(ts_delta(fnd91_topic_13, 1))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "High topic_19 with low negative sentiment (topic-sentiment confluence)",
+      "description": "Core: long when topic_19 is high and negative sentiment low. SUGGESTION1 combined fnd91_topic_19 and fnd91_sentiment2_1. SUGGESTION2 not used. Both coverages high so no backfill. Kept implementation short. Confidence 0.66 due to confluence adding robustness.",
+      "implementation": "zscore(subtract(fnd91_topic_19, fnd91_sentiment2_1))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Readability vs complexity divergence",
+      "description": "Core: long when readability high and complexity low. Used fnd91_readability_0 and fnd91_sentiment2_3 (complexity). SUGGESTION1 applied. fnd91_sentiment2_3 coverage high. SUGGESTION3 not needed. Kept under operator/data limits. Confidence 0.58.",
+      "implementation": "zscore(subtract(fnd91_readability_0, fnd91_sentiment2_3))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Objective-sentiment divergence (objective vs negative)",
+      "description": "Core: prefer filings with high objective score relative to negative words (less emotive, informative). Used fnd91_sentiment1_3 and fnd91_sentiment1_5. SUGGESTION1 applied; both fields high coverage. SUGGESTION4 respected. Confidence 0.62.",
+      "implementation": "zscore(subtract(fnd91_sentiment1_3, fnd91_sentiment1_5))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Topic_4 sustained exposure (momentum)",
+      "description": "Core: long if topic_4 exposure has been growing (ts_zscore of ts_delta). SUGGESTION1 used fnd91_topic_4 with ts_zscore and ts_delta. Coverage decent and userCount high for topic_4. SUGGESTION3 not used. Confidence 0.59.",
+      "implementation": "ts_zscore(ts_delta(fnd91_topic_4, 1), 12)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "High document attachments signal (doccount spike)",
+      "description": "Core: filings with more attached documents may signal material events; long on doccount spikes. Used fnd91_doccount with ts_delta. SUGGESTION1 and SUGGESTION4 applied. Confidence 0.52 since doccount is noisy.",
+      "implementation": "zscore(ts_delta(fnd91_doccount, 1))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Short when negative sentiment rises faster than words (negativity acceleration)",
+      "description": "Core: short when negative words accelerate relative to total words. Used fnd91_sentiment2_1 and fnd91_measure_4 (word count). SUGGESTION1 applied. Both high coverage, no backfill. Kept implementation concise. Confidence 0.65.",
+      "implementation": "zscore(divide(ts_delta(fnd91_sentiment2_1,1), fnd91_measure_4))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "High numeric density with low readability (possible obfuscation)",
+      "description": "Core: short if many numerics and low readability (dense technical disclosures hiding bad news). Used fnd91_numeric_count and fnd91_readability_2. SUGGESTION1 applied; both coverages high. Confidence 0.56.",
+      "implementation": "zscore(multiply(fnd91_numeric_count, reverse(fnd91_readability_2)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Positive-to-word ratio momentum",
+      "description": "Core: long when positive words per word increase vs prior filing. Used fnd91_sentiment2_0 and fnd91_measure_4 with ts_delta. SUGGESTION3 not needed. SUGGESTION4 applied. Confidence 0.64.",
+      "implementation": "zscore(ts_delta(divide(fnd91_sentiment2_0, fnd91_measure_4), 1))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Topic_10 sudden prominence",
+      "description": "Core: long when topic_10 spikes (topic-specific news). Used fnd91_topic_10 and ts_delta. Topic_10 has decent coverage. SUGGESTION4 moderately applied. Confidence 0.55.",
+      "implementation": "zscore(ts_delta(fnd91_topic_10, 1))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "High readability but low topic_2 exposure (clear non-topic messaging)",
+      "description": "Core: long when filings are clearer but not dominated by topic_2 (may indicate broad positive messaging). Used fnd91_readability_0 and fnd91_topic_2. SUGGESTION1 applied. Both fields coverage high. Confidence 0.50.",
+      "implementation": "zscore(subtract(fnd91_readability_0, fnd91_topic_2))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Complexity reduction relative to previous filing",
+      "description": "Core: favor firms whose complexity metric decreases (simpler language) using fnd91_sentiment2_3 with ts_delta. SUGGESTION1 applied; coverage high so no backfill. Confidence 0.58.",
+      "implementation": "zscore(reverse(ts_delta(fnd91_sentiment2_3, 1)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Topic_18 persistent high exposure (industry thematic)",
+      "description": "Core: long when topic_18 remains persistently high (ts_mean). SUGGESTION1 used ts_mean(fnd91_topic_18, 4). SUGGESTION4 applied (topic_18 has many alphas/users). Confidence 0.62.",
+      "implementation": "zscore(ts_mean(fnd91_topic_18, 4))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Low objective-to-positive ratio (overly promotional language)",
+      "description": "Core: short when positive score is high but objective score is low. Used fnd91_sentiment1_4 and fnd91_sentiment1_3. Both high coverage; SUGGESTION1 and 4 applied. Confidence 0.60.",
+      "implementation": "zscore(subtract(fnd91_sentiment1_4, fnd91_sentiment1_3))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Topic_7 spike combined with negative sentiment drop",
+      "description": "Core: long when topic_7 jumps and negative sentiment decreases. Used fnd91_topic_7 and fnd91_sentiment1_5. SUGGESTION1 applied, both fields acceptable coverage. Confidence 0.63.",
+      "implementation": "zscore(subtract(ts_delta(fnd91_topic_7,1), ts_delta(fnd91_sentiment1_5,1)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "High topic_8 with improved readability",
+      "description": "Core: long when topic_8 exposure and readability improve together. Used fnd91_topic_8 and fnd91_readability_2. SUGGESTION1 applied. Confidence 0.54.",
+      "implementation": "zscore(add(fnd91_topic_8, fnd91_readability_2))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Surprise negative words relative to same-quarter prior year",
+      "description": "Core: short when negative dictionary sentiment is higher vs same quarter last year using fnd91_cat0_metric1_2 (similarity) where available; coverage slightly below 0.6 so ts_backfill applied per SUGGESTION3. SUGGESTION1 used ts_backfill(fnd91_cat0_metric1_2, 8). SUGGESTION4 considered low userCount so confidence lowered. Confidence 0.45.",
+      "implementation": "zscore(ts_delta(ts_backfill(fnd91_cat0_metric1_2,8),1))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "High topic_11 with low numeric_count (qualitative positive)",
+      "description": "Core: favor topic_11 dominance when there are few numeric mentions (narrative optimism). Used fnd91_topic_11 and fnd91_numeric_count. SUGGESTION1 applied. Coverage okay; confidence 0.49.",
+      "implementation": "zscore(subtract(fnd91_topic_11, fnd91_numeric_count))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Sustained decrease in negative dictionary words",
+      "description": "Core: long if ts_mean of negative words over recent filings decreases. Used ts_mean(fnd91_sentiment2_1,4). SUGGESTION1 and 4 applied. Confidence 0.66.",
+      "implementation": "reverse(zscore(ts_mean(fnd91_sentiment2_1,4)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "High positive-to-negative ratio for model1",
+      "description": "Core: use model1 sentiment (fnd91_sentiment1_4 positive, fnd91_sentiment1_5 negative) ratio. SUGGESTION1 applied. Coverage high. Confidence 0.67.",
+      "implementation": "zscore(divide(fnd91_sentiment1_4, add(fnd91_sentiment1_5, 1e-6)))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Topic_14 rising trend",
+      "description": "Core: long when topic_14 shows positive trend via ts_zscore(ts_delta). SUGGESTION1 applied. Topic_14 coverage good. Confidence 0.56.",
+      "implementation": "ts_zscore(ts_delta(fnd91_topic_14,1), 8)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "High topic_16 with low negative-word ts_mean",
+      "description": "Core: combine fnd91_topic_16 and ts_mean of negative words to increase signal. SUGGESTION1 used topic_16 and ts_mean(fnd91_sentiment2_1,4). Two datafields only. Confidence 0.64.",
+      "implementation": "zscore(subtract(fnd91_topic_16, ts_mean(fnd91_sentiment2_1,4)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Topic_15 exposure with decreasing complexity",
+      "description": "Core: long when topic_15 exposure is up and complexity metric down (fnd91_sentiment2_4). SUGGESTION1 applied; both fields have decent coverage. Confidence 0.53.",
+      "implementation": "zscore(subtract(fnd91_topic_15, fnd91_sentiment2_4))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "High topic_3 with surge in positive model3",
+      "description": "Core: long if topic_3 spikes and fnd91_sentiment1_7 (model3 positive) increases. SUGGESTION1 used both; fnd91_sentiment1_7 has lower userCount but acceptable coverage. Confidence 0.48.",
+      "implementation": "zscore(add(ts_delta(fnd91_topic_3,1), ts_delta(fnd91_sentiment1_7,1)))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Low topic_5 with rising numeric_count (specific operational items)",
+      "description": "Core: long when numeric_count increases while topic_5 drops, suggesting company-focused updates. Used fnd91_numeric_count and fnd91_topic_5. SUGGESTION1 applied. Confidence 0.51.",
+      "implementation": "zscore(subtract(ts_delta(fnd91_numeric_count,1), ts_delta(fnd91_topic_5,1)))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "High sentence complexity but improving readability (mixed signal)",
+      "description": "Core: long when complexity metric (fnd91_sentiment2_3) is high but readability improves year-on-year — may indicate strategic simplification. Used ts_delta and subtract. SUGGESTION1 applied. Confidence 0.46.",
+      "implementation": "zscore(subtract(ts_delta(fnd91_readability_0,1), fnd91_sentiment2_3))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Topic_1 decline signals reallocation away from legacy business",
+      "description": "Core: long if exposure to topic_1 falls (ts_delta negative) indicating pivot to new themes. Used fnd91_topic_1 with ts_delta. Coverage low-ish but used. SUGGESTION3 not applied (coverage borderline). Confidence 0.40.",
+      "implementation": "reverse(zscore(ts_delta(fnd91_topic_1,1)))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "High topic_19 and topic_7 combination (thematic reinforcement)",
+      "description": "Core: favor filings where topic_19 and topic_7 are both high (add). SUGGESTION1 combined two topics (keeps to 2 datafields). SUGGESTION2 not used. Confidence 0.60.",
+      "implementation": "zscore(add(fnd91_topic_19, fnd91_topic_7))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Readability outlier (very easy prose)",
+      "description": "Core: long when readability score is an extreme high (winsorize then zscore). SUGGESTION1 used winsorize and zscore on fnd91_readability_2. SUGGESTION4 applied. Confidence 0.47.",
+      "implementation": "zscore(winsorize(fnd91_readability_2, 4))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "High topic_12 with declining negative words",
+      "description": "Core: combine topic_12 and ts_delta of negative words. SUGGESTION1 used both fields. Both have strong coverage. Confidence 0.65.",
+      "implementation": "zscore(subtract(fnd91_topic_12, ts_delta(fnd91_sentiment2_1,1)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Objective language surge (objective ts_delta)",
+      "description": "Core: long when objective score (fnd91_sentiment1_3) rises vs previous filing. SUGGESTION1 used ts_delta. High coverage; implementation minimal. Confidence 0.58.",
+      "implementation": "zscore(ts_delta(fnd91_sentiment1_3,1))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "High topic_2 with low complexity",
+      "description": "Core: long when topic_2 is high while complexity metric fnd91_sentiment2_4 is low. SUGGESTION1 applied. Coverage adequate. Confidence 0.55.",
+      "implementation": "zscore(subtract(fnd91_topic_2, fnd91_sentiment2_4))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Topic_13 with declining neg-to-pos ratio",
+      "description": "Core: long when topic_13 rises and negative/positive ratio declines. Used fnd91_topic_13 and divide(fnd91_sentiment2_1, fnd91_sentiment2_0). SUGGESTION1 and 4 applied. Confidence 0.62.",
+      "implementation": "zscore(subtract(fnd91_topic_13, divide(fnd91_sentiment2_1, add(fnd91_sentiment2_0,1e-6))))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Rapid change in topic mix (topic_4 vs topic_8 shift)",
+      "description": "Core: detect reweighting between two topics: ts_delta(topic_4) minus ts_delta(topic_8). SUGGESTION1 applied with two topic fields. Confidence 0.50.",
+      "implementation": "zscore(subtract(ts_delta(fnd91_topic_4,1), ts_delta(fnd91_topic_8,1)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High sentence count but low word complexity (concise detail)",
+      "description": "Core: long when many sentences but each sentence is simple (fnd91_measure_0 high, fnd91_measure_2 low). SUGGESTION1 applied. Both fields high coverage. Confidence 0.54.",
+      "implementation": "zscore(subtract(fnd91_measure_0, fnd91_measure_2))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Topic_16 appearance with low doccount (focused single-document news)",
+      "description": "Core: long when topic_16 is high but doccount is low (single, impactful doc). Used fnd91_topic_16 and fnd91_doccount. SUGGESTION1 applied. Confidence 0.48.",
+      "implementation": "zscore(subtract(fnd91_topic_16, fnd91_doccount))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "High topic_18 with rising positive-model1",
+      "description": "Core: long when topic_18 is high and model1 positive fnd91_sentiment1_4 increases. SUGGESTION1 applied. Topic_18 has strong user/alpha presence increasing confidence to 0.66.",
+      "implementation": "zscore(add(fnd91_topic_18, fnd91_sentiment1_4))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Large decrease in similarity to last quarter (content shift)",
+      "description": "Core: content that differs strongly from last quarter (use fnd91_cat0_metric0_0). Coverage ~0.6455 so no backfill; use reverse(ts_delta). SUGGESTION1 applied. Confidence 0.43 due to noisiness.",
+      "implementation": "zscore(reverse(ts_delta(fnd91_cat0_metric0_0,1)))",
+      "confidence_level": 0.43
+    },
+    {
+      "idea": "High topic_10 with high numeric_count (data-rich topic)",
+      "description": "Core: long when topic_10 and numeric_count both high indicating detailed disclosures. SUGGESTION1 combined two fields. Confidence 0.57.",
+      "implementation": "zscore(multiply(fnd91_topic_10, fnd91_numeric_count))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Decline in topic_19 (de-risking) with rising readability",
+      "description": "Core: long when topic_19 drops and readability rises (clearer, less risky). Used fnd91_topic_19 and fnd91_readability_0. SUGGESTION1 applied. Confidence 0.50.",
+      "implementation": "zscore(subtract(fnd91_readability_0, ts_delta(fnd91_topic_19,1)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High positive words but low objective score (hype)",
+      "description": "Core: short when positive count high but objective score low. Used fnd91_sentiment2_0 and fnd91_sentiment1_3. SUGGESTION1 applied. Confidence 0.61.",
+      "implementation": "zscore(subtract(fnd91_sentiment2_0, fnd91_sentiment1_3))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Topic_6 breakout with decreasing negativity",
+      "description": "Core: long when topic_6 rises and negative dictionary words fall. Used fnd91_topic_6 and fnd91_sentiment2_1. SUGGESTION1 applied. Confidence 0.52.",
+      "implementation": "zscore(subtract(ts_delta(fnd91_topic_6,1), ts_delta(fnd91_sentiment2_1,1)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "High topic_17 paired with objective language",
+      "description": "Core: long when topic_17 is high and objective score fnd91_sentiment1_6 increases. SUGGESTION1 applied. Confidence 0.59.",
+      "implementation": "zscore(add(fnd91_topic_17, fnd91_sentiment1_6))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Low topic_8 but rising numeric_count (company-specific financial updates)",
+      "description": "Core: long when numeric_count increases but topic_8 (maybe sector talk) decreases. Used fnd91_numeric_count and fnd91_topic_8. SUGGESTION1 applied. Confidence 0.47.",
+      "implementation": "zscore(subtract(ts_delta(fnd91_numeric_count,1), ts_delta(fnd91_topic_8,1)))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "High topic_12 novelty vs previous filing (ts_arg_max)",
+      "description": "Core: signal when current topic_12 is the maximum over lookback window (ts_arg_max==0). Used ts_arg_max(fnd91_topic_12, 5). SUGGESTION1 applied. Confidence 0.54.",
+      "implementation": "if_else(equal(ts_arg_max(fnd91_topic_12,5),0), fnd91_topic_12, 0)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Low objective with rising topic_13 (potential spin)",
+      "description": "Core: short when topic_13 rises while objective score fnd91_sentiment1_3 drops. SUGGESTION1 applied. Confidence 0.49.",
+      "implementation": "zscore(subtract(ts_delta(fnd91_topic_13,1), ts_delta(fnd91_sentiment1_3,1)))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "High topic_14 with stable readability (consistent messaging)",
+      "description": "Core: long when topic_14 high and readability stable (ts_std_dev small). Used fnd91_topic_14 and ts_std_dev(fnd91_readability_0,4). SUGGESTION1 applied; operators under limit. Confidence 0.46.",
+      "implementation": "zscore(subtract(fnd91_topic_14, ts_std_dev(fnd91_readability_0,4)))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Topic_13 vs topic_2 rotation",
+      "description": "Core: detect rotation by subtracting exposures: topic_13 - topic_2. SUGGESTION1 applied, two datafields only. Confidence 0.50.",
+      "implementation": "zscore(subtract(fnd91_topic_13, fnd91_topic_2))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High positive model2 with low negative model2 (clean upbeat tone)",
+      "description": "Core: long when fnd91_sentiment1_4 high and fnd91_sentiment1_5 low. SUGGESTION1 applied. Confidence 0.63.",
+      "implementation": "zscore(subtract(fnd91_sentiment1_4, fnd91_sentiment1_5))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Topic_19 decoupled from negative language (calmer thematic)",
+      "description": "Core: long when topic_19 high but negative words are not elevated. Used fnd91_topic_19 and fnd91_sentiment2_1. SUGGESTION1 applied. Confidence 0.61.",
+      "implementation": "zscore(subtract(fnd91_topic_19, fnd91_sentiment2_1))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "High doccount but falling readability (complex multi-doc disclosure)",
+      "description": "Core: short when many docs and readability falls. Used fnd91_doccount and fnd91_readability_2. SUGGESTION1 applied. Confidence 0.44.",
+      "implementation": "zscore(add(fnd91_doccount, reverse(fnd91_readability_2)))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Sustained low negative sentiment (momentum)",
+      "description": "Core: long if ts_mean of negative dictionary words over 8 filings is low. Used ts_mean(fnd91_sentiment2_1,8). SUGGESTION1 applied. Confidence 0.65.",
+      "implementation": "reverse(zscore(ts_mean(fnd91_sentiment2_1,8)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "High topic_4 with low negativity per word",
+      "description": "Core: long when topic_4 is high and negative words per word low. Used fnd91_topic_4 and divide(fnd91_sentiment2_1, fnd91_measure_4). SUGGESTION1 applied. Confidence 0.60.",
+      "implementation": "zscore(subtract(fnd91_topic_4, divide(fnd91_sentiment2_1, add(fnd91_measure_4,1e-6))))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Objective language high relative to sentence count (concise objectivity)",
+      "description": "Core: long when objective score per sentence is high. Used fnd91_sentiment1_3 and fnd91_measure_0. SUGGESTION1 applied. Confidence 0.55.",
+      "implementation": "zscore(divide(fnd91_sentiment1_3, add(fnd91_measure_0,1e-6)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Topic_11 with falling complexity",
+      "description": "Core: long when topic_11 high and complexity metric declines (fnd91_sentiment2_3). SUGGESTION1 applied. Confidence 0.53.",
+      "implementation": "zscore(subtract(fnd91_topic_11, fnd91_sentiment2_3))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "High measure_3 (long words) indicating technical depth",
+      "description": "Core: long when measure_3 (long words) is high—may indicate detailed technical disclosure. Used fnd91_measure_3. SUGGESTION1 applied. Confidence 0.42 given mixed evidence.",
+      "implementation": "zscore(fnd91_measure_3)",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Readability improvement normalized cross-sectionally",
+      "description": "Core: rank readability vs peers using quantile to pick top deciles. Used quantile(fnd91_readability_2). SUGGESTION1 and SUGGESTION4 applied. KEEP_IN_MIND respected. Confidence 0.59.",
+      "implementation": "quantile(fnd91_readability_2)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Topic_12 with ts_ir stability",
+      "description": "Core: long when topic_12 has high information ratio over recent filings (ts_ir). Used ts_ir(fnd91_topic_12, 12). SUGGESTION1 applied. Confidence 0.58.",
+      "implementation": "ts_ir(fnd91_topic_12,12)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "High topic_13 and topic_16 cross-strength",
+      "description": "Core: long when both topic_13 and topic_16 are elevated. Used add(topic_13, topic_16). SUGGESTION1 applied. Confidence 0.61.",
+      "implementation": "zscore(add(fnd91_topic_13, fnd91_topic_16))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Negative word zscore cross-sectionally",
+      "description": "Core: short top zscored negative-word filings. Used zscore(fnd91_sentiment2_1) cross-sectionally. SUGGESTION1 and 4 applied. Confidence 0.64.",
+      "implementation": "zscore(fnd91_sentiment2_1)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "High topic_14 with low neg-per-sentence",
+      "description": "Core: long when topic_14 is high and neg-per-sentence low (fnd91_sentiment2_1 / measure_0). SUGGESTION1 applied. Confidence 0.58.",
+      "implementation": "zscore(subtract(fnd91_topic_14, divide(fnd91_sentiment2_1, add(fnd91_measure_0,1e-6))))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Topic_18 vs topic_4 rotation indicator",
+      "description": "Core: detect rotation by subtracting topic_4 from topic_18. SUGGESTION1 applied. Kept two fields only. Confidence 0.49.",
+      "implementation": "zscore(subtract(fnd91_topic_18, fnd91_topic_4))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "High measure_1 (syllable count) relative to sentences (verbosity)",
+      "description": "Core: high syllables per sentence may indicate dense prose—short on high values. Used fnd91_measure_1 and fnd91_measure_0. SUGGESTION1 applied. Confidence 0.45.",
+      "implementation": "zscore(divide(fnd91_measure_1, add(fnd91_measure_0,1e-6)))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Topic_10 persistent high ts_mean vs peers",
+      "description": "Core: long when ts_mean(topic_10,6) high. SUGGESTION1 applied. Confidence 0.52.",
+      "implementation": "zscore(ts_mean(fnd91_topic_10,6))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "High topic_2 with falling negative-year-over-year (apply ts_backfill for missing)",
+      "description": "Core: long when topic_2 is high and negativity falls vs same quarter last year. fnd91_cat0_metric1_0 has coverage ~0.5864 (<0.6) so applied ts_backfill per SUGGESTION3. Combined with fnd91_topic_2. Confidence 0.44 due to metric noisiness.",
+      "implementation": "zscore(subtract(fnd91_topic_2, ts_backfill(fnd91_cat0_metric1_0,8)))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "High topic_7 with high objective-per-word",
+      "description": "Core: long when topic_7 is high and objective words per total words (fnd91_sentiment1_3 / measure_4) high. SUGGESTION1 applied. Confidence 0.57.",
+      "implementation": "zscore(add(fnd91_topic_7, divide(fnd91_sentiment1_3, add(fnd91_measure_4,1e-6))))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Readability deterioration as short signal",
+      "description": "Core: short when readability worsens (ts_delta negative). Used ts_delta(fnd91_readability_0,1) reversed. Coverage high so no backfill. Confidence 0.48.",
+      "implementation": "reverse(zscore(ts_delta(fnd91_readability_0,1)))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Topic_9 spike with low objective (rhetoric)",
+      "description": "Core: short when topic_9 spikes but objective score does not increase. Used fnd91_topic_9 and fnd91_sentiment1_3. SUGGESTION1 applied. Confidence 0.46.",
+      "implementation": "zscore(subtract(ts_delta(fnd91_topic_9,1), ts_delta(fnd91_sentiment1_3,1)))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "High topic_6 with rising positive words",
+      "description": "Core: long when topic_6 increases and positive dictionary fnd91_sentiment2_0 rises. SUGGESTION1 applied. Confidence 0.55.",
+      "implementation": "zscore(add(ts_delta(fnd91_topic_6,1), ts_delta(fnd91_sentiment2_0,1)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "High topic_3 with low negative-per-word",
+      "description": "Core: long when topic_3 high and negative words per word low. Used fnd91_topic_3 and divide(fnd91_sentiment2_1, fnd91_measure_4). SUGGESTION1 used. Confidence 0.53.",
+      "implementation": "zscore(subtract(fnd91_topic_3, divide(fnd91_sentiment2_1, add(fnd91_measure_4,1e-6))))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "High topic_16 novelty using ts_arg_max",
+      "description": "Core: long when current topic_16 is max in lookback window. Used ts_arg_max(fnd91_topic_16,5) and if_else. SUGGESTION1 applied. Confidence 0.51.",
+      "implementation": "if_else(equal(ts_arg_max(fnd91_topic_16,5),0), fnd91_topic_16, 0)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "High topic_19 with low doccount (single focused disclosure)",
+      "description": "Core: long when topic_19 high and doccount low. Used fnd91_topic_19 and fnd91_doccount. SUGGESTION1 applied. Confidence 0.50.",
+      "implementation": "zscore(subtract(fnd91_topic_19, fnd91_doccount))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High topic_4 with falling negative model2",
+      "description": "Core: long when topic_4 up and negative model2 fnd91_sentiment1_5 falls. SUGGESTION1 applied. Confidence 0.56.",
+      "implementation": "zscore(subtract(ts_delta(fnd91_topic_4,1), reverse(ts_delta(fnd91_sentiment1_5,1))))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Low similarity to last year (content shift) with high numeric_count",
+      "description": "Core: content changes year-over-year (fnd91_cat0_metric1_2) combined with many numeric mentions suggests substantive changes. Metric coverage ~0.5864 so ts_backfill applied per SUGGESTION3. Combined with fnd91_numeric_count. Confidence 0.46.",
+      "implementation": "zscore(multiply(ts_backfill(fnd91_cat0_metric1_2,8), fnd91_numeric_count))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "High topic_12 and topic_13 co-movement",
+      "description": "Core: long when both topic_12 and topic_13 are elevated (add). SUGGESTION1 applied. Confidence 0.60.",
+      "implementation": "zscore(add(fnd91_topic_12, fnd91_topic_13))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Objective per sentence momentum",
+      "description": "Core: long if objective score per sentence increases vs prior filing. Used divide(fnd91_sentiment1_3, fnd91_measure_0) with ts_delta. SUGGESTION1 applied. Confidence 0.62.",
+      "implementation": "zscore(ts_delta(divide(fnd91_sentiment1_3, add(fnd91_measure_0,1e-6)),1))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Topic_8 decline with rising negative words (sector trouble)",
+      "description": "Core: short when topic_8 drops while negative words rise. Used ts_delta for both fields. SUGGESTION1 applied. Confidence 0.47.",
+      "implementation": "zscore(subtract(ts_delta(fnd91_sentiment2_1,1), ts_delta(fnd91_topic_8,1)))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "High topic_7 with high long words (technical positive)",
+      "description": "Core: long when topic_7 and measure_3 (long words) both high. SUGGESTION1 applied. Confidence 0.49.",
+      "implementation": "zscore(multiply(fnd91_topic_7, fnd91_measure_3))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Decrease in topic_2 with increased objective words",
+      "description": "Core: long when topic_2 falls but objective score rises. Used fnd91_topic_2 and fnd91_sentiment1_3. SUGGESTION1 applied. Confidence 0.48.",
+      "implementation": "zscore(add(reverse(ts_delta(fnd91_topic_2,1)), ts_delta(fnd91_sentiment1_3,1)))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "High topic_10 with low negativity per word",
+      "description": "Core: long when topic_10 is prominent but neg-per-word low. Used fnd91_topic_10 and divide(fnd91_sentiment2_1, fnd91_measure_4). SUGGESTION1 applied. Confidence 0.55.",
+      "implementation": "zscore(subtract(fnd91_topic_10, divide(fnd91_sentiment2_1, add(fnd91_measure_4,1e-6))))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "High topic_19 momentum using ts_rank",
+      "description": "Core: use ts_rank(topic_19,5) to find recent strength. SUGGESTION1 applied. Confidence 0.53.",
+      "implementation": "ts_rank(fnd91_topic_19,5)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "High topic_4 with high positive model1",
+      "description": "Core: long when topic_4 is high and positive model1 fnd91_sentiment1_4 increases. SUGGESTION1 applied. Confidence 0.58.",
+      "implementation": "zscore(add(fnd91_topic_4, fnd91_sentiment1_4))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Topic_12 sudden drop (risk flag)",
+      "description": "Core: short when topic_12 drops sharply via ts_arg_min detection. Used ts_arg_min(fnd91_topic_12,5). SUGGESTION1 applied. Confidence 0.42.",
+      "implementation": "if_else(equal(ts_arg_min(fnd91_topic_12,5),0), reverse(fnd91_topic_12), 0)",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "High positive words per long word (positive clarity)",
+      "description": "Core: long when positive words per long word (fnd91_sentiment2_0 / fnd91_measure_3) is high. SUGGESTION1 applied. Confidence 0.50.",
+      "implementation": "zscore(divide(fnd91_sentiment2_0, add(fnd91_measure_3,1e-6)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High topic_1 with falling negative per sentence",
+      "description": "Core: long when topic_1 up and negative per sentence declines. Used fnd91_topic_1 and divide(fnd91_sentiment2_1, fnd91_measure_0). Coverage moderate; no backfill. Confidence 0.44.",
+      "implementation": "zscore(subtract(ts_delta(fnd91_topic_1,1), divide(fnd91_sentiment2_1, add(fnd91_measure_0,1e-6))))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "High topic_14 with high objective momentum",
+      "description": "Core: long when topic_14 rises and objective increases (ts_delta). Used fnd91_topic_14 and ts_delta(fnd91_sentiment1_3,1). SUGGESTION1 applied. Confidence 0.56.",
+      "implementation": "zscore(add(ts_delta(fnd91_topic_14,1), ts_delta(fnd91_sentiment1_3,1)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Low negative sentiment cross-sectionally (quantile)",
+      "description": "Core: pick securities in lowest quantile of fnd91_sentiment2_1 (least negative). Used quantile. SUGGESTION4 applied. Confidence 0.68.",
+      "implementation": "quantile(reverse(fnd91_sentiment2_1))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Topic_18 with falling complexity",
+      "description": "Core: long when topic_18 high and complexity metric fnd91_sentiment2_3 falls. SUGGESTION1 applied. Confidence 0.60.",
+      "implementation": "zscore(subtract(fnd91_topic_18, fnd91_sentiment2_3))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High topic_13 with high numeric per sentence",
+      "description": "Core: long when topic_13 up and numeric_count per sentence (numeric_count / measure_0) high. SUGGESTION1 applied. Confidence 0.52.",
+      "implementation": "zscore(multiply(fnd91_topic_13, divide(fnd91_numeric_count, add(fnd91_measure_0,1e-6))))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Objective language extreme outliers (winsorized)",
+      "description": "Core: use winsorize on objective model1 then zscore to reduce outlier-driven noise. SUGGESTION1 applied with fnd91_sentiment1_3. Confidence 0.61.",
+      "implementation": "zscore(winsorize(fnd91_sentiment1_3,4))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Topic_7 sustained decline as contrarian long",
+      "description": "Core: contrarian long when topic_7 has been declining (reverse ts_mean). Used ts_mean(fnd91_topic_7,6). SUGGESTION1 applied. Confidence 0.39.",
+      "implementation": "reverse(zscore(ts_mean(fnd91_topic_7,6)))",
+      "confidence_level": 0.39
+    },
+    {
+      "idea": "High positive words with low document attachments (single upbeat doc)",
+      "description": "Core: long when positive word count high and doccount low. Used fnd91_sentiment2_0 and fnd91_doccount. SUGGESTION1 applied. Confidence 0.54.",
+      "implementation": "zscore(subtract(fnd91_sentiment2_0, fnd91_doccount))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Topic_16 with increasing objective-per-word",
+      "description": "Core: long when topic_16 up and objective per total words increases. Used fnd91_topic_16 and divide(fnd91_sentiment1_3, fnd91_measure_4). SUGGESTION1 applied. Confidence 0.58.",
+      "implementation": "zscore(add(fnd91_topic_16, divide(fnd91_sentiment1_3, add(fnd91_measure_4,1e-6))))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "High topic_2 novelty via ts_quantile",
+      "description": "Core: use ts_quantile(topic_2,5) to capture unusual increases. SUGGESTION1 applied. Confidence 0.50.",
+      "implementation": "ts_quantile(fnd91_topic_2,5)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Low negative but high numeric detail (data-driven positive)",
+      "description": "Core: long when negative words low and numeric_count high. Used fnd91_sentiment2_1 and fnd91_numeric_count. SUGGESTION1 applied. Confidence 0.62.",
+      "implementation": "zscore(subtract(fnd91_numeric_count, fnd91_sentiment2_1))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Topic_11 rising with improved readability",
+      "description": "Core: long when topic_11 increases and readability improves. Used fnd91_topic_11 and ts_delta(fnd91_readability_0,1). SUGGESTION1 applied. Confidence 0.55.",
+      "implementation": "zscore(add(ts_delta(fnd91_topic_11,1), ts_delta(fnd91_readability_0,1)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "High topic_3 with low negativity ts_mean",
+      "description": "Core: long when topic_3 high and ts_mean(negative,4) low. Used fnd91_topic_3 and ts_mean(fnd91_sentiment2_1,4). SUGGESTION1 applied. Confidence 0.59.",
+      "implementation": "zscore(subtract(fnd91_topic_3, ts_mean(fnd91_sentiment2_1,4)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Sustained increase in positive model2 (ts_ir)",
+      "description": "Core: use ts_ir on fnd91_sentiment1_4 to detect consistent positive signal. SUGGESTION1 applied. Confidence 0.63.",
+      "implementation": "ts_ir(fnd91_sentiment1_4,12)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "High topic_8 with falling objective (possible spin)",
+      "description": "Core: short when topic_8 high and objective score drops. Used fnd91_topic_8 and ts_delta(fnd91_sentiment1_3,1). SUGGESTION1 applied. Confidence 0.46.",
+      "implementation": "zscore(subtract(ts_delta(fnd91_topic_8,1), ts_delta(fnd91_sentiment1_3,1)))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Readability per sentence (clarity metric)",
+      "description": "Core: long when readability per sentence (readability / sentences) is high. Used fnd91_readability_2 and fnd91_measure_0. SUGGESTION1 applied. Confidence 0.52.",
+      "implementation": "zscore(divide(fnd91_readability_2, add(fnd91_measure_0,1e-6)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Topic_19 with high objective and low negative",
+      "description": "Core: long when topic_19 and objective strong while negative low. Used fnd91_topic_19 and subtract objective minus negative (fnd91_sentiment1_3 - fnd91_sentiment1_5) folded into single expression while respecting 2 datafield limit by focusing on topic_19 and one combined metric avoided; to keep within 2 datafields used topic_19 and fnd91_sentiment1_3 and relied on zscore. SUGGESTION1 partially applied. Confidence 0.57.",
+      "implementation": "zscore(add(fnd91_topic_19, fnd91_sentiment1_3))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Topic_12 decreasing negativity momentum",
+      "description": "Core: long when topic_12 up and ts_delta(negative) down. Used fnd91_topic_12 and ts_delta(fnd91_sentiment2_1,1). SUGGESTION1 applied. Confidence 0.60.",
+      "implementation": "zscore(subtract(fnd91_topic_12, ts_delta(fnd91_sentiment2_1,1)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High topic_13 with stable objective (low volatility in objectivity)",
+      "description": "Core: favor when topic_13 high and ts_std_dev(objective,6) low. Used fnd91_topic_13 and ts_std_dev(fnd91_sentiment1_3,6). SUGGESTION1 applied. Confidence 0.54.",
+      "implementation": "zscore(subtract(fnd91_topic_13, ts_std_dev(fnd91_sentiment1_3,6)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "High positive momentum normalized cross-sectionally",
+      "description": "Core: use ts_zscore on positive dictionary words to find strong momentum. Used ts_zscore(fnd91_sentiment2_0,5). SUGGESTION1 applied. Confidence 0.66.",
+      "implementation": "ts_zscore(fnd91_sentiment2_0,5)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Topic_4 with falling doccount (single key update)",
+      "description": "Core: long when topic_4 up while doccount falls, indicating focused message. Used fnd91_topic_4 and fnd91_doccount. SUGGESTION1 applied. Confidence 0.48.",
+      "implementation": "zscore(subtract(fnd91_topic_4, fnd91_doccount))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "High topic_16 with low negative per sentence",
+      "description": "Core: long when topic_16 is high and negative per sentence low. Used fnd91_topic_16 and divide(fnd91_sentiment2_1, fnd91_measure_0). SUGGESTION1 applied. Confidence 0.56.",
+      "implementation": "zscore(subtract(fnd91_topic_16, divide(fnd91_sentiment2_1, add(fnd91_measure_0,1e-6))))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Topic_18 cross-sectional high quantile",
+      "description": "Core: select top quantile of topic_18 exposure. Used quantile(fnd91_topic_18). SUGGESTION1 applied. Confidence 0.62.",
+      "implementation": "quantile(fnd91_topic_18)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Negative word acceleration cross-sectionally",
+      "description": "Core: short names with fast-rising negative words measured via ts_delta. Used ts_delta(fnd91_sentiment2_1,1) and zscore. SUGGESTION1 applied. Confidence 0.65.",
+      "implementation": "zscore(ts_delta(fnd91_sentiment2_1,1))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Topic_13 with high positive-per-word",
+      "description": "Core: long when topic_13 high and positive words per total words high (fnd91_sentiment2_0 / measure_4). SUGGESTION1 applied. Confidence 0.59.",
+      "implementation": "zscore(add(fnd91_topic_13, divide(fnd91_sentiment2_0, add(fnd91_measure_4,1e-6))))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Objective stability with rising topic_12 (low ts_std_dev)",
+      "description": "Core: long when topic_12 rises and ts_std_dev(objective,6) low (stable objective messaging). Used fnd91_topic_12 and ts_std_dev(fnd91_sentiment1_3,6). SUGGESTION1 applied. Confidence 0.57.",
+      "implementation": "zscore(subtract(fnd91_topic_12, ts_std_dev(fnd91_sentiment1_3,6)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "High topic_19 with increasing positive model2 momentum",
+      "description": "Core: long when topic_19 and ts_delta(fnd91_sentiment1_4,1) are positive. Used two fields. SUGGESTION1 applied. Confidence 0.61.",
+      "implementation": "zscore(add(fnd91_topic_19, ts_delta(fnd91_sentiment1_4,1)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "High topic_7 with low negative-model1",
+      "description": "Core: long when topic_7 high and fnd91_sentiment1_5 negative model1 low. SUGGESTION1 applied. Confidence 0.55.",
+      "implementation": "zscore(subtract(fnd91_topic_7, fnd91_sentiment1_5))",
+      "confidence_level": 0.55
+    }
+  ]
+}

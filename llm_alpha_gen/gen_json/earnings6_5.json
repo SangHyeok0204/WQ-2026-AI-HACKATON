@@ -1,0 +1,628 @@
+{
+  "results": [
+    {
+      "idea": "Earnings surprise (raw): actual minus estimate",
+      "description": "Core: long stocks with actual EPS > estimated EPS. SUGGESTION1: applied (uses actual and estimated EPS). SUGGESTION2: no vector fields present so not applied. SUGGESTION3: coverages >0.9 so ts_backfill not needed. SUGGESTION4: used high user/alpha count fields (ern6_actual_eps, ern6_estimated_eps). KEEP_IN_MINDs: implementation uses 1 operator and 2 datafields, short. Confidence set to 0.85 because earnings surprise is a well-known robust signal.",
+      "implementation": "subtract(ern6_actual_eps, ern6_estimated_eps)",
+      "confidence_level": 0.85
+    },
+    {
+      "idea": "Earnings surprise percentage",
+      "description": "Core: surprise as percent = (actual - estimate) / |estimate|. SUGGESTION1: applied (two fields). SUGGESTION2: not applicable. SUGGESTION3: not needed. SUGGESTION4: used ern6_estimated_eps (high userCount). KEEP_IN_MINDs: <=2 fields and few operators. Confidence 0.82 due to normalization reducing scale effects.",
+      "implementation": "divide(subtract(ern6_actual_eps, ern6_estimated_eps), abs(ern6_estimated_eps))",
+      "confidence_level": 0.82
+    },
+    {
+      "idea": "Z-scored surprise (cross-sectional)",
+      "description": "Core: cross-sectional zscore of (actual - estimate) to rank within universe. SUGGESTION1: applied (two fields). SUGGESTION2: none. SUGGESTION3: not needed. SUGGESTION4: used high-count fields. KEEP_IN_MINDs: uses zscore operator (cross-sectional) and 2 fields. Confidence 0.8 because normalization helps across sectors.",
+      "implementation": "zscore(subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.8
+    },
+    {
+      "idea": "Surprise normalized by preliminary range width",
+      "description": "Core: surprise / (upper - lower) where range measures uncertainty. SUGGESTION1: applied (3 fields condensed to 2 by range). SUGGESTION2: not applied. SUGGESTION3: coverages high so skipped. SUGGESTION4: preliminary bounds have moderate userCount but acceptable. KEEP_IN_MINDs: uses 2 datafields (prelim bounds combined via subtract) and actual/estimated. Confidence 0.7 because range reliability varies.",
+      "implementation": "divide(subtract(ern6_actual_eps, ern6_estimated_eps), subtract(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Earnings momentum: ts_zscore of actual EPS (20d)",
+      "description": "Core: instruments with rising EPS relative to their time-series history. SUGGESTION1: uses single field (ern6_actual_eps). SUGGESTION2: no vector. SUGGESTION3: high coverage so not needed. SUGGESTION4: chosen due to high alphaCount. KEEP_IN_MINDs: single field, single operator. Confidence 0.65 since EPS updates are infrequent.",
+      "implementation": "ts_zscore(ern6_actual_eps, 20)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Estimated EPS momentum: ts_zscore of estimated EPS (20d)",
+      "description": "Core: market expectation shifts reflected in estimated EPS changes. SUGGESTION1: single field (ern6_estimated_eps). SUGGESTION2: none. SUGGESTION3: not needed. SUGGESTION4: high userCount supports signal. KEEP_IN_MINDs: short implementation. Confidence 0.66 because analyst estimate drift often predictive.",
+      "implementation": "ts_zscore(ern6_estimated_eps, 20)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Surprise persistence: sign of consecutive surprises",
+      "description": "Core: stocks with positive surprise history (sign(actual-estimate) aggregated). SUGGESTION1: uses actual and estimated. SUGGESTION2: not applicable. SUGGESTION3: not needed. SUGGESTION4: used robust fields. KEEP_IN_MINDs: keep short using sign and ts_sum. Confidence 0.7 reflecting persistence tendency.",
+      "implementation": "ts_sum(sign(subtract(ern6_actual_eps, ern6_estimated_eps)), 4)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Surprise volatility: abs surprise z-score (cross-sectional)",
+      "description": "Core: identify extreme surprises (absolute unexpectedness) via zscore(abs(actual-estimate)). SUGGESTION1: applied. SUGGESTION2: none. SUGGESTION3: not needed. SUGGESTION4: uses high-count fields. KEEP_IN_MINDs: simple pipeline. Confidence 0.68 since extremes often revert or lead to momentum depending on context.",
+      "implementation": "zscore(abs(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Post-earnings short-term return push: surprise * sign(ern6_time_of_day == 'After Market')",
+      "description": "Core: larger overnight moves when earnings after market. SUGGESTION1: uses actual/estimate and time-of-day. SUGGESTION2: no vector. SUGGESTION3: not needed (fields high coverage). SUGGESTION4: used ern6_time_of_day which has high alphaCount. KEEP_IN_MINDs: comparison implemented with mult and equal, within operator limits. Confidence 0.6 because execution/timing matters.",
+      "implementation": "multiply(subtract(ern6_actual_eps, ern6_estimated_eps), if_else(equal(ern6_time_of_day, \"After Market\"), 1, 0))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Surprise scaled by estimated_tod (Before vs After)",
+      "description": "Core: separate signals by scheduled announcement time (before vs after). SUGGESTION1: used two fields. SUGGESTION2: none. SUGGESTION3: not necessary. SUGGESTION4: ern6_estimated_tod has coverage=1. KEEP_IN_MINDs: <=7 operators. Confidence 0.62 acknowledging timing heterogeneity.",
+      "implementation": "if_else(equal(ern6_estimated_tod, \"Before Market\"), subtract(ern6_actual_eps, ern6_estimated_eps), reverse(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Conference call signal: surprise amplified if company provides conference call",
+      "description": "Core: stronger moves when earnings accompanied by conference call. SUGGESTION1: used actual/est and conferencecall flag. SUGGESTION2: no vector. SUGGESTION3: not needed. SUGGESTION4: ern6_conferencecalltime has high counts. KEEP_IN_MINDs: short. Confidence 0.63 because calls reveal detail.",
+      "implementation": "multiply(subtract(ern6_actual_eps, ern6_estimated_eps), if_else(is_nan(ern6_conferencecalltime), 0.5, 1))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Transcript frequency: positive surprise with transcript -> stronger signal",
+      "description": "Core: when transcript exists (ern6_transcript_quarter) positive surprise is more actionable. SUGGESTION1: used actual and transcript presence. SUGGESTION2: none. SUGGESTION3: coverage high. SUGGESTION4: chosen high-count transcript fields. KEEP_IN_MINDs: minimal operators. Confidence 0.6 due to indirect relation.",
+      "implementation": "multiply(subtract(ern6_actual_eps, ern6_estimated_eps), if_else(is_nan(ern6_transcript_quarter), 0.7, 1))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Estimates revision speed: ts_delta of estimated EPS (5d)",
+      "description": "Core: rapidly rising estimates indicate improving fundamentals. SUGGESTION1: single field (ern6_estimated_eps) used. SUGGESTION2: none. SUGGESTION3: not required. SUGGESTION4: high userCount. KEEP_IN_MINDs: single ts operator. Confidence 0.67 because estimate revisions are informative.",
+      "implementation": "ts_delta(ern6_estimated_eps, 5)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Earnings surprise vs fiscal-year peers (group-neutralized)",
+      "description": "Core: neutralize surprise by exchange/sector using group_neutralize. SUGGESTION1: uses actual and estimated EPS and group. SUGGESTION2: none. SUGGESTION3: not needed. SUGGESTION4: used ern6_stock_exchange as group (high coverage). KEEP_IN_MINDs: group operator used; group provided as parameter. Confidence 0.72 since sector-adjusted surprise often stronger.",
+      "implementation": "group_neutralize(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_stock_exchange)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Surprise rank within estimated_period",
+      "description": "Core: rank surprises within the scheduled period (quarter). SUGGESTION1: uses actual-estimate and period field. SUGGESTION2: none. SUGGESTION3: not needed. SUGGESTION4: ern6_estimated_period has high alphaCount. KEEP_IN_MINDs: group_rank used with group param. Confidence 0.7 because intra-period ranking reduces cross-cycle noise.",
+      "implementation": "group_rank(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_period)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Pre-announcement drift: estimate changes before next ED",
+      "description": "Core: monitor ts_delta(estimated_eps) leading to next earnings date. SUGGESTION1: used estimated_eps and next_ed. SUGGESTION2: none. SUGGESTION3: next_ed coverage high so no backfill. SUGGESTION4: fields high-count. KEEP_IN_MINDs: short ts_delta. Confidence 0.64 because timing noise exists.",
+      "implementation": "multiply(ts_delta(ern6_estimated_eps, 10), if_else(is_nan(ern6_next_ed), 0, 1))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Earnings surprise scaled by dividend status",
+      "description": "Core: surprise impact differs for dividend payers vs non-payers. SUGGESTION1: uses surprise and dividend status. SUGGESTION2: none. SUGGESTION3: not required. SUGGESTION4: ern6_dividend_status has full coverage. KEEP_IN_MINDs: conditional scaling used. Confidence 0.58 due to mixed effects.",
+      "implementation": "if_else(equal(ern6_dividend_status, \"P\"), subtract(ern6_actual_eps, ern6_estimated_eps), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 0.7))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Split status filter: ignore signals if split pending",
+      "description": "Core: avoid signals around pending stock splits (ern6_split_status). SUGGESTION1: uses surprise and split status. SUGGESTION2/3: not applicable. SUGGESTION4: split_status high alphaCount. KEEP_IN_MINDs: trade_when style implemented via if_else. Confidence 0.52 because splits can distort prices.",
+      "implementation": "if_else(equal(ern6_split_status, \"PENDING\"), 0, subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Prelim range midpoint surprise",
+      "description": "Core: compare actual to midpoint of preliminary EPS range. SUGGESTION1: applied using actual and mean of prelim bounds. SUGGESTION2: none. SUGGESTION3: not needed. SUGGESTION4: prelim bounds have adequate counts. KEEP_IN_MINDs: uses add/divide operations only. Confidence 0.6 as midpoint may be noisy.",
+      "implementation": "subtract(ern6_actual_eps, divide(add(preliminary_eps_range_lower_bound, preliminary_eps_range_upper_bound), 2))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Conference call timing effect: during-market vs after-market",
+      "description": "Core: scale surprise differently if conference call is during market hours. SUGGESTION1: uses time_of_day and surprise. SUGGESTION2: none. SUGGESTION3: not needed. SUGGESTION4: ern6_time_of_day has full coverage. KEEP_IN_MINDs: simple conditional multiply. Confidence 0.59 given variability.",
+      "implementation": "if_else(equal(ern6_time_of_day, \"During Market\"), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 1.1), subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Estimate dispersion proxy: use prelim range width (uncertainty)",
+      "description": "Core: wide preliminary range implies high analyst dispersion -> weaker signal. SUGGESTION1: uses preliminary bounds and surprise. SUGGESTION2: none. SUGGESTION3: not needed. SUGGESTION4: bounds have moderate counts. KEEP_IN_MINDs: divide by range to discount noisy names. Confidence 0.55 due to variable quality of prelim ranges.",
+      "implementation": "divide(subtract(ern6_actual_eps, ern6_estimated_eps), add(1, subtract(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Surprise momentum via ts_returns of actual EPS",
+      "description": "Core: relative change in actual EPS series predicts future moves. SUGGESTION1: uses ts_returns on actual. SUGGESTION2: none. SUGGESTION3: not needed. SUGGESTION4: chosen field has good coverage. KEEP_IN_MINDs: single ts operator. Confidence 0.6; EPS not very high-frequency.",
+      "implementation": "ts_returns(ern6_actual_eps, 5)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Surprise persistence count: number of non-NaN surprises (group_count)",
+      "description": "Core: stocks with many valid surprises (consistent reporting) show reliability. SUGGESTION1: uses actual EPS and group_count w.r.t exchange. SUGGESTION2: none. SUGGESTION3: not needed. SUGGESTION4: uses ern6_stock_exchange group. KEEP_IN_MINDs: group_count used appropriately. Confidence 0.5 because count is a weak proxy.",
+      "implementation": "group_count(ern6_actual_eps, ern6_stock_exchange)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Surprise vs company-size proxy: use group_neutralize by stock_exchange then zscore",
+      "description": "Core: normalize surprise within exchange then cross-sectional zscore. SUGGESTION1: applied. SUGGESTION2: none. SUGGESTION3: not needed. SUGGESTION4: used high-count group. KEEP_IN_MINDs: two operators, two fields. Confidence 0.68 as cross-sectional normalization often improves signal.",
+      "implementation": "zscore(group_neutralize(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_stock_exchange))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Surprise signal filtered by estimated_etype (verified vs tentative)",
+      "description": "Core: weight surprises higher if estimate date/status is verified. SUGGESTION1: used estimated_etype and surprise. SUGGESTION2: none. SUGGESTION3: not necessary. SUGGESTION4: estimated_etype has high counts. KEEP_IN_MINDs: conditional scaling. Confidence 0.63 since verified dates are more reliable.",
+      "implementation": "if_else(equal(ern6_estimated_etype, \"Verified\"), subtract(ern6_actual_eps, ern6_estimated_eps), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 0.7))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Earnings surprise relative to estimated fiscal year cohort",
+      "description": "Core: neutralize surprise within fiscal year using group_neutralize on fiscal year. SUGGESTION1: used actual/estimated and group. SUGGESTION2/3: not applicable. SUGGESTION4: ern6_actual_fiscal_year available. KEEP_IN_MINDs: short. Confidence 0.61 because cohort effects matter.",
+      "implementation": "group_neutralize(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_actual_fiscal_year)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Preliminary estimate breadth: count of non-NaN preliminary bounds (vec_count simulated via is_nan) — proxy",
+      "description": "Core: names with both bounds provided likely have better estimate info. SUGGESTION1: used prelim bounds. SUGGESTION2: not applicable. SUGGESTION3: not needed. SUGGESTION4: fields moderate counts. KEEP_IN_MINDs: no vector operator available for these fields but use is_nan logic; kept short. Confidence 0.48 since proxy is weak.",
+      "implementation": "subtract(is_nan(preliminary_eps_range_lower_bound), is_nan(preliminary_eps_range_upper_bound))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Surprise adjusted for currency conversion (actual_currenty field implies different currency) — conservative scaling",
+      "description": "Core: scale surprises if actual currency non-USD to adjust FX noise. SUGGESTION1: uses actual_eps and actual_currency. SUGGESTION2: none. SUGGESTION3: not required. SUGGESTION4: ern6_actual_currenty coverage=1.0. KEEP_IN_MINDs: simple conditional multiply. Confidence 0.5 because FX effects mixed.",
+      "implementation": "if_else(equal(ern6_actual_currenty, \"USD\"), subtract(ern6_actual_eps, ern6_estimated_eps), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 0.9))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Earnings surprise signal only when company provides URL (signal reliability filter)",
+      "description": "Core: prefer announcements with official URL links (ern6_actual_url). SUGGESTION1: used actual_eps and url presence. SUGGESTION2: none. SUGGESTION3: not needed. SUGGESTION4: ern6_actual_url coverage=1.0. KEEP_IN_MINDs: simple if_else. Confidence 0.54 because presence of URL implies reliability.",
+      "implementation": "if_else(is_nan(ern6_actual_url), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 0.8), subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Surprise signal amplified by conference replay availability (goto_broadcast)",
+      "description": "Core: announcements with webcasts (ern6_goto_broadcast) provide richer detail; amplify surprise. SUGGESTION1: uses goto_broadcast and surprise. SUGGESTION2/3: not applicable. SUGGESTION4: goto_broadcast has high user/alpha counts. KEEP_IN_MINDs: short conditional. Confidence 0.6.",
+      "implementation": "if_else(is_nan(ern6_goto_broadcast), subtract(ern6_actual_eps, ern6_estimated_eps), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 1.1))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings surprise sign change detection (last_diff_value)",
+      "description": "Core: detect last change in surprise sign to find reversals/continuations. SUGGESTION1: uses actual/estimated. SUGGESTION2: none. SUGGESTION3: not needed. SUGGESTION4: uses high-count fields. KEEP_IN_MINDs: single operator where possible. Confidence 0.55; signal nuanced.",
+      "implementation": "last_diff_value(subtract(ern6_actual_eps, ern6_estimated_eps), 8)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Surprise persistence days_from_last_change",
+      "description": "Core: recent changes in EPS surprise (few days since last change) indicate momentum. SUGGESTION1: uses days_from_last_change on surprise. SUGGESTION2/3: N/A. SUGGESTION4: used robust fields. KEEP_IN_MINDs: one operator, one field derived. Confidence 0.56.",
+      "implementation": "days_from_last_change(subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Earnings frequency premium: signals stronger for monthly or quarterly dividend frequency",
+      "description": "Core: adjust surprise by dividend frequency (ern6_div_freq). SUGGESTION1: used div_freq. SUGGESTION2/3: N/A. SUGGESTION4: ern6_div_freq coverage=1.0. KEEP_IN_MINDs: conditional scaling. Confidence 0.49 as relation indirect.",
+      "implementation": "if_else(equal(ern6_div_freq, \"MONTHLY\"), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 1.05), subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Surprise weighted by conference call passcode availability (proxy for formal calls)",
+      "description": "Core: if confpasscode present, call likely formal -> weight surprise. SUGGESTION1: used confpasscode. SUGGESTION2/3: N/A. SUGGESTION4: field has good counts. KEEP_IN_MINDs: short conditional. Confidence 0.53.",
+      "implementation": "if_else(is_nan(ern6_confpasscode), subtract(ern6_actual_eps, ern6_estimated_eps), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 1.05))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Earnings surprise decay: hump operator to reduce turnover",
+      "description": "Core: apply hump to surprise to limit turnover while keeping direction. SUGGESTION1: used actual and estimated eps. SUGGESTION2/3: not applicable. SUGGESTION4: high-count fields used. KEEP_IN_MINDs: hump counts as one operator; implementation concise. Confidence 0.57 as turnover control often helpful.",
+      "implementation": "hump(subtract(ern6_actual_eps, ern6_estimated_eps), hump=0.02)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Surprise sensitivity to meeting status (held vs postponed)",
+      "description": "Core: reduce weight if meeting_status is POSTPONED/CANCEL. SUGGESTION1: uses meeting_status and surprise. SUGGESTION2/3: N/A. SUGGESTION4: meeting_status coverage high. KEEP_IN_MINDs: conditional. Confidence 0.5 because schedule disruptions can obscure signal.",
+      "implementation": "if_else(or(equal(ern6_meeting_status, \"POSTPONED\"), equal(ern6_meeting_status, \"CANCEL\")), 0, subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Surprise vs estimated_tod quantile (cross-sectional scaling)",
+      "description": "Core: compute quantile of surprise but conditioned by estimated_tod buckets. SUGGESTION1: uses actual/estimated and tod. SUGGESTION2: none. SUGGESTION3: not required. SUGGESTION4: estimated_tod full coverage. KEEP_IN_MINDs: single quantile operator used. Confidence 0.64.",
+      "implementation": "quantile(subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Earnings surprise vs prior year same quarter (seasonal)",
+      "description": "Core: compare current actual EPS to last year's same quarter estimate/actual. SUGGESTION1: uses actual and actual_fiscal_year via ts_delay approach. SUGGESTION2: none. SUGGESTION3: not needed. SUGGESTION4: fields present with good coverage. KEEP_IN_MINDs: use ts_delta with 252-day proxy (long lookback). Confidence 0.58 due to infrequent comparable periods.",
+      "implementation": "ts_delta(ern6_actual_eps, 252)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Surprise monthly/quarterly cadence filter using ern6_quarter",
+      "description": "Core: focus on regular quarterly reporters vs irregular ones using ern6_quarter. SUGGESTION1: uses quarter and surprise. SUGGESTION2/3: N/A. SUGGESTION4: quarter coverage high. KEEP_IN_MINDs: short conditional. Confidence 0.52.",
+      "implementation": "if_else(is_nan(ern6_quarter), 0, subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Surprise magnitude winsorized then zscored",
+      "description": "Core: winsorize surprise to handle outliers then zscore. SUGGESTION1: applied. SUGGESTION2/3: none. SUGGESTION4: uses high-count fields. KEEP_IN_MINDs: two operators only. Confidence 0.7 since robustification often helps.",
+      "implementation": "zscore(winsorize(subtract(ern6_actual_eps, ern6_estimated_eps), std=4))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Earnings surprise predictability enhanced by presence of company transcript link (prelim_earnings_link)",
+      "description": "Core: amplify signal when preliminary link exists. SUGGESTION1: used prelim link and surprise. SUGGESTION2/3: N/A. SUGGESTION4: prelim link has full coverage. KEEP_IN_MINDs: conditional. Confidence 0.56.",
+      "implementation": "if_else(is_nan(ern6_prelim_earnings_link), subtract(ern6_actual_eps, ern6_estimated_eps), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 1.08))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Earnings surprise combined with conferencecalltime presence (binary)",
+      "description": "Core: treat presence of a scheduled conference time as signal strengthen. SUGGESTION1: used conferencecalltime. SUGGESTION2/3: N/A. SUGGESTION4: field high counts. KEEP_IN_MINDs: short. Confidence 0.58.",
+      "implementation": "if_else(is_nan(ern6_conferencecalltime), subtract(ern6_actual_eps, ern6_estimated_eps), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 1.07))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Earnings surprise scaled by stock exchange (different volatility regimes)",
+      "description": "Core: normalize surprise by exchange volatility using group_std_dev proxy via group_std_dev. SUGGESTION1: used group operator and surprise. SUGGESTION2/3: N/A. SUGGESTION4: exchange field full coverage. KEEP_IN_MINDs: group operator used correctly. Confidence 0.63.",
+      "implementation": "divide(subtract(ern6_actual_eps, ern6_estimated_eps), group_std_dev(ern6_actual_eps, ern6_stock_exchange))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Surprise positivity with verified estimated_date (ern6_etype == 'V')",
+      "description": "Core: favor surprises when estimated date type is Verified. SUGGESTION1: used estimated_etype. SUGGESTION2/3: N/A. SUGGESTION4: high userCount. KEEP_IN_MINDs: conditional scaling. Confidence 0.61.",
+      "implementation": "if_else(equal(ern6_etype, \"V\"), subtract(ern6_actual_eps, ern6_estimated_eps), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 0.8))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Surprise relative ranking across instruments (quantile of surprise)",
+      "description": "Core: rank surprise via quantile to create robust long-short signal. SUGGESTION1: used actual and estimated. SUGGESTION2/3: N/A. SUGGESTION4: used high-count EPS fields. KEEP_IN_MINDs: single quantile operator. Confidence 0.72 due to strong cross-sectional performance historically.",
+      "implementation": "quantile(subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Surprise scaled by announcer's source reliability (ern6_actual_source: PR vs WEBSITE)",
+      "description": "Core: downweight surprises from less formal sources. SUGGESTION1: used actual_source and surprise. SUGGESTION2/3: N/A. SUGGESTION4: source has full coverage. KEEP_IN_MINDs: short conditional. Confidence 0.55.",
+      "implementation": "if_else(equal(ern6_actual_source, \"PR\"), subtract(ern6_actual_eps, ern6_estimated_eps), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 0.8))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Surprise signal when estimated_url exists (investor guidance availability)",
+      "description": "Core: presence of estimated_url indicates better transparency; amplify surprise. SUGGESTION1: applied. SUGGESTION2/3: N/A. SUGGESTION4: estimated_url coverage high. KEEP_IN_MINDs: simple if_else. Confidence 0.54.",
+      "implementation": "if_else(is_nan(ern6_estimated_url), subtract(ern6_actual_eps, ern6_estimated_eps), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 1.06))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Surprise signal only for NA-listed securities (ern6_eps6ww_status == 'NA')",
+      "description": "Core: filter for North American listings where market microstructure is familiar. SUGGESTION1: used eps6ww_status. SUGGESTION2/3: N/A. SUGGESTION4: field coverage=1.0. KEEP_IN_MINDs: filter applied with if_else. Confidence 0.5 due to excluding potential signals.",
+      "implementation": "if_else(equal(ern6_eps6ww_status, \"NA\"), subtract(ern6_actual_eps, ern6_estimated_eps), 0)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Surprise timing advantage: use ern6_estimated_tod == 'Before Market' to predict intraday returns",
+      "description": "Core: before-market announcements allow same-day alpha. SUGGESTION1: used estimated_tod and surprise. SUGGESTION2/3: N/A. SUGGESTION4: field has full coverage. KEEP_IN_MINDs: conditional scaling. Confidence 0.61.",
+      "implementation": "if_else(equal(ern6_estimated_tod, \"Before Market\"), subtract(ern6_actual_eps, ern6_estimated_eps), 0)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Surprise persistence via ts_count_nans on reported EPS (data reliability proxy)",
+      "description": "Core: names with fewer NaNs in past EPS series are more reliable; amplify signals. SUGGESTION1: uses ts_count_nans on actual eps. SUGGESTION2: none. SUGGESTION3: not needed. SUGGESTION4: field has good coverage. KEEP_IN_MINDs: single ts operator. Confidence 0.47 since proxy is weak.",
+      "implementation": "ts_count_nans(ern6_actual_eps, 252)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Estimate surprise momentum: ts_arg_max of estimated_eps to find recent peaks",
+      "description": "Core: recent peak in estimates indicates optimism - combine with surprise sign. SUGGESTION1: used ts_arg_max and actual/estimated. SUGGESTION2/3: N/A. SUGGESTION4: fields robust. KEEP_IN_MINDs: operator count small. Confidence 0.56.",
+      "implementation": "multiply(subtract(ern6_actual_eps, ern6_estimated_eps), if_else(equal(ts_arg_max(ern6_estimated_eps, 30), 0), 1.1, 1))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Earnings surprise weighted by conferencecalltime hour (earlier vs later)",
+      "description": "Core: earlier calls may imply investor-friendly scheduling; scale surprise by conferencecalltime presence. SUGGESTION1: used conferencecalltime. SUGGESTION2/3: N/A. SUGGESTION4: field has adequate counts. KEEP_IN_MINDs: kept short. Confidence 0.5.",
+      "implementation": "if_else(is_nan(ern6_conferencecalltime), subtract(ern6_actual_eps, ern6_estimated_eps), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 1.03))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Surprise signal filtered by isin country prefix (ern6_isin implies country)",
+      "description": "Core: prefer domestic country listings using ISIN country code. SUGGESTION1: used ISIN and surprise. SUGGESTION2/3: N/A. SUGGESTION4: ern6_isin coverage high. KEEP_IN_MINDs: short conditional. Confidence 0.48 because ISIN parsing may be required.",
+      "implementation": "if_else(is_nan(ern6_isin), subtract(ern6_actual_eps, ern6_estimated_eps), subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Earnings surprise cross-time IR: ts_ir of surprise over 60d",
+      "description": "Core: information ratio of surprise time series to pick consistent outperformers. SUGGESTION1: used ts_ir on actual_eps - est. SUGGESTION2: none. SUGGESTION3: not needed. SUGGESTION4: fields solid. KEEP_IN_MINDs: single ts operator. Confidence 0.59.",
+      "implementation": "ts_ir(subtract(ern6_actual_eps, ern6_estimated_eps), 60)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Surprise direction consistency: ts_sign persistence via ts_sum(sign(...), d)",
+      "description": "Core: aggregate sign of surprise over past few reports to find consistent beaters. SUGGESTION1: used actual/estimated. SUGGESTION2: none. SUGGESTION3: not needed. SUGGESTION4: fields good. KEEP_IN_MINDs: simple ts_sum and sign. Confidence 0.66.",
+      "implementation": "ts_sum(sign(subtract(ern6_actual_eps, ern6_estimated_eps)), 4)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Surprise after excluding companies with pending board meetings",
+      "description": "Core: exclude names with imminent board/shareholder meetings (ern6_board_of_directors_meeting) that may confound price. SUGGESTION1: used board meeting date presence. SUGGESTION2/3: N/A. SUGGESTION4: field coverage high. KEEP_IN_MINDs: short filter. Confidence 0.45.",
+      "implementation": "if_else(is_nan(ern6_board_of_directors_meeting), subtract(ern6_actual_eps, ern6_estimated_eps), 0)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Surprise scaled by stock split status (avoid noise around splits)",
+      "description": "Core: downweight signals when split_status is APPROVED/PENDING. SUGGESTION1: used split_status. SUGGESTION2/3: N/A. SUGGESTION4: split_status has high counts. KEEP_IN_MINDs: conditional scaling. Confidence 0.5.",
+      "implementation": "if_else(equal(ern6_split_status, \"APPROVED\"), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 0.6), subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Surprise amplified for companies with high user-submitted estimate coverage (proxy via userCount high fields chosen)",
+      "description": "Core: prefer signals from fields with high historical usage (ern6_etype / ern6_goto_broadcast chosen). SUGGESTION1: applied by selecting high userCount fields. SUGGESTION2/3: N/A. SUGGESTION4: explicitly followed. KEEP_IN_MINDs: implementation concise. Confidence 0.6.",
+      "implementation": "multiply(subtract(ern6_actual_eps, ern6_estimated_eps), if_else(is_nan(ern6_goto_broadcast), 1, 1.1))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Estimate surprise smoothed via ts_mean (5 reports)",
+      "description": "Core: smooth surprise using past mean to reduce idiosyncratic noise. SUGGESTION1: uses ts_mean of actual_eps and compare to estimated. SUGGESTION2: none. SUGGESTION3: not required. SUGGESTION4: fields reliable. KEEP_IN_MINDs: short ts operator. Confidence 0.62.",
+      "implementation": "subtract(ts_mean(ern6_actual_eps, 5), ern6_estimated_eps)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Surprise rank but only for companies with conference replay (higher transparency)",
+      "description": "Core: quantile rank surprise but restrict to names with goto_broadcast present. SUGGESTION1: used goto_broadcast and surprise. SUGGESTION2/3: N/A. SUGGESTION4: goto_broadcast high alphaCount. KEEP_IN_MINDs: use if_else and quantile. Confidence 0.58.",
+      "implementation": "if_else(is_nan(ern6_goto_broadcast), 0, quantile(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Surprise scaled by estimated_fiscal_year proximity (near-term vs distant)",
+      "description": "Core: weight surprises differently based on whether the estimate pertains to current fiscal year. SUGGESTION1: used fiscal year fields. SUGGESTION2/3: N/A. SUGGESTION4: fields have adequate counts. KEEP_IN_MINDs: implementation short. Confidence 0.51.",
+      "implementation": "if_else(equal(ern6_estimated_fiscal_year, ern6_actual_fiscal_year), subtract(ern6_actual_eps, ern6_estimated_eps), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 0.8))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Pre-announcement estimate surprise using ern6_next_ed proximity (shortening window)",
+      "description": "Core: scale estimate changes by days to next earnings (closer = more informative). SUGGESTION1: used next_ed presence. SUGGESTION2/3: N/A. SUGGESTION4: next_ed coverage high. KEEP_IN_MINDs: concise. Confidence 0.54.",
+      "implementation": "if_else(is_nan(ern6_next_ed), 0, subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Surprise signal conditioned on company name patterns (ern6_company_name presence as reliability)",
+      "description": "Core: ensure company name exists and official record present to increase trust in announcement. SUGGESTION1: used company_name presence filter. SUGGESTION2/3: N/A. SUGGESTION4: company_name coverage=1.0. KEEP_IN_MINDs: simple presence filter. Confidence 0.45.",
+      "implementation": "if_else(is_nan(ern6_company_name), 0, subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Surprise magnitude inversely weighted by group_count (crowded group less sensitive)",
+      "description": "Core: divide surprise by group_count to reduce weight in crowded groups. SUGGESTION1: used group_count with exchange. SUGGESTION2/3: N/A. SUGGESTION4: group operator used. KEEP_IN_MINDs: short. Confidence 0.57.",
+      "implementation": "divide(subtract(ern6_actual_eps, ern6_estimated_eps), add(1, group_count(ern6_actual_eps, ern6_stock_exchange)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Surprise sign times group_rank (top within group)",
+      "description": "Core: use group_rank to pick top surprises within exchange group and take sign for direction. SUGGESTION1: applied. SUGGESTION2/3: N/A. SUGGESTION4: group has full coverage. KEEP_IN_MINDs: two operators only. Confidence 0.62.",
+      "implementation": "multiply(sign(subtract(ern6_actual_eps, ern6_estimated_eps)), group_rank(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_stock_exchange))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Earnings surprise time-series kurtosis for instability detection",
+      "description": "Core: use ts_kurtosis on actual EPS to detect names with fat tails and adjust exposure. SUGGESTION1: used ts_kurtosis on actual_eps. SUGGESTION2/3: N/A. SUGGESTION4: field coverage adequate. KEEP_IN_MINDs: single ts operator. Confidence 0.46.",
+      "implementation": "ts_kurtosis(ern6_actual_eps, 60)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Surprise ranked but only among companies with 'WEBSITE' as source (filtering)",
+      "description": "Core: use announcements from company website as potentially authoritative; rank surprises there. SUGGESTION1: applied. SUGGESTION2/3: N/A. SUGGESTION4: actual_source has full coverage. KEEP_IN_MINDs: concise. Confidence 0.5.",
+      "implementation": "if_else(equal(ern6_actual_source, \"WEBSITE\"), quantile(subtract(ern6_actual_eps, ern6_estimated_eps)), 0)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Surprise scaled by stock_exchange-specific mean surprise (group_mean)",
+      "description": "Core: normalize by group_mean to find relative beats within exchange. SUGGESTION1: used group_mean. SUGGESTION2/3: N/A. SUGGESTION4: group available. KEEP_IN_MINDs: operator count small. Confidence 0.65.",
+      "implementation": "subtract(subtract(ern6_actual_eps, ern6_estimated_eps), group_mean(subtract(ern6_actual_eps, ern6_estimated_eps), 1, ern6_stock_exchange))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Surprise when conference call passcode and broadcast both present (high transparency)",
+      "description": "Core: amplify surprise when both confpasscode and broadcast exist. SUGGESTION1: used both fields. SUGGESTION2/3: N/A. SUGGESTION4: both have good counts. KEEP_IN_MINDs: simple if_else nested. Confidence 0.57.",
+      "implementation": "if_else(and(not(is_nan(ern6_confpasscode)), not(is_nan(ern6_goto_broadcast))), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 1.12), subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Surprise adjusted by estimated_period granularity (quarter vs half-year)",
+      "description": "Core: scale surprises when estimated_period is quarter (more precise) vs half-year. SUGGESTION1: used estimated_period. SUGGESTION2/3: N/A. SUGGESTION4: field coverage=1.0. KEEP_IN_MINDs: conditional scaling. Confidence 0.53.",
+      "implementation": "if_else(equal(ern6_estimated_period, \"Q\"), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 1.05), subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Surprise sign filtered by presence of conference details (conferencecalltime or goto_broadcast)",
+      "description": "Core: require at least one conference detail to act on surprise. SUGGESTION1: used those fields. SUGGESTION2/3: N/A. SUGGESTION4: fields high-count. KEEP_IN_MINDs: short OR conditional. Confidence 0.55.",
+      "implementation": "if_else(or(not(is_nan(ern6_conferencecalltime)), not(is_nan(ern6_goto_broadcast))), subtract(ern6_actual_eps, ern6_estimated_eps), 0)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Surprise magnitude when estimated_eps is non-zero (avoid division issues)",
+      "description": "Core: only compute percent surprise when estimated_eps non-zero to avoid blow-ups. SUGGESTION1: used abs check. SUGGESTION2/3: N/A. SUGGESTION4: field counts high. KEEP_IN_MINDs: safe divide implemented. Confidence 0.6.",
+      "implementation": "if_else(equal(ern6_estimated_eps, 0), 0, divide(subtract(ern6_actual_eps, ern6_estimated_eps), abs(ern6_estimated_eps)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Surprise signal de-emphasized for low-quality estimated_etype (Inferred/Tentative)",
+      "description": "Core: downweight when ern6_etype is I or T. SUGGESTION1: uses ern6_etype. SUGGESTION2/3: N/A. SUGGESTION4: ern6_etype high user/alpha count. KEEP_IN_MINDs: conditional. Confidence 0.57.",
+      "implementation": "if_else(or(equal(ern6_etype, \"I\"), equal(ern6_etype, \"T\")), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 0.7), subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Surprise cross-sectional winsorized by exchange then quantiled",
+      "description": "Core: winsorize surprise within exchange group then quantile for robust cross-sectional ranking. SUGGESTION1: used group and winsorize. SUGGESTION2/3: N/A. SUGGESTION4: group has full coverage. KEEP_IN_MINDs: <=7 operators. Confidence 0.69.",
+      "implementation": "quantile(winsorize(group_neutralize(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_stock_exchange), std=4))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Estimate surprise volatility reduction via ts_std_dev smoothing",
+      "description": "Core: divide surprise by ts_std_dev(actual_eps) to normalize by recent EPS volatility. SUGGESTION1: used ts_std_dev. SUGGESTION2/3: N/A. SUGGESTION4: field coverage adequate. KEEP_IN_MINDs: simple two-operator pipeline. Confidence 0.6.",
+      "implementation": "divide(subtract(ern6_actual_eps, ern6_estimated_eps), add(1e-6, ts_std_dev(ern6_actual_eps, 60)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Surprise signal limited to firms with consistent estimated_period reporting (low ts_count_nans)",
+      "description": "Core: prefer names with consistent estimate records (low ts_count_nans of estimated_eps). SUGGESTION1: used ts_count_nans. SUGGESTION2/3: N/A. SUGGESTION4: estimated_eps has good counts. KEEP_IN_MINDs: single ts operator and filter. Confidence 0.52.",
+      "implementation": "if_else(less(ts_count_nans(ern6_estimated_eps, 252), 10), subtract(ern6_actual_eps, ern6_estimated_eps), 0)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Surprise predictive power amplified when preliminary link and conference call both present",
+      "description": "Core: two signals of transparency amplify surprise. SUGGESTION1: used prelim link and conferencecalltime. SUGGESTION2/3: N/A. SUGGESTION4: both fields high coverage. KEEP_IN_MINDs: concise conditional multiply. Confidence 0.59.",
+      "implementation": "if_else(and(not(is_nan(ern6_prelim_earnings_link)), not(is_nan(ern6_conferencecalltime))), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 1.12), subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Earnings surprise smoothed by ts_scale over 4 reports",
+      "description": "Core: scale surprise time-series to 0-1 range to compare across names. SUGGESTION1: used ts_scale on actual_eps. SUGGESTION2/3: N/A. SUGGESTION4: fields reliable. KEEP_IN_MINDs: single ts operator. Confidence 0.58.",
+      "implementation": "ts_scale(ern6_actual_eps, 4)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Surprise filter: only act when estimated_eps exists (avoid missing data)",
+      "description": "Core: skip names with missing estimates to avoid noisy signals. SUGGESTION1: simple presence check. SUGGESTION2/3: N/A. SUGGESTION4: estimated_eps high-count. KEEP_IN_MINDs: minimal implementation. Confidence 0.55.",
+      "implementation": "if_else(is_nan(ern6_estimated_eps), 0, subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Earnings surprise prioritized for companies with recent transcript_quarter entries",
+      "description": "Core: prioritize names where transcript_quarter non-NaN. SUGGESTION1: used transcript presence and surprise. SUGGESTION2/3: N/A. SUGGESTION4: transcript_quarter high counts. KEEP_IN_MINDs: concise. Confidence 0.56.",
+      "implementation": "if_else(not(is_nan(ern6_transcript_quarter)), subtract(ern6_actual_eps, ern6_estimated_eps), 0)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Surprise residual after removing group_mean by estimated_period",
+      "description": "Core: subtract group mean surprise within estimated_period to focus on idiosyncratic surprise. SUGGESTION1: used group_mean with period. SUGGESTION2/3: N/A. SUGGESTION4: period field has full coverage. KEEP_IN_MINDs: two-operator approach. Confidence 0.66.",
+      "implementation": "subtract(subtract(ern6_actual_eps, ern6_estimated_eps), group_mean(subtract(ern6_actual_eps, ern6_estimated_eps), 1, ern6_estimated_period))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Surprise filtered by estimated_tod 'During Market' for intraday alpha",
+      "description": "Core: act only if estimated_tod is During Market for same-day execution. SUGGESTION1: used tod and surprise. SUGGESTION2/3: N/A. SUGGESTION4: field full coverage. KEEP_IN_MINDs: short conditional. Confidence 0.57.",
+      "implementation": "if_else(equal(ern6_estimated_tod, \"During Market\"), subtract(ern6_actual_eps, ern6_estimated_eps), 0)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Surprise volatility taper: inverse-weight by group_std_dev to reduce exposure to volatile groups",
+      "description": "Core: divide surprise by group_std_dev across exchange. SUGGESTION1: used group_std_dev. SUGGESTION2/3: N/A. SUGGESTION4: group present. KEEP_IN_MINDs: brief implementation. Confidence 0.62.",
+      "implementation": "divide(subtract(ern6_actual_eps, ern6_estimated_eps), add(1e-6, group_std_dev(ern6_actual_eps, ern6_stock_exchange)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Surprise signal only for companies with expected_time_of_day 'After Market' (overnight trade)",
+      "description": "Core: exploit overnight return patterns by focusing on After Market announcements. SUGGESTION1: used time_of_day filter. SUGGESTION2/3: N/A. SUGGESTION4: field full coverage. KEEP_IN_MINDs: simple conditional. Confidence 0.59.",
+      "implementation": "if_else(equal(ern6_time_of_day, \"After Market\"), subtract(ern6_actual_eps, ern6_estimated_eps), 0)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Surprise consistency measured by ts_av_diff (actual - recent mean)",
+      "description": "Core: use ts_av_diff to get deviation from recent mean, capturing unexpectedness beyond simple surprise. SUGGESTION1: applied on actual_eps. SUGGESTION2/3: N/A. SUGGESTION4: field coverage strong. KEEP_IN_MINDs: one operator. Confidence 0.6.",
+      "implementation": "ts_av_diff(ern6_actual_eps, 20)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Surprise when preliminary estimates are 'Verified' (ern6_estimated_etype)",
+      "description": "Core: reward positive surprises when estimated_etype indicates Verified. SUGGESTION1: used estimated_etype. SUGGESTION2/3: N/A. SUGGESTION4: field has strong counts. KEEP_IN_MINDs: concise. Confidence 0.58.",
+      "implementation": "if_else(equal(ern6_estimated_etype, \"Verified\"), subtract(ern6_actual_eps, ern6_estimated_eps), 0)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Surprise rank but limited to companies trading on specific exchange (ern6_stock_exchange filter)",
+      "description": "Core: restrict ranking to a specific exchange to exploit localized patterns. SUGGESTION1: used stock_exchange filter. SUGGESTION2/3: N/A. SUGGESTION4: stock_exchange full coverage. KEEP_IN_MINDs: one quantile inside conditional. Confidence 0.54.",
+      "implementation": "if_else(equal(ern6_stock_exchange, \"NASDAQ\"), quantile(subtract(ern6_actual_eps, ern6_estimated_eps)), 0)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Surprise vs preliminary midpoint rank across universe",
+      "description": "Core: compare actual to prelim midpoint and quantile rank the deviation. SUGGESTION1: used prelim bounds and actual. SUGGESTION2/3: N/A. SUGGESTION4: fields moderate counts. KEEP_IN_MINDs: simple arithmetic and quantile. Confidence 0.59.",
+      "implementation": "quantile(subtract(ern6_actual_eps, divide(add(preliminary_eps_range_lower_bound, preliminary_eps_range_upper_bound), 2)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Surprise multiplied by sign of estimate revision (positive revision momentum)",
+      "description": "Core: prefer surprises aligned with positive recent estimate revisions (ts_delta(estimated_eps) >0). SUGGESTION1: used estimated_eps ts_delta and surprise. SUGGESTION2/3: N/A. SUGGESTION4: high-count field. KEEP_IN_MINDs: short. Confidence 0.65.",
+      "implementation": "multiply(subtract(ern6_actual_eps, ern6_estimated_eps), sign(ts_delta(ern6_estimated_eps, 10)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Surprise correlation with prior returns: ts_corr between surprise and returns",
+      "description": "Core: compute ts_corr to find names where surprise historically aligns with price moves. SUGGESTION1: used ts_corr on surprise and returns. SUGGESTION2/3: N/A. SUGGESTION4: fields adequate. KEEP_IN_MINDs: single ts operator. Confidence 0.5 given data frequency mismatch.",
+      "implementation": "ts_corr(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_actual_eps, 60)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Surprise sign amplified if earnings source is SEC filing (SEC-SEDAR)",
+      "description": "Core: SEC filings more formal -> treat surprises stronger. SUGGESTION1: used actual_source. SUGGESTION2/3: N/A. SUGGESTION4: actual_source full coverage. KEEP_IN_MINDs: short conditional. Confidence 0.56.",
+      "implementation": "if_else(equal(ern6_actual_source, \"SEC-SEDAR\"), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 1.08), subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Surprise flagged only if estimated_eps and actual_eps are in same currency",
+      "description": "Core: ensure both figures in same currency to avoid FX mismatch. SUGGESTION1: used actual_currenty and estimated currency implicit. SUGGESTION2/3: N/A. SUGGESTION4: actual_currenty coverage=1.0. KEEP_IN_MINDs: presence check implemented. Confidence 0.49.",
+      "implementation": "if_else(is_nan(ern6_actual_currenty), 0, subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Surprise durability: ts_product of consecutive positive beats",
+      "description": "Core: product of indicators for consecutive beats indicates durable outperformance. SUGGESTION1: used sign and ts_product. SUGGESTION2/3: N/A. SUGGESTION4: fields robust. KEEP_IN_MINDs: simple ts_product. Confidence 0.58.",
+      "implementation": "ts_product(if_else(greater(subtract(ern6_actual_eps, ern6_estimated_eps), 0), 1, 0), 4)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Surprise magnitude adjusted by transcript_fiscal_year match",
+      "description": "Core: if transcript fiscal year matches actual fiscal year, treat surprise stronger. SUGGESTION1: used transcript_fiscal_year. SUGGESTION2/3: N/A. SUGGESTION4: transcript_fiscal_year high counts. KEEP_IN_MINDs: concise. Confidence 0.52.",
+      "implementation": "if_else(equal(ern6_transcript_fiscal_year, ern6_actual_fiscal_year), subtract(ern6_actual_eps, ern6_estimated_eps), subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Surprise signal weighted by existence of earnings press release URL",
+      "description": "Core: presence of press release link (ern6_actual_url) increases reliability; amplify surprise accordingly. SUGGESTION1: applied. SUGGESTION2/3: N/A. SUGGESTION4: actual_url coverage=1.0. KEEP_IN_MINDs: short conditional. Confidence 0.55.",
+      "implementation": "if_else(is_nan(ern6_actual_url), subtract(ern6_actual_eps, ern6_estimated_eps), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 1.07))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Surprise cross-sectional rank trimmed to top decile",
+      "description": "Core: take top decile of quantile(subtract(actual, est)) to form long basket. SUGGESTION1: used quantile. SUGGESTION2/3: N/A. SUGGESTION4: fields robust. KEEP_IN_MINDs: one operator. Confidence 0.7 as concentrated bets on top decile often effective.",
+      "implementation": "bucket(quantile(subtract(ern6_actual_eps, ern6_estimated_eps)), range=\"0,1,0.1\")",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Surprise using absolute change in EPS (eps_change_absolute_value) cross-sectionally",
+      "description": "Core: use reported absolute EPS change as signal directly. SUGGESTION1: uses eps_change_absolute_value (high coverage). SUGGESTION2: no vector. SUGGESTION3: not needed. SUGGESTION4: field userCount small but coverage high; still used. KEEP_IN_MINDs: single field. Confidence 0.53.",
+      "implementation": "quantile(eps_change_absolute_value)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Surprise expressed in percent change field (eps_change_percentage_value) zscored",
+      "description": "Core: use percentage EPS change normalized across cross-section. SUGGESTION1: applied. SUGGESTION2: none. SUGGESTION3: not necessary. SUGGESTION4: field userCount modest but coverage high. KEEP_IN_MINDs: single operator. Confidence 0.54.",
+      "implementation": "zscore(eps_change_percentage_value)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Surprise augmented by conferencecalltime and broadcast presence combined (both)",
+      "description": "Core: require both conferencecalltime and goto_broadcast to amplify trust in signal. SUGGESTION1: used both fields. SUGGESTION2/3: N/A. SUGGESTION4: both have strong counts. KEEP_IN_MINDs: small conditional. Confidence 0.58.",
+      "implementation": "if_else(and(not(is_nan(ern6_conferencecalltime)), not(is_nan(ern6_goto_broadcast))), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 1.15), subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Surprise cross-sectional normalized by ts_scale of estimated_eps",
+      "description": "Core: normalize estimated_eps time-series then compute surprise relative to that scale. SUGGESTION1: used ts_scale and subtract. SUGGESTION2/3: N/A. SUGGESTION4: estimated_eps reliable. KEEP_IN_MINDs: minimal ops. Confidence 0.6.",
+      "implementation": "subtract(ern6_actual_eps, ts_scale(ern6_estimated_eps, 20))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Surprise penalized when next_ed is far (distant next earnings implies less timely)",
+      "description": "Core: downweight surprises if next_ed is far in future by checking presence. SUGGESTION1: used next_ed. SUGGESTION2/3: N/A. SUGGESTION4: next_ed coverage high. KEEP_IN_MINDs: short conditional. Confidence 0.48.",
+      "implementation": "if_else(is_nan(ern6_next_ed), subtract(ern6_actual_eps, ern6_estimated_eps), multiply(subtract(ern6_actual_eps, ern6_estimated_eps), 1))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Surprise where estimated_period equals actual_period (consistency check)",
+      "description": "Core: require estimated and actual period to match to increase signal fidelity. SUGGESTION1: used both period fields. SUGGESTION2/3: N/A. SUGGESTION4: both have high coverage. KEEP_IN_MINDs: simple equality filter. Confidence 0.53.",
+      "implementation": "if_else(equal(ern6_estimated_period, ern6_actual_period), subtract(ern6_actual_eps, ern6_estimated_eps), 0)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Surprise sign multiplied by group_zscore (relative to group distribution)",
+      "description": "Core: amplify sign of surprise according to group zscore of actual_eps. SUGGESTION1: used group_zscore. SUGGESTION2/3: N/A. SUGGESTION4: group present. KEEP_IN_MINDs: two operators. Confidence 0.61.",
+      "implementation": "multiply(sign(subtract(ern6_actual_eps, ern6_estimated_eps)), group_zscore(ern6_actual_eps, ern6_stock_exchange))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Surprise filter excluding names with missing stock_symbol (data hygiene)",
+      "description": "Core: require stock_symbol to ensure instrument mapping. SUGGESTION1: used ern6_eps6stock_symbol presence. SUGGESTION2/3: N/A. SUGGESTION4: field coverage=1.0. KEEP_IN_MINDs: short filter. Confidence 0.46.",
+      "implementation": "if_else(is_nan(ern6_eps6stock_symbol), 0, subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.46
+    }
+  ]
+}

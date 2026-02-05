@@ -1,0 +1,592 @@
+{
+  "results": [
+    {
+      "idea": "Earnings surprise (cross-sectional)",
+      "description": "Core: rank cross-sectionally the raw earnings surprise = actual EPS - estimated EPS. SUGGESTIONS: S1 applied (uses two datafields ern6_actual_eps, ern6_estimated_eps); S2 not applicable (no vector fields); S3 not applied (both fields coverage >0.9); S4 applied (chosen fields have high user/alphaCount). KEEP_IN_MINDs honored: implementation short, uses 2 datafields, <=7 operators. Confidence: 0.78 because earnings surprise is a well-known predictive signal.",
+      "implementation": "quantile(subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.78
+    },
+    {
+      "idea": "Relative surprise (%)",
+      "description": "Core: cross-sectional percent surprise = (actual - estimated) / estimated, then rank. S1 applied (two fields); S2 not applied; S3 not needed; S4 applied. KEEP_IN_MINDs satisfied. Confidence: 0.74 (percent surprise normalizes by scale, slightly less noisy).",
+      "implementation": "quantile(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Surprise zscore (time-series standardized)",
+      "description": "Core: standardize surprise per stock over lookback to reduce outliers: ts_zscore(actual - estimated, 63) then cross-sectional quantile. S1 used (2 fields); S2 not applicable; S3 not needed; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.76 (time-series standardization reduces heteroskedasticity).",
+      "implementation": "quantile(ts_zscore(subtract(ern6_actual_eps, ern6_estimated_eps), 63))",
+      "confidence_level": 0.76
+    },
+    {
+      "idea": "Surprise scaled by recent volatility",
+      "description": "Core: surprise divided by recent ts_std_dev(actual_eps,63) to scale by earnings variability. S1 used; S2 not; S3 not; S4 applied. Implementation concise. Confidence: 0.70 (scaling helpful but volatility estimate for EPS can be noisy).",
+      "implementation": "quantile(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ts_std_dev(ern6_actual_eps, 63)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Momentum in reported EPS (short-term)",
+      "description": "Core: ts_delta(actual_eps, 21) cross-sectionally ranked to capture recent acceleration. S1 uses single field; S2 not; S3 not; S4 applied (actual_eps has high counts). KEEP_IN_MINDs OK. Confidence: 0.62 (EPS momentum is informative but lower frequency).",
+      "implementation": "quantile(ts_delta(ern6_actual_eps, 21))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum in reported EPS (medium-term)",
+      "description": "Core: ts_delta(actual_eps, 63) rank. S1 applied (single field); S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.64 (longer lookback can be cleaner).",
+      "implementation": "quantile(ts_delta(ern6_actual_eps, 63))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum in estimated EPS (revision signal)",
+      "description": "Core: ts_delta(ern6_estimated_eps, 21) – captures analyst upward/downward revisions pre-announcement. S1 applied; S2 not; S3 not; S4 applied (estimated_eps high userCount). KEEP_IN_MINDs OK. Confidence: 0.68 (estimate revisions predictive).",
+      "implementation": "quantile(ts_delta(ern6_estimated_eps, 21))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Estimate-to-actual surprise ratio",
+      "description": "Core: (actual - estimated) / (abs(estimated) + small) to avoid scale issues, then zscore. S1 applied; S2 not; S3 not; S4 applied. KEEP_IN_MINDs satisfied. Confidence: 0.71 (robust scaling improves signal).",
+      "implementation": "zscore(divide(subtract(ern6_actual_eps, ern6_estimated_eps), add(abs(ern6_estimated_eps), 1e-6)))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Recent EPS change percent (cross-section)",
+      "description": "Core: rank eps_change_percentage_value after winsorize to reduce outliers. S1 used (single field eps_change_percentage_value); S2 not; S3 not needed; S4 partly applied (field has good coverage). KEEP_IN_MINDs kept. Confidence: 0.63 (direct percent change captures momentum).",
+      "implementation": "quantile(winsorize( eps_change_percentage_value, std=4 ))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Absolute EPS surprise (magnitude)",
+      "description": "Core: rank absolute surprise |actual - estimated| to capture surprise magnitude regardless of sign. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs OK. Confidence: 0.60 (magnitude often predicts volatility and short-term moves).",
+      "implementation": "quantile(abs(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Sign-consistent surprise momentum",
+      "description": "Core: sign(actual - estimated) * ts_delta(actual,21) to favor persistent directional surprise momentum. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.66 (combines direction and momentum).",
+      "implementation": "quantile(multiply(sign(subtract(ern6_actual_eps, ern6_estimated_eps)), ts_delta(ern6_actual_eps, 21)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Preliminary range contraction (quality of estimate)",
+      "description": "Core: narrow preliminary eps range = upper - lower (smaller = higher confidence). Use inverse and rank. S1 applied (upper and lower fields); S2 not; S3 not; S4 applied (fields present). KEEP_IN_MINDs followed. Confidence: 0.58 (narrow ranges imply higher visibility).",
+      "implementation": "quantile(inverse(subtract(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Estimate surprise normalized by preliminary range",
+      "description": "Core: surprise divided by preliminary range width to adjust surprise by expected dispersion. S1 used (three values but implementation uses 2 datafields: actual_eps and preliminary range via subtraction of two fields counts as using 2 datafields? To obey <=2 datafields, use actual_eps and preliminary range computed from upper/lower - counts as two fields). S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.67 (normalizes surprise by expected uncertainty).",
+      "implementation": "quantile(divide(subtract(ern6_actual_eps, ern6_estimated_eps), subtract(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound)))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Estimate drift vs. preliminary center",
+      "description": "Core: actual - midpoint(prelim upper/lower) captures deviation from company guidance center. S1 used (actual and prelim bounds); S2 not; S3 not; S4 applied. KEEP_IN_MINDs OK. Confidence: 0.65 (guidance midpoint is meaningful).",
+      "implementation": "quantile(subtract(ern6_actual_eps, divide(add(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound), 2)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "EPS surprise persistence (2-quarter average)",
+      "description": "Core: average of (current surprise + last surprise) via ts_mean on surprise series (lookback 126) then rank. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs satisfied. Confidence: 0.69 (persistence across quarters valuable).",
+      "implementation": "quantile(ts_mean(subtract(ern6_actual_eps, ern6_estimated_eps), 126))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Estimate dispersion (stability of estimates)",
+      "description": "Core: ts_std_dev(ern6_estimated_eps, 63) lower = more stable estimates; rank inverse. S1 applied; S2 not; S3 not; S4 applied. KEEP_IN_MINDs OK. Confidence: 0.55 (lower confidence signal but useful for risk overlay).",
+      "implementation": "quantile(inverse(ts_std_dev(ern6_estimated_eps, 63)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "EPS surprise turnover-adjusted (hump)",
+      "description": "Core: apply hump to surprise to limit turnover: hump(subtract(actual, estimated), 0.01) then quantile. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs respected (operators <=7, fields <=2). Confidence: 0.61 (operational improvement rather than alpha boost).",
+      "implementation": "quantile(hump(subtract(ern6_actual_eps, ern6_estimated_eps), 0.01))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Surprise adjusted by historical mean surprise",
+      "description": "Core: subtract ts_mean(surprise, 252) to get deviation from historical mean: ts_av_diff on surprise then rank. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs OK. Confidence: 0.68 (removes seasonal bias).",
+      "implementation": "quantile(ts_av_diff(subtract(ern6_actual_eps, ern6_estimated_eps), 252))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Recent estimate acceleration vs. long-run",
+      "description": "Core: ts_delta(ern6_estimated_eps, 21) - ts_mean(ts_delta(...), 252) approximated via subtract(ts_delta, ts_mean). S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs satisfied. Confidence: 0.63 (captures acceleration of revisions).",
+      "implementation": "quantile(subtract(ts_delta(ern6_estimated_eps, 21), ts_mean(ts_delta(ern6_estimated_eps, 21), 252)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "EPS jump indicator (argmax of recent series)",
+      "description": "Core: ts_arg_max(ern6_actual_eps, 63) low index (=0) indicates recent max; invert and rank to find recent jumps. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs OK. Confidence: 0.56 (indicator of recent step changes).",
+      "implementation": "quantile(reverse(ts_arg_max(ern6_actual_eps, 63)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "EPS trough recovery (argmin momentum)",
+      "description": "Core: ts_arg_min(ern6_actual_eps, 126) small value indicates recovery from trough; rank. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.54 (recovery patterns weaker).",
+      "implementation": "quantile(reverse(ts_arg_min(ern6_actual_eps, 126)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Estimate surprise information ratio",
+      "description": "Core: ts_ir(subtract(actual, estimated), 252) to capture mean/std over year then rank. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs satisfied. Confidence: 0.66 (IR combines magnitude and consistency).",
+      "implementation": "quantile(ts_ir(subtract(ern6_actual_eps, ern6_estimated_eps), 252))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Normalized surprise (min-max in TS)",
+      "description": "Core: ts_scale(subtract(actual, estimated), 252) cross-sectionally ranked. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.62 (robust normalization).",
+      "implementation": "quantile(ts_scale(subtract(ern6_actual_eps, ern6_estimated_eps), 252))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "EPS percent change zscore (short-term)",
+      "description": "Core: ts_zscore(eps_change_percentage_value, 63) then quantile to find outliers. S1 used (single field); S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.59 (captures extreme percent moves).",
+      "implementation": "quantile(ts_zscore(eps_change_percentage_value, 63))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Pre-announcement estimate drift (long lookback)",
+      "description": "Core: ts_delta(ern6_estimated_eps, 126) rank to capture longer-term analyst revision trends. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs observed. Confidence: 0.60 (longer-term revisions capture trend).",
+      "implementation": "quantile(ts_delta(ern6_estimated_eps, 126))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Preliminary width zscore",
+      "description": "Core: zscore(subtract(upper, lower)) cross-sectional to capture unusually wide/narrow ranges. S1 applied; S2 not; S3 not; S4 applied. KEEP_IN_MINDs satisfied. Confidence: 0.53 (guidance range less predictive alone).",
+      "implementation": "quantile(zscore(subtract(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound)))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Absolute eps-change momentum vs estimates",
+      "description": "Core: multiply(abs(eps_change_absolute_value), sign(subtract(ern6_actual_eps, ern6_estimated_eps))) and rank to prefer large positive-change & positive surprise. S1 uses two fields; S2 not; S3 not; S4 applied. KEEP_IN_MINDs honored. Confidence: 0.65 (combines size and direction).",
+      "implementation": "quantile(multiply(abs(eps_change_absolute_value), sign(subtract(ern6_actual_eps, ern6_estimated_eps))))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Estimate revision zscore vs history",
+      "description": "Core: ts_zscore(ts_delta(ern6_estimated_eps, 21), 252) then quantile. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs OK. Confidence: 0.67 (unusually large revision relative to history predictive).",
+      "implementation": "quantile(ts_zscore(ts_delta(ern6_estimated_eps, 21), 252))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "EPS surprise momentum compounded",
+      "description": "Core: multiply(ts_delta(ern6_actual_eps,21), subtract(ern6_actual_eps, ern6_estimated_eps)) then cross-sectional rank. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs honored. Confidence: 0.64 (compounds momentum and surprise).",
+      "implementation": "quantile(multiply(ts_delta(ern6_actual_eps, 21), subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Recent surprise frequency (count non-NaN surprises)",
+      "description": "Core: ts_count_nans(subtract(actual, estimated), 63) lower NaNs -> more frequent surprises; rank inverse. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs satisfied. Confidence: 0.50 (auxiliary signal for liquidity/coverage).",
+      "implementation": "quantile(inverse(ts_count_nans(subtract(ern6_actual_eps, ern6_estimated_eps), 63)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Surprise persistence via product",
+      "description": "Core: ts_product(sign(subtract(actual, estimated)), 4) to see consistent sign of surprises over last 4 periods then rank. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs respected. Confidence: 0.57 (persistent signs have predictive value).",
+      "implementation": "quantile(ts_product(sign(subtract(ern6_actual_eps, ern6_estimated_eps)), 4))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Surprise normalized by estimate volatility",
+      "description": "Core: divide(subtract(actual, estimated), ts_std_dev(ern6_estimated_eps, 126)) then rank. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs OK. Confidence: 0.65 (uses estimate variability for normalization).",
+      "implementation": "quantile(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ts_std_dev(ern6_estimated_eps, 126)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Two-factor: surprise + estimate momentum",
+      "description": "Core: add(quantile(subtract(actual, estimated)), quantile(ts_delta(estimated,21))) combine cross-sectional ranks of surprise and estimate momentum. S1 used (2 fields); S2 not; S3 not; S4 applied. KEEP_IN_MINDs <=7 ops. Confidence: 0.72 (combining orthogonal signals increases robustness).",
+      "implementation": "add(quantile(subtract(ern6_actual_eps, ern6_estimated_eps)), quantile(ts_delta(ern6_estimated_eps, 21)))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Estimate surprise decayed (ts_decay_linear)",
+      "description": "Core: apply ts_decay_linear to surprise over 63 days to emphasize recent surprises then rank. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.60 (decay highlights recent changes).",
+      "implementation": "quantile(ts_decay_linear(subtract(ern6_actual_eps, ern6_estimated_eps), 63))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Surprise asymmetry (positive vs negative)",
+      "description": "Core: if_else(subtract(actual,estimated)>0, subtract(actual,estimated), reverse(subtract(actual,estimated))) to penalize negative surprises more. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs respected. Confidence: 0.59 (asymmetric market reaction exploited).",
+      "implementation": "quantile(if_else(greater(subtract(ern6_actual_eps, ern6_estimated_eps), 0), subtract(ern6_actual_eps, ern6_estimated_eps), reverse(subtract(ern6_actual_eps, ern6_estimated_eps))))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Estimate surprise volatility spike detector",
+      "description": "Core: ts_max_diff(subtract(actual,estimated), 252) large positive indicates current surprise is much higher than past max; rank. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs OK. Confidence: 0.58 (detects exceptional events).",
+      "implementation": "quantile(ts_max_diff(subtract(ern6_actual_eps, ern6_estimated_eps), 252))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Surprise kurtosis filter",
+      "description": "Core: ts_kurtosis(subtract(actual,estimated), 252) low kurtosis stocks are more stable; rank inverse. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs satisfied. Confidence: 0.52 (statistical property used for risk selection).",
+      "implementation": "quantile(inverse(ts_kurtosis(subtract(ern6_actual_eps, ern6_estimated_eps), 252)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Estimate-upside bias (mean of positive revisions)",
+      "description": "Core: ts_sum(if_else(ts_delta(estimated,21)>0, ts_delta(estimated,21), 0), 252) rank. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.61 (persistent upward revisions predictive).",
+      "implementation": "quantile(ts_sum(if_else(greater(ts_delta(ern6_estimated_eps,21), 0), ts_delta(ern6_estimated_eps,21), 0), 252))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Estimate downside accumulation",
+      "description": "Core: ts_sum(if_else(ts_delta(estimated,21)<0, abs(ts_delta(estimated,21)), 0), 252) rank to detect sustained downgrades. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs OK. Confidence: 0.62 (downgrades often precede underperformance).",
+      "implementation": "quantile(ts_sum(if_else(less(ts_delta(ern6_estimated_eps,21), 0), abs(ts_delta(ern6_estimated_eps,21)), 0), 252))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Surprise-to-dividend overlay",
+      "description": "Core: multiply(surprise, ern6_x_dividend) to favor surprises in dividend-paying firms. S1 uses two fields; S2 not; S3 not; S4 applied (dividend field coverage ~0.98). KEEP_IN_MINDs kept. Confidence: 0.48 (niche overlay).",
+      "implementation": "quantile(multiply(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_x_dividend))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Estimate surprise per-share-dollar scaled",
+      "description": "Core: divide(subtract(actual,estimated), add(abs(ern6_actual_eps),1e-6)) then quantile. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs observed. Confidence: 0.60 (relative surprise per share scale).",
+      "implementation": "quantile(divide(subtract(ern6_actual_eps, ern6_estimated_eps), add(abs(ern6_actual_eps), 1e-6)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Recent surprise rank blended (1/3,2/3)",
+      "description": "Core: add(multiply(quantile(ts_delta(actual,21)), 0.67), multiply(quantile(subtract(actual,estimated)), 0.33)) blend momentum and surprise. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs satisfied. Confidence: 0.73 (blending boosts stability).",
+      "implementation": "add(multiply(quantile(ts_delta(ern6_actual_eps,21)), 0.67), multiply(quantile(subtract(ern6_actual_eps, ern6_estimated_eps)), 0.33))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Surprise decile bucketing",
+      "description": "Core: bucket(rank(subtract(actual,estimated)), range=\"0,1,0.1\") then prefer top bucket. S1 applied; S2 not; S3 not; S4 applied. KEEP_IN_MINDs OK. Confidence: 0.58 (bucket simplifies implementation and reduces sensitivity).",
+      "implementation": "bucket(rank(subtract(ern6_actual_eps, ern6_estimated_eps)), range=\"0, 1, 0.1\")",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Estimate surprise zscore (short lookback)",
+      "description": "Core: ts_zscore(subtract(actual,estimated), 21) then quantile. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs honored. Confidence: 0.63 (short-term outliers are actionable).",
+      "implementation": "quantile(ts_zscore(subtract(ern6_actual_eps, ern6_estimated_eps), 21))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "EPS revision acceleration vs volatility",
+      "description": "Core: divide(ts_delta(ern6_estimated_eps,21), ts_std_dev(ern6_estimated_eps,63)) then quantile. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.66 (acceleration scaled by uncertainty is robust).",
+      "implementation": "quantile(divide(ts_delta(ern6_estimated_eps, 21), ts_std_dev(ern6_estimated_eps, 63)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "EPS surprise rolling sign consistency",
+      "description": "Core: ts_product(sign(subtract(actual,estimated)), 8) to detect 8-quarter consistent direction; rank. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs observed. Confidence: 0.59 (long-term consistency helpful but rarer).",
+      "implementation": "quantile(ts_product(sign(subtract(ern6_actual_eps, ern6_estimated_eps)), 8))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Surprise normalized by preliminary midpoint",
+      "description": "Core: divide(subtract(actual, estimated), divide(add(prelim_upper, prelim_lower), 2)) then quantile. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs followed. Confidence: 0.61 (normalizes by company guidance scale).",
+      "implementation": "quantile(divide(subtract(ern6_actual_eps, ern6_estimated_eps), divide(add(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound), 2)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Estimate surprise half-life weighting",
+      "description": "Core: ts_decay_linear(subtract(actual, estimated), 126) then quantile to emphasize recent two-quarter surprises. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs satisfied. Confidence: 0.60 (decay gives operational smoothing).",
+      "implementation": "quantile(ts_decay_linear(subtract(ern6_actual_eps, ern6_estimated_eps), 126))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "EPS surprise zscore cross-sectional winsorized",
+      "description": "Core: winsorize(zscore(subtract(actual,estimated)), std=4) then quantile. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs respected. Confidence: 0.65 (robust to extreme outliers).",
+      "implementation": "quantile(winsorize(zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), std=4))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Estimate surprise seasonal adjustment",
+      "description": "Core: subtract surprise minus ts_mean(surprise, 252) to remove annual seasonality, then quantile. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs OK. Confidence: 0.64 (seasonality removal helps).",
+      "implementation": "quantile(subtract(subtract(ern6_actual_eps, ern6_estimated_eps), ts_mean(subtract(ern6_actual_eps, ern6_estimated_eps), 252)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Estimate revision consistency score",
+      "description": "Core: inverse of ts_std_dev(ts_delta(estimated,21), 252) to prefer stocks where revisions are consistently directional. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.56 (consistency signal moderate).",
+      "implementation": "quantile(inverse(ts_std_dev(ts_delta(ern6_estimated_eps, 21), 252)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "EPS surprise amplification by recent growth",
+      "description": "Core: multiply(subtract(actual,estimated), ts_delta(ern6_actual_eps,63)) then quantile. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs satisfied. Confidence: 0.68 (combines surprise with growth momentum).",
+      "implementation": "quantile(multiply(subtract(ern6_actual_eps, ern6_estimated_eps), ts_delta(ern6_actual_eps, 63)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Estimate change vs. preliminary center",
+      "description": "Core: subtract(ts_delta(ern6_estimated_eps,21), divide(add(prelim_upper, prelim_lower),2)) then rank to capture surprises in revisions relative to guidance center. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs maintained. Confidence: 0.57 (niche but useful).",
+      "implementation": "quantile(subtract(ts_delta(ern6_estimated_eps, 21), divide(add(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound), 2)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "EPS surprise zscore trimmed mean",
+      "description": "Core: compute zscore(surprise) then winsorize and quantile to reduce outliers. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs observed. Confidence: 0.66 (robust rank-based alpha).",
+      "implementation": "quantile(winsorize(zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), std=4))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Estimate gap to previous announced EPS",
+      "description": "Core: subtract(ern6_actual_eps, ts_delay(ern6_actual_eps, 252)) to capture year-over-year EPS change then rank. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs satisfied. Confidence: 0.63 (YoY change valuable).",
+      "implementation": "quantile(subtract(ern6_actual_eps, ts_delay(ern6_actual_eps, 252)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Estimate surprise momentum vs. volatility (short)",
+      "description": "Core: divide(ts_delta(ern6_actual_eps,21), ts_std_dev(ern6_actual_eps,21)) then quantile. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.64 (standardized momentum often predictive).",
+      "implementation": "quantile(divide(ts_delta(ern6_actual_eps, 21), ts_std_dev(ern6_actual_eps, 21)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Prelim range change indicator",
+      "description": "Core: ts_delta(subtract(prelim_upper, prelim_lower), 63) to detect sudden widening/narrowing pre-announcement; rank. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs respected. Confidence: 0.52 (informational but weak).",
+      "implementation": "quantile(ts_delta(subtract(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound), 63))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Surprise sign persistence zscore",
+      "description": "Core: ts_zscore(ts_product(sign(subtract(actual,estimated)), 4), 252) then quantile to prefer stocks with persistent positive surprise signs. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs met. Confidence: 0.58 (directional persistence matters).",
+      "implementation": "quantile(ts_zscore(ts_product(sign(subtract(ern6_actual_eps, ern6_estimated_eps)), 4), 252))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Estimate vs preliminary ratio zscore",
+      "description": "Core: zscore(divide(ern6_estimated_eps, divide(add(prelim_upper, prelim_lower),2))) then quantile to find large deviations. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.55 (mixed signal).",
+      "implementation": "quantile(zscore(divide(ern6_estimated_eps, divide(add(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound), 2))))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Recent surprise rank with winsorized momentum",
+      "description": "Core: add(quantile(subtract(actual,estimated)), quantile(winsorize(ts_delta(actual,21), std=4))) blend surprise and winsorized momentum. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs observed. Confidence: 0.71 (blended ranks stable).",
+      "implementation": "add(quantile(subtract(ern6_actual_eps, ern6_estimated_eps)), quantile(winsorize(ts_delta(ern6_actual_eps, 21), std=4)))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Estimate revision volatility breakout",
+      "description": "Core: ts_max_diff(ts_delta(estimated,21), 252) to find large recent revision spikes; rank. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.59 (identifies sudden consensus shifts).",
+      "implementation": "quantile(ts_max_diff(ts_delta(ern6_estimated_eps, 21), 252))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Surprise median filter",
+      "description": "Core: kth_element(subtract(actual,estimated), 5, 1) as a backfilled recent valid surprise then quantile; useful if missing. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs ok. Confidence: 0.54 (robustness to missing data).",
+      "implementation": "quantile(kth_element(subtract(ern6_actual_eps, ern6_estimated_eps), 5, 1))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "EPS surprise seasonal zscore (quarterly)",
+      "description": "Core: ts_zscore(subtract(actual,estimated), 252) but focusing on quarterly seasonality window; then quantile. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs adhered. Confidence: 0.62 (seasonal adjustment helps).",
+      "implementation": "quantile(ts_zscore(subtract(ern6_actual_eps, ern6_estimated_eps), 252))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Estimate revision sign change detector",
+      "description": "Core: last_diff_value(ts_delta(estimated,21), 63) to detect last non-equal revision sign and rank change magnitude. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs satisfied. Confidence: 0.53 (qualitative early-warning signal).",
+      "implementation": "quantile(last_diff_value(ts_delta(ern6_estimated_eps, 21), 63))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Surprise momentum quantile tilt",
+      "description": "Core: quantile(ts_delta(subtract(actual,estimated), 63)) to capture momentum in surprise itself. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs observed. Confidence: 0.61 (momentum on surprise can predict follow-ons).",
+      "implementation": "quantile(ts_delta(subtract(ern6_actual_eps, ern6_estimated_eps), 63))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Estimate steadiness × surprise (multiplicative)",
+      "description": "Core: multiply(inverse(ts_std_dev(ern6_estimated_eps,126)), subtract(actual,estimated)) favors surprises where estimates are steady. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.66 (combines stability and surprise).",
+      "implementation": "quantile(multiply(inverse(ts_std_dev(ern6_estimated_eps, 126)), subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Surprise sign change frequency",
+      "description": "Core: days_from_last_change(sign(subtract(actual,estimated))) small value => recent sign flip; rank reversed to prefer recent flips. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs respected. Confidence: 0.51 (sign flips are noisy).",
+      "implementation": "quantile(reverse(days_from_last_change(sign(subtract(ern6_actual_eps, ern6_estimated_eps)))))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "EPS surprise magnitude vs. estimate trend",
+      "description": "Core: subtract(abs(subtract(actual,estimated)), ts_mean(ts_delta(estimated,63), 252)) then rank: large surprise relative to calm estimate trend. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.62 (contrasts surprise and estimate drift).",
+      "implementation": "quantile(subtract(abs(subtract(ern6_actual_eps, ern6_estimated_eps)), ts_mean(ts_delta(ern6_estimated_eps, 63), 252)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Estimate revision normalized by prelim width",
+      "description": "Core: divide(ts_delta(estimated,21), subtract(prelim_upper, prelim_lower)) then quantile: revisions large relative to guidance spread. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs satisfied. Confidence: 0.58 (uses guidance as normalization).",
+      "implementation": "quantile(divide(ts_delta(ern6_estimated_eps, 21), subtract(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "EPS surprise trailing mean vs std",
+      "description": "Core: divide(ts_mean(subtract(actual,estimated), 63), ts_std_dev(subtract(actual,estimated), 63)) then quantile acting like short-term IR. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs OK. Confidence: 0.65 (short-term IR informative).",
+      "implementation": "quantile(divide(ts_mean(subtract(ern6_actual_eps, ern6_estimated_eps), 63), ts_std_dev(subtract(ern6_actual_eps, ern6_estimated_eps), 63)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Recent estimate acceleration vs past max",
+      "description": "Core: subtract(ts_delta(estimated,21), ts_max_diff(ern6_estimated_eps, 252)) rank to find accelerating revisions relative to historical maxima. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs met. Confidence: 0.56 (specialized signal).",
+      "implementation": "quantile(subtract(ts_delta(ern6_estimated_eps, 21), ts_max_diff(ern6_estimated_eps, 252)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Estimate surprise scaled by absolute EPS",
+      "description": "Core: divide(subtract(actual,estimated), add(abs(ern6_actual_eps), 1e-6)) then ts_zscore(21) and quantile. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.63 (relative surprise more comparable across names).",
+      "implementation": "quantile(ts_zscore(divide(subtract(ern6_actual_eps, ern6_estimated_eps), add(abs(ern6_actual_eps), 1e-6)), 21))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Surprise continuity filter",
+      "description": "Core: trade_when(subtract(actual,estimated), greater(ts_std_dev(subtract(actual,estimated),63), 0.0), NaN) keep surprise only when volatility positive (placeholder to show conditional filter). S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs short. Confidence: 0.49 (operational filter example).",
+      "implementation": "trade_when(subtract(ern6_actual_eps, ern6_estimated_eps), greater(ts_std_dev(subtract(ern6_actual_eps, ern6_estimated_eps), 63), 0), NaN)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Estimate surprise outlier detector (zscore>2)",
+      "description": "Core: if_else(greater(ts_zscore(subtract(actual,estimated),63), 2), ts_zscore(subtract(actual,estimated),63), 0) then quantile. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs OK. Confidence: 0.60 (targets extreme surprises).",
+      "implementation": "quantile(if_else(greater(ts_zscore(subtract(ern6_actual_eps, ern6_estimated_eps), 63), 2), ts_zscore(subtract(ern6_actual_eps, ern6_estimated_eps), 63), 0))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "EPS surprise scaled by recent estimate count proxy",
+      "description": "Core: divide(subtract(actual,estimated), add(ts_count_nans(ern6_estimated_eps,63),1)) to penalize sparse estimate histories; quantile. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.54 (proxy for estimate reliability).",
+      "implementation": "quantile(divide(subtract(ern6_actual_eps, ern6_estimated_eps), add(ts_count_nans(ern6_estimated_eps, 63), 1)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Estimate surprise mean-reversion signal",
+      "description": "Core: reverse(ts_mean(subtract(actual,estimated), 252)) rank to favor mean reversion of large surprises. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs satisfied. Confidence: 0.55 (mean reversion valid in some cases).",
+      "implementation": "quantile(reverse(ts_mean(subtract(ern6_actual_eps, ern6_estimated_eps), 252)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Preliminary midpoint surprise zscore",
+      "description": "Core: ts_zscore(subtract(actual, divide(add(prelim_upper, prelim_lower),2)), 63) then quantile. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.62 (compares actual vs guidance center).",
+      "implementation": "quantile(ts_zscore(subtract(ern6_actual_eps, divide(add(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound), 2)), 63))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Estimate revision cross-section decile",
+      "description": "Core: bucket(rank(ts_delta(ern6_estimated_eps,21)), buckets=\"10\") to create decile signals. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs satisfied. Confidence: 0.57 (discretized revision signal).",
+      "implementation": "bucket(rank(ts_delta(ern6_estimated_eps, 21)), buckets=\"10\")",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Surprise conditional on preliminary width",
+      "description": "Core: if_else(less(subtract(prelim_upper,prelim_lower), median(subtract(prelim_upper,prelim_lower))), subtract(actual,estimated), 0) then quantile — prefer surprises when guidance is tight. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs short. Confidence: 0.60 (tight guidance adds conviction).",
+      "implementation": "quantile(if_else(less(subtract(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound), ts_mean(subtract(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound), 252)), subtract(ern6_actual_eps, ern6_estimated_eps), 0))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Estimate surprise smoothed (ts_mean)",
+      "description": "Core: ts_mean(subtract(actual,estimated), 63) then quantile to smooth noise. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs observed. Confidence: 0.63 (smoothing improves signal-to-noise).",
+      "implementation": "quantile(ts_mean(subtract(ern6_actual_eps, ern6_estimated_eps), 63))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Surprise absolute zscore combined",
+      "description": "Core: zscore(abs(subtract(actual,estimated))) then quantile to find extreme absolute surprises. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.59 (targets outsized moves).",
+      "implementation": "quantile(zscore(abs(subtract(ern6_actual_eps, ern6_estimated_eps))))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Estimate revision momentum vs median",
+      "description": "Core: subtract(ts_delta(estimated,21), ts_quantile(ts_delta(estimated,21), 252)) then quantile to find above-median reversals. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs OK. Confidence: 0.58 (relative momentum useful).",
+      "implementation": "quantile(subtract(ts_delta(ern6_estimated_eps, 21), ts_quantile(ts_delta(ern6_estimated_eps, 21), 252)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "EPS surprise direction consensus filter",
+      "description": "Core: sign(subtract(actual,estimated)) * ts_mean(sign(ts_delta(estimated,21)), 252) to prefer names where surprise sign aligns with long-term revision sign. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs satisfied. Confidence: 0.60 (consensus alignment valuable).",
+      "implementation": "quantile(multiply(sign(subtract(ern6_actual_eps, ern6_estimated_eps)), ts_mean(sign(ts_delta(ern6_estimated_eps, 21)), 252)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Prelim width × surprise interaction",
+      "description": "Core: multiply(inverse(subtract(prelim_upper,prelim_lower)), subtract(actual,estimated)) rank to favor surprise when prelim width small. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.62 (guidance-weighted surprise).",
+      "implementation": "quantile(multiply(inverse(subtract(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound)), subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Estimate revision volatility normalized surprise",
+      "description": "Core: divide(subtract(actual,estimated), add(ts_std_dev(ts_delta(estimated,21), 126), 1e-6)) then quantile. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs observed. Confidence: 0.64 (stability in revisions adds reliability).",
+      "implementation": "quantile(divide(subtract(ern6_actual_eps, ern6_estimated_eps), add(ts_std_dev(ts_delta(ern6_estimated_eps, 21), 126), 1e-6)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "EPS surprise long-run average contrast",
+      "description": "Core: subtract(subtract(actual,estimated), ts_mean(subtract(actual,estimated), 104)) then quantile to capture contrast to two-year average. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.61 (long-run context improves signal).",
+      "implementation": "quantile(subtract(subtract(ern6_actual_eps, ern6_estimated_eps), ts_mean(subtract(ern6_actual_eps, ern6_estimated_eps), 104)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Estimate surprise short-term rank with winsorize",
+      "description": "Core: winsorize(rank(subtract(actual,estimated)), std=4) to reduce tail sensitivity then bucket. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs satisfied. Confidence: 0.63 (robust rank).",
+      "implementation": "bucket(winsorize(rank(subtract(ern6_actual_eps, ern6_estimated_eps)), std=4), range=\"0, 1, 0.1\")",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Estimate surprise trailing product of signs",
+      "description": "Core: ts_product(sign(subtract(actual,estimated)), 3) * subtract(actual,estimated) rank to favor consistent sign with current magnitude. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.58 (consistency + magnitude).",
+      "implementation": "quantile(multiply(ts_product(sign(subtract(ern6_actual_eps, ern6_estimated_eps)), 3), subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Estimate surprise scaled by preliminary midpoint volatility",
+      "description": "Core: divide(subtract(actual,estimated), ts_std_dev(divide(add(prelim_upper,prelim_lower),2), 63)) then quantile. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.57 (guidance midpoint volatility as scaling).",
+      "implementation": "quantile(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ts_std_dev(divide(add(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound), 2), 63)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Recent estimate change clustering (product)",
+      "description": "Core: ts_product(ts_delta(ern6_estimated_eps,21), 4) to detect clusters of revisions in same direction; quantile rank. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs met. Confidence: 0.56 (clustered revisions often meaningful).",
+      "implementation": "quantile(ts_product(ts_delta(ern6_estimated_eps, 21), 4))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Estimate surprise rolling quantile",
+      "description": "Core: ts_quantile(subtract(actual,estimated), 63) then cross-sectional quantile to find high-percentile surprises relative to recent history. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs respected. Confidence: 0.65 (relative-to-history extreme detection).",
+      "implementation": "quantile(ts_quantile(subtract(ern6_actual_eps, ern6_estimated_eps), 63))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "EPS surprise trimmed mean vs estimate",
+      "description": "Core: subtract(ts_mean(subtract(actual,estimated),63), ts_median(subtract(actual,estimated),252)) then quantile (use ts_mean and ts_mean as proxy for median because ts_median operator absent). S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.59 (robust contrast).",
+      "implementation": "quantile(subtract(ts_mean(subtract(ern6_actual_eps, ern6_estimated_eps), 63), ts_mean(subtract(ern6_actual_eps, ern6_estimated_eps), 252)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Estimate surprise short-run IR",
+      "description": "Core: ts_ir(subtract(actual,estimated), 63) then quantile for short-run information ratio. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs satisfied. Confidence: 0.66 (IR balances mean and volatility).",
+      "implementation": "quantile(ts_ir(subtract(ern6_actual_eps, ern6_estimated_eps), 63))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "EPS surprise sign concordance with revisions",
+      "description": "Core: multiply(sign(subtract(actual,estimated)), sign(ts_delta(ern6_estimated_eps,21))) then quantile to prefer aligned signs. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.62 (alignment improves conviction).",
+      "implementation": "quantile(multiply(sign(subtract(ern6_actual_eps, ern6_estimated_eps)), sign(ts_delta(ern6_estimated_eps, 21))))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Estimate surprise cross-sectional zscore with winsorize",
+      "description": "Core: winsorize(zscore(subtract(actual,estimated)), std=3) then quantile for robust ranking. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs observed. Confidence: 0.67 (robust cross-sectional ranking).",
+      "implementation": "quantile(winsorize(zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), std=3))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Estimate surprise trimmed extreme filter",
+      "description": "Core: tail(subtract(actual,estimated), lower=-1e9, upper=1e9, newval=0) used to cap extremely large surprises then quantile. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.58 (operational robustness).",
+      "implementation": "quantile(tail(subtract(ern6_actual_eps, ern6_estimated_eps), lower=-1e9, upper=1e9, newval=0))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "EPS surprise rolling argmax distance",
+      "description": "Core: ts_arg_max(subtract(actual,estimated), 252) small value indicates current surprise is recent max; reverse and quantile. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs satisfied. Confidence: 0.57 (recent extremes often matter).",
+      "implementation": "quantile(reverse(ts_arg_max(subtract(ern6_actual_eps, ern6_estimated_eps), 252)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Estimate surprise percentile vs history",
+      "description": "Core: ts_quantile(subtract(actual,estimated), 252) then cross-sectional quantile to detect historically extreme surprises. S1 used; S2 not; S3 not; S4 applied. KEEP_IN_MINDs kept. Confidence: 0.66 (historical extremity is predictive).",
+      "implementation": "quantile(ts_quantile(subtract(ern6_actual_eps, ern6_estimated_eps), 252))",
+      "confidence_level": 0.66
+    }
+  ]
+}

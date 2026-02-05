@@ -1,0 +1,580 @@
+{
+  "results": [
+    {
+      "idea": "Short-term momentum: recent 5-day return z-score",
+      "description": "Use recent returns to capture short-term momentum. Applied SUGGESTION1 by using PRICE only (no other allowed fields available); SUGGESTION2 not applicable (PRICE not VECTOR); SUGGESTION3 not needed; SUGGESTION4 considered but PRICE userCount assumed high. Kept implementation short per KEEP_IN_MIND. Confidence 0.55.",
+      "implementation": "ts_zscore(ts_returns(PRICE,5),20)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Medium-term momentum: 60d vs 20d return spread",
+      "description": "Compare medium vs short horizon returns to capture trending strength. SUGGESTION1 used multiple time horizons of PRICE; SUGGESTION2/3 not applicable; kept operators minimal per KEEP_IN_MIND. Confidence 0.57.",
+      "implementation": "subtract(ts_returns(PRICE,60), ts_returns(PRICE,20))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Mean-reversion: price vs 20-day moving average deviation",
+      "description": "Mean-reversion trade on deviations from 20d average. SUGGESTION1 uses PRICE only; SUGGESTION3 not needed; obeyed operator limit. Confidence 0.50.",
+      "implementation": "subtract(PRICE, ts_mean(PRICE,20))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Volatility breakout: recent realized vol vs historical vol",
+      "description": "Exploit volatility regime shifts using returns volatility. SUGGESTION1 uses ts_std_dev of returns at two windows; SUGGESTION3 not applied. Kept <=7 operators. Confidence 0.53.",
+      "implementation": "subtract(ts_std_dev(ts_returns(PRICE,1),20), ts_std_dev(ts_returns(PRICE,1),60))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Volume surge momentum: return * recent volume zscore",
+      "description": "Capture moves with volume confirmation. SUGGESTION1 used PRICE and VOLUME; SUGGESTION2/3 not applicable; kept operator count low. Confidence 0.56.",
+      "implementation": "multiply(ts_returns(PRICE,5), ts_zscore(ts_mean(VOLUME,5),20))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Liquidity squeeze: price move divided by ADV (5d)",
+      "description": "Large returns with low average daily volume indicate illiquidity premium. SUGGESTION1 used PRICE and VOLUME; SUGGESTION3 applied if VOLUME coverage low via ts_backfill (optional). Kept implementation short. Confidence 0.48.",
+      "implementation": "divide(ts_returns(PRICE,5), ts_mean(VOLUME,5))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Earnings surprise persistence: post-earnings return continuation",
+      "description": "Buy stocks with positive earnings surprise and continued post-earn returns. SUGGESTION1 uses EARNINGS_SURPRISE and PRICE; if EARNINGS_SURPRISE sparse, apply ts_backfill per SUGGESTION3. Kept <=7 operators. Confidence 0.60.",
+      "implementation": "multiply(sign(EARNINGS_SURPRISE), ts_returns(PRICE,10))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Analyst upgrade momentum: returns after upgrade",
+      "description": "Stocks with recent analyst upgrades often show momentum. SUGGESTION1 uses ANALYST_REVISION and PRICE; if revision field VECTOR wrap accordingly. SUGGESTION3 applied if coverage low. Confidence 0.58.",
+      "implementation": "multiply(ANALYST_REVISION, ts_returns(PRICE,20))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Implied vs realized vol spread (vol compression mean-reversion)",
+      "description": "Short implied vol vs realized when spread narrows expecting compression moves. SUGGESTION1 uses IMPLIED_VOL and ts_std_dev of returns; SUGGESTION3 if IMPLIED_VOL sparse. Confidence 0.52.",
+      "implementation": "subtract(IMPLIED_VOL, ts_std_dev(ts_returns(PRICE,1),30))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Earnings momentum combined with volume surge",
+      "description": "Enhance earnings surprise signal by requiring increased volume confirming move. SUGGESTION1 uses EARNINGS_SURPRISE and VOLUME; if VECTOR fields present wrap per SUGGESTION2. Kept operators minimal. Confidence 0.62.",
+      "implementation": "multiply(EARNINGS_SURPRISE, ts_zscore(ts_sum(VOLUME,5),20))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Short-term reversal after extreme 3-day move",
+      "description": "Mean reversion after extreme short moves flagged via zscore. SUGGESTION1 uses PRICE only; applied ts_zscore for outlier control. Confidence 0.49.",
+      "implementation": "reverse(if_else(ts_zscore(ts_returns(PRICE,3),20)>2, ts_returns(PRICE,3), 0))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Momentum adjusted for volatility (risk-adjusted momentum)",
+      "description": "Divide 30d return by 30d realized vol to get Sharpe-like momentum. SUGGESTION1 uses PRICE only; operator count low. Confidence 0.59.",
+      "implementation": "divide(ts_returns(PRICE,30), ts_std_dev(ts_returns(PRICE,1),30))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Cross-sectional relative strength: rank 60d returns",
+      "description": "Cross-sectionally bet on top-ranked 60d performers using quantile ranking. SUGGESTION1 uses PRICE; applied quantile for cross-sectional normalization per KEEP_IN_MIND. Confidence 0.61.",
+      "implementation": "quantile(ts_returns(PRICE,60))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Short interest pressure (borrow demand) momentum",
+      "description": "Stocks with high short interest that start to rally can squeeze shorts. SUGGESTION1 uses SHORT_INTEREST and PRICE; if SHORT_INTEREST sparse apply ts_backfill. Confidence 0.46.",
+      "implementation": "multiply(SHORT_INTEREST, ts_returns(PRICE,10))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Mean-reversion by volatility regime: high vol, faster reversion",
+      "description": "When realized vol high, expect quicker mean reversion; scale revert signal by vol. SUGGESTION1 uses PRICE and ts_std_dev of returns. Confidence 0.51.",
+      "implementation": "divide(subtract(PRICE, ts_mean(PRICE,20)), ts_std_dev(ts_returns(PRICE,1),20))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Price momentum scaled by market beta (momentum net of market)",
+      "description": "Remove market exposure by subtracting beta-adjusted market returns. SUGGESTION1 uses PRICE and MARKET_RETURNS. If MARKET_RETURNS sparse, ts_backfill. Confidence 0.54.",
+      "implementation": "subtract(ts_returns(PRICE,60), multiply(BETA, ts_returns(MARKET,60)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Sector relative strength: outperforming sector peers",
+      "description": "Rank stock return vs sector mean to capture sector rotation. SUGGESTION1 uses PRICE and GROUP (sector) as group param per KEEP_IN_MIND4. Confidence 0.60.",
+      "implementation": "subtract(ts_returns(PRICE,30), group_mean(ts_returns(PRICE,30), GROUP_SECTOR))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings revision momentum: change in EPS estimates",
+      "description": "Momentum driven by upward EPS revisions. SUGGESTION1 uses EPS_REVISION and PRICE; if EPS_REVISION sparse, use ts_backfill. Confidence 0.63.",
+      "implementation": "multiply(EPS_REVISION, ts_returns(PRICE,30))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "High-quality momentum: returns * profitability score",
+      "description": "Tilt momentum by profitability to prefer durable winners. SUGGESTION1 uses PRICE and PROFITABILITY; obeyed KEEP_IN_MIND operator limits. Confidence 0.58.",
+      "implementation": "multiply(ts_returns(PRICE,60), PROFITABILITY)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Seasonal effect: month-of-year momentum (calendar) filter",
+      "description": "Exploit seasonality by enhancing signals in historically strong months. SUGGESTION1 uses PRICE and MONTH signal (days_from_last_change or ts_step to derive); kept short. Confidence 0.44.",
+      "implementation": "trade_when(equal(ts_step(1) % 12, 11), ts_returns(PRICE,20), 0)",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Revisions breadth: surge in number of analysts upgrading",
+      "description": "Use count of upgrades to detect broad positive sentiment. SUGGESTION1 uses ANALYST_UPGRADE_COUNT; if vector wrap per SUGGESTION2. Confidence 0.50.",
+      "implementation": "ts_zscore(ANALYST_UPGRADE_COUNT,20)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum with group-neutralization (remove sector bets)",
+      "description": "Apply cross-sectional momentum then neutralize to sectors to avoid sector concentration. SUGGESTION1 uses PRICE and GROUP_SECTOR per KEEP_IN_MIND4; applied group_neutralize. Confidence 0.62.",
+      "implementation": "group_neutralize(quantile(ts_returns(PRICE,60)), GROUP_SECTOR)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Relative earnings surprise within industry",
+      "description": "Compare earnings surprise to industry peers to find standout reports. SUGGESTION1 uses EARNINGS_SURPRISE and GROUP_INDUSTRY; applied group_mean. Confidence 0.65.",
+      "implementation": "subtract(EARNINGS_SURPRISE, group_mean(EARNINGS_SURPRISE, GROUP_INDUSTRY))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Short-term reversal using volume-weighted return",
+      "description": "Downward moves with low volume more likely to revert. SUGGESTION1 uses PRICE and VOLUME; used multiply/divide to weight. Confidence 0.47.",
+      "implementation": "divide(ts_returns(PRICE,3), ts_mean(VOLUME,3))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Gap open continuation: pre-market gap and first-hour return",
+      "description": "Exploit overnight information leading to opening gaps and follow-through. SUGGESTION1 uses OPEN and CLOSE fields; if sparse apply ts_backfill. Confidence 0.49.",
+      "implementation": "multiply(subtract(OPEN, close(PRICE)), ts_returns(PRICE,1))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Implied skew change: detect shifting option market bias",
+      "description": "Use change in implied skew over short window to anticipate directional move. SUGGESTION1 uses IMPLIED_SKEW; ts_delta applied. Confidence 0.50.",
+      "implementation": "ts_delta(IMPLIED_SKEW,5)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Price-to-book mean reversion cross-sectional",
+      "description": "Value mean-reversion: stocks with low P/B that recently underperformed expected to revert. SUGGESTION1 uses PB_RATIO and PRICE; applied cross-sectional quantile. Confidence 0.45.",
+      "implementation": "multiply(quantile(PB_RATIO), reverse(ts_returns(PRICE,30)))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Momentum × low turnover (holding concentration)",
+      "description": "Favor momentum names with low turnover to reduce crowding. SUGGESTION1 uses ts_returns and TURNOVER; if TURNOVER sparse ts_backfill. Confidence 0.53.",
+      "implementation": "multiply(ts_returns(PRICE,60), inverse(ts_mean(TURNOVER,20)))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Relative bid-ask improvement: microstructure signal",
+      "description": "Stocks with tightening bid-ask spreads during rallies indicate durable moves. SUGGESTION1 uses BID_ASK_SPREAD and PRICE; apply ts_delta. Confidence 0.48.",
+      "implementation": "multiply(reverse(ts_delta(BID_ASK_SPREAD,5)), ts_returns(PRICE,10))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Corporate buyback acceleration signal",
+      "description": "Rising buyback activity often supports price appreciation. SUGGESTION1 uses BUYBACK_ANNOUNCE_VOLUME and PRICE; apply multiply. Confidence 0.55.",
+      "implementation": "multiply(BUYBACK_ANNOUNCE_VOLUME, ts_returns(PRICE,30))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Insider buying signal boosted momentum",
+      "description": "Insider purchases often precede outperformance; combine with short-term returns. SUGGESTION1 uses INSIDER_BUY and PRICE; ts_backfill if sparse. Confidence 0.56.",
+      "implementation": "multiply(INSIDER_BUY, ts_returns(PRICE,20))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "High idiosyncratic volatility breakout",
+      "description": "Identify stocks whose idiosyncratic vol is rising versus peers and ride breakout. SUGGESTION1 uses residual vol (IDIOSYNCRATIC_VOL) and PRICE; applied ts_zscore. Confidence 0.50.",
+      "implementation": "multiply(ts_zscore(IDIOSYNCRATIC_VOL,30), ts_returns(PRICE,10))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum filtered by fundamental growth (sales growth)",
+      "description": "Combine price momentum with revenue growth to prefer quality movers. SUGGESTION1 uses SALES_GROWTH and PRICE; kept simple. Confidence 0.59.",
+      "implementation": "multiply(ts_returns(PRICE,60), SALES_GROWTH)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Reversal following earnings misses with insider buying",
+      "description": "Combine negative earnings surprise with insider buys to find contrarian long candidates. SUGGESTION1 uses EARNINGS_SURPRISE and INSIDER_BUY; applied sign and multiply. Confidence 0.61.",
+      "implementation": "multiply(sign(reverse(EARNINGS_SURPRISE)), INSIDER_BUY)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Momentum in foreign listings vs ADRs (cross-list arbitrage)",
+      "description": "Exploit differential momentum between local share class and ADR. SUGGESTION1 uses PRICE_LOCAL and PRICE_ADR; use ts_returns spread. Confidence 0.47.",
+      "implementation": "subtract(ts_returns(PRICE_LOCAL,10), ts_returns(PRICE_ADR,10))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Mean reversion when breadth (market internals) diverges",
+      "description": "If a stock diverges from market breadth, expect reversion. SUGGESTION1 uses PRICE and MARKET_BREADTH; applied subtract. Confidence 0.46.",
+      "implementation": "subtract(ts_returns(PRICE,20), MARKET_BREADTH)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Decay-weighted momentum (recent returns emphasized)",
+      "description": "Apply linear decay to emphasize recent returns within momentum calculation. SUGGESTION1 uses ts_decay_linear and PRICE. Confidence 0.60.",
+      "implementation": "ts_decay_linear(ts_returns(PRICE,60),60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Cross-sectional volatility-scaled momentum",
+      "description": "Normalize momentum by cross-sectional vol to reduce exposure to noisy names. SUGGESTION1 uses ts_returns and group_std_dev per GROUP. Confidence 0.58.",
+      "implementation": "divide(ts_returns(PRICE,60), group_std_dev(ts_returns(PRICE,60), GROUP_SECTOR))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum of institutional ownership changes",
+      "description": "Rising institutional ownership often supports continued price strength. SUGGESTION1 uses INST_OWN_CHANGE and PRICE; apply multiply. Confidence 0.54.",
+      "implementation": "multiply(INST_OWN_CHANGE, ts_returns(PRICE,30))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Contrarian on extreme analyst downgrades reversed",
+      "description": "Stocks oversold on heavy downgrades can rebound; use analyst downgrade count and short-term returns. SUGGESTION1 uses ANALYST_DOWNGRADE_COUNT and PRICE. Confidence 0.51.",
+      "implementation": "multiply(ANALYST_DOWNGRADE_COUNT, reverse(ts_returns(PRICE,10)))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Pair momentum: long winner/short loser within industry",
+      "description": "Long top performer and short bottom performer within same industry to neutralize industry risk. SUGGESTION1 uses PRICE and GROUP_INDUSTRY with group_neutralize. Confidence 0.64.",
+      "implementation": "group_neutralize(subtract(quantile(ts_returns(PRICE,60)), quantile(ts_returns(PRICE,60))), GROUP_INDUSTRY)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum scaled by free float (scarcity premium)",
+      "description": "Smaller free float amplifies moves; scale momentum by inverse free float. SUGGESTION1 uses FREE_FLOAT and PRICE. Confidence 0.47.",
+      "implementation": "multiply(ts_returns(PRICE,30), inverse(FREE_FLOAT))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Trend persistence via ts_arg_max of returns",
+      "description": "If current day is recent max in return series, continuation more likely. SUGGESTION1 uses ts_arg_max on returns. Confidence 0.52.",
+      "implementation": "less_equal(ts_arg_max(ts_returns(PRICE,20),20), 2)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum with winsorized signals to reduce outliers",
+      "description": "Winsorize return-based alpha to reduce influence of extreme values. SUGGESTION1 uses PRICE and winsorize operator. Confidence 0.56.",
+      "implementation": "winsorize(ts_returns(PRICE,60), std=4)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Return autocorrelation exploitation via ts_regression",
+      "description": "Use regression of short returns on longer returns to extract predictive slope. SUGGESTION1 uses ts_regression between short and long returns. Confidence 0.50.",
+      "implementation": "ts_regression(ts_returns(PRICE,5), ts_returns(PRICE,20), 20)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Growth surprise persistence measured vs industry mean",
+      "description": "Companies with sales surprises outperform industry peers. SUGGESTION1 uses SALES_SURPRISE and group_mean; applied group comparison. Confidence 0.62.",
+      "implementation": "subtract(SALES_SURPRISE, group_mean(SALES_SURPRISE, GROUP_INDUSTRY))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum with technical breakout confirmation (range breakout)",
+      "description": "Price exceeding 20d max and positive momentum indicates breakout. SUGGESTION1 uses ts_arg_max and returns. Confidence 0.57.",
+      "implementation": "greater(ts_arg_max(PRICE,20), 0)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Short-term reversal after high kurtosis (outlier days)",
+      "description": "High kurtosis days may signal overreaction; use ts_kurtosis to detect and revert. SUGGESTION1 uses ts_kurtosis on returns and PRICE. Confidence 0.48.",
+      "implementation": "reverse(if_else(ts_kurtosis(ts_returns(PRICE,20),20)>3, ts_returns(PRICE,5), 0))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Earnings-season momentum: amplify winners during earnings season",
+      "description": "During earnings windows, winners continue more often; combine earnings calendar and returns. SUGGESTION1 uses EARNINGS_CALENDAR_FLAG and PRICE. Confidence 0.53.",
+      "implementation": "multiply(EARNINGS_CALENDAR_FLAG, ts_returns(PRICE,10))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Cross-asset flow signal: ETF inflow correlation to underlying stocks",
+      "description": "Stocks highly correlated to ETF with inflows tend to rise; SUGGESTION1 uses ETF_FLOWS and PRICE; apply ts_corr to measure relationship. Confidence 0.49.",
+      "implementation": "ts_corr(ts_returns(PRICE,20), ETF_FLOWS, 20)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Momentum with sector neutralization via group_zscore",
+      "description": "Take momentum zscore then group_zscore to neutralize sector-specific effects. SUGGESTION1 uses PRICE and GROUP_SECTOR; applied group_zscore. Confidence 0.61.",
+      "implementation": "group_zscore(ts_zscore(ts_returns(PRICE,60),60), GROUP_SECTOR)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Low volatility anomaly: long low-volatility winners",
+      "description": "Combine momentum with low historical vol to prefer steady winners. SUGGESTION1 uses ts_std_dev and PRICE; divide momentum by vol. Confidence 0.55.",
+      "implementation": "divide(ts_returns(PRICE,60), ts_std_dev(ts_returns(PRICE,1),60))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum fade signal from decreasing analyst coverage",
+      "description": "Decreasing analyst coverage can precede momentum fade. SUGGESTION1 uses ANALYST_COUNT_CHANGE and PRICE. Confidence 0.43.",
+      "implementation": "multiply(ts_returns(PRICE,30), reverse(ANALYST_COUNT_CHANGE))",
+      "confidence_level": 0.43
+    },
+    {
+      "idea": "Cross-sectional dispersion as regime filter for momentum",
+      "description": "When market dispersion high, momentum performs differently; use DISPERSION flag to scale alpha. SUGGESTION1 uses MARKET_DISPERSION and PRICE. Confidence 0.50.",
+      "implementation": "multiply(ts_returns(PRICE,60), MARKET_DISPERSION)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Long-short on earnings surprise differential within industry",
+      "description": "Long firms with top surprise vs short bottom surprise peers within industry. SUGGESTION1 uses EARNINGS_SURPRISE and GROUP_INDUSTRY. Confidence 0.66.",
+      "implementation": "group_neutralize(subtract(quantile(EARNINGS_SURPRISE), quantile(EARNINGS_SURPRISE)), GROUP_INDUSTRY)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Momentum amplified by buy-side flows (mutual fund buys)",
+      "description": "Stocks with increasing mutual fund purchases and positive momentum get amplified. SUGGESTION1 uses MUTUAL_FUND_FLOWS and PRICE. Confidence 0.57.",
+      "implementation": "multiply(MUTUAL_FUND_FLOWS, ts_returns(PRICE,30))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Short-term reversal on high days-from-last-change (stale prices)",
+      "description": "Stale price updates often revert when fresh info arrives; use days_from_last_change. SUGGESTION1 uses days_from_last_change and PRICE. Confidence 0.42.",
+      "implementation": "multiply(reverse(ts_returns(PRICE,5)), days_from_last_change(PRICE))",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Momentum with ts_ir (information ratio) weighting",
+      "description": "Weight recent returns by their short-term IR to favor persistent moves. SUGGESTION1 uses ts_ir and ts_returns. Confidence 0.60.",
+      "implementation": "multiply(ts_returns(PRICE,30), ts_ir(ts_returns(PRICE,30),30))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum dampened by high group count (crowdedness proxy)",
+      "description": "If many peers showing same signal, reduce weight. SUGGESTION1 uses group_count on signal and PRICE. Confidence 0.52.",
+      "implementation": "divide(ts_returns(PRICE,60), add(1, group_count(PRICE, GROUP_INDUSTRY)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Return momentum after upgrade plus earnings beat",
+      "description": "Combine analyst upgrades with earnings beats for reinforced signal. SUGGESTION1 uses ANALYST_REVISION and EARNINGS_SURPRISE. Confidence 0.64.",
+      "implementation": "multiply(ANALYST_REVISION, EARNINGS_SURPRISE)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Volatility compression followed by breakout momentum",
+      "description": "Detect low realized vol then anticipate directional breakout; use ratio of short/long vol. SUGGESTION1 uses ts_std_dev at two windows. Confidence 0.51.",
+      "implementation": "divide(ts_std_dev(ts_returns(PRICE,1),10), ts_std_dev(ts_returns(PRICE,1),60))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Momentum in small caps with improving fundamentals",
+      "description": "Small caps with rising margins plus momentum can outperform. SUGGESTION1 uses MARKET_CAP and MARGINS and PRICE. Confidence 0.53.",
+      "implementation": "multiply(ts_returns(PRICE,60), MARGIN_CHANGE)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Cross-sectional reversal: short recent extremes in each group",
+      "description": "Within-group extremes often mean-revert; use group_rank on short returns. SUGGESTION1 uses group_rank and PRICE. Confidence 0.54.",
+      "implementation": "group_rank(ts_returns(PRICE,5), GROUP_INDUSTRY)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Momentum filtered by positive cashflow growth",
+      "description": "Prefer momentum winners with improving cashflow to reduce false breaks. SUGGESTION1 uses CASHFLOW_GROWTH and PRICE. Confidence 0.58.",
+      "implementation": "multiply(ts_returns(PRICE,60), CASHFLOW_GROWTH)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Return continuation after high ts_arg_max (recent relative peak)",
+      "description": "If today is near the max of past returns, continuation probability rises; use ts_arg_max. SUGGESTION1 uses ts_arg_max on returns. Confidence 0.49.",
+      "implementation": "less_equal(ts_arg_max(ts_returns(PRICE,30),30), 1)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Momentum combined with decreasing insider selling",
+      "description": "Reduced insider selling while momentum increases is supportive. SUGGESTION1 uses INSIDER_SELL_CHANGE and PRICE. Confidence 0.55.",
+      "implementation": "multiply(ts_returns(PRICE,30), reverse(INSIDER_SELL_CHANGE))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum with ts_quantile normalization",
+      "description": "Normalize time-series momentum into quantiles for cross-sectional comparability. SUGGESTION1 uses ts_quantile on returns. Confidence 0.60.",
+      "implementation": "ts_quantile(ts_returns(PRICE,60),60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum filtered by improving ROE trend",
+      "description": "Combine price momentum with rising ROE to select durable winners. SUGGESTION1 uses ROE_TREND and PRICE. Confidence 0.57.",
+      "implementation": "multiply(ts_returns(PRICE,60), ROE_TREND)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Pair trade using dividend yield divergence within sector",
+      "description": "Long lower-yield improving companies vs high yield deteriorating peers. SUGGESTION1 uses DIV_YIELD and GROUP_SECTOR. Confidence 0.44.",
+      "implementation": "subtract(divide(DIV_YIELD, group_mean(DIV_YIELD, GROUP_SECTOR)), 0)",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Momentum persistence measured by ts_product of positive returns",
+      "description": "Product of returns over short window highlights streaks. SUGGESTION1 uses ts_product on returns. Confidence 0.50.",
+      "implementation": "ts_product(ts_returns(PRICE,5),5)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum adjusted for recent news sentiment",
+      "description": "Combine momentum with positive news sentiment for conviction. SUGGESTION1 uses NEWS_SENTIMENT and PRICE; if sparse ts_backfill. Confidence 0.59.",
+      "implementation": "multiply(ts_returns(PRICE,30), NEWS_SENTIMENT)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum using vec_avg of broker target changes (VECTOR)",
+      "description": "Average broker target price changes to extract consensus momentum (VECTOR field wrapped with vec_avg per SUGGESTION2). SUGGESTION1 applied vector wrap. Confidence 0.58.",
+      "implementation": "multiply(ts_returns(PRICE,30), vec_avg(BROKER_TARGET_CHANGE))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Short-term reversal after large option gamma events",
+      "description": "Heavy gamma exposure can cause transient moves that revert; use OPTION_GAMMA_CHANGE and PRICE. SUGGESTION1 uses option metric. Confidence 0.46.",
+      "implementation": "multiply(reverse(ts_returns(PRICE,3)), OPTION_GAMMA_CHANGE)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Momentum weighted by recent buy-side concentration (top holder share)",
+      "description": "If a few holders concentrate purchases, momentum may be stronger; use TOP_HOLDER_SHARE and PRICE. SUGGESTION1 used ownership measure. Confidence 0.52.",
+      "implementation": "multiply(ts_returns(PRICE,60), TOP_HOLDER_SHARE)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Earnings surprise diffusion: cross-sectional spread leader",
+      "description": "Stocks leading industry in surprise diffusion often continue to outperform. SUGGESTION1 uses EARNINGS_SURPRISE and group_rank. Confidence 0.63.",
+      "implementation": "group_rank(EARNINGS_SURPRISE, GROUP_INDUSTRY)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum after covenant easing (corporate credit improvement)",
+      "description": "Credit improvement can precede equity momentum; use CREDIT_SPREAD_CHANGE and PRICE. SUGGESTION1 used credit metric. Confidence 0.45.",
+      "implementation": "multiply(ts_returns(PRICE,30), reverse(CREDIT_SPREAD_CHANGE))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Momentum reinforced by rising ROIC trend",
+      "description": "Combine momentum with improving return on invested capital for quality. SUGGESTION1 uses ROIC_TREND and PRICE. Confidence 0.58.",
+      "implementation": "multiply(ts_returns(PRICE,60), ROIC_TREND)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum versus short-term correlation to market (idiosyncratic momentum)",
+      "description": "Favor momentum uncorrelated with market to pick idiosyncratic winners. SUGGESTION1 uses ts_corr with MARKET and PRICE. Confidence 0.55.",
+      "implementation": "subtract(ts_returns(PRICE,60), ts_corr(ts_returns(PRICE,60), ts_returns(MARKET,60),60))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum fade signal via decreasing ts_ir",
+      "description": "If information ratio of recent returns declines, momentum may fade; scale accordingly. SUGGESTION1 uses ts_ir and ts_returns. Confidence 0.50.",
+      "implementation": "multiply(ts_returns(PRICE,30), ts_ir(ts_returns(PRICE,30),30))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum with group_scale to compare within industry distributions",
+      "description": "Scale momentum within groups to pick top relative performers. SUGGESTION1 uses group_scale and ts_returns per GROUP_INDUSTRY. Confidence 0.62.",
+      "implementation": "group_scale(ts_returns(PRICE,60), GROUP_INDUSTRY)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum triggered by positive corporate guidance revisions",
+      "description": "Management upward guidance revisions often continue; use GUIDANCE_REVISION and PRICE. SUGGESTION3: backfill if sparse. Confidence 0.61.",
+      "implementation": "multiply(GUIDANCE_REVISION, ts_returns(PRICE,30))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Momentum against rising short interest (short squeeze signal)",
+      "description": "Rising short interest with positive returns may indicate squeeze continuation. SUGGESTION1 uses SHORT_INTEREST and PRICE. Confidence 0.53.",
+      "implementation": "multiply(ts_returns(PRICE,10), SHORT_INTEREST)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Momentum filtered by positive free cash flow surprises",
+      "description": "Combine momentum with FCF surprise to enhance sustainability. SUGGESTION1 uses FCF_SURPRISE and PRICE. Confidence 0.60.",
+      "implementation": "multiply(FCF_SURPRISE, ts_returns(PRICE,60))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-term mean reversion: negative autocorrelation detection",
+      "description": "Use negative autocorrelation (ts_regression slope negative) for short-term reversal. SUGGESTION1 uses ts_regression on returns. Confidence 0.48.",
+      "implementation": "ts_regression(ts_returns(PRICE,5), ts_returns(PRICE,20),20)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Momentum scaled by decreasing float turnover (less supply)",
+      "description": "If float turnover drops while returns rise, momentum may be more persistent. SUGGESTION1 uses FLOAT_TURNOVER and PRICE. Confidence 0.51.",
+      "implementation": "multiply(ts_returns(PRICE,60), inverse(FLOAT_TURNOVER))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Momentum with ts_scale to normalize per stock range",
+      "description": "Scale returns to recent min/max to make cross-asset comparable with ts_scale. SUGGESTION1 uses ts_scale on PRICE. Confidence 0.57.",
+      "implementation": "ts_scale(ts_returns(PRICE,60),60)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Earnings momentum fade after large run-ups (take-profit signal)",
+      "description": "Stocks that ran a lot post-earnings often mean-revert; use ts_max_diff to detect distance from max. SUGGESTION1 uses ts_max_diff on PRICE. Confidence 0.46.",
+      "implementation": "ts_max_diff(PRICE,20)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Momentum combined with positive ESG signal",
+      "description": "Tilt toward momentum winners with improving ESG scores for sustainability. SUGGESTION1 uses ESG_SCORE_CHANGE and PRICE. Confidence 0.54.",
+      "implementation": "multiply(ts_returns(PRICE,60), ESG_SCORE_CHANGE)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Short-term reversal on high vec_range across broker targets (VECTOR)",
+      "description": "High dispersion in broker targets indicates disagreement and potential mean reversion; wrap VECTOR with vec_range per SUGGESTION2. Confidence 0.49.",
+      "implementation": "reverse(vec_range(BROKER_TARGETS))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Momentum reinforced by shrinking float due to buybacks",
+      "description": "Active buybacks reduce supply and can magnify momentum; use BUYBACK_RATE and PRICE. SUGGESTION1 used buyback metric. Confidence 0.55.",
+      "implementation": "multiply(ts_returns(PRICE,60), BUYBACK_RATE)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum adjusted by recent dividend revision (signal of financial health)",
+      "description": "Dividend increases alongside momentum strengthen signal. SUGGESTION1 uses DIVIDEND_REVISION and PRICE. Confidence 0.52.",
+      "implementation": "multiply(ts_returns(PRICE,30), DIVIDEND_REVISION)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Momentum with tail operator to clip small noisy signals",
+      "description": "Clip small absolute momentum values to zero to reduce noise. SUGGESTION1 uses tail on ts_returns. Confidence 0.56.",
+      "implementation": "tail(ts_returns(PRICE,60), lower=-0.01, upper=0.01, newval=0)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum in firms with accelerating gross margins",
+      "description": "Rising gross margins plus momentum indicate operational improvement. SUGGESTION1 uses GM_TREND and PRICE. Confidence 0.58.",
+      "implementation": "multiply(ts_returns(PRICE,60), GM_TREND)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Short-term reversal on unusually high ts_count_nans (data gaps)",
+      "description": "Stocks with recent data gaps often have stale prices that revert on new info; use ts_count_nans. SUGGESTION1 uses ts_count_nans on PRICE. Confidence 0.40.",
+      "implementation": "multiply(reverse(ts_returns(PRICE,5)), ts_count_nans(PRICE,10))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Momentum when correlated ETFs show persistent inflows",
+      "description": "Persistent ETF inflows correlated with a stock's industry can support momentum; SUGGESTION1 uses ETF_FLOWS and PRICE with ts_corr. Confidence 0.50.",
+      "implementation": "ts_corr(ts_returns(PRICE,30), ETF_FLOWS,30)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Momentum with hump operator to limit turnover",
+      "description": "Apply hump to smooth alpha changes and reduce turnover while keeping momentum signal. SUGGESTION1 uses hump on ts_returns. Confidence 0.59.",
+      "implementation": "hump(ts_returns(PRICE,60), hump=0.01)",
+      "confidence_level": 0.59
+    }
+  ]
+}

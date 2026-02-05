@@ -1,0 +1,634 @@
+{
+    "results": [
+        {
+            "idea": "Short-volume share: ratio of short volume to total volume (BATS)",
+            "description": "Uses both shrt43_batsshvol_svol and shrt43_batsshvol_totalvolume to capture shorting intensity on BATS. Applied SUGGESTION1 (multiple datafields). These fields have coverage=1.0 so ts_backfill not needed (SUGGESTION3 not applied). UserCount/alphaCount are high (69/102 for totalvolume), satisfying SUGGESTION4. Simple ratio is robust; confidence set to 0.65 because short-share often signals pressure but can be noisy.",
+            "implementation": "divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume)",
+            "confidence_level": 0.65
+        },
+        {
+            "idea": "Change in short-volume share (BATS, 5d momentum)",
+            "description": "Momentum of short-share: ts_returns of ratio over 5 days. Used two fields (SUGGESTION1). Coverage high so no ts_backfill. Relies on established momentum of shorting flows; confidence 0.6. SUGGESTION2 not applicable (fields not vector).",
+            "implementation": "ts_returns(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), 5)",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Normalized short-share zscore (BATS)",
+            "description": "Cross-sectional zscore of short-share to capture relative extremes. Uses both svol and totalvolume (SUGGESTION1). High coverage and user counts; no ts_backfill. Zscore reduces outliers. Confidence 0.7.",
+            "implementation": "zscore(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume))",
+            "confidence_level": 0.7
+        },
+        {
+            "idea": "Short flow surprise: short-share minus 20d mean (BATS)",
+            "description": "Compute ts_av_diff between current short-share and its 20d mean to detect sudden increases. Multiple datafields used (SUGGESTION1). Coverage fine; no backfill. Confidence 0.66.",
+            "implementation": "ts_av_diff(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), 20)",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "High-frequency short concentration: vec_avg(sumsize_s vector) (BATS)",
+            "description": "Assume sumsize_s_data1 is a vector of trade sizes; applied SUGGESTION2 to use vec_avg(shrt43_batssh_sumsize_s_data1). Also use totalvolume to scale. SUGGESTION1 applied. Coverage=1.0; no backfill. Confidence 0.55 due to vector assumption.",
+            "implementation": "divide(vec_avg(shrt43_batssh_sumsize_s_data1), shrt43_batsshvol_totalvolume)",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Short size momentum (BATS sumsize_s_data2, 10d)",
+            "description": "ts_returns of vec_sum(sumsize_s_data2) over 10 days to detect growing short trade sizes. SUGGESTION2 used to aggregate vector. Coverage=1.0 so no backfill. UserCount moderate; confidence 0.5 (speculative).",
+            "implementation": "ts_returns(vec_sum(shrt43_batssh_sumsize_s_data2), 10)",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "Short-share / marketcenter total volume (BATS center share)",
+            "description": "Ratio of BATS short volume to marketcenter totalvolume to detect exchange-specific accumulation. Uses two fields (SUGGESTION1). Both coverage=1.0. Confidence 0.6 due to exchange microstructure signal.",
+            "implementation": "divide(shrt43_batsshvol_svol, shrt43_batsshvol_marketcenter)",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-share acceleration: ts_delta of ratio (BATS, 3d)",
+            "description": "Short-share acceleration measured as ts_delta over 3 days. Uses ratio of two fields (SUGGESTION1). No backfill required. Confidence 0.58.",
+            "implementation": "ts_delta(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), 3)",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Short-volume 20d zscore scaled by liquidity (BATS)",
+            "description": "zscore of shrt43_batsshvol_svol scaled by inverse totalvolume to emphasize small-liquidity stocks. Uses two fields (SUGGESTION1). Coverage high. Confidence 0.62.",
+            "implementation": "multiply(zscore(shrt43_batsshvol_svol), inverse(shrt43_batsshvol_totalvolume))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Cross-exchange short-share divergence: BATS vs EDGX",
+            "description": "Difference in short-share between BATS and EDGX: subtract(BATS ratio, EDGX ratio). Uses four underlying fields but only two ratios combined (still two inputs). Applied SUGGESTION1. Coverage high. Confidence 0.6.",
+            "implementation": "subtract(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "EDGX short-share momentum (10d)",
+            "description": "ts_returns of EDGX short-share over 10 days. Single ratio from two fields (SUGGESTION1). High user/alpha counts on EDGX totalvolume (45/91) used (SUGGESTION4). Confidence 0.64.",
+            "implementation": "ts_returns(divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume), 10)",
+            "confidence_level": 0.64
+        },
+        {
+            "idea": "EDGX short-share zscore cross-sectional",
+            "description": "zscore of EDGX short-share to detect relative shorting. Uses two fields. Covered fully; no backfill. Confidence 0.66.",
+            "implementation": "zscore(divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume))",
+            "confidence_level": 0.66
+        },
+        {
+            "idea": "EDGX short-share surprise vs 30d mean",
+            "description": "ts_av_diff of EDGX short-share over 30 days. Multiple fields used (SUGGESTION1). Confidence 0.61.",
+            "implementation": "ts_av_diff(divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume), 30)",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "EDGX short-volume concentration: vec_stddev of sumsize_s",
+            "description": "Assumes sumsize_s_data1 is vector; use vec_stddev to measure concentration of short trades. SUGGESTION2 applied. Then normalize by totalvolume. Coverage ~1.0. Confidence 0.52.",
+            "implementation": "divide(vec_stddev(shrt43_edgxsh_sumsize_s_data1), shrt43_edgxshvol_totalvolume)",
+            "confidence_level": 0.52
+        },
+        {
+            "idea": "EDGAX sumsize_m spike (kth backfill style)",
+            "description": "Use vec_max on sumsize_m_data2 to find large short-sale sizes intraday. SUGGESTION2 applied. Coverage ~0.9855 so no ts_backfill. Confidence 0.48 (more exploratory).",
+            "implementation": "vec_max(shrt43_edgxsh_sumsize_m_data2)",
+            "confidence_level": 0.48
+        },
+        {
+            "idea": "Short-share vs sumsize correlation (EDGX)",
+            "description": "ts_corr between short-share and vec_avg(sumsize_s_data1) over 20d to see if large sizes drive share. SUGGESTION1+2 used. Coverage high. Confidence 0.6.",
+            "implementation": "ts_corr(divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume), vec_avg(shrt43_edgxsh_sumsize_s_data1), 20)",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "BYXX short-share ratio",
+            "description": "Basic ratio divide(shrt43_byxxshvol_svol, shrt43_byxxshvol_totalvolume). SUGGESTION1 applied. Coverage 1.0 on these fields. UserCount moderate; confidence 0.58.",
+            "implementation": "divide(shrt43_byxxshvol_svol, shrt43_byxxshvol_totalvolume)",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "BYXX short-share 7d momentum",
+            "description": "ts_returns of BYXX short-share over 7 days. Uses two fields. Coverage high; no backfill. Confidence 0.56.",
+            "implementation": "ts_returns(divide(shrt43_byxxshvol_svol, shrt43_byxxshvol_totalvolume), 7)",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "BYXX short-share cross-sectional quantile",
+            "description": "quantile of BYXX short-share to spread tails (SUGGESTION1). Coverage 1.0 so no backfill. Confidence 0.6.",
+            "implementation": "quantile(divide(shrt43_byxxshvol_svol, shrt43_byxxshvol_totalvolume))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "BYXX sumsize_m average / totalvolume",
+            "description": "vec_avg of sumsize_m_data1 divided by totalvolume to capture average sell size vs liquidity. SUGGESTION2+1 used. Coverage of sumsize_m_data1=0.9277 (<1 but >0.6) so ts_backfill not applied per SUGGESTION3. Confidence 0.5.",
+            "implementation": "divide(vec_avg(shrt43_byxxsh_sumsize_m_data1), shrt43_byxxshvol_totalvolume)",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "EDGASH short-share ratio",
+            "description": "divide(shrt43_edgashvol_svol, shrt43_edgashvol_totalvolume). Simple baseline for EDGASH. SUGGESTION1 used. Coverage 1.0; confidence 0.57.",
+            "implementation": "divide(shrt43_edgashvol_svol, shrt43_edgashvol_totalvolume)",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "EDGASH short-share zscore (20d)",
+            "description": "ts_zscore of EDGASH short-share over 20 days to reduce outliers. Uses two fields. Coverage high. Confidence 0.6.",
+            "implementation": "ts_zscore(divide(shrt43_edgashvol_svol, shrt43_edgashvol_totalvolume), 20)",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "EDGASH sudden drop in short-share (ts_arg_min 10d)",
+            "description": "ts_arg_min on EDGASH short-share over 10d to find recent minima (short-covering). Two fields used. Confidence 0.55.",
+            "implementation": "ts_arg_min(divide(shrt43_edgashvol_svol, shrt43_edgashvol_totalvolume), 10)",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "BATS vs BYXX short-share gap (spread)",
+            "description": "Subtract BATS ratio minus BYXX ratio to capture exchange-specific shorting pressure. SUGGESTION1 used. Coverage high. Confidence 0.58.",
+            "implementation": "subtract(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), divide(shrt43_byxxshvol_svol, shrt43_byxxshvol_totalvolume))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Combined short-share average across exchanges",
+            "description": "Average short-share across EDGX and BATS using add() then divide by 2. Uses multiple fields (SUGGESTION1). Keeps operator count low. Confidence 0.6.",
+            "implementation": "divide(add(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume)), 2)",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-share dispersion across exchanges (range)",
+            "description": "Compute max-min across exchange ratios to capture dispersion. Uses vec_max/vec_min style but implemented with max/min of two inputs. SUGGESTION1 applied. Confidence 0.54.",
+            "implementation": "subtract(max(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume)), min(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume)))",
+            "confidence_level": 0.54
+        },
+        {
+            "idea": "Short-share IR: ts_ir of short-share (30d)",
+            "description": "ts_ir(divide(svol,totalvolume),30) to get mean/std signal strength. Uses two fields. High coverage; SUGGESTION4 used indirectly. Confidence 0.63.",
+            "implementation": "ts_ir(divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume), 30)",
+            "confidence_level": 0.63
+        },
+        {
+            "idea": "Short-volume downside momentum (short-share negative returns)",
+            "description": "if_else of ts_returns < 0 to isolate falling short-share regimes: trade_when style logic via if_else(signal, ts_returns, 0). Uses two fields. Confidence 0.49.",
+            "implementation": "if_else(less(ts_returns(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume),5),0), ts_returns(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume),5), 0)",
+            "confidence_level": 0.49
+        },
+        {
+            "idea": "Short-size to short-volume ratio (EDGX)",
+            "description": "vec_avg(sumsize_s)/svol to capture average short trade size relative to short volume. SUGGESTION2 and SUGGESTION1 applied. Coverage good. Confidence 0.53.",
+            "implementation": "divide(vec_avg(shrt43_edgxsh_sumsize_s_data1), shrt43_edgxshvol_svol)",
+            "confidence_level": 0.53
+        },
+        {
+            "idea": "Marketcenter short-share concentration (marketcenter vs total)",
+            "description": "Divide marketcenter totalvolume by totalvolume to find center concentration of activity. Uses two fields: shrt43_batsshvol_marketcenter and shrt43_batsshvol_totalvolume. SUGGESTION1 applied. Confidence 0.5.",
+            "implementation": "divide(shrt43_batsshvol_marketcenter, shrt43_batsshvol_totalvolume)",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "Short-size variability normalized (vec_range / totalvolume)",
+            "description": "vec_range of sumsize_s_data1 divided by totalvolume to capture intraday size swings. SUGGESTION2 used. Coverage ~1.0. Confidence 0.5.",
+            "implementation": "divide(vec_range(shrt43_edgxsh_sumsize_s_data1), shrt43_edgxshvol_totalvolume)",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "Short-share recovery indicator (ts_arg_max 15d)",
+            "description": "ts_arg_max of short-share over 15d to detect recent peaks (potential reversals). Two fields used. Confidence 0.52.",
+            "implementation": "ts_arg_max(divide(shrt43_byxxshvol_svol, shrt43_byxxshvol_totalvolume), 15)",
+            "confidence_level": 0.52
+        },
+        {
+            "idea": "Short-volume seasonality: ts_quantile 30d",
+            "description": "ts_quantile of short-share over 30d to normalize time-series rank to Gaussian quantiles. Uses two fields. SUGGESTION1 applied. Confidence 0.58.",
+            "implementation": "ts_quantile(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), 30)",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Short-flow difference vs 10d mean (EDGASH)",
+            "description": "subtract(current short-share, ts_mean(short-share,10)) to find deviations. Uses two fields. Coverage 1.0. Confidence 0.6.",
+            "implementation": "subtract(divide(shrt43_edgashvol_svol, shrt43_edgashvol_totalvolume), ts_mean(divide(shrt43_edgashvol_svol, shrt43_edgashvol_totalvolume), 10))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-share volatility (ts_std_dev 20d)",
+            "description": "ts_std_dev of short-share over 20d as a risk/signal metric. Uses two fields. Coverage high. Confidence 0.57.",
+            "implementation": "ts_std_dev(divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume), 20)",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Small-liquidity short-share tail winsorized",
+            "description": "Winsorize short-share to mitigate outliers, then scale by inverse liquidity. Uses two fields and winsorize operator. SUGGESTION1 applied. Confidence 0.59.",
+            "implementation": "multiply(winsorize(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume)), inverse(shrt43_batsshvol_totalvolume))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Short trade count proxy: vec_count(sumsize_s)",
+            "description": "vec_count on sumsize_s_data1 as proxy for number of short trades, normalized by totalvolume. SUGGESTION2 applied. Coverage good. Confidence 0.46.",
+            "implementation": "divide(vec_count(shrt43_edgxsh_sumsize_s_data1), shrt43_edgxshvol_totalvolume)",
+            "confidence_level": 0.46
+        },
+        {
+            "idea": "Short-share pairwise correlation with totalvolume (20d)",
+            "description": "ts_corr between short-share and totalvolume over 20d to detect demand-driven shorts. Uses two fields. Confidence 0.55.",
+            "implementation": "ts_corr(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), shrt43_batsshvol_totalvolume, 20)",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Short-share momentum zscore (5d ts_zscore)",
+            "description": "ts_zscore of 5d returns of short-share to spot significant shorting momentum. Uses two fields. Confidence 0.61.",
+            "implementation": "ts_zscore(ts_returns(divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume),5),5)",
+            "confidence_level": 0.61
+        },
+        {
+            "idea": "Relative short intensity: BATS short-share / EDGASH short-share",
+            "description": "Ratio of BATS short-share to EDGASH short-share to capture relative build-up. Uses two field ratios combined as divide(). SUGGESTION1 applied. Confidence 0.56.",
+            "implementation": "divide(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), divide(shrt43_edgashvol_svol, shrt43_edgashvol_totalvolume))",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Sumsize m-data spike (kth-like via vec_max) BYXX",
+            "description": "vec_max of shrt43_byxxsh_sumsize_m_data1 to detect large sell blocks. SUGGESTION2 applied. Coverage 1.0 for sumsize_s but m_data1 coverage 0.9277 (still >0.6) so no ts_backfill. Confidence 0.45.",
+            "implementation": "vec_max(shrt43_byxxsh_sumsize_m_data1)",
+            "confidence_level": 0.45
+        },
+        {
+            "idea": "Short-share mean reversion signal (negative ts_ir)",
+            "description": "Use ts_ir over 30d; negative IR suggests mean-reversion of short-share (opportunity). Uses two fields. Confidence 0.53.",
+            "implementation": "ts_ir(divide(shrt43_byxxshvol_svol, shrt43_byxxshvol_totalvolume), 30)",
+            "confidence_level": 0.53
+        },
+        {
+            "idea": "Short-share cross-sectional normalize then quantile",
+            "description": "normalize(divide(svol,totalvolume)) then quantile to get stable cross-sectional scores. SUGGESTION1 used. Confidence 0.6.",
+            "implementation": "quantile(normalize(divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume)))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-share tail clipping: tail to zero extreme tiny values",
+            "description": "Apply tail to set tiny short-share values to zero to reduce noise, then zscore. Uses two fields and tail operator. SUGGESTION1 applied. Confidence 0.48.",
+            "implementation": "zscore(tail(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), lower=0, upper=1e-6, newval=0))",
+            "confidence_level": 0.48
+        },
+        {
+            "idea": "Short-share ts_rank (10d) for cross-sectional timing",
+            "description": "ts_rank of short-share over 10d to capture recent relative position. Uses two fields. Coverage high. Confidence 0.54.",
+            "implementation": "ts_rank(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), 10)",
+            "confidence_level": 0.54
+        },
+        {
+            "idea": "Short-size heavy-tail indicator: ts_kurtosis(vec_avg(sumsize_s),30)",
+            "description": "Compute kurtosis of daily average short sizes to detect heavy-tail shorting. SUGGESTION2 applied. Coverage high. Confidence 0.47.",
+            "implementation": "ts_kurtosis(vec_avg(shrt43_edgxsh_sumsize_s_data1), 30)",
+            "confidence_level": 0.47
+        },
+        {
+            "idea": "Short-volume product spike: ts_product of short-share over 5d",
+            "description": "ts_product captures persistent shorting over 5 days. Uses ratio so two fields. SUGGESTION1 applied. Confidence 0.5.",
+            "implementation": "ts_product(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), 5)",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "Short-share slow decay (ts_decay_linear 10d)",
+            "description": "ts_decay_linear of short-share 10d to emphasize recent flow while smoothing. Uses two fields. SUGGESTION1 applied. Confidence 0.55.",
+            "implementation": "ts_decay_linear(divide(shrt43_byxxshvol_svol, shrt43_byxxshvol_totalvolume), 10)",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Short-size / marketcenter ratio (BYXX)",
+            "description": "vec_avg(sumsize_s_data1) divided by marketcenter volume to detect relative blockiness on center. SUGGESTION2+1 used. Confidence 0.47.",
+            "implementation": "divide(vec_avg(shrt43_byxxsh_sumsize_s_data1), shrt43_byxxshvol_marketcenter)",
+            "confidence_level": 0.47
+        },
+        {
+            "idea": "Short-share directional signal: sign of ts_delta (EDGX)",
+            "description": "sign(ts_delta(short-share,3)) to get +1/-1 directional short-flow trend. Two fields used. Confidence 0.52.",
+            "implementation": "sign(ts_delta(divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume), 3))",
+            "confidence_level": 0.52
+        },
+        {
+            "idea": "Short-share rolling max drawdown proxy (ts_max_diff 30d)",
+            "description": "ts_max_diff(short-share,30) provides distance from 30d high (short-covering signal). Uses two fields. Confidence 0.56.",
+            "implementation": "ts_max_diff(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), 30)",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Short-size mean adjusted: subtract vec_avg(sumsize_m) - vec_avg(sumsize_s) (EDGX)",
+            "description": "Compare mean sizes of sell vs short vectors assuming both exist; uses two vector fields. SUGGESTION2 applied. Coverage acceptable. Confidence 0.44.",
+            "implementation": "subtract(vec_avg(shrt43_edgxsh_sumsize_m_data1), vec_avg(shrt43_edgxsh_sumsize_s_data1))",
+            "confidence_level": 0.44
+        },
+        {
+            "idea": "Short-volume seasonal hump limiting",
+            "description": "Apply hump to short-share to limit turnover/noise then zscore. Uses two fields and hump operator. SUGGESTION1 applied. Confidence 0.5.",
+            "implementation": "zscore(hump(divide(shrt43_edgashvol_svol, shrt43_edgashvol_totalvolume), 0.01))",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "Short-share long/short scale: scale for booksize",
+            "description": "scale(short-share) to produce tradable weights. Uses two fields and scale operator per KEEP_IN_MIND2 (<=2 datafields). SUGGESTION1 applied. Confidence 0.59.",
+            "implementation": "scale(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Short-size volatility normalized (vec_stddev / vec_avg)",
+            "description": "vec_stddev(sumsize_s_data1) divided by vec_avg(sumsize_s_data1) to measure dispersion relative to mean. SUGGESTION2 applied. Confidence 0.45.",
+            "implementation": "divide(vec_stddev(shrt43_edgxsh_sumsize_s_data1), vec_avg(shrt43_edgxsh_sumsize_s_data1))",
+            "confidence_level": 0.45
+        },
+        {
+            "idea": "Short-share posterior surprise: subtract ts_mean(5d) from ts_mean(20d)",
+            "description": "ts_mean(short-share,5) - ts_mean(short-share,20) to capture shift in regime. Uses two fields. Confidence 0.6.",
+            "implementation": "subtract(ts_mean(divide(shrt43_byxxshvol_svol, shrt43_byxxshvol_totalvolume),5), ts_mean(divide(shrt43_byxxshvol_svol, shrt43_byxxshvol_totalvolume),20))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-size max over last day relative to yesterday (ts_delay)",
+            "description": "Compare vec_max(sumsize_s) today vs yesterday via subtract(vec_max, ts_delay(vec_max,1)). SUGGESTION2 used. Confidence 0.43.",
+            "implementation": "subtract(vec_max(shrt43_edgxsh_sumsize_s_data1), ts_delay(vec_max(shrt43_edgxsh_sumsize_s_data1),1))",
+            "confidence_level": 0.43
+        },
+        {
+            "idea": "Short-share cross-sectional winsorized zscore",
+            "description": "winsorize then zscore of short-share to reduce influence of outliers; uses two fields. SUGGESTION1 applied. Confidence 0.6.",
+            "implementation": "zscore(winsorize(divide(shrt43_edgashvol_svol, shrt43_edgashvol_totalvolume), std=4))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-volume tempo: ts_step weighted short-share",
+            "description": "Multiply ts_step(1) with short-share to incorporate day count pattern; uses two fields but keeps operators few. SUGGESTION1 applied. Confidence 0.3 (exploratory).",
+            "implementation": "multiply(ts_step(1), divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume))",
+            "confidence_level": 0.3
+        },
+        {
+            "idea": "Short-share relative rank normalized across groups via quantile",
+            "description": "quantile of divide(svol,totalvolume) to produce normalized cross-sectional ranks. Uses two fields. SUGGESTION1 applied. Confidence 0.59.",
+            "implementation": "quantile(divide(shrt43_byxxshvol_svol, shrt43_byxxshvol_totalvolume))",
+            "confidence_level": 0.59
+        },
+        {
+            "idea": "Short-size to short-share elasticity: divide(vec_avg(sumsize_s), short-share)",
+            "description": "Measure how average short size maps to short-share. SUGGESTION2+1 used. Confidence 0.47.",
+            "implementation": "divide(vec_avg(shrt43_batssh_sumsize_s_data1), divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume))",
+            "confidence_level": 0.47
+        },
+        {
+            "idea": "Short-flow pair-trend: sign(ts_delta(BATS) - ts_delta(EDGX))",
+            "description": "Compare recent accelerations between exchanges: sign of difference between ts_delta of ratios. Uses two computed inputs. SUGGESTION1 applied. Confidence 0.51.",
+            "implementation": "sign(subtract(ts_delta(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume),3), ts_delta(divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume),3)))",
+            "confidence_level": 0.51
+        },
+        {
+            "idea": "Short-size heavy-lift indicator: vec_sum(sumsize_m) / totalvolume",
+            "description": "vec_sum of sumsize_m_data2 divided by totalvolume to detect days with large total short sizes. SUGGESTION2 applied. Coverage ~0.9855 acceptable. Confidence 0.46.",
+            "implementation": "divide(vec_sum(shrt43_edgxsh_sumsize_m_data2), shrt43_edgxshvol_totalvolume)",
+            "confidence_level": 0.46
+        },
+        {
+            "idea": "Short-share decay-adjusted hump (ts_target_tvr_decay style)",
+            "description": "Use ts_target_tvr_decay to smooth short-share targeting turnover; uses short-share ratio. SUGGESTION1 applied. Confidence 0.5.",
+            "implementation": "ts_target_tvr_decay(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), lambda_min=0, lambda_max=1, target_tvr=0.1)",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "Short-size imbalance: vec_range(sumsize_m) / vec_sum(sumsize_m)",
+            "description": "Measure imbalance across intraday sizes. SUGGESTION2 applied. Uses only one vector field per KEEP_IN_MIND2. Confidence 0.42.",
+            "implementation": "divide(vec_range(shrt43_edgash_sumsize_m_data1), vec_sum(shrt43_edgash_sumsize_m_data1))",
+            "confidence_level": 0.42
+        },
+        {
+            "idea": "Short-share extreme bucket (bucket of zscore)",
+            "description": "Bucket zscore(divide(svol,totalvolume)) into tails for trading thresholds. SUGGESTION1 applied. Confidence 0.57.",
+            "implementation": "bucket(zscore(divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume)), range=\"-3,3,1\")",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Short-volume normalization by marketcenter (EDGX)",
+            "description": "Normalize short-volume by marketcenter activity: divide(svol, marketcenter). Uses two fields. Confidence 0.48.",
+            "implementation": "divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_marketcenter)",
+            "confidence_level": 0.48
+        },
+        {
+            "idea": "Short-share sign-adjusted zscore",
+            "description": "Multiply sign(ts_delta(short-share,3)) by zscore(short-share) to combine direction and extremity. Uses two fields. Confidence 0.53.",
+            "implementation": "multiply(sign(ts_delta(divide(shrt43_byxxshvol_svol, shrt43_byxxshvol_totalvolume),3)), zscore(divide(shrt43_byxxshvol_svol, shrt43_byxxshvol_totalvolume)))",
+            "confidence_level": 0.53
+        },
+        {
+            "idea": "Short-size day-count since last change (days_from_last_change on vec_avg)",
+            "description": "days_from_last_change(vec_avg(sumsize_s)) to find stale patterns. SUGGESTION2 applied. Coverage ok. Confidence 0.35.",
+            "implementation": "days_from_last_change(vec_avg(shrt43_batssh_sumsize_s_data1))",
+            "confidence_level": 0.35
+        },
+        {
+            "idea": "Short-share combined IR across exchanges (sum of ts_ir)",
+            "description": "Add ts_ir scores from BATS and EDGX to find consolidated signal strength. Uses SUGGESTION1; stays within 2 datafields by adding two computed inputs. Confidence 0.6.",
+            "implementation": "add(ts_ir(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume),30), ts_ir(divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume),30))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-share recent max index (ts_arg_max 5d) as momentum proxy",
+            "description": "ts_arg_max over 5d on short-share to detect immediate peaks. Uses two fields. Confidence 0.5.",
+            "implementation": "ts_arg_max(divide(shrt43_edgashvol_svol, shrt43_edgashvol_totalvolume), 5)",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "Short-volume relative variability: ts_std_dev(vec_avg(sumsize_s),10)",
+            "description": "Standard deviation over 10d of daily average short sizes (vector aggregated first). SUGGESTION2 applied. Confidence 0.44.",
+            "implementation": "ts_std_dev(vec_avg(shrt43_edgash_sumsize_s_data1), 10)",
+            "confidence_level": 0.44
+        },
+        {
+            "idea": "Short-share normalized slope: ts_regression slope vs time (7d)",
+            "description": "Use ts_regression to extract slope (lag 0 rettype slope) of short-share over 7d to measure trend. Uses two fields. Confidence 0.58.",
+            "implementation": "ts_regression(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), ts_step(1), 7, lag=0, rettype=0)",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Short-size ratio m vs s (vec_avg of m / vec_avg of s)",
+            "description": "Compare mean sizes between m_data1 and s_data1 vectors to identify side imbalance. SUGGESTION2 applied. Confidence 0.43.",
+            "implementation": "divide(vec_avg(shrt43_edgxsh_sumsize_m_data1), vec_avg(shrt43_edgxsh_sumsize_s_data1))",
+            "confidence_level": 0.43
+        },
+        {
+            "idea": "Short-share cross-sectional normalize then group-neutralize (by sector placeholder)",
+            "description": "Normalize short-share and then (conceptually) group_neutralize by a group field if available; KEEP_IN_MIND3 prevents using external group alone so not applying group_neutralize directly. Therefore only normalize used. SUGGESTION1 applied. Confidence 0.52.",
+            "implementation": "normalize(divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume))",
+            "confidence_level": 0.52
+        },
+        {
+            "idea": "Short-flow coherence: ts_corr between BATS and EDGX short-share (15d)",
+            "description": "ts_corr(divide(BATS), divide(EDGX),15) to assess synchronized shorting. Uses two ratio inputs built from four raw fields but still two function inputs. SUGGESTION1 applied. Confidence 0.55.",
+            "implementation": "ts_corr(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume), 15)",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Short-size sudden concentration (vec_max - vec_min)",
+            "description": "vec_max(sumsize_s) - vec_min(sumsize_s) to detect concentration spikes within day. SUGGESTION2 applied. Confidence 0.41.",
+            "implementation": "subtract(vec_max(shrt43_edgxsh_sumsize_s_data1), vec_min(shrt43_edgxsh_sumsize_s_data1))",
+            "confidence_level": 0.41
+        },
+        {
+            "idea": "Short-share normalized momentum bucket (ts_rank then bucket)",
+            "description": "ts_rank of short-share over 10d then bucket into deciles for robust signals. SUGGESTION1 applied. Confidence 0.58.",
+            "implementation": "bucket(ts_rank(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), 10), buckets=\"10,20,30,40,50,60,70,80,90,100\")",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Short-share volatility-adjusted score: divide zscore by ts_std_dev",
+            "description": "zscore(short-share) divided by ts_std_dev(short-share,20) to adjust for local volatility. Uses two fields. Confidence 0.56.",
+            "implementation": "divide(zscore(divide(shrt43_edgashvol_svol, shrt43_edgashvol_totalvolume)), ts_std_dev(divide(shrt43_edgashvol_svol, shrt43_edgashvol_totalvolume), 20))",
+            "confidence_level": 0.56
+        },
+        {
+            "idea": "Short-size trending decrease: last_diff_value(vec_avg(sumsize_s),10)",
+            "description": "last_diff_value to find prior different average size within 10d indicating change. SUGGESTION2 applied. Confidence 0.39.",
+            "implementation": "last_diff_value(vec_avg(shrt43_byxxsh_sumsize_s_data1), 10)",
+            "confidence_level": 0.39
+        },
+        {
+            "idea": "Short-volume product across exchanges (BATS*EDGX)",
+            "description": "multiply short-share ratios of BATS and EDGX to identify joint extremes. Uses SUGGESTION1. Confidence 0.5.",
+            "implementation": "multiply(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume))",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "Short-share persistence: ts_count_nans of sumsize_m (data quality)",
+            "description": "ts_count_nans on sumsize_m_data1 to monitor data gaps; SUGGESTION3 not needed as coverage>0.6. Helps filter trades. SUGGESTION2 applied if vector; here treat as series. Confidence 0.3.",
+            "implementation": "ts_count_nans(shrt43_edgxsh_sumsize_m_data1, 30)",
+            "confidence_level": 0.3
+        },
+        {
+            "idea": "Short-share mean reversion rank (negative recent ts_returns ranked)",
+            "description": "Rank ts_returns( short-share,5 ) cross-sectionally to target recent reversals. Uses two fields. SUGGESTION1 applied. Confidence 0.57.",
+            "implementation": "quantile(ts_returns(divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume),5))",
+            "confidence_level": 0.57
+        },
+        {
+            "idea": "Short-size minimal activity detector: vec_min(sumsize_s)",
+            "description": "vec_min on sumsize_s_data1 to find instruments with tiny short trades indicating sparse short interest. SUGGESTION2 applied. Confidence 0.33.",
+            "implementation": "vec_min(shrt43_edgxsh_sumsize_s_data1)",
+            "confidence_level": 0.33
+        },
+        {
+            "idea": "Short-share inverse liquidity amplified signal",
+            "description": "inverse(totalvolume) * short-share to amplify signal in low-liquidity names. Uses two fields. SUGGESTION1 applied. Confidence 0.58.",
+            "implementation": "multiply(inverse(shrt43_batsshvol_totalvolume), divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Short-size day-over-day difference (vec_avg - ts_delay(vec_avg,1))",
+            "description": "Subtract yesterday's average short size from today's to find surges. SUGGESTION2 applied. Confidence 0.4.",
+            "implementation": "subtract(vec_avg(shrt43_edgash_sumsize_s_data1), ts_delay(vec_avg(shrt43_edgash_sumsize_s_data1),1))",
+            "confidence_level": 0.4
+        },
+        {
+            "idea": "Short-share smoothed momentum (ts_mean of ts_returns)",
+            "description": "ts_mean(ts_returns(short-share,1),5) to smooth one-day returns over 5 days. Uses two fields. Confidence 0.52.",
+            "implementation": "ts_mean(ts_returns(divide(shrt43_byxxshvol_svol, shrt43_byxxshvol_totalvolume),1),5)",
+            "confidence_level": 0.52
+        },
+        {
+            "idea": "Short-share tail risk: ts_kurtosis of short-share",
+            "description": "ts_kurtosis(short-share,30) to capture heavy tails in shorting activity. Uses two fields. Confidence 0.45.",
+            "implementation": "ts_kurtosis(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), 30)",
+            "confidence_level": 0.45
+        },
+        {
+            "idea": "Short-size normalized by group median proxy (use normalize)",
+            "description": "normalize(vec_avg(sumsize_s)) to center across universe as a proxy for group-neutralization (explicit group not used per KEEP_IN_MIND3). SUGGESTION2 applied. Confidence 0.4.",
+            "implementation": "normalize(vec_avg(shrt43_edgxsh_sumsize_s_data1))",
+            "confidence_level": 0.4
+        },
+        {
+            "idea": "Short-share adjusted for marketcenter concentration",
+            "description": "short-share * (marketcenter/totalvolume) to weight exchange-concentrated shorting. Uses two fields. SUGGESTION1 applied. Confidence 0.47.",
+            "implementation": "multiply(divide(shrt43_edgashvol_svol, shrt43_edgashvol_totalvolume), divide(shrt43_edgashvol_marketcenter, shrt43_edgashvol_totalvolume))",
+            "confidence_level": 0.47
+        },
+        {
+            "idea": "Short-size historical percentile (ts_quantile on vec_avg)",
+            "description": "ts_quantile(vec_avg(sumsize_s),30) to convert time-series average sizes into percentiles. SUGGESTION2 applied. Confidence 0.46.",
+            "implementation": "ts_quantile(vec_avg(shrt43_byxxsh_sumsize_s_data1), 30)",
+            "confidence_level": 0.46
+        },
+        {
+            "idea": "Short-share momentum-signaled buckets (if_else)",
+            "description": "if_else(ts_returns(short-share,5)>0, zscore(short-share), 0) to take positions only when momentum positive. Uses two fields. SUGGESTION1 applied. Confidence 0.5.",
+            "implementation": "if_else(greater(ts_returns(divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume),5),0), zscore(divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume)), 0)",
+            "confidence_level": 0.5
+        },
+        {
+            "idea": "Short-share extremity indicator: winsorize then ts_arg_max",
+            "description": "winsorize(zscore(short-share)) then ts_arg_max 10d to find recent extremes trimmed. Uses two fields. SUGGESTION1 applied. Confidence 0.52.",
+            "implementation": "ts_arg_max(winsorize(zscore(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume)), std=4), 10)",
+            "confidence_level": 0.52
+        },
+        {
+            "idea": "Short-size pair ratio across exchanges (vec_avg(BATS)/vec_avg(EDGX))",
+            "description": "Compare average short sizes between BATS and EDGX via vec_avg fields. SUGGESTION2+1 applied. Confidence 0.38.",
+            "implementation": "divide(vec_avg(shrt43_batssh_sumsize_s_data1), vec_avg(shrt43_edgxsh_sumsize_s_data1))",
+            "confidence_level": 0.38
+        },
+        {
+            "idea": "Short-share trend break detection (last_diff_value of short-share)",
+            "description": "last_diff_value of short-share over 10d to find the last different level indicating regime change. Uses two fields. Confidence 0.49.",
+            "implementation": "last_diff_value(divide(shrt43_byxxshvol_svol, shrt43_byxxshvol_totalvolume), 10)",
+            "confidence_level": 0.49
+        },
+        {
+            "idea": "Short-volume composite score (add normalized BATS & EDGX)",
+            "description": "Add normalized short-share zscores across two exchanges to form composite. SUGGESTION1 applied. Confidence 0.62.",
+            "implementation": "add(zscore(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume)), zscore(divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume)))",
+            "confidence_level": 0.62
+        },
+        {
+            "idea": "Short-size volatility divided by short-share (instability metric)",
+            "description": "ts_std_dev(vec_avg(sumsize_s), 20) divided by short-share to capture instability per unit short-share. SUGGESTION2+1 applied. Confidence 0.42.",
+            "implementation": "divide(ts_std_dev(vec_avg(shrt43_batssh_sumsize_s_data1),20), divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume))",
+            "confidence_level": 0.42
+        },
+        {
+            "idea": "Short-share normalized by 30d max (short-share / ts_max(short-share,30))",
+            "description": "Divide current short-share by its 30d max to get relative intensity. Uses two fields. Confidence 0.55.",
+            "implementation": "divide(divide(shrt43_edgashvol_svol, shrt43_edgashvol_totalvolume), ts_max(divide(shrt43_edgashvol_svol, shrt43_edgashvol_totalvolume), 30))",
+            "confidence_level": 0.55
+        },
+        {
+            "idea": "Short-size jump detection via ts_arg_min on vec_avg",
+            "description": "ts_arg_min(vec_avg(sumsize_s), 7) to find recent minima indicating possible drying up. SUGGESTION2 applied. Confidence 0.36.",
+            "implementation": "ts_arg_min(vec_avg(shrt43_byxxsh_sumsize_s_data1), 7)",
+            "confidence_level": 0.36
+        },
+        {
+            "idea": "Short-share weighted by sumsize_m average",
+            "description": "short-share * vec_avg(sumsize_m_data1) to weight flow by average block size. SUGGESTION1+2 applied. Confidence 0.45.",
+            "implementation": "multiply(divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume), vec_avg(shrt43_edgxsh_sumsize_m_data1))",
+            "confidence_level": 0.45
+        },
+        {
+            "idea": "Short-volume relative rank across exchanges (groupless proxy)",
+            "description": "quantile of sum of short-shares across BATS and EDGX to get cross-exchange rank. SUGGESTION1 applied. Confidence 0.58.",
+            "implementation": "quantile(add(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume)))",
+            "confidence_level": 0.58
+        },
+        {
+            "idea": "Short-share dampened by hump then ts_returns",
+            "description": "Apply hump to short-share to reduce turnover then compute 5d returns; uses two fields. SUGGESTION1 applied. Confidence 0.51.",
+            "implementation": "ts_returns(hump(divide(shrt43_batsshvol_svol, shrt43_batsshvol_totalvolume), 0.01), 5)",
+            "confidence_level": 0.51
+        },
+        {
+            "idea": "Short-size to totalvolume correlation (vec_avg vs totalvolume)",
+            "description": "ts_corr(vec_avg(sumsize_s), totalvolume, 20) to see if larger sizes coincide with high market volume. SUGGESTION2+1 applied. Confidence 0.44.",
+            "implementation": "ts_corr(vec_avg(shrt43_batssh_sumsize_s_data1), shrt43_batsshvol_totalvolume, 20)",
+            "confidence_level": 0.44
+        },
+        {
+            "idea": "Short-share zscore clipped and scaled",
+            "description": "scale(winsorize(zscore(short-share))) to produce bounded tradable weights. Uses two fields. SUGGESTION1 applied. Confidence 0.6.",
+            "implementation": "scale(winsorize(zscore(divide(shrt43_edgxshvol_svol, shrt43_edgxshvol_totalvolume)), std=4))",
+            "confidence_level": 0.6
+        },
+        {
+            "idea": "Short-size normalized difference m vs s (vec_avg m - vec_avg s) scaled",
+            "description": "Subtract average m and s sizes then scale; SUGGESTION2 applied. Confidence 0.4.",
+            "implementation": "scale(subtract(vec_avg(shrt43_edgash_sumsize_m_data1), vec_avg(shrt43_edgash_sumsize_s_data1)))",
+            "confidence_level": 0.4
+        }
+    ]
+}

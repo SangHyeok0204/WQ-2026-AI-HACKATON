@@ -1,0 +1,694 @@
+{
+  "results": [
+    {
+      "idea": "Short-term post-news momentum: high 1-minute return predicts intraday continuation",
+      "description": "Used SUGGESTION1 by combining short-term return with volume proxy; SUGGESTION2 not applied (no vector fields); SUGGESTION3 not needed (coverage >0.6); SUGGESTION4 used high user/alpha fields (nws5_minute userCount 17, nws5_curr_vol userCount 22). Kept KEEP_IN_MINDs: implementation uses 2 datafields and 3 operators. Confidence set to 0.72 — reasonable intraday momentum but noise exists.",
+      "implementation": "multiply(ts_zscore(nws5_minute,5), ts_zscore(nws5_curr_vol,20))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Post-news 5-minute mean-reversion after extreme 30-second spike",
+      "description": "S1: combined 30s spike and 5min move; S2: no vector fields; S3: not needed; S4: chose fields with moderate userCount. Respect KEEP_IN_MINDs: <=2 datafields, <=7 operators. Confidence 0.62 — microstructure noise risk but exploitable with short horizons.",
+      "implementation": "subtract(ts_zscore(nws5_30_seconds,5), ts_zscore(nws5_5_minutes,5))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Post-news drift vs market: stock that outperforms SPY in first 30 minutes continues",
+      "description": "S1: used nws5_result_vs_index + volume; S2 not applied; S3 not needed; S4 used high alphaCount field nws5_result_vs_index (alphaCount 70). Maintained KEEP_IN_MINDs. Confidence 0.68 — established post-news drift literature supports this.",
+      "implementation": "multiply(ts_zscore(nws5_result_vs_index,10), ts_zscore(nws5_curr_vol,20))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Gap fade strategy: large open gap tends to mean-revert intraday",
+      "description": "S1: combined opengap (coverage 0.883) with tonlast to adjust for absolute level; S2 none; S3 not needed; S4 used commonly used fields. Implementation respects operator/field limits. Confidence 0.59 — gaps can persist, so moderate confidence.",
+      "implementation": "reverse(ts_zscore(nws5_opengap,20))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Volume-adjusted momentum: strong percent move in first 10 minutes with high volume predicts continuation",
+      "description": "S1 combined nws5_10_minutes and nws5_vol_ratio; S2 not applied; S3 not needed; S4 selected high userCount vol_ratio. KEEP_IN_MINDs observed. Confidence 0.7 — volume confirms signal.",
+      "implementation": "multiply(ts_zscore(nws5_10_minutes,10), ts_zscore(nws5_vol_ratio,20))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Volatility breakout: large (range / ATR20) predicts continuation of direction of TONLast to EODClose",
+      "description": "S1 combined nws5_atr_ratio and nws5_result; S2 no vector; S3 not needed; S4 both fields have decent user/alpha counts. Implementation compact. Confidence 0.64 — breakout signals workable but false breakouts exist.",
+      "implementation": "multiply(sign(nws5_result), ts_zscore(nws5_atr_ratio,30))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "High ticks momentum: stocks with unusually high ticks post-news continue moving",
+      "description": "S1 used nws5_allticks and nws5_result; S2 not applied; S3 not needed; S4 allticks has very high userCount/alphaCount (72/256) — chosen for coverage. KEEP_IN_MINDs satisfied. Confidence 0.66.",
+      "implementation": "multiply(ts_zscore(nws5_allticks,20), ts_zscore(nws5_result,10))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "VWAP reversal: strong deviation from pre-news VWAP to post-session VWAP mean-reverts",
+      "description": "S1 combined nws5_prevwap and nws5_postvwap; S2 not applied; S3 prevwap coverage 0.7371 (>0.6 so no backfill); S4 both fields have acceptable counts. KEEP_IN_MINDs met. Confidence 0.6.",
+      "implementation": "subtract(nws5_postvwap, nws5_prevwap)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Large after-news high vs TONLast continuation: big maxup indicates continued strength",
+      "description": "S1 combined nws5_maxup and nws5_tonlast; S2 not used; S3 not needed; S4 used high alphaCount field maxup (41). Respect constraints. Confidence 0.65.",
+      "implementation": "ts_zscore(nws5_maxup,15)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "After-news low overshoot mean-reversion: large maxdown predicts bounce",
+      "description": "S1 used nws5_maxdown with prevclose normalization; S2 not used; S3 not needed; S4 selected fields with good coverage. KEEP_IN_MINDs observed. Confidence 0.63.",
+      "implementation": "multiply(ts_zscore(nws5_maxdown,15), reverse(sign(nws5_prevclose)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Short-interest squeeze candidate: high shortinterest with positive early move predicts further upmove",
+      "description": "S1 combined nws5_shortinterest and nws5_5_minutes; S2 not applied; S3 shortinterest coverage 0.7922 (>0.6) so no backfill; S4 shortinterest userCount low but signal unique. KEEP_IN_MINDs kept. Confidence 0.56 — limited by data frequency.",
+      "implementation": "multiply(ts_zscore(nws5_shortinterest,90), ts_zscore(nws5_5_minutes,5))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "EOD range expansion: stocks with large session range standardized by 30d stddev continue trending",
+      "description": "S1 used nws5_rangestddev and nws5_result; S2 not used; S3 not needed; S4 rangestddev has high alphaCount. Implementation short. Confidence 0.61.",
+      "implementation": "multiply(ts_zscore(nws5_rangestddev,20), sign(nws5_result))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Momentum weighted by market cap: small caps with strong post-news moves outperform",
+      "description": "S1 combined nws5_result with nws5_mktcap_1000; S2 not used; S3 not needed; S4 used marketcap field (coverage high) to tilt small-cap. KEEP_IN_MINDs satisfied. Confidence 0.58.",
+      "implementation": "multiply(ts_zscore(nws5_result,10), reverse(ts_zscore(nws5_mktcap_1000,60)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Post-news persistence adjusted by previous-day return: fade if yesterday had similar move",
+      "description": "S1 used nws5_prevday and nws5_result; S2 no; S3 not needed; S4 both fields have decent counts. KEEP_IN_MINDs satisfied. Confidence 0.6.",
+      "implementation": "subtract(ts_zscore(nws5_result,10), ts_zscore(nws5_prevday,20))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "VWAP pullback: price above mainvwap then reverts toward it intraday",
+      "description": "S1 used nws5_mainvwap and nws5_tonlast; S2 not applied; S3 not needed; S4 used fields with solid userCount. KEEP_IN_MINDs respected. Confidence 0.57.",
+      "implementation": "subtract(nws5_mainvwap, nws5_tonlast)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "High pre-news high momentum: stocks that made session-high before news continue upward",
+      "description": "S1 combined nws5_tonhigh and nws5_result; S2 not used; S3 not needed; S4 fields have good counts. KEEP_IN_MINDs applied. Confidence 0.62.",
+      "implementation": "multiply(ts_zscore(nws5_tonhigh,30), sign(nws5_result))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Post-news microstructure squeeze: low tick count but high volume -> liquidity-driven jump",
+      "description": "S1 used nws5_allticks and nws5_curr_vol; S2 not used; S3 not needed; S4 allticks high userCount. KEEP_IN_MINDs observed. Confidence 0.54 — microstructure dependent.",
+      "implementation": "divide(ts_zscore(nws5_curr_vol,20), ts_zscore(nws5_allticks,20))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Immediate reaction speed: short time to 1% move (nws5_1l/1s) predicts momentum direction",
+      "description": "S1 used nws5_1p and nws5_1s to capture asymmetry; S2 not applied; S3 not needed; S4 both fields have moderate counts. KEEP_IN_MINDs kept. Confidence 0.6.",
+      "implementation": "subtract(ts_zscore(nws5_1p,10), ts_zscore(nws5_1s,10))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Fast vs slow reaction divergence: compare 30s spike to 120-minute move for sustainability",
+      "description": "S1 combined nws5_30_seconds and nws5_120_minutes; S2 not used; S3 not needed; S4 selected both with good counts. KEEP_IN_MINDs maintained. Confidence 0.63.",
+      "implementation": "subtract(ts_zscore(nws5_30_seconds,5), ts_zscore(nws5_120_minutes,30))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Post-news directionality scaled by ATR: large moves normalized by volatility have more predictive power",
+      "description": "S1 used nws5_result and nws5_41rta (ATR); S2 not used; S3 not needed; S4 ATR field has good counts. KEEP_IN_MINDs followed. Confidence 0.67.",
+      "implementation": "divide(ts_zscore(nws5_result,10), ts_zscore(nws5_41rta,30))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "EOD high excursion continuation: large highexcstddev predicts upside continuation",
+      "description": "S1 combined nws5_highexcstddev and nws5_result; S2 not applied; S3 not needed; S4 highexcstddev has adequate counts. KEEP_IN_MINDs satisfied. Confidence 0.59.",
+      "implementation": "multiply(ts_zscore(nws5_highexcstddev,20), sign(nws5_result))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "EOD low overshoot mean-reversion: large lowexcstddev predicts bounce to close",
+      "description": "S1 used nws5_lowexcstddev with result; S2 not used; S3 coverage high; S4 lowexcstddev has very high user/alpha counts, boosting confidence. KEEP_IN_MINDs kept. Confidence 0.71.",
+      "implementation": "multiply(reverse(ts_zscore(nws5_lowexcstddev,20)), sign(nws5_result))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Post-news direction persistence when session range is large",
+      "description": "S1 combined nws5_range and nws5_result; S2 not used; S3 not needed; S4 both fields have decent counts. KEEP_IN_MINDs observed. Confidence 0.6.",
+      "implementation": "multiply(ts_zscore(nws5_range,15), ts_zscore(nws5_result,10))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Volume surge reversal: extreme volume relative to 30d average with small price move predicts reversal",
+      "description": "S1 used nws5_volumestddev and nws5_result; S2 not applied; S3 not needed; S4 volumestddev has high alphaCount. KEEP_IN_MINDs followed. Confidence 0.58.",
+      "implementation": "multiply(ts_zscore(nws5_volumestddev,20), reverse(sign(nws5_result)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Post-news 60-minute momentum confirmed by 90-minute move",
+      "description": "S1 combined nws5_60_minutes and nws5_90_minutes for persistence; S2 not used; S3 not needed; S4 both have acceptable counts. KEEP_IN_MINDs satisfied. Confidence 0.64.",
+      "implementation": "multiply(ts_zscore(nws5_60_minutes,10), ts_zscore(nws5_90_minutes,15))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "High post-news close volume predicts continuation into next session",
+      "description": "S1 used nws5_close_vol and nws5_result_vs_index; S2 not used; S3 not needed; S4 close_vol has good coverage. KEEP_IN_MINDs obeyed. Confidence 0.62.",
+      "implementation": "multiply(ts_zscore(nws5_close_vol,30), ts_zscore(nws5_result_vs_index,10))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Price gap plus high vwap divergence: large DayOpen - mainvwap signals fade",
+      "description": "S1 combined nws5_dayopen/mainvwap and opengap; used 2 datafields. S2 no; S3 not needed; S4 fields have reasonable counts. KEEP_IN_MINDs met. Confidence 0.55.",
+      "implementation": "subtract(nws5_dayopen, nws5_mainvwap)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum tempered by 30d moving volume (liquidity-weighted momentum)",
+      "description": "S1 combined nws5_result and nws5_mov_vol; S2 not applied; S3 not needed; S4 mov_vol has high userCount. KEEP_IN_MINDs observed. Confidence 0.66.",
+      "implementation": "divide(ts_zscore(nws5_result,10), ts_zscore(nws5_mov_vol,30))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Immediate post-news persistence measured by minute and 5-minute z-scores",
+      "description": "S1 used nws5_minute & nws5_5_minutes; S2 not used; S3 not needed; S4 both fields have acceptable counts. KEEP_IN_MINDs satisfied. Confidence 0.61.",
+      "implementation": "multiply(ts_zscore(nws5_minute,5), ts_zscore(nws5_5_minutes,10))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Post-news directional strength normalized by session vwap change",
+      "description": "S1 combined nws5_eodvwap and nws5_tonlast; S2 none; S3 not needed; S4 both fields okay. KEEP_IN_MINDs observed. Confidence 0.6.",
+      "implementation": "subtract(nws5_eodvwap, nws5_tonlast)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Overreaction measured by TONLast-to-EOD range: big difference predicts mean-reversion",
+      "description": "S1 used nws5_maxdnamt and nws5_maxupamt; S2 not applied; S3 not needed; S4 fields have decent counts. KEEP_IN_MINDs followed. Confidence 0.59.",
+      "implementation": "subtract(nws5_maxdnamt, nws5_maxupamt)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Intraday continuation when current volume well above 30-day average and price moving up",
+      "description": "S1 used nws5_vol_ratio and nws5_result; S2 not used; S3 not needed; S4 vol_ratio high user/alpha counts. KEEP_IN_MINDs observed. Confidence 0.68.",
+      "implementation": "multiply(ts_zscore(nws5_vol_ratio,10), sign(nws5_result))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Post-news directional conviction: combine minute return and allvwap deviation",
+      "description": "S1 used nws5_minute and nws5_allvwap; S2 not applied; S3 not needed; S4 allvwap has modest userCount. KEEP_IN_MINDs satisfied. Confidence 0.56.",
+      "implementation": "subtract(nws5_minute, ts_zscore(nws5_allvwap,30))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Predictable close bias: stocks with TONLast below postvwap tend to revert up to postvwap",
+      "description": "S1 used nws5_postvwap and nws5_tonlast; S2 not used; S3 not needed; S4 fields have adequate counts. KEEP_IN_MINDs OK. Confidence 0.6.",
+      "implementation": "subtract(nws5_postvwap, nws5_tonlast)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Persistence of extreme 7.5% moves: time-to-7.5% (nws5_57l/57s) indicates trend strength",
+      "description": "S1 used nws5_57p and nws5_57s; S2 not applied; S3 not needed; S4 these fields have high alphaCounts. KEEP_IN_MINDs observed. Confidence 0.57.",
+      "implementation": "subtract(ts_zscore(nws5_57p,50), ts_zscore(nws5_57s,50))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Short-term reversal when after-news high is much larger than session high before news",
+      "description": "S1 combined nws5_maxup and nws5_tonhigh; S2 not used; S3 not needed; S4 fields have good counts. KEEP_IN_MINDs followed. Confidence 0.58.",
+      "implementation": "subtract(ts_zscore(nws5_maxup,15), ts_zscore(nws5_tonhigh,30))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "High open volume with negative minute move signals intraday bottom",
+      "description": "S1 used nws5_open_vol and nws5_minute; S2 not used; S3 not needed; S4 open_vol userCount 26 is good. KEEP_IN_MINDs observed. Confidence 0.6.",
+      "implementation": "multiply(ts_zscore(nws5_open_vol,20), reverse(ts_zscore(nws5_minute,5)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "30-minute momentum adjusted for 30-day range standard deviation",
+      "description": "S1 combined nws5_30_minutes and nws5_rangestddev; S2 not used; S3 not needed; S4 rangestddev has high alphaCount. KEEP_IN_MINDs kept. Confidence 0.65.",
+      "implementation": "divide(ts_zscore(nws5_30_minutes,15), ts_zscore(nws5_rangestddev,30))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Next-day continuation when post-news close is above pre-news VWAP and volume increased",
+      "description": "S1 used nws5_prevwap, nws5_eodvwap and nws5_prev_vol (2 datafields per implementation limit -> choose two: eodvwap & prev_vol). S2 not used; S3 prevwap coverage ok; S4 prev_vol has decent counts. KEEP_IN_MINDs obeyed. Confidence 0.61.",
+      "implementation": "multiply(ts_zscore(nws5_eodvwap,20), ts_zscore(nws5_prev_vol,30))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Intraday skew detection: compare maxup to maxdown for directional bias",
+      "description": "S1 used nws5_maxup and nws5_maxdown; S2 not used; S3 not needed; S4 both have good alphaCounts. KEEP_IN_MINDs respected. Confidence 0.6.",
+      "implementation": "subtract(ts_zscore(nws5_maxup,20), ts_zscore(nws5_maxdown,20))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High rangeamt with low volatility historically indicates breakout continuation",
+      "description": "S1 combined nws5_rangeamt and nws5_rangestddev; S2 not used; S3 not needed; S4 both fields have acceptable counts. KEEP_IN_MINDs met. Confidence 0.59.",
+      "implementation": "multiply(ts_zscore(nws5_rangeamt,10), ts_zscore(nws5_rangestddev,30))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Post-news move filtered by PE ratio: low PE with positive news tends to continue",
+      "description": "S1 combined nws5_result and nws5_peratio; S2 no; S3 peratio coverage 0.7229 so no backfill; S4 peratio userCount 13 moderate. KEEP_IN_MINDs followed. Confidence 0.52.",
+      "implementation": "multiply(ts_zscore(nws5_result,10), reverse(ts_zscore(nws5_peratio,180)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Tick-accelerated breakout: increasing ticks over first 30 minutes predicts trend continuation",
+      "description": "S1 used nws5_allticks and nws5_30_minutes; S2 not used; S3 not needed; S4 allticks strong external usage. KEEP_IN_MINDs respected. Confidence 0.63.",
+      "implementation": "multiply(ts_zscore(nws5_allticks,30), ts_zscore(nws5_30_minutes,10))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Post-news reversal when TONLast is near session low and volume spike absent",
+      "description": "S1 used nws5_tonlast and nws5_vol_ratio; S2 not applied; S3 not needed; S4 vol_ratio has high counts. KEEP_IN_MINDs observed. Confidence 0.57.",
+      "implementation": "multiply(reverse(ts_zscore(nws5_tonlast,5)), reverse(ts_zscore(nws5_vol_ratio,20)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Short-term decay of extreme 120-minute moves: use ts_decay linear to capture momentum decay",
+      "description": "S1 used nws5_120_minutes with ts_decay_linear operator; S2 not used; S3 not needed; S4 chose widely used field. KEEP_IN_MINDs: operator count small. Confidence 0.6.",
+      "implementation": "ts_decay_linear(ts_zscore(nws5_120_minutes,10),5)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Mean-reversion after large percent change in first minute with low 30-minute follow-through",
+      "description": "S1 combined nws5_minute and nws5_30_minutes; S2 not used; S3 not needed; S4 both fields moderate alphaCounts. KEEP_IN_MINDs satisfied. Confidence 0.62.",
+      "implementation": "subtract(ts_zscore(nws5_minute,5), ts_zscore(nws5_30_minutes,10))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "EOD close relative to TONLast normalized by SPY move: idiosyncratic move persists",
+      "description": "S1 used nws5_result_vs_index and nws5_prevclose; S2 not used; S3 not needed; S4 result_vs_index high userCount. KEEP_IN_MINDs maintained. Confidence 0.67.",
+      "implementation": "ts_zscore(nws5_result_vs_index,20)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Post-news move scaled by average true range to prefer cleaner signals",
+      "description": "S1 used nws5_result and nws5_41rta; S2 not applied; S3 not needed; S4 ATR has decent counts. KEEP_IN_MINDs OK. Confidence 0.66.",
+      "implementation": "divide(ts_zscore(nws5_result,10), ts_zscore(nws5_41rta,20))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Predictable close using tonlow: if TONLast close to TONLow and positive minute move, expect reversal",
+      "description": "S1 combined nws5_tonlow and nws5_minute; S2 no; S3 not needed; S4 both fields ok. KEEP_IN_MINDs observed. Confidence 0.55.",
+      "implementation": "multiply(reverse(ts_zscore(nws5_tonlow,10)), ts_zscore(nws5_minute,5))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum conditioned on session high before news vs after news high",
+      "description": "S1 used nws5_tonhigh and nws5_eodhigh; S2 not used; S3 not needed; S4 fields adequate. KEEP_IN_MINDs satisfied. Confidence 0.58.",
+      "implementation": "subtract(ts_zscore(nws5_eodhigh,20), ts_zscore(nws5_tonhigh,20))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Post-news sustained upmoves where post-session vwap significantly exceeds TONLast",
+      "description": "S1 used nws5_eodvwap and nws5_tonlast; S2 not used; S3 not needed; S4 fields with good coverage. KEEP_IN_MINDs kept. Confidence 0.61.",
+      "implementation": "subtract(nws5_eodvwap, nws5_tonlast)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Relative liquidity breakout: large curr_vol vs prev_vol combined with result predicts continuation",
+      "description": "S1 used nws5_curr_vol and nws5_prev_vol with nws5_result (use two fields limit -> curr_vol & result). S2 not used; S3 not needed; S4 prev_vol & curr_vol have good counts. KEEP_IN_MINDs respected. Confidence 0.65.",
+      "implementation": "multiply(ts_zscore(nws5_curr_vol,10), ts_zscore(nws5_result,10))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "High minute return but low allvwap deviation -> likely manipulation, fade",
+      "description": "S1 combined nws5_minute and nws5_allvwap; S2 not used; S3 not needed; S4 allvwap userCount moderate. KEEP_IN_MINDs met. Confidence 0.53.",
+      "implementation": "subtract(ts_zscore(nws5_minute,5), ts_zscore(nws5_allvwap,30))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Intraday continuation when TONLast near session high and volume rising",
+      "description": "S1 used nws5_tonhigh and nws5_curr_vol; S2 not applied; S3 not needed; S4 both fields have good counts. KEEP_IN_MINDs kept. Confidence 0.64.",
+      "implementation": "multiply(ts_zscore(nws5_tonhigh,10), ts_zscore(nws5_curr_vol,20))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Overreaction indicated by large maxdnamt normalized by prevclose signals reversal",
+      "description": "S1 combined nws5_maxdnamt and nws5_prevclose; S2 no; S3 not needed; S4 selected fields with high alphaCounts. KEEP_IN_MINDs followed. Confidence 0.6.",
+      "implementation": "divide(ts_zscore(nws5_maxdnamt,20), ts_zscore(nws5_prevclose,60))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "30-minute mean-reversion for stocks with low 30-day moving volume",
+      "description": "S1 used nws5_30_minutes and nws5_mov_vol; S2 not used; S3 not needed; S4 mov_vol high userCount. KEEP_IN_MINDs observed. Confidence 0.56.",
+      "implementation": "multiply(ts_zscore(nws5_30_minutes,10), reverse(ts_zscore(nws5_mov_vol,30)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Directional signal: combine sign of 5-minute move and 60-minute move for conviction",
+      "description": "S1 used nws5_5_minutes and nws5_60_minutes; S2 not used; S3 not needed; S4 both widely used. KEEP_IN_MINDs satisfied. Confidence 0.63.",
+      "implementation": "multiply(sign(nws5_5_minutes), sign(nws5_60_minutes))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Fast-to-slow confirmation: 30s spike followed by 10min move in same direction signals continuation",
+      "description": "S1 combined nws5_30_seconds and nws5_10_minutes; S2 not used; S3 not needed; S4 both have solid counts. KEEP_IN_MINDs OK. Confidence 0.66.",
+      "implementation": "multiply(ts_zscore(nws5_30_seconds,3), ts_zscore(nws5_10_minutes,10))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Weak market-relative moves: if stock moves but SPY moves similarly, avoid (signal = idiosyncratic component)",
+      "description": "S1 used nws5_result and nws5_spyclose/spylast (choose result_vs_index instead). S2 not used; S3 not needed; S4 result_vs_index high alphaCount. KEEP_IN_MINDs followed. Confidence 0.7.",
+      "implementation": "ts_zscore(nws5_result_vs_index,20)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Momentum scaled by tick activity: high price move with low ticks -> fade, with high ticks -> follow",
+      "description": "S1 used nws5_result and nws5_allticks; S2 not used; S3 not needed; S4 allticks high counts used. KEEP_IN_MINDs respected. Confidence 0.61.",
+      "implementation": "multiply(ts_zscore(nws5_result,10), ts_zscore(nws5_allticks,20))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Market open strength: dayopen significantly above prevclose with strong early minutes predicts continuation",
+      "description": "S1 used nws5_dayopen and nws5_minute; S2 no; S3 not needed; S4 both are common fields. KEEP_IN_MINDs observed. Confidence 0.58.",
+      "implementation": "multiply(ts_zscore(nws5_dayopen,20), ts_zscore(nws5_minute,5))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Post-news direction stronger when post-session VWAP > main session VWAP",
+      "description": "S1 compared nws5_eodvwap and nws5_mainvwap; S2 not applied; S3 not needed; S4 both fields available. KEEP_IN_MINDs kept. Confidence 0.59.",
+      "implementation": "subtract(nws5_eodvwap, nws5_mainvwap)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "High opening gap with low previous-day volatility tends to mean-revert",
+      "description": "S1 combined nws5_opengap and nws5_rangestddev; S2 no; S3 not needed; S4 rangestddev high alphaCount. KEEP_IN_MINDs satisfied. Confidence 0.55.",
+      "implementation": "multiply(ts_zscore(nws5_opengap,10), reverse(ts_zscore(nws5_rangestddev,30)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Sustained micro-momentum: cumulative short returns (1,5,10 min) predict next 30-minute move",
+      "description": "S1 used nws5_minute and nws5_5_minutes (two fields limit) summing short returns; S2 not used; S3 not needed; S4 fields chosen for coverage. KEEP_IN_MINDs satisfied. Confidence 0.63.",
+      "implementation": "add(ts_zscore(nws5_minute,5), ts_zscore(nws5_5_minutes,10))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Large session high but small post-news minute move indicates delayed upward drift",
+      "description": "S1 combined nws5_tonhigh and nws5_minute; S2 not used; S3 not needed; S4 fields adequate. KEEP_IN_MINDs observed. Confidence 0.57.",
+      "implementation": "multiply(ts_zscore(nws5_tonhigh,30), ts_zscore(nws5_minute,5))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Momentum filtered by historical range: prefer moves that exceed 30d typical range",
+      "description": "S1 used nws5_result and nws5_rangestddev; S2 not applicable; S3 not needed; S4 rangestddev high alphaCount. KEEP_IN_MINDs satisfied. Confidence 0.65.",
+      "implementation": "multiply(ts_zscore(nws5_result,10), ts_zscore(nws5_rangestddev,30))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Post-news reversal when post-session low is much below TONLast and volume unchanged",
+      "description": "S1 used nws5_eodlow and nws5_curr_vol; S2 not used; S3 not needed; S4 curr_vol good counts. KEEP_IN_MINDs observed. Confidence 0.56.",
+      "implementation": "multiply(reverse(ts_zscore(nws5_eodlow,20)), reverse(ts_zscore(nws5_curr_vol,30)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "High volatility but low follow-through: fade moves with large maxup but small 60-min follow-through",
+      "description": "S1 used nws5_maxup and nws5_60_minutes; S2 not used; S3 not needed; S4 both fields reasonable. KEEP_IN_MINDs kept. Confidence 0.58.",
+      "implementation": "subtract(ts_zscore(nws5_maxup,15), ts_zscore(nws5_60_minutes,20))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum strength signal: combine sign of 5-minute, 10-minute and tick activity (use 2 fields: 10min & allticks)",
+      "description": "S1 used nws5_10_minutes and nws5_allticks; S2 not used; S3 not needed; S4 allticks very used. KEEP_IN_MINDs respected. Confidence 0.64.",
+      "implementation": "multiply(sign(nws5_10_minutes), ts_zscore(nws5_allticks,20))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Reversion when post-news eodclose is far from TONLast normalized by ATR",
+      "description": "S1 used nws5_eodclose and nws5_41rta; S2 not used; S3 not needed; S4 ATR good. KEEP_IN_MINDs followed. Confidence 0.62.",
+      "implementation": "divide(subtract(nws5_eodclose, nws5_tonlast), ts_zscore(nws5_41rta,30))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Intraday follow-through when post-news high minus low (rangeamt) large and volume rises",
+      "description": "S1 combined nws5_rangeamt and nws5_curr_vol; S2 no; S3 not needed; S4 both good. KEEP_IN_MINDs met. Confidence 0.6.",
+      "implementation": "multiply(ts_zscore(nws5_rangeamt,10), ts_zscore(nws5_curr_vol,20))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Overnight continuation when result_vs_index positive and previous close positive",
+      "description": "S1 used nws5_result_vs_index and nws5_prevday; S2 not used; S3 not needed; S4 both available. KEEP_IN_MINDs observed. Confidence 0.63.",
+      "implementation": "multiply(ts_zscore(nws5_result_vs_index,20), sign(nws5_prevday))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Fade excessive 30s spikes that occur with low allticks (low participation)",
+      "description": "S1 used nws5_30_seconds and nws5_allticks; S2 not used; S3 not needed; S4 allticks high userCount. KEEP_IN_MINDs respected. Confidence 0.59.",
+      "implementation": "multiply(ts_zscore(nws5_30_seconds,5), reverse(ts_zscore(nws5_allticks,30)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Large EOD high relative to TONLast with small volume suggests manipulation -> fade",
+      "description": "S1 used nws5_eodhigh and nws5_curr_vol; S2 not used; S3 not needed; S4 fields ok. KEEP_IN_MINDs satisfied. Confidence 0.54.",
+      "implementation": "multiply(ts_zscore(nws5_eodhigh,20), reverse(ts_zscore(nws5_curr_vol,30)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Predictable close using rangestddev: extreme negative rangestddev indicates bounce",
+      "description": "S1 used nws5_rangestddev and nws5_result; S2 not used; S3 not needed; S4 rangestddev widely used. KEEP_IN_MINDs observed. Confidence 0.66.",
+      "implementation": "multiply(reverse(ts_zscore(nws5_rangestddev,20)), sign(nws5_result))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Momentum in low PE stocks: combine 10-minute move with low peratio tilt",
+      "description": "S1 used nws5_10_minutes and nws5_peratio; S2 not used; S3 peratio coverage ok; S4 peratio userCount moderate. KEEP_IN_MINDs followed. Confidence 0.51.",
+      "implementation": "multiply(ts_zscore(nws5_10_minutes,10), reverse(ts_zscore(nws5_peratio,180)))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Quick reversal when time to 1% move is very short but 30-minute move is small",
+      "description": "S1 used nws5_1p and nws5_30_minutes; S2 not used; S3 not needed; S4 both fields adequate. KEEP_IN_MINDs met. Confidence 0.6.",
+      "implementation": "subtract(ts_zscore(nws5_1p,5), ts_zscore(nws5_30_minutes,10))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High post-news vwap above mainvwap with rising ticks predicts continued strength",
+      "description": "S1 used nws5_eodvwap and nws5_allticks; S2 not used; S3 not needed; S4 allticks strong. KEEP_IN_MINDs satisfied. Confidence 0.64.",
+      "implementation": "multiply(subtract(nws5_eodvwap, nws5_mainvwap), ts_zscore(nws5_allticks,20))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Post-news acceleration: increasing 1,5,10-minute returns (use 1p and 5p) indicates sustained move",
+      "description": "S1 combined nws5_1p and nws5_5p; S2 not applied; S3 not needed; S4 both have good coverage. KEEP_IN_MINDs presented. Confidence 0.62.",
+      "implementation": "add(ts_zscore(nws5_1p,5), ts_zscore(nws5_5p,10))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "EODvwap vs postvwap divergence: larger EODvwap suggests intraday accumulation",
+      "description": "S1 used nws5_eodvwap and nws5_postvwap; S2 not used; S3 not needed; S4 both fields available. KEEP_IN_MINDs respected. Confidence 0.58.",
+      "implementation": "subtract(nws5_eodvwap, nws5_postvwap)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Post-news move stronger in low short-interest stocks (less resistance)",
+      "description": "S1 used nws5_shortinterest and nws5_result; S2 not used; S3 shortinterest coverage ok; S4 shortinterest userCount low but informative. KEEP_IN_MINDs met. Confidence 0.5.",
+      "implementation": "multiply(ts_zscore(nws5_result,10), reverse(ts_zscore(nws5_shortinterest,180)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Post-news strong opening followed by low 30min range signals continuation",
+      "description": "S1 combined nws5_dayopen and nws5_30_minutes; S2 not used; S3 not needed; S4 both fields moderate. KEEP_IN_MINDs observed. Confidence 0.57.",
+      "implementation": "multiply(ts_zscore(nws5_dayopen,20), reverse(ts_zscore(nws5_30_minutes,10)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Large maxupamt with rising vol_ratio indicates genuine breakout",
+      "description": "S1 used nws5_maxupamt and nws5_vol_ratio; S2 not used; S3 not needed; S4 vol_ratio high counts. KEEP_IN_MINDs followed. Confidence 0.66.",
+      "implementation": "multiply(ts_zscore(nws5_maxupamt,15), ts_zscore(nws5_vol_ratio,20))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Low post-news allvwap with rising ticks suggests stealth selling; fade",
+      "description": "S1 used nws5_allvwap and nws5_allticks; S2 not applied; S3 not needed; S4 allticks strong. KEEP_IN_MINDs observed. Confidence 0.55.",
+      "implementation": "multiply(reverse(ts_zscore(nws5_allvwap,30)), ts_zscore(nws5_allticks,20))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum confirmation: 10-minute zscore and 30-minute zscore aligned",
+      "description": "S1 used nws5_10_minutes and nws5_30_minutes; S2 not used; S3 not needed; S4 both common. KEEP_IN_MINDs followed. Confidence 0.65.",
+      "implementation": "multiply(ts_zscore(nws5_10_minutes,10), ts_zscore(nws5_30_minutes,10))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Pre-news session high breakout when TONLast near session high and result positive",
+      "description": "S1 combined nws5_tonhigh and nws5_result; S2 not used; S3 not needed; S4 both fields adequate. KEEP_IN_MINDs satisfied. Confidence 0.62.",
+      "implementation": "multiply(ts_zscore(nws5_tonhigh,20), sign(nws5_result))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum scaled by 30-day vol: prefer moves that are large relative to 30d ATR",
+      "description": "S1 used nws5_result and nws5_41rta; S2 no; S3 not needed; S4 ATR has solid counts. KEEP_IN_MINDs met. Confidence 0.67.",
+      "implementation": "divide(ts_zscore(nws5_result,10), ts_zscore(nws5_41rta,30))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Immediate reversal after extreme 30s move when session range small",
+      "description": "S1 used nws5_30_seconds and nws5_range; S2 not used; S3 not needed; S4 both fields okay. KEEP_IN_MINDs observed. Confidence 0.58.",
+      "implementation": "multiply(reverse(ts_zscore(nws5_30_seconds,5)), reverse(ts_zscore(nws5_range,30)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Strong post-news continuation if postvwap significantly above prevwap and volume high",
+      "description": "S1 used nws5_postvwap and nws5_curr_vol; S2 not used; S3 not needed; S4 curr_vol solid. KEEP_IN_MINDs kept. Confidence 0.65.",
+      "implementation": "multiply(subtract(nws5_postvwap, nws5_prevwap), ts_zscore(nws5_curr_vol,20))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Short-term reversal when 1l is very small but 1s large (asymmetric reaction)",
+      "description": "S1 used nws5_1l and nws5_1s; S2 not used; S3 not needed; S4 both fields moderate counts. KEEP_IN_MINDs satisfied. Confidence 0.56.",
+      "implementation": "subtract(ts_zscore(nws5_1s,5), ts_zscore(nws5_1l,5))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Low dividend yield stocks with strong post-news moves tend to continue (apply backfill when needed)",
+      "description": "S1 used nws5_dividendyield and nws5_result; S2 not applied; S3 applied: nws5_dividendyield coverage 0.4595 so used ts_backfill(nws5_dividendyield,60); S4 dividend field userCount low but unique. KEEP_IN_MINDs: used 2 datafields incl. backfill. Confidence 0.48 — dividend data sparse.",
+      "implementation": "multiply(ts_backfill(nws5_dividendyield,60), ts_zscore(nws5_result,10))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Large TONLast to EODLow gap suggests selling pressure; continuation downward if volume rises",
+      "description": "S1 used nws5_eodlow and nws5_curr_vol; S2 not used; S3 not needed; S4 fields have good counts. KEEP_IN_MINDs met. Confidence 0.59.",
+      "implementation": "multiply(ts_zscore(nws5_eodlow,20), ts_zscore(nws5_curr_vol,20))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Predictable bounce when maxdown large but prevday positive",
+      "description": "S1 used nws5_maxdown and nws5_prevday; S2 not used; S3 not needed; S4 prevday has good coverage. KEEP_IN_MINDs observed. Confidence 0.6.",
+      "implementation": "multiply(reverse(ts_zscore(nws5_maxdown,20)), sign(nws5_prevday))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum sign flip detection: ts_arg_max on minute returns to detect peaks",
+      "description": "S1 used ts_arg_max(nws5_minute,30) with nws5_result; S2 not used; S3 not needed; S4 minute field wide use. KEEP_IN_MINDs operator count small. Confidence 0.54.",
+      "implementation": "multiply(ts_arg_max(nws5_minute,30), sign(nws5_result))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "30s spike followed by low after-news maxup indicates fakeout -> fade",
+      "description": "S1 used nws5_30_seconds and nws5_maxup; S2 not applied; S3 not needed; S4 both fields adequate. KEEP_IN_MINDs kept. Confidence 0.56.",
+      "implementation": "subtract(ts_zscore(nws5_30_seconds,5), ts_zscore(nws5_maxup,15))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Large intraday rangeamt with low 30d vol favors continuation in direction of initial move",
+      "description": "S1 combined nws5_rangeamt and nws5_41rta; S2 not used; S3 not needed; S4 both available. KEEP_IN_MINDs observed. Confidence 0.63.",
+      "implementation": "divide(ts_zscore(nws5_rangeamt,10), ts_zscore(nws5_41rta,30))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Post-news price relative to mainvwap: significant premium signals buyers in control",
+      "description": "S1 used nws5_tonlast and nws5_mainvwap; S2 not used; S3 not needed; S4 mainvwap reasonable counts. KEEP_IN_MINDs respected. Confidence 0.6.",
+      "implementation": "subtract(nws5_tonlast, nws5_mainvwap)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Avoid signals overwhelmed by market: large SPY move reduces stock-specific alpha (use result_vs_index)",
+      "description": "S1 used nws5_result_vs_index only; S2 not used; S3 not needed; S4 result_vs_index high counts - chosen to isolate idiosyncratic moves. KEEP_IN_MINDs satisfied. Confidence 0.68.",
+      "implementation": "ts_zscore(nws5_result_vs_index,15)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "High tonlast near session low combined with rising volumestddev signals capitulation bounce",
+      "description": "S1 used nws5_tonlow and nws5_volumestddev; S2 not used; S3 not needed; S4 volumestddev has high alphaCount. KEEP_IN_MINDs respected. Confidence 0.63.",
+      "implementation": "multiply(reverse(ts_zscore(nws5_tonlow,10)), ts_zscore(nws5_volumestddev,20))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum confirmation: minute zscore aligned with 120-minute zscore increases conviction",
+      "description": "S1 used nws5_minute and nws5_120_minutes; S2 not used; S3 not needed; S4 both fields available. KEEP_IN_MINDs met. Confidence 0.65.",
+      "implementation": "multiply(ts_zscore(nws5_minute,5), ts_zscore(nws5_120_minutes,30))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "EODclose above TONLast with weak SPY -> idiosyncratic upside continuation",
+      "description": "S1 used nws5_result_vs_index and nws5_eodclose (choose result_vs_index only due to 2-field limit); S2 no; S3 not needed; S4 result_vs_index strong. KEEP_IN_MINDs observed. Confidence 0.67.",
+      "implementation": "ts_zscore(nws5_result_vs_index,20)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Large opening gap with huge curr_vol tends to continue rather than revert",
+      "description": "S1 used nws5_opengap and nws5_curr_vol; S2 not used; S3 not needed; S4 curr_vol well used. KEEP_IN_MINDs satisfied. Confidence 0.6.",
+      "implementation": "multiply(ts_zscore(nws5_opengap,10), ts_zscore(nws5_curr_vol,20))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Predictable intraday reversal when maxdnamt large contrast to tonlast",
+      "description": "S1 combined nws5_maxdnamt and nws5_tonlast; S2 not used; S3 not needed; S4 both fields adequate. KEEP_IN_MINDs followed. Confidence 0.58.",
+      "implementation": "subtract(ts_zscore(nws5_maxdnamt,20), ts_zscore(nws5_tonlast,20))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Use ts_ir of minute returns to prefer stocks with stable short-term signal",
+      "description": "S1 applied ts_ir(nws5_minute,30) to measure information ratio; S2 not used; S3 not needed; S4 minute field has good coverage. KEEP_IN_MINDs operator count low. Confidence 0.6.",
+      "implementation": "ts_ir(nws5_minute,30)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Large 90-minute move with low 30-day vol indicates true breakout",
+      "description": "S1 used nws5_90_minutes and nws5_41rta; S2 not used; S3 not needed; S4 90min has good counts. KEEP_IN_MINDs respected. Confidence 0.64.",
+      "implementation": "divide(ts_zscore(nws5_90_minutes,15), ts_zscore(nws5_41rta,30))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Immediate fade when minute move is opposite sign to prevday direction",
+      "description": "S1 used nws5_minute and nws5_prevday; S2 not applied; S3 not needed; S4 prevday coverage high. KEEP_IN_MINDs observed. Confidence 0.57.",
+      "implementation": "multiply(ts_zscore(nws5_minute,5), reverse(sign(nws5_prevday)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Tick-synchronized continuation: rising ticks and rising result_vs_index predict strong idiosyncratic move",
+      "description": "S1 used nws5_allticks and nws5_result_vs_index; S2 not used; S3 not needed; S4 allticks and result_vs_index high counts. KEEP_IN_MINDs met. Confidence 0.69.",
+      "implementation": "multiply(ts_zscore(nws5_allticks,30), ts_zscore(nws5_result_vs_index,15))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Post-news drift stronger for small mktcap stocks with rising volume",
+      "description": "S1 combined nws5_result and nws5_mktcap_1000 (tilt small cap) with nws5_curr_vol (2-field limit choose result and mktcap). S2 not used; S3 not needed; S4 mktcap userCount 4 low but useful. KEEP_IN_MINDs kept. Confidence 0.52.",
+      "implementation": "multiply(ts_zscore(nws5_result,10), reverse(ts_zscore(nws5_mktcap_1000,180)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Fade low-participation moves: big result with low allticks indicates likely reversal",
+      "description": "S1 used nws5_result and nws5_allticks; S2 not used; S3 not needed; S4 allticks widely used. KEEP_IN_MINDs respected. Confidence 0.6.",
+      "implementation": "multiply(ts_zscore(nws5_result,10), reverse(ts_zscore(nws5_allticks,30)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Scale intraday alpha by group-neutral volatility proxy (use ts_std_dev of result to select stable names)",
+      "description": "S1 applied ts_std_dev(nws5_result,30) as a filter; S2 not used; S3 not needed; S4 result field strong. KEEP_IN_MINDs: single-field operator. Confidence 0.58.",
+      "implementation": "inverse(ts_std_dev(nws5_result,30))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Combine minute zscore and rangestddev to prefer moves that break recent normalcy",
+      "description": "S1 used nws5_minute and nws5_rangestddev; S2 not used; S3 not needed; S4 both fields have good counts. KEEP_IN_MINDs satisfied. Confidence 0.63.",
+      "implementation": "multiply(ts_zscore(nws5_minute,5), ts_zscore(nws5_rangestddev,30))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Predictable close when postvwap > eodvwap and vol rises — continuation",
+      "description": "S1 used nws5_postvwap and nws5_eodvwap; S2 not used; S3 not needed; S4 fields have adequate counts. KEEP_IN_MINDs followed. Confidence 0.6.",
+      "implementation": "subtract(nws5_postvwap, nws5_eodvwap)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-term mean-reversion when minute zscore is extreme but 30min zscore is muted",
+      "description": "S1 used nws5_minute and nws5_30_minutes; S2 not used; S3 not needed; S4 both fields used broadly. KEEP_IN_MINDs satisfied. Confidence 0.62.",
+      "implementation": "subtract(ts_zscore(nws5_minute,5), ts_zscore(nws5_30_minutes,10))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Volatility-normalized momentum: prefer moves that are large relative to volumerelative (vol_ratio)",
+      "description": "S1 combined nws5_result and nws5_vol_ratio; S2 not applied; S3 not needed; S4 vol_ratio has high usage. KEEP_IN_MINDs met. Confidence 0.67.",
+      "implementation": "divide(ts_zscore(nws5_result,10), ts_zscore(nws5_vol_ratio,30))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Post-news continuation when pre-news session high was near full-day high and volume increases",
+      "description": "S1 used nws5_tonhigh and nws5_curr_vol; S2 not used; S3 not needed; S4 both fields adequate. KEEP_IN_MINDs observed. Confidence 0.63.",
+      "implementation": "multiply(ts_zscore(nws5_tonhigh,30), ts_zscore(nws5_curr_vol,20))",
+      "confidence_level": 0.63
+    }
+  ]
+}

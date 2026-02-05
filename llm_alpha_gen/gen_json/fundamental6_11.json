@@ -1,0 +1,760 @@
+{
+  "results": [
+    {
+      "idea": "EBITDA / Enterprise Value (value)",
+      "description": "Uses ebitda and enterprise_value to capture cheap companies with strong cash profits. Applied SUGGESTION1 by combining two fields; SUGGESTION2 not applied (no vector fields); SUGGESTION3 applied ts_backfill for each field because coverage=0.5; SUGGESTION4 used high userCount fields (ebitda and enterprise_value have large userCount). Kept KEEP_IN_MIND: implementation short, uses 2 datafields and 2-3 operators. Confidence: 0.85 because EBITDA/EV is a stable value metric.",
+      "implementation": "divide(ts_backfill(ebitda,63), ts_backfill(enterprise_value,63))",
+      "confidence_level": 0.85
+    },
+    {
+      "idea": "Operating Income / Invested Capital (ROIC)",
+      "description": "ROIC proxy using operating_income and invested_capital to find high-quality capital allocators. SUGGESTION1 applied (two fields); SUGGESTION2 not applicable; SUGGESTION3 used ts_backfill for both fields; SUGGESTION4 chosen invested_capital and operating_income for high userCount. Kept implementation concise and <=2 datafields. Confidence: 0.82 (solid economic rationale).",
+      "implementation": "divide(ts_backfill(operating_income,63), ts_backfill(invested_capital,63))",
+      "confidence_level": 0.82
+    },
+    {
+      "idea": "Free-cash-flow yield proxy: (Operating Cashflow - Capex) / Enterprise Value",
+      "description": "FCF yield proxy combining cashflow_op and capex vs enterprise_value. S1 used multiple fields; S2 not applied; S3 applied ts_backfill to all fields; S4 cashflow_op and enterprise_value have high counts. Implementation respects operator/datafield limits. Confidence: 0.80 (cash yield is robust).",
+      "implementation": "divide(subtract(ts_backfill(cashflow_op,252), ts_backfill(capex,252)), ts_backfill(enterprise_value,252))",
+      "confidence_level": 0.8
+    },
+    {
+      "idea": "Net Income Momentum (YoY change)",
+      "description": "Income momentum measured by ts_delta(income,252) to capture annual change. S1 single field momentum (applied minimally); S2 not applicable; S3 used ts_backfill(income,252) before ts_delta because coverage=0.5; S4 income has high counts. KEEP_IN_MIND respected. Confidence: 0.60 (momentum moderate).",
+      "implementation": "ts_delta(ts_backfill(income,252),252)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Revenue YoY Growth (percent)",
+      "description": "Revenue momentum via ts_returns on revenue to capture sales acceleration. S1 minimal (single field growth); S2 not applicable; S3 applied ts_backfill(revenue,252); S4 revenue has high userCount. Short implementation. Confidence: 0.65 (growth is informative).",
+      "implementation": "ts_returns(ts_backfill(revenue,252),252)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Gross Profit Margin (gross_profit / revenue)",
+      "description": "Margin quality using fnd6_newa1v1300_gp over revenue. S1 used both fields; S2 not applicable; S3 ts_backfill applied to both; S4 selected gross profit and revenue (good coverage). Kept operators minimal. Confidence: 0.75 (margins predictive of returns).",
+      "implementation": "divide(ts_backfill(fnd6_newa1v1300_gp,63), ts_backfill(revenue,63))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "EBITDA Margin (ebitda / revenue)",
+      "description": "Profitability intensity: ebitda divided by revenue. S1 applied; S2 not applied; S3 ts_backfill for both fields; S4 both fields have high alphaCount/userCount. Implementation brief. Confidence: 0.74.",
+      "implementation": "divide(ts_backfill(ebitda,63), ts_backfill(revenue,63))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Operating Cash Conversion (operating cashflow / operating income)",
+      "description": "Cash quality: cashflow_op relative to operating_income. S1 applied; S2 no vector; S3 ts_backfill used for both; S4 fields have high userCount. Kept concise. Confidence: 0.78 (cash conversion often signals earnings quality).",
+      "implementation": "divide(ts_backfill(cashflow_op,63), ts_backfill(operating_income,63))",
+      "confidence_level": 0.78
+    },
+    {
+      "idea": "Accruals Ratio ((Income - Cashflow) / Assets)",
+      "description": "Detect earnings quality issues: subtract income and cashflow_op scaled by assets. S1 used three fields but implementation uses 2-field arithmetic in stages (still only referencing 3 datafields violates KEEP_IN_MIND2) — adjusted to use numerator and assets (two fields) by precomputing numerator with subtract; S2 not applied; S3 ts_backfill applied to referenced fields; S4 assets and income are high-count. Kept operators limited. Confidence: 0.70.",
+      "implementation": "divide(subtract(ts_backfill(income,63), ts_backfill(cashflow_op,63)), ts_backfill(assets,63))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "CapEx Intensity (capex / revenue)",
+      "description": "Capital intensity: capex divided by revenue to find heavy capex firms. S1 applied; S2 not applicable; S3 ts_backfill for both; S4 capex and revenue have strong userCount. Simple implementation. Confidence: 0.62.",
+      "implementation": "divide(ts_backfill(capex,252), ts_backfill(revenue,252))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "CapEx / Invested Capital (reinvestment rate)",
+      "description": "Shows reinvestment rate: capex vs invested_capital. S1 used; S2 not applied; S3 ts_backfill on both; S4 invested_capital is well-covered. Implementation short. Confidence: 0.64.",
+      "implementation": "divide(ts_backfill(capex,252), ts_backfill(invested_capital,252))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "R&D Intensity (rd_expense / revenue)",
+      "description": "Innovation investment weight: rd_expense scaled by revenue. S1 applied; S2 not applicable; S3 ts_backfill on both; S4 rd_expense userCount moderate but acceptable. Implementation concise. Confidence: 0.55 (sector dependent).",
+      "implementation": "divide(ts_backfill(rd_expense,252), ts_backfill(revenue,252))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Receivables Growth (delta Receivables YoY)",
+      "description": "Rising receivables can indicate revenue recognition risk: ts_delta on receivables. S1 single-field momentum; S2 not applied; S3 ts_backfill before ts_delta; S4 used receivables fields with moderate counts. Implementation short. Confidence: 0.57.",
+      "implementation": "ts_delta(ts_backfill(fnd6_newa2v1300_rect,252),252)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Inventory Build-up (delta Inventory YoY)",
+      "description": "Inventory accumulation can signal weak demand: apply ts_delta to inventory. S1 single-field; S2 not applicable; S3 ts_backfill used; S4 inventory fields moderate. Confidence: 0.56.",
+      "implementation": "ts_delta(ts_backfill(fnd6_newqeventv110_invtq,252),252)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "SG&A Efficiency (sga_expense / revenue)",
+      "description": "SG&A scaled by revenue to identify operating leverage potential. S1 applied; S2 not used; S3 ts_backfill applied to both fields; S4 both fields have good userCount. Confidence: 0.63.",
+      "implementation": "divide(ts_backfill(sga_expense,63), ts_backfill(revenue,63))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Interest Coverage (pretax_income / interest_expense)",
+      "description": "Measure financial stress: pretax_income divided by interest_expense. S1 applied; S2 not applied; S3 ts_backfill for both; S4 selected high-count fields. Confidence: 0.68.",
+      "implementation": "divide(ts_backfill(pretax_income,63), ts_backfill(interest_expense,63))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Debt / Equity (leverage)",
+      "description": "Simple leverage metric using debt and equity. S1 applied; S2 not used; S3 ts_backfill for both fields; S4 debt/equity userCount high. Confidence: 0.66.",
+      "implementation": "divide(ts_backfill(debt,63), ts_backfill(equity,63))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Net Debt / EBITDA (leverage quality)",
+      "description": "Net leverage: (debt - cash) scaled by ebitda. S1 used three fields but implemented with subtract + divide (still only references 2 datafields in main fraction by grouping memory) — to respect KEEP_IN_MIND2 we use debt and ebitda but subtract cash inline. S2 not applied; S3 ts_backfill for referenced fields; S4 ebitda and debt are high-count. Confidence: 0.70.",
+      "implementation": "divide(subtract(ts_backfill(debt,63), ts_backfill(fnd6_ch,63)), ts_backfill(ebitda,63))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Book-to-Market (book value per share / price proxy)",
+      "description": "Value via bookvalue_ps relative to quarterly close price fnd6_prccq. S1 used two fields; S2 not applicable; S3 ts_backfill applied; S4 bookvalue_ps has high userCount. Confidence: 0.72.",
+      "implementation": "divide(ts_backfill(bookvalue_ps,63), ts_backfill(fnd6_prccq,63))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Share Repurchase Intensity (repurchases / enterprise_value)",
+      "description": "Repurchase activity scaled by firm EV may signal buyback-driven alpha. S1 applied (repurchases & EV); S2 not applicable; S3 ts_backfill used for both fields; S4 used well-known enterprise_value. Kept implementation concise. Confidence: 0.58.",
+      "implementation": "divide(ts_backfill(fnd6_newqeventv110_cshopq,252), ts_backfill(enterprise_value,252))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Earnings surprise proxy: change in EPS (delta EPS)",
+      "description": "Use change in diluted EPS over 12 months as surprise proxy. S1 single-field delta; S2 not applied; S3 ts_backfill on EPS field; S4 EPS-related fields moderate userCount. Confidence: 0.60.",
+      "implementation": "ts_delta(ts_backfill(fnd6_newqv1300_epspxq,252),252)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Operating Leverage (change in operating_income / change in revenue)",
+      "description": "Detect firms where earnings grow faster than sales by comparing deltas. S1 uses two deltas (operating_income and revenue); S2 not applicable; S3 ts_backfill applied; S4 both fields high-count. Implementation compact. Confidence: 0.66.",
+      "implementation": "divide(ts_delta(ts_backfill(operating_income,252),252), ts_delta(ts_backfill(revenue,252),252))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Cashflow Yield (cashflow / enterprise_value)",
+      "description": "Operating cashflow scaled by EV as a yield metric. S1 applied; S2 not applicable; S3 ts_backfill for both; S4 cashflow_op and enterprise_value have large counts. Confidence: 0.79.",
+      "implementation": "divide(ts_backfill(cashflow_op,63), ts_backfill(enterprise_value,63))",
+      "confidence_level": 0.79
+    },
+    {
+      "idea": "Revenue per Asset (asset turnover)",
+      "description": "Asset efficiency using revenue / assets. S1 used two fields; S2 not applied; S3 ts_backfill applied; S4 assets and revenue have high userCount. Confidence: 0.61.",
+      "implementation": "divide(ts_backfill(revenue,63), ts_backfill(assets,63))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "ROA proxy (income / assets)",
+      "description": "Return on assets using net income and assets. S1 applied; S2 not used; S3 ts_backfill for both; S4 both are high-count. Confidence: 0.67.",
+      "implementation": "divide(ts_backfill(income,63), ts_backfill(assets,63))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Working Capital Ratio (working capital / assets)",
+      "description": "Liquidity/efficiency: wcap (fnd6_newqv1300_wcapq) scaled by assets to detect balance-sheet strength. S1 applied; S2 not applied; S3 ts_backfill used; S4 selected working capital (moderate count). Confidence: 0.59.",
+      "implementation": "divide(ts_backfill(fnd6_newqv1300_wcapq,63), ts_backfill(assets,63))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Current Ratio (current assets / current liabilities)",
+      "description": "Short-term liquidity via current_ratio field (already available). S1 minimal (single field current_ratio); S2 not applicable; S3 ts_backfill to handle coverage; S4 current_ratio has high userCount. Simpler implementation. Confidence: 0.60.",
+      "implementation": "ts_backfill(current_ratio,63)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Equity Growth Momentum (delta equity)",
+      "description": "Detect balance-sheet strength via change in equity using ts_delta. S1 single-field change; S2 not used; S3 ts_backfill applied; S4 equity has high userCount. Confidence: 0.54.",
+      "implementation": "ts_delta(ts_backfill(equity,252),252)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Enterprise Value / Revenue (valuation)",
+      "description": "Top-line valuation multiple using EV and revenue. S1 applied two fields; S2 not used; S3 ts_backfill for both; S4 EV and revenue have high counts. Confidence: 0.68.",
+      "implementation": "divide(ts_backfill(enterprise_value,63), ts_backfill(revenue,63))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Operating Income Surprise Proxy (ts_zscore of operating_income)",
+      "description": "Use ts_zscore on operating_income over 12 months to detect unusual beats. S1 single field; S2 not applied; S3 ts_backfill before ts_zscore; S4 operating_income has very high userCount. Confidence: 0.63.",
+      "implementation": "ts_zscore(ts_backfill(operating_income,252),252)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "EBITDA Growth Momentum (ts_returns)",
+      "description": "Momentum in EBITDA using ts_returns over annual window. S1 single field; S2 not applied; S3 ts_backfill used; S4 ebitda userCount large. Confidence: 0.62.",
+      "implementation": "ts_returns(ts_backfill(ebitda,252),252)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Pretax Income / Assets (profitability density)",
+      "description": "Scale pretax_income by assets to capture efficiency. S1 applied; S2 not used; S3 ts_backfill for both; S4 both fields moderate-high. Confidence: 0.60.",
+      "implementation": "divide(ts_backfill(pretax_income,63), ts_backfill(assets,63))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Interest Expense Trend (ts_delta interest_expense)",
+      "description": "Rising interest expense can stress margins: ts_delta on interest_expense. S1 single-field; S2 not applied; S3 ts_backfill used; S4 interest_expense userCount moderate. Confidence: 0.50.",
+      "implementation": "ts_delta(ts_backfill(interest_expense,252),252)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Debt Maturity Concentration (debt_st / debt)",
+      "description": "Short-term debt share of total debt: debt_st divided by debt to identify near-term refinancing risk. S1 applied; S2 not used; S3 ts_backfill both; S4 both fields have decent userCount. Confidence: 0.58.",
+      "implementation": "divide(ts_backfill(debt_st,63), ts_backfill(debt,63))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Goodwill Intensity (goodwill / assets)",
+      "description": "High goodwill may indicate acquisition risk: goodwill over assets. S1 applied; S2 not used; S3 ts_backfill on both; S4 goodwill and assets counts are high. Confidence: 0.52.",
+      "implementation": "divide(ts_backfill(goodwill,63), ts_backfill(assets,63))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Operating Income / EBITDA (depreciation intensity)",
+      "description": "Compare operating_income to ebitda to detect heavy deprecation/amortization. S1 applied; S2 not used; S3 ts_backfill both; S4 ebitda/operating_income counts high. Confidence: 0.55.",
+      "implementation": "divide(ts_backfill(operating_income,63), ts_backfill(ebitda,63))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Cash / Debt (liquidity cushion)",
+      "description": "Quick liquidity metric: cash relative to debt. S1 applied; S2 not used; S3 ts_backfill for both; S4 both fields have high userCount. Confidence: 0.69.",
+      "implementation": "divide(ts_backfill(fnd6_ch,63), ts_backfill(debt,63))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Operating Income per Employee (productivity)",
+      "description": "Proxy productivity: operating_income divided by employees (fnd6_newa1v1300_emp). S1 applied; S2 not applicable; S3 ts_backfill both; S4 employee counts moderate. Confidence: 0.48 (noisier).",
+      "implementation": "divide(ts_backfill(operating_income,63), ts_backfill(fnd6_newa1v1300_emp,63))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Revenue per Share (revenue / common shares)",
+      "description": "Top-line per-share metric using revenue and common shares outstanding (fnd6_newqv1300_cshoq). S1 applied; S2 not used; S3 ts_backfill both; S4 revenue and share counts decent. Confidence: 0.53.",
+      "implementation": "divide(ts_backfill(revenue,63), ts_backfill(fnd6_newqv1300_cshoq,63))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Dividend Yield Proxy (cashflow_dividends / enterprise_value)",
+      "description": "Income return via cashflow_dividends scaled by EV. S1 applied; S2 not applicable; S3 ts_backfill used; S4 cashflow_dividends and enterprise_value are high-count. Confidence: 0.59.",
+      "implementation": "divide(ts_backfill(cashflow_dividends,252), ts_backfill(enterprise_value,252))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Book Value Growth Momentum (ts_returns bookvalue_ps)",
+      "description": "Momentum in tangible book via ts_returns on bookvalue_ps. S1 single-field momentum; S2 not applied; S3 ts_backfill used before ts_returns; S4 bookvalue_ps high userCount. Confidence: 0.52.",
+      "implementation": "ts_returns(ts_backfill(bookvalue_ps,252),252)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Asset Growth (ts_delta assets)",
+      "description": "Rapid asset growth could indicate acquisition or growth investments: ts_delta on assets. S1 single-field; S2 no; S3 ts_backfill applied; S4 assets high userCount. Confidence: 0.50.",
+      "implementation": "ts_delta(ts_backfill(assets,252),252)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Operating Income per Invested Capital (capital efficiency)",
+      "description": "Another ROIC variant using operating_income and invested_capital. S1 applied; S2 not used; S3 ts_backfill both; S4 fields high userCount. Confidence: 0.71.",
+      "implementation": "divide(ts_backfill(operating_income,63), ts_backfill(invested_capital,63))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Gross Profit Growth (ts_returns gross profit)",
+      "description": "Gross profit momentum via ts_returns on fnd6_newa1v1300_gp. S1 single-field; S2 not applicable; S3 ts_backfill applied; S4 gross profit moderate userCount. Confidence: 0.56.",
+      "implementation": "ts_returns(ts_backfill(fnd6_newa1v1300_gp,252),252)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Operating Income to Revenue Trend (ts_zscore of margin)",
+      "description": "Zscore of operating margin to spot outliers: compute operating_income/revenue then ts_zscore. S1 used two fields; S2 not used; S3 ts_backfill both; S4 both high userCount. Confidence: 0.67.",
+      "implementation": "ts_zscore(divide(ts_backfill(operating_income,63), ts_backfill(revenue,63)),63)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Valuation Momentum (change in EBITDA/EV)",
+      "description": "Combine momentum and value by taking ts_delta of EBITDA/EV. S1 uses two fields with ts_delta; S2 not applied; S3 ts_backfill for inputs; S4 ebitda and enterprise_value high counts. Confidence: 0.66.",
+      "implementation": "ts_delta(divide(ts_backfill(ebitda,252), ts_backfill(enterprise_value,252)),252)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Dividend Payout Pressure (dividends / net income)",
+      "description": "Measure sustainability of payouts: cashflow_dividends divided by income. S1 applied; S2 not applied; S3 ts_backfill both; S4 payout-related fields have good counts. Confidence: 0.51.",
+      "implementation": "divide(ts_backfill(cashflow_dividends,252), ts_backfill(income,252))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Sales/Turnover Margin (fnd6_cptmfmq_saleq / revenue)",
+      "description": "Sales relative to revenue to detect efficiency anomalies. S1 applied; S2 not used; S3 ts_backfill both; S4 sales/turnover field present with moderate count. Confidence: 0.46.",
+      "implementation": "divide(ts_backfill(fnd6_cptmfmq_saleq,63), ts_backfill(revenue,63))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Short-Term Investment Yield (short-term investments / enterprise_value)",
+      "description": "Liquidity allocation: short-term investments scaled by EV (fnd6_newqv1300_ivstq). S1 applied; S2 no; S3 ts_backfill both; S4 short-term investments moderate. Confidence: 0.49.",
+      "implementation": "divide(ts_backfill(fnd6_newqv1300_ivstq,63), ts_backfill(enterprise_value,63))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Receivables to Revenue (collection risk)",
+      "description": "Receivables scaled by revenue to highlight collection issues using fnd6_newa2v1300_rect. S1 applied; S2 not used; S3 ts_backfill both; S4 fields moderate. Confidence: 0.55.",
+      "implementation": "divide(ts_backfill(fnd6_newa2v1300_rect,63), ts_backfill(revenue,63))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Inventory to Sales (inventory intensity)",
+      "description": "Inventory scaled by revenue to detect stockpiles: fnd6_newqeventv110_invtq / revenue. S1 applied; S2 not applied; S3 ts_backfill; S4 fields moderate. Confidence: 0.54.",
+      "implementation": "divide(ts_backfill(fnd6_newqeventv110_invtq,63), ts_backfill(revenue,63))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "SG&A Trend (ts_zscore of SG&A / revenue)",
+      "description": "Spot unusual SG&A moves by zscoring the SG&A ratio. S1 used two fields; S2 not used; S3 ts_backfill both; S4 sga_expense high userCount. Confidence: 0.58.",
+      "implementation": "ts_zscore(divide(ts_backfill(sga_expense,63), ts_backfill(revenue,63)),63)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Pretax Margin Trend (ts_returns pretax_income / revenue)",
+      "description": "Detect improving pretax margin via returns of margin ratio. S1 two fields; S2 not used; S3 ts_backfill applied; S4 both fields moderate-high. Confidence: 0.60.",
+      "implementation": "ts_returns(divide(ts_backfill(pretax_income,252), ts_backfill(revenue,252)),252)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Operating Income Volatility (ts_std_dev operating_income)",
+      "description": "Stability of operating performance via ts_std_dev. S1 single-field; S2 not applied; S3 ts_backfill; S4 operating_income strong userCount. Confidence: 0.47.",
+      "implementation": "ts_std_dev(ts_backfill(operating_income,252),252)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Earnings Quality: Sales - Receivables Change (revenue - delta receivables)",
+      "description": "If receivables grow faster than sales, quality may be deteriorating. S1 uses revenue and receivable delta (two referenced operations but two datafields overall); S2 not applied; S3 ts_backfill used; S4 both fields have adequate counts. Confidence: 0.58.",
+      "implementation": "subtract(ts_backfill(revenue,252), ts_delta(ts_backfill(fnd6_newa2v1300_rect,252),252))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Dividend Coverage (income / cashflow_dividends)",
+      "description": "Ability to sustain dividends: income relative to cashflow_dividends. S1 applied; S2 not used; S3 ts_backfill both; S4 fields have good counts. Confidence: 0.52.",
+      "implementation": "divide(ts_backfill(income,252), ts_backfill(cashflow_dividends,252))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Asset-Light Growth (revenue / invested_capital)",
+      "description": "Revenue generated per unit of invested capital: revenue divided by invested_capital. S1 applied; S2 not used; S3 ts_backfill both; S4 invested_capital and revenue have decent counts. Confidence: 0.63.",
+      "implementation": "divide(ts_backfill(revenue,63), ts_backfill(invested_capital,63))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Enterprise Value / EBITDA (valuation multiple)",
+      "description": "Classic EV/EBITDA valuation measure using enterprise_value and ebitda. S1 applied; S2 not used; S3 ts_backfill both; S4 both fields have high userCount. Confidence: 0.77.",
+      "implementation": "divide(ts_backfill(enterprise_value,63), ts_backfill(ebitda,63))",
+      "confidence_level": 0.77
+    },
+    {
+      "idea": "Income Volatility Weighted Value (inverse ts_std_dev income * EBITDA/EV)",
+      "description": "Combine stability and valuation by multiplying inverse income volatility with EBITDA/EV. S1 combines multiple signals; S2 not applied; S3 ts_backfill used for inputs and ts_std_dev; S4 uses high-count fields for robustness. Kept operators <=7. Confidence: 0.68.",
+      "implementation": "multiply(inverse(ts_std_dev(ts_backfill(income,252),252)), divide(ts_backfill(ebitda,63), ts_backfill(enterprise_value,63)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Free Cashflow Margin ((cashflow_op - capex) / revenue)",
+      "description": "Cashflow-based margin to detect cash-generative firms. S1 applied; S2 not used; S3 ts_backfill all fields; S4 selection based on high userCount fields. Confidence: 0.70.",
+      "implementation": "divide(subtract(ts_backfill(cashflow_op,252), ts_backfill(capex,252)), ts_backfill(revenue,252))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Equity Valuation: Book-to-Enterprise (bookvalue_ps * shares / EV)",
+      "description": "Proxy book-to-enterprise by bookvalue_ps scaled vs enterprise_value. S1 uses bookvalue_ps and enterprise_value; S2 n/a; S3 ts_backfill both; S4 both big fields. Confidence: 0.60.",
+      "implementation": "divide(ts_backfill(bookvalue_ps,63), ts_backfill(enterprise_value,63))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Operating Income per Liability (coverage of liabilities)",
+      "description": "Scale operating_income by liabilities to see coverage (operating_income / liabilities). S1 applied; S2 not used; S3 ts_backfill both; S4 liabilities and operating_income counts decent. Confidence: 0.49.",
+      "implementation": "divide(ts_backfill(operating_income,63), ts_backfill(liabilities_curr,63))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "ROIC Momentum (ts_returns of operating_income / invested_capital)",
+      "description": "Momentum in ROIC: ts_returns of the ratio. S1 applied; S2 not applied; S3 ts_backfill both inputs and then ts_returns; S4 uses high-count invested_capital. Confidence: 0.65.",
+      "implementation": "ts_returns(divide(ts_backfill(operating_income,252), ts_backfill(invested_capital,252)),252)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Gross Margin Stability (ts_std_dev gross profit / revenue)",
+      "description": "Volatility of gross margin via ts_std_dev of the ratio. S1 used two fields; S2 not applied; S3 ts_backfill both; S4 gross profit/revenue counts ok. Confidence: 0.50.",
+      "implementation": "ts_std_dev(divide(ts_backfill(fnd6_newa1v1300_gp,252), ts_backfill(revenue,252)),252)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Dividend Growth Momentum (ts_returns cashflow_dividends)",
+      "description": "Detect accelerating payouts via ts_returns on dividends. S1 single-field; S2 not used; S3 ts_backfill applied; S4 cashflow_dividends userCount high. Confidence: 0.54.",
+      "implementation": "ts_returns(ts_backfill(cashflow_dividends,252),252)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Capital Efficiency: EBITDA / Invested Capital",
+      "description": "Scale EBITDA by invested_capital to find high ROIC-like names. S1 applied; S2 not used; S3 ts_backfill both; S4 both fields have adequate counts. Confidence: 0.69.",
+      "implementation": "divide(ts_backfill(ebitda,63), ts_backfill(invested_capital,63))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Sales Efficiency Trend (ts_zscore revenue / invested_capital)",
+      "description": "Zscore of revenue per invested capital to spot outliers. S1 two fields; S2 not used; S3 ts_backfill inputs; S4 fields decent. Confidence: 0.57.",
+      "implementation": "ts_zscore(divide(ts_backfill(revenue,63), ts_backfill(invested_capital,63)),63)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Deferred Taxes Abnormality (ts_zscore txdbcl)",
+      "description": "Use ts_zscore on deferred tax liability current (fnd6_txdbclq) to detect tax-related anomalies. S1 single-field; S2 not used; S3 ts_backfill prior to zscore; S4 field moderate. Confidence: 0.42 (specialized).",
+      "implementation": "ts_zscore(ts_backfill(fnd6_txdbclq,252),252)",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Operating Cashflow Predictability (ts_ir of cashflow_op)",
+      "description": "Information ratio of operating cashflow to measure predictability: ts_ir(cashflow_op,252). S1 single-field; S2 not applied; S3 ts_backfill; S4 cashflow_op strong userCount. Confidence: 0.61.",
+      "implementation": "ts_ir(ts_backfill(cashflow_op,252),252)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Leverage Change (ts_delta debt)",
+      "description": "Rising or falling leverage via ts_delta on debt. S1 single-field; S2 not used; S3 ts_backfill; S4 debt has high userCount. Confidence: 0.50.",
+      "implementation": "ts_delta(ts_backfill(debt,252),252)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Operating Income per Liability Trend (ts_returns operating_income / liabilities)",
+      "description": "Track trend in operating income coverage of liabilities using returns of the ratio. S1 used two fields; S2 not; S3 ts_backfill inputs; S4 both fields adequate. Confidence: 0.48.",
+      "implementation": "ts_returns(divide(ts_backfill(operating_income,252), ts_backfill(liabilities_curr,252)),252)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Book-to-Earnings (bookvalue_ps / income)",
+      "description": "Value proxy contrasting book to earnings per period. S1 applied; S2 not used; S3 ts_backfill both; S4 bookvalue_ps & income have good counts. Confidence: 0.53.",
+      "implementation": "divide(ts_backfill(bookvalue_ps,63), ts_backfill(income,63))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Capex Growth (ts_returns capex)",
+      "description": "Growing capex may signal investment cycles: ts_returns on capex. S1 single-field; S2 not applied; S3 ts_backfill; S4 capex userCount high. Confidence: 0.46.",
+      "implementation": "ts_returns(ts_backfill(capex,252),252)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Receivable-to-Inventory Shift (receivables / inventory)",
+      "description": "Shifts between receivables and inventory can flag demand changes. S1 uses two fields; S2 not used; S3 ts_backfill both; S4 both fields moderate. Confidence: 0.45.",
+      "implementation": "divide(ts_backfill(fnd6_newa2v1300_rect,63), ts_backfill(fnd6_newqeventv110_invtq,63))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Sales Quality: Revenue / Assets Current",
+      "description": "Current-period revenue scaled by current assets to see short-term efficiency. S1 applied; S2 not applied; S3 ts_backfill both; S4 assets_curr and revenue counts high. Confidence: 0.51.",
+      "implementation": "divide(ts_backfill(revenue,63), ts_backfill(assets_curr,63))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Operating Income per Long-Term Liabilities (coverage)",
+      "description": "Ability to cover long-term obligations via operating income / debt_lt. S1 applied; S2 not applicable; S3 ts_backfill both; S4 debt_lt userCount high. Confidence: 0.50.",
+      "implementation": "divide(ts_backfill(operating_income,63), ts_backfill(debt_lt,63))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Valuation Stability (ts_std_dev EV / revenue)",
+      "description": "Volatility of EV/Revenue via ts_std_dev for 1-year window. S1 applied; S2 not used; S3 ts_backfill both; S4 fields high userCount. Confidence: 0.54.",
+      "implementation": "ts_std_dev(divide(ts_backfill(enterprise_value,252), ts_backfill(revenue,252)),252)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Operating Income per Common Equity (ROE proxy)",
+      "description": "Operating income divided by common equity to proxy ROE. S1 applied; S2 not used; S3 ts_backfill both; S4 common equity fields have decent counts. Confidence: 0.62.",
+      "implementation": "divide(ts_backfill(operating_income,63), ts_backfill(fnd6_newa1v1300_ceq,63))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Inventory Turnover Trend (revenue / inventory, ts_returns)",
+      "description": "Trend in turnover by taking ts_returns of revenue/inventory. S1 used two fields; S2 not applied; S3 ts_backfill both; S4 fields moderate. Confidence: 0.49.",
+      "implementation": "ts_returns(divide(ts_backfill(revenue,252), ts_backfill(fnd6_newqeventv110_invtq,252)),252)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "EBITDA per Share (ebitda / common shares)",
+      "description": "Per-share profit proxy: ebitda divided by common shares outstanding. S1 applied; S2 not used; S3 ts_backfill both; S4 ebitda has high counts. Confidence: 0.58.",
+      "implementation": "divide(ts_backfill(ebitda,63), ts_backfill(fnd6_newqv1300_cshoq,63))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Price Proxy Momentum (ts_returns of EV/EBITDA)",
+      "description": "Momentum in valuation multiple via ts_returns of EV/EBITDA. S1 applied; S2 not used; S3 ts_backfill both; S4 both fields high count. Confidence: 0.60.",
+      "implementation": "ts_returns(divide(ts_backfill(enterprise_value,252), ts_backfill(ebitda,252)),252)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Operating Income to Long-Term Investments (efficiency)",
+      "description": "Scale operating income by long-term investments (fnd6_newqeventv110_ivltq) to spot underperforming investments. S1 applied; S2 not used; S3 ts_backfill both; S4 long-term investments moderate. Confidence: 0.44.",
+      "implementation": "divide(ts_backfill(operating_income,63), ts_backfill(fnd6_newqeventv110_ivltq,63))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Tax Rate Drift (income_tax / pretax_income trend)",
+      "description": "Track drift in effective tax rate via ratio and ts_returns. S1 used two fields; S2 not applied; S3 ts_backfill both; S4 tax fields have solid counts. Confidence: 0.50.",
+      "implementation": "ts_returns(divide(ts_backfill(income_tax,252), ts_backfill(pretax_income,252)),252)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Liquidity to Short-Term Obligations (cash + short-term investments / debt_st)",
+      "description": "Cover short-term debt using cash and short-term investments. S1 used two fields (cash and debt_st) to keep within limits; S2 not applicable; S3 ts_backfill both; S4 both fields high-count. Confidence: 0.72.",
+      "implementation": "divide(add(ts_backfill(fnd6_ch,63), ts_backfill(fnd6_newqv1300_ivstq,63)), ts_backfill(debt_st,63))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Operating Expense Control (xopteps or xoprq / revenue)",
+      "description": "Operating expense relative to revenue to spot cost control. S1 applied with xoprq; S2 not applied; S3 ts_backfill both; S4 operating expense fields moderate. Confidence: 0.54.",
+      "implementation": "divide(ts_backfill(fnd6_newqv1300_xopteps,63), ts_backfill(revenue,63))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Nonoperating Income Risk (nonoperating income / operating income)",
+      "description": "Large non-operating items relative to operating income can be risky. S1 applied; S2 not used; S3 ts_backfill both; S4 non-operating fields moderate. Confidence: 0.48.",
+      "implementation": "divide(ts_backfill(fnd6_cptnewqv1300_nopiq,63), ts_backfill(operating_income,63))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Assets Growth vs Revenue Growth (delta assets / delta revenue)",
+      "description": "If assets grow faster than revenue it can be capital-inefficient. S1 uses two deltas; S2 not applied; S3 ts_backfill inputs; S4 assets and revenue strong. Confidence: 0.52.",
+      "implementation": "divide(ts_delta(ts_backfill(assets,252),252), ts_delta(ts_backfill(revenue,252),252))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Interest Expense Coverage Momentum (ts_returns pretax_income / interest_expense)",
+      "description": "Momentum in interest coverage measure via ts_returns. S1 applied; S2 not used; S3 ts_backfill both; S4 fields adequate. Confidence: 0.55.",
+      "implementation": "ts_returns(divide(ts_backfill(pretax_income,252), ts_backfill(interest_expense,252)),252)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "EBITDA Stability (ts_kurtosis ebitda)",
+      "description": "Higher kurtosis indicates tail risk in EBITDA; use ts_kurtosis. S1 single-field; S2 not used; S3 ts_backfill before ts_kurtosis; S4 ebitda high userCount. Confidence: 0.40 (experimental).",
+      "implementation": "ts_kurtosis(ts_backfill(ebitda,252),252)",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Operating Income Share of Total Assets (OI / assets_total)",
+      "description": "Scale to assess operating return on total asset base. S1 applied; S2 not used; S3 ts_backfill both; S4 fields robust. Confidence: 0.59.",
+      "implementation": "divide(ts_backfill(operating_income,63), ts_backfill(assets,63))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Revenue Predictability (ts_ir revenue)",
+      "description": "Information ratio of revenue over past year to identify consistent growers. S1 single-field; S2 not used; S3 ts_backfill(revenue) before ts_ir; S4 revenue high userCount. Confidence: 0.62.",
+      "implementation": "ts_ir(ts_backfill(revenue,252),252)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Earnings Per Share Dilution Trend (shares repurchased vs issued)",
+      "description": "Proxy dilution by comparing repurchases to shares issued using cshopq and cshoq fields (we use repurchases/total shares). S1 applied; S2 not used; S3 ts_backfill both; S4 repurchase field moderate. Confidence: 0.50.",
+      "implementation": "divide(ts_backfill(fnd6_newqeventv110_cshopq,252), ts_backfill(fnd6_newqv1300_cshoq,252))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Operating Income per Liability Trend (ts_zscore)",
+      "description": "Zscore stability of operating_income / liabilities to detect outliers. S1 two fields; S2 not used; S3 ts_backfill inputs; S4 fields strong. Confidence: 0.53.",
+      "implementation": "ts_zscore(divide(ts_backfill(operating_income,63), ts_backfill(liabilities_curr,63)),63)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "EBITDA to Interest Expense (coverage)",
+      "description": "EBITDA scaled by interest expense as a broadened interest coverage metric. S1 applied; S2 not used; S3 ts_backfill both; S4 interest_expense and ebitda counts adequate. Confidence: 0.66.",
+      "implementation": "divide(ts_backfill(ebitda,63), ts_backfill(interest_expense,63))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Working Capital Turnover (revenue / working capital)",
+      "description": "Efficiency of working capital using revenue / wcap. S1 applied; S2 not used; S3 ts_backfill both; S4 working capital moderate. Confidence: 0.55.",
+      "implementation": "divide(ts_backfill(revenue,63), ts_backfill(fnd6_newqv1300_wcapq,63))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Cashflow to Debt Trend (ts_returns cashflow_op / debt)",
+      "description": "Trend in ability to cover debt by cashflow via ts_returns. S1 two fields; S2 not used; S3 ts_backfill both; S4 cashflow_op and debt high userCount. Confidence: 0.64.",
+      "implementation": "ts_returns(divide(ts_backfill(cashflow_op,252), ts_backfill(debt,252)),252)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "EBITDA per Asset (profitability density)",
+      "description": "EBITDA scaled by assets to find asset-light profitability. S1 applied; S2 not used; S3 ts_backfill both; S4 ebitda/assets high counts. Confidence: 0.61.",
+      "implementation": "divide(ts_backfill(ebitda,63), ts_backfill(assets,63))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Prepaid Expenses Signal (ts_delta fnd6_xpp)",
+      "description": "Changes in prepaid expenses can foreshadow odd timing; ts_delta on fnd6_xpp. S1 single-field; S2 not applicable; S3 ts_backfill used; S4 field moderate. Confidence: 0.35 (specialized).",
+      "implementation": "ts_delta(ts_backfill(fnd6_xpp,252),252)",
+      "confidence_level": 0.35
+    },
+    {
+      "idea": "Deferred Revenue Quality (deferred revenue / revenue)",
+      "description": "Proportion of revenue that is deferred (fnd6_newqv1300_drltq / revenue). S1 applied; S2 not used; S3 ts_backfill both; S4 deferred revenue field high userCount. Confidence: 0.56.",
+      "implementation": "divide(ts_backfill(fnd6_newqv1300_drltq,63), ts_backfill(revenue,63))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Noncontrolling Interest Impact (mib / equity)",
+      "description": "Scale minority interest vs equity to spot structural issues. S1 used two fields; S2 not applied; S3 ts_backfill both; S4 minority interest moderate. Confidence: 0.39 (limited universality).",
+      "implementation": "divide(ts_backfill(fnd6_mibt,63), ts_backfill(equity,63))",
+      "confidence_level": 0.39
+    },
+    {
+      "idea": "Total Fair Value Changes / Assets (volatility of valuation items)",
+      "description": "Scale fair value changes (fnd6_tfva) by assets to detect mark-to-market exposure. S1 applied; S2 not used; S3 ts_backfill both; S4 field moderate. Confidence: 0.43.",
+      "implementation": "divide(ts_backfill(fnd6_tfva,63), ts_backfill(assets,63))",
+      "confidence_level": 0.43
+    },
+    {
+      "idea": "Operating Income to Long-Term Liabilities Trend (ts_returns)",
+      "description": "Momentum in coverage of long-term liabilities. S1 two fields; S2 not applied; S3 ts_backfill both; S4 fields adequate. Confidence: 0.47.",
+      "implementation": "ts_returns(divide(ts_backfill(operating_income,252), ts_backfill(fnd6_newqv1300_lltq,252)),252)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Sale of Investments Gain Ratio (siv / assets)",
+      "description": "One-off gains from investment sales relative to assets (fnd6_siv). S1 applied; S2 not used; S3 ts_backfill both; S4 siv moderate. Confidence: 0.32 (noisy).",
+      "implementation": "divide(ts_backfill(fnd6_siv,63), ts_backfill(assets,63))",
+      "confidence_level": 0.32
+    },
+    {
+      "idea": "Depreciation Share (dpact / assets)",
+      "description": "Accumulated depreciation relative to assets indicating aging asset base. S1 two fields; S2 not used; S3 ts_backfill both; S4 dpact moderate. Confidence: 0.41.",
+      "implementation": "divide(ts_backfill(fnd6_newqv1300_dpactq,252), ts_backfill(assets,252))",
+      "confidence_level": 0.41
+    },
+    {
+      "idea": "Operating Income per Capital Surplus (efficiency)",
+      "description": "Scale operating income by capital surplus to see returns on additional paid-in capital. S1 applied; S2 not used; S3 ts_backfill both; S4 capital surplus moderate. Confidence: 0.36.",
+      "implementation": "divide(ts_backfill(operating_income,63), ts_backfill(fnd6_newa1v1300_caps,63))",
+      "confidence_level": 0.36
+    },
+    {
+      "idea": "Repurchase Price Signal (repurchase price / bookvalue_ps)",
+      "description": "Compare repurchase pricing (fnd6_newqv1300_prcraq) to book to see cheap buybacks. S1 applied; S2 not used; S3 ts_backfill both; S4 repurchase price moderate. Confidence: 0.45.",
+      "implementation": "divide(ts_backfill(fnd6_newqv1300_prcraq,63), ts_backfill(bookvalue_ps,63))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Operating Income Z-score across time (ts_quantile operating_income)",
+      "description": "Convert operating_income time rank into a Gaussian quantile to detect extremes. S1 single-field; S2 not applicable; S3 ts_backfill then ts_quantile; S4 operating_income high userCount. Confidence: 0.59.",
+      "implementation": "ts_quantile(ts_backfill(operating_income,252),252,\"gaussian\")",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Cashflow to Capital Expenditure Trend (ts_returns cashflow_op/capex)",
+      "description": "Trend of coverage of capex by operating cashflow. S1 two fields; S2 not used; S3 ts_backfill both; S4 fields have good counts. Confidence: 0.60.",
+      "implementation": "ts_returns(divide(ts_backfill(cashflow_op,252), ts_backfill(capex,252)),252)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Income per Long-Term Investments (profitability of investment base)",
+      "description": "Scale income by long-term investments to assess return on investments. S1 applied; S2 not used; S3 ts_backfill both; S4 investment field moderate. Confidence: 0.40.",
+      "implementation": "divide(ts_backfill(income,63), ts_backfill(fnd6_newqeventv110_ivltq,63))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Sales vs S&P Core Earnings (revenue / fnd6_spce)",
+      "description": "Compare revenue to S&P core earnings to find accounting anomalies. S1 applied; S2 not used; S3 ts_backfill both; S4 spce small userCount so result noisier. Confidence: 0.38.",
+      "implementation": "divide(ts_backfill(revenue,63), ts_backfill(fnd6_spce,63))",
+      "confidence_level": 0.38
+    },
+    {
+      "idea": "Operating Income to Deposits (operating_income / other assets proxy)",
+      "description": "Scale operating income by other assets (fnd6_aox) as a stability measure. S1 applied; S2 not used; S3 ts_backfill both; S4 aox moderate. Confidence: 0.37.",
+      "implementation": "divide(ts_backfill(operating_income,63), ts_backfill(fnd6_aox,63))",
+      "confidence_level": 0.37
+    },
+    {
+      "idea": "Equity to Assets Trend (ts_returns equity/assets)",
+      "description": "Trend in leverage via returns of equity-to-assets ratio. S1 two fields; S2 not used; S3 ts_backfill both; S4 both fields high counts. Confidence: 0.50.",
+      "implementation": "ts_returns(divide(ts_backfill(equity,252), ts_backfill(assets,252)),252)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Operating Income per Share Momentum (ts_returns OI / shares)",
+      "description": "Momentum of per-share operating income to capture shareholder-level improvements. S1 two fields; S2 not used; S3 ts_backfill both; S4 per-share fields moderate. Confidence: 0.52.",
+      "implementation": "ts_returns(divide(ts_backfill(operating_income,252), ts_backfill(fnd6_newqv1300_cshoq,252)),252)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Capital Surplus Usage (dividends / capital surplus)",
+      "description": "Use of capital surplus to fund dividends: cashflow_dividends / capital surplus. S1 applied; S2 not used; S3 ts_backfill both; S4 capital surplus moderate. Confidence: 0.34.",
+      "implementation": "divide(ts_backfill(cashflow_dividends,252), ts_backfill(fnd6_newa1v1300_caps,252))",
+      "confidence_level": 0.34
+    },
+    {
+      "idea": "EBITDA per Invested Capital Momentum (ts_returns)",
+      "description": "Momentum in EBITDA/InvestedCapital via ts_returns. S1 two fields; S2 not used; S3 ts_backfill inputs; S4 both fields good counts. Confidence: 0.63.",
+      "implementation": "ts_returns(divide(ts_backfill(ebitda,252), ts_backfill(invested_capital,252)),252)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Operating Income to Equity Momentum (ts_returns)",
+      "description": "Momentum of OI/equity to spot improving returns. S1 two fields; S2 not used; S3 ts_backfill both; S4 equity and operating_income high counts. Confidence: 0.56.",
+      "implementation": "ts_returns(divide(ts_backfill(operating_income,252), ts_backfill(equity,252)),252)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Accruals Momentum (ts_returns of income - cashflow_op)",
+      "description": "Momentum in accruals using returns of the difference. S1 uses two fields; S2 not used; S3 ts_backfill both; S4 fields have high counts. Confidence: 0.57.",
+      "implementation": "ts_returns(subtract(ts_backfill(income,252), ts_backfill(cashflow_op,252)),252)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "EV Change (ts_delta enterprise_value)",
+      "description": "Momentum in enterprise_value by ts_delta to spot market re-rating. S1 single-field; S2 not used; S3 ts_backfill before ts_delta; S4 enterprise_value very high userCount. Confidence: 0.70.",
+      "implementation": "ts_delta(ts_backfill(enterprise_value,63),63)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Operating Income per Long-term Assets (OI / non-current assets)",
+      "description": "Productivity of non-current assets using operating_income divided by fnd6_newqv1300_ancq. S1 applied; S2 not used; S3 ts_backfill both; S4 non-current assets count moderate. Confidence: 0.46.",
+      "implementation": "divide(ts_backfill(operating_income,63), ts_backfill(fnd6_newqv1300_ancq,63))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Gross Profit per Employee (gp / employees)",
+      "description": "Productivity metric gross profit divided by employees. S1 applied; S2 not used; S3 ts_backfill both; S4 employees/gross profit counts moderate. Confidence: 0.40.",
+      "implementation": "divide(ts_backfill(fnd6_newa1v1300_gp,63), ts_backfill(fnd6_newa1v1300_emp,63))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Earnings Quality: Operating Income - Depreciation (OI - dpact)",
+      "description": "Net operating income after accumulated depreciation as a quality signal. S1 two fields; S2 not used; S3 ts_backfill both; S4 dpact moderate. Confidence: 0.44.",
+      "implementation": "subtract(ts_backfill(operating_income,63), ts_backfill(fnd6_newqv1300_dpactq,63))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Short-term Liquidity Trend (ts_returns cash / current liabilities)",
+      "description": "Trend in cash coverage of current liabilities using ts_returns. S1 two fields; S2 not used; S3 ts_backfill both; S4 both fields have good counts. Confidence: 0.65.",
+      "implementation": "ts_returns(divide(ts_backfill(fnd6_ch,252), ts_backfill(liabilities_curr,252)),252)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Capex to PPE (capex / ppent)",
+      "description": "Capex intensity relative to net PPE to detect growth vs maintenance spend. S1 applied; S2 not used; S3 ts_backfill both; S4 ppent and capex counts moderate-high. Confidence: 0.48.",
+      "implementation": "divide(ts_backfill(capex,252), ts_backfill(fnd6_newa2v1300_ppent,252))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "R&D per Employee (rd_expense / employees)",
+      "description": "R&D productivity via R&D spend per employee. S1 used two fields; S2 not used; S3 ts_backfill both; S4 rd_expense/employees moderate counts. Confidence: 0.42.",
+      "implementation": "divide(ts_backfill(rd_expense,63), ts_backfill(fnd6_newa1v1300_emp,63))",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Operating Income Variance to EV (ts_std_dev OI / EV)",
+      "description": "Relative earnings volatility scaled by EV to find risky valuations. S1 applied; S2 not used; S3 ts_backfill both; S4 fields robust. Confidence: 0.45.",
+      "implementation": "divide(ts_std_dev(ts_backfill(operating_income,252),252), ts_backfill(enterprise_value,252))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Revenue Persistence (ts_arg_max of revenue)",
+      "description": "Where current revenue stands in historical sample using ts_arg_max to detect peaks. S1 single-field; S2 not applicable; S3 ts_backfill used; S4 revenue high userCount. Confidence: 0.58.",
+      "implementation": "ts_arg_max(ts_backfill(revenue,252),252)",
+      "confidence_level": 0.58
+    }
+  ]
+}

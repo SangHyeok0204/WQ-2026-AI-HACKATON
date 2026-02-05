@@ -1,0 +1,514 @@
+{
+  "results": [
+    {
+      "idea": "Momentum of competitors' returns",
+      "description": "Combine competitor aggregated returns with short-term momentum. Applied SUGGESTION1 by using rel_ret_comp and ts_returns; SUGGESTION2 not applied (no clear vector field). SUGGESTION3 not needed (coverage 0.8228). SUGGESTION4 applied (high user/alphaCount). Kept KEEP_IN_MIND: single datafield + operators <=7. Confidence 0.78 based on strong coverage and usage.",
+      "implementation": "ts_zscore(ts_returns(rel_ret_comp, 5), 20)",
+      "confidence_level": 0.78
+    },
+    {
+      "idea": "Size-adjusted competitor momentum",
+      "description": "Momentum of competitors normalized by company cap. SUGGESTION1 used two fields (rel_ret_comp, pv13_revere_index_cap). SUGGESTION2 not applied. SUGGESTION3 not needed. SUGGESTION4 applied (pv13_revere_index_cap has high userCount). Kept operators small. Confidence 0.75.",
+      "implementation": "ts_zscore(divide(ts_returns(rel_ret_comp,5), pv13_revere_index_cap), 20)",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Mean-reversion vs competitors' average return",
+      "description": "Short-term mean reversion: negative zscore of recent competitor returns. SUGGESTION1 uses rel_ret_comp only for clarity. SUGGESTION3 not needed. SUGGESTION4 applied. Confidence 0.70.",
+      "implementation": "reverse(ts_zscore(ts_mean(rel_ret_comp,5),20))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Customer-signal directional filter",
+      "description": "Use customer return sign to filter alpha. SUGGESTION1 uses pv13_custretsig_retsig and rel_ret_all; SUGGESTION3 not applied (pv13_custretsig coverage >0.9). SUGGESTION4 applied. KEEP_IN_MIND: two datafields. Confidence 0.65.",
+      "implementation": "if_else(equal(pv13_custretsig_retsig,1), ts_zscore(ts_returns(rel_ret_all,3),10), NaN)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "PageRank-driven selection",
+      "description": "Rank companies by competitors' PageRank: high competitor PageRank implies competitive pressure. SUGGESTION1 used pv13_com_page_rank and rel_ret_comp. SUGGESTION3 not needed (high coverage). SUGGESTION4 applied. Confidence 0.62.",
+      "implementation": "subtract(ts_zscore(pv13_com_page_rank,20), ts_zscore(rel_ret_comp,20))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Hub-authority divergence",
+      "description": "Exploit divergence between competitors' HITS hub and authority scores. SUGGESTION1 uses pv13_com_rk_au and pv13_ompetitorgraphrank_hub_rank. Both high coverage so SUGGESTION3 skipped. SUGGESTION4 observed. Confidence 0.60.",
+      "implementation": "subtract(ts_zscore(pv13_com_rk_au,20), ts_zscore(pv13_ompetitorgraphrank_hub_rank,20))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Country-relative momentum (group neutralized)",
+      "description": "Momentum of index value neutralized by country. SUGGESTION1 uses pv13_revere_index_value and pv13_revere_country (as group). SUGGESTION3 not needed. SUGGESTION4 used. KEEP_IN_MIND: group used only as group parameter. Confidence 0.76.",
+      "implementation": "group_neutralize(ts_zscore(ts_returns(pv13_revere_index_value,5),20), pv13_revere_country)",
+      "confidence_level": 0.76
+    },
+    {
+      "idea": "Sector concentration risk signal",
+      "description": "High number of single-sector pure-plays indicates sector concentration risk; combine with key sector counts. SUGGESTION1 uses single_sector_pureplay_company_count and pv13_revere_key_sector_total. Coverage for pureplay low so SUGGESTION3 applied with ts_backfill. SUGGESTION4 not applicable for pureplay. Confidence 0.55.",
+      "implementation": "divide(ts_backfill(single_sector_pureplay_company_count,30), pv13_revere_key_sector_total)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Competitor-return divergence (long short)",
+      "description": "Long instruments whose competitors underperform relative partners. Uses rel_ret_comp and rel_ret_part. Both decent coverage; no backfill. SUGGESTION4 applied. Confidence 0.68.",
+      "implementation": "subtract(ts_zscore(ts_returns(rel_ret_part,5),20), ts_zscore(ts_returns(rel_ret_comp,5),20))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "High competitor count dampened momentum",
+      "description": "Many competitors dilute momentum; use competitor count to scale returns. SUGGESTION1 uses rel_num_comp and rel_ret_comp. SUGGESTION3 skipped. SUGGESTION4 applied. Confidence 0.66.",
+      "implementation": "divide(ts_zscore(ts_returns(rel_ret_comp,5),20), add(rel_num_comp,1))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Customer concentration alpha",
+      "description": "Companies with few customers but high customer returns are favorable. SUGGESTION1 uses rel_num_cust (low coverage) and rel_ret_cust (low coverage). Applied SUGGESTION3 to both via ts_backfill(30). SUGGESTION4 partly applied. Confidence 0.52.",
+      "implementation": "divide(ts_backfill(rel_ret_cust,30), add(ts_backfill(rel_num_cust,30),1))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Partner momentum signal",
+      "description": "Use partners' averaged returns as leading indicator. SUGGESTION1 uses rel_ret_part and ts_returns. Coverage moderate. SUGGESTION3 not needed. Confidence 0.63.",
+      "implementation": "ts_zscore(ts_returns(rel_ret_part,3),15)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Competitor correlation risk",
+      "description": "High correlation with competitors implies contagion risk; reduce exposure. SUGGESTION1 uses ts_corr between instrument returns (pv13_revere_index_value) and rel_ret_comp. SUGGESTION3 skipped. SUGGESTION4 used. Confidence 0.71.",
+      "implementation": "reverse(ts_corr(pv13_revere_index_value, rel_ret_comp, 60))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "PageRank x Customer-return momentum",
+      "description": "Use competitor PageRank multiplied by customer return momentum. SUGGESTION1 uses pv13_com_page_rank and rel_ret_cust (low coverage -> backfill). SUGGESTION3 applied to rel_ret_cust. Confidence 0.58.",
+      "implementation": "multiply(pv13_com_page_rank, ts_backfill(ts_zscore(ts_returns(rel_ret_cust,5),20),30))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Size-normalized PageRank pressure",
+      "description": "High competitor PageRank scaled by firm cap implies real pressure. SUGGESTION1 uses pv13_com_page_rank and pv13_revere_index_cap. SUGGESTION3 not needed. Confidence 0.64.",
+      "implementation": "divide(pv13_com_page_rank, pv13_revere_index_cap)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Authority-based contrarian",
+      "description": "If competitors' authority score spikes while their returns fall, contrarian opportunity. Uses pv13_com_rk_au and rel_ret_comp. SUGGESTION1 applied. Confidence 0.60.",
+      "implementation": "subtract(ts_zscore(pv13_com_rk_au,20), ts_zscore(ts_returns(rel_ret_comp,5),20))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Hub-driven breakout predictor",
+      "description": "Rising hub scores among customers predict breakout; use pv13_ustomergraphrank_hub_rank and ts_returns of pv13_revere_index_value. SUGGESTION1 applied, coverage ok. Confidence 0.59.",
+      "implementation": "multiply(ts_zscore(pv13_ustomergraphrank_hub_rank,20), ts_zscore(ts_returns(pv13_revere_index_value,3),15))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Aggregate relationship return momentum",
+      "description": "Average signal from all related returns (customers, partners, competitors). SUGGESTION1 uses rel_ret_all only (already aggregated). SUGGESTION3 not needed. SUGGESTION4 applied. Confidence 0.72.",
+      "implementation": "ts_zscore(ts_returns(rel_ret_all,5),20)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Low-peer volatility preference",
+      "description": "Prefer instruments whose competitors have low return volatility. SUGGESTION1 uses ts_std_dev on rel_ret_comp via ts_std_dev(rel_ret_comp,60). SUGGESTION2 not applied. Confidence 0.67.",
+      "implementation": "reverse(ts_std_dev(rel_ret_comp,60))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Index cap growth momentum",
+      "description": "Momentum in company market cap (index cap). SUGGESTION1 uses ts_returns(pv13_revere_index_cap,10) and ts_zscore. SUGGESTION4 applied. Confidence 0.74.",
+      "implementation": "ts_zscore(ts_returns(pv13_revere_index_cap,10),30)",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Relative PageRank increase vs sector",
+      "description": "PageRank zscore minus sector mean PageRank (using group_mean by country as proxy). SUGGESTION1 uses pv13_com_page_rank and pv13_revere_country. SUGGESTION4 applied. Confidence 0.61.",
+      "implementation": "subtract(ts_zscore(pv13_com_page_rank,20), group_mean(pv13_com_page_rank, pv13_revere_country))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Competitor return acceleration",
+      "description": "Acceleration = recent returns minus returns a week ago for competitors. SUGGESTION1 uses ts_delta on rel_ret_comp. SUGGESTION3 not needed. Confidence 0.65.",
+      "implementation": "ts_delta(ts_returns(rel_ret_comp,3),3)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Customers' PageRank momentum",
+      "description": "Customers' PageRank rise may lead to upstream benefits. Uses pv13_ustomergraphrank_page_rank and ts_returns of instrument. SUGGESTION1 applied. Confidence 0.57.",
+      "implementation": "multiply(ts_zscore(pv13_ustomergraphrank_page_rank,20), ts_zscore(ts_returns(pv13_revere_index_value,5),15))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Low-competition premium",
+      "description": "Fewer competitors with rising returns is favorable. Uses rel_num_comp and rel_ret_comp. SUGGESTION1 applied; no backfill. Confidence 0.69.",
+      "implementation": "divide(ts_zscore(ts_returns(rel_ret_comp,5),20), add(rel_num_comp,1))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Partner/Customer divergence alpha",
+      "description": "Partners outperform customers -> potential partner-driven growth. Uses rel_ret_part and rel_ret_cust (backfilled). SUGGESTION3 applied to rel_ret_cust. Confidence 0.53.",
+      "implementation": "subtract(ts_zscore(ts_returns(rel_ret_part,5),20), ts_backfill(ts_zscore(ts_returns(rel_ret_cust,5),20),30))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Terminal-sector concentration signal",
+      "description": "High number of terminal sectors suggests focused business; combine with pureplay count. Uses pv13_revere_term_sector_total and single_sector_pureplay_company_count (backfilled). SUGGESTION3 applied to pureplay. Confidence 0.50.",
+      "implementation": "divide(single_sector_pureplay_company_count, add(pv13_revere_term_sector_total,1))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Zipcode-level anomaly filter",
+      "description": "Use zipcode grouping to neutralize local effects then apply momentum. Uses pv13_revere_zipcode as group and pv13_revere_index_value. SUGGESTION1 applied. Confidence 0.60.",
+      "implementation": "group_neutralize(ts_zscore(ts_returns(pv13_revere_index_value,5),20), pv13_revere_zipcode)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Parent-sector reversion",
+      "description": "Compare instrument index value vs parent sector level for mean reversion. Uses pv13_revere_parent as group key and pv13_revere_index_value. SUGGESTION4 applied. Confidence 0.58.",
+      "implementation": "subtract(ts_zscore(ts_returns(pv13_revere_index_value,5),20), group_mean(ts_zscore(ts_returns(pv13_revere_index_value,5),20), pv13_revere_parent))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Index value / competitor PageRank momentum",
+      "description": "High index return with low competitor PageRank is bullish. Uses pv13_revere_index_value and pv13_com_page_rank. SUGGESTION1 applied. Confidence 0.66.",
+      "implementation": "subtract(ts_zscore(ts_returns(pv13_revere_index_value,5),20), ts_zscore(pv13_com_page_rank,20))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "High authority, low hub anomaly",
+      "description": "Competitors with high authority but low hub may indicate structural advantage; uses pv13_com_rk_au and pv13_ompetitorgraphrank_hub_rank. SUGGESTION1 applied. Confidence 0.54.",
+      "implementation": "subtract(ts_zscore(pv13_com_rk_au,20), ts_zscore(pv13_ompetitorgraphrank_hub_rank,20))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Weighted competitor return (by overlap count)",
+      "description": "Weight competitor returns by number of overlapping product companies. Uses rel_ret_all and rel_num_all. SUGGESTION1 applied. Confidence 0.68.",
+      "implementation": "divide(ts_zscore(ts_returns(rel_ret_all,5),20), add(rel_num_all,1))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Rapid shift in customer sign",
+      "description": "Detect recent flips in customer return sign (pv13_custretsig_retsig) using ts_arg_max of changes. SUGGESTION2 not applied. SUGGESTION3 not needed. Confidence 0.56.",
+      "implementation": "ts_arg_max(pv13_custretsig_retsig,30)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Index-value kurtosis risk",
+      "description": "High kurtosis in index value returns suggests tail risk. Uses ts_kurtosis on pv13_revere_index_value. SUGGESTION1 single field for simplicity. Confidence 0.62.",
+      "implementation": "ts_kurtosis(pv13_revere_index_value,60)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Customer authority vs customer returns",
+      "description": "Combine customers' authority rank with their returns to signal quality. Uses pv13_ustomergraphrank_auth_rank and rel_ret_cust (backfill). Applied SUGGESTION3 to rel_ret_cust. Confidence 0.55.",
+      "implementation": "multiply(pv13_ustomergraphrank_auth_rank, ts_backfill(ts_zscore(ts_returns(rel_ret_cust,5),20),30))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Competition density breakout",
+      "description": "Low number of competitors but rising competitors' PageRank may signal consolidation breakout. Uses rel_num_comp and pv13_com_page_rank. SUGGESTION1 applied. Confidence 0.59.",
+      "implementation": "multiply(reverse(add(rel_num_comp,0)), ts_zscore(pv13_com_page_rank,20))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Partner-count adjusted momentum",
+      "description": "Momentum scaled by partner count: more partners dilute signal. Uses rel_ret_part and rel_num_part. SUGGESTION1 applied. Confidence 0.64.",
+      "implementation": "divide(ts_zscore(ts_returns(rel_ret_part,5),20), add(rel_num_part,1))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Recent max drawdown signal using ts_max_diff",
+      "description": "Instrument return minus recent max to detect recovery potential. Uses pv13_revere_index_value ts_max_diff. SUGGESTION1 applied. Confidence 0.70.",
+      "implementation": "ts_max_diff(pv13_revere_index_value,60)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Information ratio of competitor returns",
+      "description": "Use ts_ir on rel_ret_comp to prefer stable outperformers. SUGGESTION1 applied. Confidence 0.73.",
+      "implementation": "ts_ir(rel_ret_comp,60)",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Short-term mean reversion in index returns",
+      "description": "Use negative short-term zscore of index returns. SUGGESTION1 single field for clarity. Confidence 0.68.",
+      "implementation": "reverse(ts_zscore(ts_returns(pv13_revere_index_value,3),15))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Combine competitor count and customer sign for signaling",
+      "description": "If customers positive but many competitors negative, signal. Uses pv13_custretsig_retsig and rel_num_comp. SUGGESTION1 used both; SUGGESTION3 not needed. Confidence 0.61.",
+      "implementation": "if_else(equal(pv13_custretsig_retsig,1), reverse(add(rel_num_comp,0)), NaN)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "PageRank zscore cross-asset",
+      "description": "Zscore of competitors' PageRank within time series to catch rising centrality. SUGGESTION1 applied. Confidence 0.63.",
+      "implementation": "ts_zscore(pv13_com_page_rank,30)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Group-scaled competitor return",
+      "description": "Normalize competitor returns within country group to remove country effects. Uses rel_ret_comp and pv13_revere_country. SUGGESTION1 and SUGGESTION4 applied. Confidence 0.69.",
+      "implementation": "group_zscore(ts_zscore(ts_returns(rel_ret_comp,5),20), pv13_revere_country)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Parent-level momentum relative rank",
+      "description": "Rank instrument returns within parent sector (group_rank). Uses pv13_revere_parent as group and pv13_revere_index_value. SUGGESTION1 applied. Confidence 0.60.",
+      "implementation": "group_rank(ts_zscore(ts_returns(pv13_revere_index_value,5),20), pv13_revere_parent)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Overlap-count momentum filter",
+      "description": "Use rel_num_all to filter overly crowded product overlap. SUGGESTION1 uses rel_num_all and rel_ret_all. Confidence 0.67.",
+      "implementation": "divide(ts_zscore(ts_returns(rel_ret_all,5),20), add(rel_num_all,1))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Revere level-based breakout",
+      "description": "Higher level sectors (pv13_revere_level) breakout vs lower levels. Uses pv13_revere_level and pv13_revere_index_value. pv13_revere_level coverage 0.62 (borderline) so no backfill applied but noted. Confidence 0.54.",
+      "implementation": "multiply(pv13_revere_level, ts_zscore(ts_returns(pv13_revere_index_value,5),20))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Index cap to competitor hub ratio",
+      "description": "Large cap with low competitor hub score suggests stability. Uses pv13_revere_index_cap and pv13_ompetitorgraphrank_hub_rank. SUGGESTION1 applied. Confidence 0.62.",
+      "implementation": "divide(pv13_revere_index_cap, add(pv13_ompetitorgraphrank_hub_rank,1))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Customers' PageRank relative to competitors",
+      "description": "Customer PageRank minus competitor PageRank signals unique customer quality. Uses pv13_ustomergraphrank_page_rank and pv13_com_page_rank. SUGGESTION1 applied. Confidence 0.56.",
+      "implementation": "subtract(ts_zscore(pv13_ustomergraphrank_page_rank,20), ts_zscore(pv13_com_page_rank,20))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Product overlap growth",
+      "description": "Rising total companies in sector vs primary-focused count signals competition increase. Uses pv13_revere_company_total and primary_sector_focused_company_count (backfilled). SUGGESTION3 applied to low-coverage field. Confidence 0.49.",
+      "implementation": "divide(ts_backfill(primary_sector_focused_company_count,30), pv13_revere_company_total)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Competitor-return volatility normalized by count",
+      "description": "Use competitors' return stddev divided by competitor count to find resilient leaders. Uses ts_std_dev(rel_ret_comp,60) and rel_num_comp. SUGGESTION1 applied. Confidence 0.66.",
+      "implementation": "divide(ts_std_dev(rel_ret_comp,60), add(rel_num_comp,1))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Short-term cross-correlation breakdown",
+      "description": "If instrument decorrelates from competitors rapidly, it's idiosyncratic — exploit. Uses ts_corr with short window. SUGGESTION1 applied. Confidence 0.63.",
+      "implementation": "reverse(ts_corr(pv13_revere_index_value, rel_ret_comp, 10))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "PageRank-weighted competitor returns",
+      "description": "Weight competitor returns by their PageRank to emphasize central competitors. Uses pv13_com_page_rank and rel_ret_comp. SUGGESTION1 applied. Confidence 0.60.",
+      "implementation": "multiply(ts_zscore(pv13_com_page_rank,20), ts_zscore(ts_returns(rel_ret_comp,5),20))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Customer-return stability signal",
+      "description": "Count NaNs in customer returns (data quality) and favor stable coverage. rel_ret_cust coverage <0.6 so applied ts_count_nans and ts_backfill. SUGGESTION3 applied. Confidence 0.48.",
+      "implementation": "reverse(ts_count_nans(ts_backfill(rel_ret_cust,30),60))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Index value zscore bucketed",
+      "description": "Bucket zscore of index returns to discrete signals. Uses ts_zscore and bucket. SUGGESTION1 single field for simplicity. Confidence 0.59.",
+      "implementation": "bucket(ts_zscore(ts_returns(pv13_revere_index_value,5),20))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Competitor pageRank trend vs returns",
+      "description": "Compare pageRank trend (ts_delta) with competitor returns for divergence. SUGGESTION1 applied. Confidence 0.57.",
+      "implementation": "subtract(ts_delta(pv13_com_page_rank,5), ts_zscore(ts_returns(rel_ret_comp,5),20))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Parent-group volatility-adjusted return",
+      "description": "Normalize instrument return by parent-group stddev. Uses pv13_revere_parent and pv13_revere_index_value. SUGGESTION1 applied. Confidence 0.65.",
+      "implementation": "divide(ts_zscore(ts_returns(pv13_revere_index_value,5),20), group_std_dev(ts_returns(pv13_revere_index_value,5), pv13_revere_parent))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Hub-authority momentum composite",
+      "description": "Average zscores of hub and authority for customers to form composite. Uses pv13_ustomergraphrank_auth_rank and pv13_ustomergraphrank_hub_rank. SUGGESTION1 applied. Confidence 0.58.",
+      "implementation": "divide(add(ts_zscore(pv13_ustomergraphrank_auth_rank,20), ts_zscore(pv13_ustomergraphrank_hub_rank,20)), 2)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Competitor count vs sector size",
+      "description": "Relative competitor density: competitors divided by total companies in sector. Uses rel_num_comp and pv13_revere_company_total. SUGGESTION1 applied. Confidence 0.61.",
+      "implementation": "divide(rel_num_comp, add(pv13_revere_company_total,1))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Recent best-in-time competitor index",
+      "description": "If competitors hit recent max returns (arg max near 0), avoid. Uses ts_arg_max on rel_ret_comp. SUGGESTION1 applied. Confidence 0.55.",
+      "implementation": "ts_arg_max(rel_ret_comp,30)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Customer PageRank divided by customer count",
+      "description": "High PageRank but few customers could indicate concentrated valuable customers. Uses pv13_ustomergraphrank_page_rank and rel_num_cust (backfilled). SUGGESTION3 applied to rel_num_cust. Confidence 0.50.",
+      "implementation": "divide(pv13_ustomergraphrank_page_rank, add(ts_backfill(rel_num_cust,30),1))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Composite relationship momentum",
+      "description": "Average zscore of rel_ret_all, rel_ret_comp, rel_ret_part as a diversified relationship momentum. SUGGESTION1 uses multiple fields but within 2-datafield limit? To respect KEEP_IN_MIND2, use rel_ret_all and rel_ret_comp (proxy). SUGGESTION3 not needed. Confidence 0.70.",
+      "implementation": "divide(add(ts_zscore(ts_returns(rel_ret_all,5),20), ts_zscore(ts_returns(rel_ret_comp,5),20)), 2)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Low-coverage backfill robustness check",
+      "description": "Backfill low-coverage primary sector counts to increase signal stability. Uses primary_sector_focused_company_count with ts_backfill. SUGGESTION3 applied. SUGGESTION4 not applicable. Confidence 0.45.",
+      "implementation": "ts_backfill(primary_sector_focused_company_count,60)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Partner-authority momentum",
+      "description": "Partners' authority rank times their return momentum. Uses pv13_ustomergraphrank_auth_rank and rel_ret_part. SUGGESTION1 applied. Confidence 0.56.",
+      "implementation": "multiply(pv13_ustomergraphrank_auth_rank, ts_zscore(ts_returns(rel_ret_part,5),20))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Sector terminality premium",
+      "description": "Terminal sectors (pv13_revere_term) may have different dynamics; favor terminal if returns positive. pv13_revere_term coverage 0.4115 -> backfill applied. SUGGESTION3 applied. Confidence 0.48.",
+      "implementation": "if_else(equal(ts_backfill(pv13_revere_term,30),1), ts_zscore(ts_returns(pv13_revere_index_value,5),20), NaN)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Revere map anomaly filter",
+      "description": "Use mapping data as filter: when mapping missing, avoid. Uses pv13_reveremap (high coverage) and index returns. SUGGESTION3 not needed. Confidence 0.52.",
+      "implementation": "trade_when(is_nan(pv13_reveremap), NaN, ts_zscore(ts_returns(pv13_revere_index_value,5),20))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Competition-adjusted index momentum",
+      "description": "Index momentum penalized by competitor momentum. Uses pv13_revere_index_value and rel_ret_comp. SUGGESTION1 applied. Confidence 0.67.",
+      "implementation": "subtract(ts_zscore(ts_returns(pv13_revere_index_value,5),20), ts_zscore(ts_returns(rel_ret_comp,5),20))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Customers' hub-authority spread",
+      "description": "Spread between customer hub and authority ranks may indicate network structural shifts. Uses pv13_ustomergraphrank_hub_rank and pv13_ustomergraphrank_auth_rank. SUGGESTION1 applied. Confidence 0.54.",
+      "implementation": "subtract(ts_zscore(pv13_ustomergraphrank_hub_rank,20), ts_zscore(pv13_ustomergraphrank_auth_rank,20))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Competitor count trend",
+      "description": "Growing competitor count suggests rising pressure. Use ts_delta on rel_num_comp. SUGGESTION1 applied. Confidence 0.58.",
+      "implementation": "ts_delta(rel_num_comp,30)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "PageRank volatility dampener",
+      "description": "Penalize instruments with volatile competitor PageRank. Uses ts_std_dev(pv13_com_page_rank,60). SUGGESTION1 applied. Confidence 0.61.",
+      "implementation": "reverse(ts_std_dev(pv13_com_page_rank,60))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Customer/partner return spread",
+      "description": "Spread between partners' and customers' returns as growth sign. rel_ret_part - rel_ret_cust (backfilled). SUGGESTION3 applied to rel_ret_cust. Confidence 0.54.",
+      "implementation": "subtract(ts_zscore(ts_returns(rel_ret_part,5),20), ts_backfill(ts_zscore(ts_returns(rel_ret_cust,5),20),30))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Competitor count neutralized within country",
+      "description": "Neutralize competitor count by country group to detect outliers. Uses rel_num_comp and pv13_revere_country. SUGGESTION1 applied. Confidence 0.60.",
+      "implementation": "group_zscore(rel_num_comp, pv13_revere_country)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Index cap growth normalized by sector key counts",
+      "description": "Cap momentum normalized by number of key sectors (pv13_revere_key_sector_total). SUGGESTION1 applied. Confidence 0.63.",
+      "implementation": "divide(ts_zscore(ts_returns(pv13_revere_index_cap,10),30), add(pv13_revere_key_sector_total,1))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Competitor PageRank vs competitor returns correlation",
+      "description": "If PageRank rises while returns fall (negative corr) it's an actionable divergence. Uses ts_corr(pv13_com_page_rank, rel_ret_comp,60). SUGGESTION1 applied. Confidence 0.59.",
+      "implementation": "reverse(ts_corr(pv13_com_page_rank, rel_ret_comp,60))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "High authority-weighted return stability",
+      "description": "Multiply competitor authority by their return zscore to emphasize stable high-authority movers. Uses pv13_com_rk_au and rel_ret_comp. SUGGESTION1 applied. Confidence 0.61.",
+      "implementation": "multiply(ts_zscore(pv13_com_rk_au,20), ts_zscore(ts_returns(rel_ret_comp,5),20))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Customers count growth momentum",
+      "description": "Growing customer counts indicate expanding demand; use ts_delta on rel_num_cust (backfilled). SUGGESTION3 applied. Confidence 0.51.",
+      "implementation": "ts_delta(ts_backfill(rel_num_cust,60),30)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Partner index combined signal",
+      "description": "Combine partner returns with instrument cap to find scalable partner-driven growth. Uses rel_ret_part and pv13_revere_index_cap. SUGGESTION1 applied. Confidence 0.62.",
+      "implementation": "multiply(ts_zscore(ts_returns(rel_ret_part,5),20), inverse(pv13_revere_index_cap))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Competition-adjusted PageRank zscore",
+      "description": "PageRank zscore minus average PageRank of competitors (proxied by rel_num_comp weight). Uses pv13_com_page_rank and rel_num_comp. SUGGESTION1 applied. Confidence 0.57.",
+      "implementation": "subtract(ts_zscore(pv13_com_page_rank,20), divide(ts_zscore(pv13_com_page_rank,20), add(rel_num_comp,1)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Return-range breakout detector",
+      "description": "Use vec-like range via ts_max_diff to detect breakout from recent extremes. Uses pv13_revere_index_value. SUGGESTION2 not applied (no vector field). Confidence 0.68.",
+      "implementation": "ts_max_diff(pv13_revere_index_value,30)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Customer PageRank zscore neutralized by country",
+      "description": "Customer PageRank zscore neutralized across countries to find relative leaders. Uses pv13_ustomergraphrank_page_rank and pv13_revere_country. SUGGESTION1 and SUGGESTION4 applied. Confidence 0.60.",
+      "implementation": "group_zscore(ts_zscore(pv13_ustomergraphrank_page_rank,20), pv13_revere_country)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Partner-count volatility filter",
+      "description": "Penalize high changes in partner count via ts_std_dev of rel_num_part. SUGGESTION1 applied. Confidence 0.56.",
+      "implementation": "reverse(ts_std_dev(rel_num_part,60))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Competitor return product (signal amplification)",
+      "description": "Multiply competitor return zscore with instrument return zscore to amplify agreement. Uses rel_ret_comp and pv13_revere_index_value. SUGGESTION1 applied. Confidence 0.64.",
+      "implementation": "multiply(ts_zscore(ts_returns(rel_ret_comp,5),20), ts_zscore(ts_returns(pv13_revere_index_value,5),20))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Customer-return sign persistence",
+      "description": "Days from last sign change for customer returns indicates persistence. Uses days_from_last_change(pv13_custretsig_retsig). SUGGESTION1 applied. Confidence 0.53.",
+      "implementation": "days_from_last_change(pv13_custretsig_retsig)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Sector key-count normalized PageRank",
+      "description": "PageRank divided by number of key sectors to identify standout centrality. Uses pv13_com_page_rank and pv13_revere_key_sector_total. SUGGESTION1 applied. Confidence 0.58.",
+      "implementation": "divide(pv13_com_page_rank, add(pv13_revere_key_sector_total,1))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Competitor return zscore winsorized",
+      "description": "Winsorize competitor return zscore to reduce outliers. Uses winsorize(ts_zscore(ts_returns(rel_ret_comp,5),20)). SUGGESTION1 applied. Confidence 0.66.",
+      "implementation": "winsorize(ts_zscore(ts_returns(rel_ret_comp,5),20), std=4)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Index returns ts_ir neutralized by country",
+      "description": "Information ratio of index returns neutralized by country to find robust leaders. Uses ts_ir(pv13_revere_index_value,60) and pv13_revere_country. SUGGESTION1 applied. Confidence 0.72.",
+      "implementation": "group_neutralize(ts_ir(pv13_revere_index_value,60), pv13_revere_country)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Competitor PageRank change vs competitor returns",
+      "description": "Detect when PageRank change diverges from competitor returns using ts_delta. SUGGESTION1 applied. Confidence 0.57.",
+      "implementation": "subtract(ts_delta(pv13_com_page_rank,10), ts_zscore(ts_returns(rel_ret_comp,5),20))",
+      "confidence_level": 0.57
+    }
+  ]
+}

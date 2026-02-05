@@ -1,0 +1,628 @@
+{
+  "results": [
+    {
+      "idea": "Short-term news momentum from business sentiment",
+      "description": "Use recent change in rp_css_business to capture momentum after strong business news. Applied SUGGESTION1 by using a primary high-userCount field rp_css_business; SUGGESTION2 not applied (no VECTOR fields); SUGGESTION3 applied: coverage=0.5 -> ts_backfill(...,5); SUGGESTION4 applied by choosing high userCount/alphaCount field. Kept KEEP_IN_MINDs: implementation concise, <=7 operators, <=2 datafields, no GROUP alone. Confidence set to 0.70 due to broad usage and literature on news momentum.",
+      "implementation": "quantile(ts_delta(ts_backfill(rp_css_business,5),2))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Earnings event surprise (event sentiment z-score)",
+      "description": "Capture surprise from rp_ess_earnings using short-window zscore. SUGGESTION1: single focused field rp_ess_earnings chosen for event signal; SUGGESTION2 not applicable; SUGGESTION3 applied ts_backfill(.,5); SUGGESTION4 applied (rp_ess_earnings high alphaCount). Respected KEEP_IN_MIND constraints. Confidence 0.72 because earnings event sentiment is predictive in many studies.",
+      "implementation": "ts_zscore(ts_backfill(rp_ess_earnings,5),5)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Analyst-change momentum (recommendation change acceleration)",
+      "description": "Use ts_delta of nws18_ghc_lna to capture accelerating analyst action. Applied SUGGESTION1 single field with high userCount; SUGGESTION2 no; SUGGESTION3 applied ts_backfill(...,7); SUGGESTION4 applied. Followed KEEP_IN_MIND limits. Confidence 0.65 given modest but meaningful signal from analyst changes.",
+      "implementation": "quantile(ts_delta(ts_backfill(nws18_ghc_lna,7),3))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Reversion after extreme price-target sentiment move",
+      "description": "Reverse extreme rp_css_ptg zscore to trade mean reversion in price-target related sentiment. SUGGESTION1 single field rp_css_ptg; SUGGESTION2 not applied; SUGGESTION3 used ts_backfill(...,10); SUGGESTION4 applied moderately. KEEP_IN_MIND honored. Confidence 0.58 — moderate expectance of reversion.",
+      "implementation": "reverse(quantile(ts_zscore(ts_backfill(rp_css_ptg,10),10)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "High-impact news amplification (impact * relevance)",
+      "description": "Combine rp_nip_inverstor (impact) with nws18_event_relevance to favor high-impact, highly relevant stories. SUGGESTION1 applied: two fields; SUGGESTION2 not applicable; SUGGESTION3 applied ts_backfill to both with d=5; SUGGESTION4 applied selecting rp_nip_inverstor high userCount. KEEP_IN_MIND: two datafields and <7 operators. Confidence 0.75 due to multiplicative amplification of impact and relevance.",
+      "implementation": "quantile(multiply(ts_backfill(rp_nip_inverstor,5), ts_backfill(nws18_event_relevance,5)))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Composite earnings vs revenue divergence",
+      "description": "Long names where rp_css_earnings > rp_css_revenue momentum (earnings sentiment outpacing revenue sentiment). SUGGESTION1 used two complementary fields; SUGGESTION2 no; SUGGESTION3 backfilled both with 7 days; SUGGESTION4 favored high-user fields. Kept implementation compact. Confidence 0.68 reflecting earnings-driven moves.",
+      "implementation": "quantile(subtract(ts_backfill(rp_css_earnings,7), ts_backfill(rp_css_revenue,7)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Persistent positive editorial sentiment (business editorial average)",
+      "description": "Use ts_sum of rp_css_business to capture persistence in business-related positive editorials. SUGGESTION1 single field chosen for strength; SUGGESTION3 applied ts_backfill(...,10) before aggregation; SUGGESTION2 not applicable; SUGGESTION4 applied. KEEP_IN_MIND satisfied. Confidence 0.63 since persistence signals have medium reliability.",
+      "implementation": "ts_sum(ts_backfill(rp_css_business,10),5)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Rapid shift in market editorial sentiment (delta of rp_css_price)",
+      "description": "Detect sudden editorial sentiment shifts about price via ts_delta(rp_css_price). SUGGESTION1 field rp_css_price selected; SUGGESTION3 applied ts_backfill(...,5); others N/A. Implementation concise and within limits. Confidence 0.60 due to editorial reaction timeliness.",
+      "implementation": "quantile(ts_delta(ts_backfill(rp_css_price,5),1))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Negative legal event detection (legal event sentiment spike)",
+      "description": "Use rp_ess_legal short-term arg_max to find when legal sentiment is at freshest extreme (spike). SUGGESTION1 applied one field rp_ess_legal; SUGGESTION3 ts_backfill(...,10) used; SUGGESTION4 moderate since userCount high. KEEP_IN_MIND honored. Confidence 0.62 given legal events can produce outsized moves.",
+      "implementation": "if_else(ts_arg_max(ts_backfill(rp_ess_legal,10),5)==0, 1, 0)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum from investor-relations impact projection",
+      "description": "Use ts_zscore of rp_nip_inverstor to capture abnormal projected impact from investor relations news. SUGGESTION1 single high-user field; SUGGESTION3 backfilled with 7 days; SUGGESTION4 applied. KEEP_IN_MIND: short implementation. Confidence 0.69 based on high alphaCount.",
+      "implementation": "ts_zscore(ts_backfill(rp_nip_inverstor,7),7)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Volatility spike in event sentiment (stddev)",
+      "description": "Long/short based on vec-like variability using ts_std_dev on rp_ess_partner to identify jitter in partnership news sentiment. SUGGESTION1 field rp_ess_partner chosen; SUGGESTION2 not applicable; SUGGESTION3 applied ts_backfill(...,10); SUGGESTION4 moderate. KEEP_IN_MIND satisfied. Confidence 0.55 because volatility of sentiment is noisy.",
+      "implementation": "ts_std_dev(ts_backfill(rp_ess_partner,10),5)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Earnings sentiment acceleration vs baseline",
+      "description": "Compare short-term ts_delta(rp_css_earnings) to longer-term ts_mean to capture acceleration. SUGGESTION1 used two-time horizons of one field; SUGGESTION3 backfilled with 10; SUGGESTION4 applied. KEEP_IN_MIND respected. Confidence 0.71 as acceleration often predicts price moves.",
+      "implementation": "subtract(ts_delta(ts_backfill(rp_css_earnings,10),2), ts_mean(ts_backfill(rp_css_earnings,10),10))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Cross-sectional news consensus (normalize business sentiment)",
+      "description": "Cross-sectional normalize rp_css_business to capture relative strength. SUGGESTION1 single field but applied normalize (cross-sectional); SUGGESTION3 ts_backfill used; SUGGESTION4 yes. KEEP_IN_MIND kept short. Confidence 0.66 — relative sentiment often useful.",
+      "implementation": "normalize(ts_backfill(rp_css_business,5))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Price-target negativity reversal (ptg zscore reversal)",
+      "description": "Take reverse of zscore of rp_ess_ptg to short overreacted negative stories. SUGGESTION1 single field; SUGGESTION3 applied ts_backfill 7; SUGGESTION4 moderate. KEEP_IN_MIND followed. Confidence 0.57.",
+      "implementation": "reverse(ts_zscore(ts_backfill(rp_ess_ptg,7),7))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "High-confidence news sentiment filter (qcm weighted)",
+      "description": "Weight general sentiment rp_css_business by nws18_qcm (high-confidence news), prioritizing signals from reliable articles. SUGGESTION1 used 2 fields; SUGGESTION3 backfilled both; SUGGESTION4 used high-user rp_css_business. KEEP_IN_MIND satisfied. Confidence 0.74 due to quality weighting.",
+      "implementation": "quantile(multiply(ts_backfill(rp_css_business,7), ts_backfill(nws18_qcm,7)))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Mismatch between editorial and event sentiment",
+      "description": "Long where rp_css_business positive but rp_ess_business negative (editorial vs event divergence). SUGGESTION1 two fields used; SUGGESTION3 backfilled both; SUGGESTION4 applied. KEEP_IN_MIND honored. Confidence 0.67 as divergence can signal mispricing.",
+      "implementation": "quantile(subtract(ts_backfill(rp_css_business,7), ts_backfill(rp_ess_business,7)))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Sustained positive revenue sentiment (moving average of rp_css_revenue)",
+      "description": "Use ts_mean of rp_css_revenue to find sustained positive revenue signaling fundamentals. SUGGESTION1 single field; SUGGESTION3 backfilled d=10; SUGGESTION4 moderate. KEEP_IN_MIND ok. Confidence 0.64.",
+      "implementation": "ts_mean(ts_backfill(rp_css_revenue,10),10)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Short-term news z-score decay (decaying zscore)",
+      "description": "Apply ts_zscore over a short window on rp_css_earnings but prefer recent deviations via ts_decay-like effect approximated by short window zscore. SUGGESTION1 single field; SUGGESTION3 backfill; SUGGESTION4 used high alphaCount. KEEP_IN_MIND kept small. Confidence 0.68.",
+      "implementation": "ts_zscore(ts_backfill(rp_css_earnings,5),5)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Partner-news spike confirmation (argmax + zscore)",
+      "description": "When rp_ess_partner is at recent max and zscore is high, take signal. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 applied. KEEP_IN_MIND: short. Confidence 0.61.",
+      "implementation": "if_else(ts_arg_max(ts_backfill(rp_ess_partner,10),10)==0, ts_zscore(ts_backfill(rp_ess_partner,10),10), 0)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Insider trading sentiment momentum",
+      "description": "Use ts_zscore of rp_css_insider to capture positive insider-related sentiment momentum. SUGGESTION1 single field; SUGGESTION3 backfilled 7; SUGGESTION4 applied. KEEP_IN_MIND ok. Confidence 0.59.",
+      "implementation": "ts_zscore(ts_backfill(rp_css_insider,7),7)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Negative credit news tail risk (winsorized credit sentiment)",
+      "description": "Protect against extreme negative rp_css_credit by winsorizing then taking zscore. SUGGESTION1 used rp_css_credit; SUGGESTION3 ts_backfill(...,10); SUGGESTION4 not high but used for risk signal. KEEP_IN_MIND short chain. Confidence 0.52.",
+      "implementation": "zscore(winsorize(ts_backfill(rp_css_credit,10), std=3))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Editorial vs price sentiment tilt (rp_css_technical vs rp_css_price)",
+      "description": "When technical editorial sentiment diverges from price editorial sentiment, exploit tilt. SUGGESTION1 two fields; SUGGESTION3 backfilled both; SUGGESTION4 moderate. KEEP_IN_MIND satisfied. Confidence 0.60.",
+      "implementation": "quantile(subtract(ts_backfill(rp_css_technical,7), ts_backfill(rp_css_price,7)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings impact projection differential",
+      "description": "Long where rp_nip_earnings projection > rp_nip_revenue projection (earnings expected to matter more than revenue). SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 picked high alphaCount rp_nip_earnings. KEEP_IN_MIND met. Confidence 0.66.",
+      "implementation": "quantile(subtract(ts_backfill(rp_nip_earnings,7), ts_backfill(rp_nip_revenue,7)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Event relevance weighted earnings z-score",
+      "description": "Multiply rp_ess_earnings by nws18_event_relevance to emphasize highly relevant earnings events. SUGGESTION1 used two fields; SUGGESTION3 backfilled both; SUGGESTION4 used rp_ess_earnings high userCount. KEEP_IN_MIND short. Confidence 0.73.",
+      "implementation": "quantile(multiply(ts_backfill(rp_ess_earnings,5), ts_backfill(nws18_event_relevance,5)))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "M&A sentiment breakout (mna argmax)",
+      "description": "Detect freshly strongest sentiment in rp_ess_mna via ts_arg_max and act on breakout. SUGGESTION1 single field; SUGGESTION3 applied ts_backfill 10; SUGGESTION4 applied. KEEP_IN_MIND kept minimal. Confidence 0.62.",
+      "implementation": "if_else(ts_arg_max(ts_backfill(rp_ess_mna,10),10)==0, 1, 0)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Marketing news momentum vs product news",
+      "description": "Favor names where rp_css_marketing momentum exceeds rp_css_product momentum (marketing-driven optimism). SUGGESTION1 two fields; SUGGESTION3 backfilled both; SUGGESTION4 moderate. KEEP_IN_MIND kept short. Confidence 0.54.",
+      "implementation": "quantile(subtract(ts_delta(ts_backfill(rp_css_marketing,7),3), ts_delta(ts_backfill(rp_css_product,7),3)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Analyst ratings event importance (ratings * impact)",
+      "description": "Multiply rp_css_ratings by rp_nip_ratings to target impactful ratings news. SUGGESTION1 two fields; SUGGESTION3 backfilled both; SUGGESTION4 selected high alphaCount rp_css_ratings. KEEP_IN_MIND ok. Confidence 0.7.",
+      "implementation": "quantile(multiply(ts_backfill(rp_css_ratings,5), ts_backfill(rp_nip_ratings,5)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Societal news shock detection (society argmin)",
+      "description": "Flag names where rp_ess_society is at recent min (negative societal events) to short or hedge. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 lower userCount but useful as tail risk. KEEP_IN_MIND satisfied. Confidence 0.50.",
+      "implementation": "if_else(ts_arg_min(ts_backfill(rp_ess_society,10),10)==0, -1, 0)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Insider buying impact amplification (insider * impact)",
+      "description": "Multiply rp_css_insider by rp_nip_insider to amplify insider-impactful news. SUGGESTION1 two fields; SUGGESTION3 backfill; SUGGESTION4 applied. KEEP_IN_MIND short. Confidence 0.68.",
+      "implementation": "quantile(multiply(ts_backfill(rp_css_insider,7), ts_backfill(rp_nip_insider,7)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Editorial sentiment persistence vs spike (mean vs delta)",
+      "description": "Subtract short-term delta from longer-term mean of rp_css_business to find persistent vs spiky stories. SUGGESTION1 single field multi-horizon; SUGGESTION3 backfilled; SUGGESTION4 used. KEEP_IN_MIND ok. Confidence 0.61.",
+      "implementation": "subtract(ts_mean(ts_backfill(rp_css_business,10),10), ts_delta(ts_backfill(rp_css_business,10),2))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Price news positive persistence (sum of rp_ess_price)",
+      "description": "Aggregate recent rp_ess_price via ts_sum to capture sustained price-related positive news. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 moderate. KEEP_IN_MIND kept brief. Confidence 0.62.",
+      "implementation": "ts_sum(ts_backfill(rp_ess_price,7),5)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Technical sentiment reversal signal",
+      "description": "Reverse ts_zscore of rp_ess_technical to exploit overreactions in technical commentary. SUGGESTION1 single field; SUGGESTION3 backfill; SUGGESTION4 low userCount so lower confidence. KEEP_IN_MIND satisfied. Confidence 0.53.",
+      "implementation": "reverse(ts_zscore(ts_backfill(rp_ess_technical,7),7))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Revenue positive surprise momentum",
+      "description": "Use ts_delta of rp_css_revenue to capture positive momentum from revenue-related news. SUGGESTION1 single high-alpha field; SUGGESTION3 backfill used; SUGGESTION4 applied. KEEP_IN_MIND short. Confidence 0.67.",
+      "implementation": "quantile(ts_delta(ts_backfill(rp_css_revenue,7),3))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Event relevance scaled earnings surprise",
+      "description": "Scale rp_ess_earnings by nws18_event_relevance to prefer highly relevant earnings signals. SUGGESTION1 two fields; SUGGESTION3 backfilled both; SUGGESTION4 applied. KEEP_IN_MIND short. Confidence 0.74.",
+      "implementation": "quantile(multiply(ts_backfill(rp_ess_earnings,5), ts_backfill(nws18_event_relevance,5)))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Composite investor-impact over last week",
+      "description": "Average investor-impact rp_nip_inverstor over few days to reduce noise (ts_mean). SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 high userCount chosen. KEEP_IN_MIND minimal operators. Confidence 0.7.",
+      "implementation": "ts_mean(ts_backfill(rp_nip_inverstor,7),5)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Negative dividends event detection",
+      "description": "Flag rp_ess_dividends deterioration via ts_arg_min for sudden negative dividend news. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 low userCount but relevant for event trading. KEEP_IN_MIND ok. Confidence 0.49.",
+      "implementation": "if_else(ts_arg_min(ts_backfill(rp_ess_dividends,10),10)==0, -1, 0)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Marketing-news-driven breakout (max + zscore)",
+      "description": "When rp_ess_marketing reaches recent max and zscore elevated, act to capture breakout. SUGGESTION1 used rp_ess_partner as proxy marketing partner; SUGGESTION3 backfilled; SUGGESTION4 moderate. KEEP_IN_MIND respected. Confidence 0.56.",
+      "implementation": "if_else(ts_arg_max(ts_backfill(rp_ess_partner,10),10)==0, ts_zscore(ts_backfill(rp_ess_partner,10),10), 0)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Editorial ratings uplift vs price-target (ratings - ptg)",
+      "description": "Long where rp_css_ratings > rp_css_ptg indicating ratings beat price-target narratives. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 used high-count ratings. KEEP_IN_MIND short. Confidence 0.65.",
+      "implementation": "quantile(subtract(ts_backfill(rp_css_ratings,7), ts_backfill(rp_css_ptg,7)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Aggregate news composite for business (sum of related CSS fields)",
+      "description": "Sum rp_css_business + rp_css_inverstor to build composite business/investor sentiment. SUGGESTION1 used two fields; SUGGESTION3 backfilled both; SUGGESTION4 picked high-user rp_css_business. KEEP_IN_MIND <=2 fields and concise. Confidence 0.72.",
+      "implementation": "quantile(add(ts_backfill(rp_css_business,5), ts_backfill(rp_css_inverstor,5)))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Rapid analyst recommendation negative spike",
+      "description": "Detect sudden negative spike in nws18_ghc_lna via ts_arg_min and act short. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 high userCount. KEEP_IN_MIND followed. Confidence 0.6.",
+      "implementation": "if_else(ts_arg_min(ts_backfill(nws18_ghc_lna,7),7)==0, -1, 0)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Price editorial momentum normalized",
+      "description": "Normalize rp_css_price cross-sectionally to capture relative momentum from price news. SUGGESTION1 single field normalize used; SUGGESTION3 backfill; SUGGESTION4 moderate. KEEP_IN_MIND ok. Confidence 0.63.",
+      "implementation": "normalize(ts_backfill(rp_css_price,5))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Earnings sentiment IR (information ratio over window)",
+      "description": "Use ts_ir on rp_css_earnings to measure persistent signal vs noise. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 high alphaCount favored. KEEP_IN_MIND short. Confidence 0.69.",
+      "implementation": "ts_ir(ts_backfill(rp_css_earnings,10),10)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Momentum from editorials on equity actions",
+      "description": "Use ts_zscore on rp_css_equity to capture strong editorial momentum about equity actions. SUGGESTION1 applied; SUGGESTION3 backfilled 7; SUGGESTION4 moderate. KEEP_IN_MIND kept minimal. Confidence 0.6.",
+      "implementation": "ts_zscore(ts_backfill(rp_css_equity,7),7)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High-confidence phrase sentiment amplifier (ssc * qcm)",
+      "description": "Multiply rp_css_business-style multi-technique sentiment (rp_css_business) by nws18_qcm (high-confidence phrase sentiment) to amplify reliable signals. SUGGESTION1 two fields; SUGGESTION3 backfilled both; SUGGESTION4 applied. KEEP_IN_MIND short. Confidence 0.73.",
+      "implementation": "quantile(multiply(ts_backfill(rp_css_business,5), ts_backfill(nws18_qcm,5)))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Revenue impact projection spike detection",
+      "description": "Flag rp_nip_revenue at recent maxima to capture projected revenue-impactful news. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 moderate. KEEP_IN_MIND honored. Confidence 0.61.",
+      "implementation": "if_else(ts_arg_max(ts_backfill(rp_nip_revenue,10),10)==0, 1, 0)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Earnings event clustering (days since similar event)",
+      "description": "Use nws18_event_similarity_days low values to find fresh vs recurring earnings stories; shorter days imply repeated coverage. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 moderate. KEEP_IN_MIND short. Confidence 0.55.",
+      "implementation": "if_else(ts_backfill(nws18_event_similarity_days,7)<=3, 1, 0)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Editor bias filter: editorial sentiment vs composite",
+      "description": "Subtract rp_css_business composite from rp_css_marketing to detect editorial bias favoring marketing narratives. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 moderate. KEEP_IN_MIND satisfied. Confidence 0.52.",
+      "implementation": "quantile(subtract(ts_backfill(rp_css_marketing,7), ts_backfill(rp_css_business,7)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Aggregate high-confidence earnings signal (sum)",
+      "description": "Sum rp_ess_earnings and rp_css_earnings after backfill to create a robust earnings signal. SUGGESTION1 used two complementary fields; SUGGESTION3 backfilled both; SUGGESTION4 applied. KEEP_IN_MIND <=2 fields. Confidence 0.76.",
+      "implementation": "quantile(add(ts_backfill(rp_ess_earnings,5), ts_backfill(rp_css_earnings,5)))",
+      "confidence_level": 0.76
+    },
+    {
+      "idea": "Negative credit-event acceleration",
+      "description": "ts_delta of rp_ess_credit to capture accelerating negative credit stories. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 moderate. KEEP_IN_MIND concise. Confidence 0.54.",
+      "implementation": "quantile(ts_delta(ts_backfill(rp_ess_credit,7),2))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Partner-news sustained positivity (moving average)",
+      "description": "ts_mean of rp_css_partner captures sustained positive partner news. SUGGESTION1 single field; SUGGESTION3 backfill; SUGGESTION4 moderate. KEEP_IN_MIND minimal. Confidence 0.6.",
+      "implementation": "ts_mean(ts_backfill(rp_css_partner,10),7)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Insider sentiment zscore scaled by relevance",
+      "description": "Multiply ts_zscore(rp_css_insider) by nws18_event_relevance to emphasize relevant insider news. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 applied. KEEP_IN_MIND followed. Confidence 0.66.",
+      "implementation": "multiply(ts_zscore(ts_backfill(rp_css_insider,7),7), ts_backfill(nws18_event_relevance,7))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Earnings impact vs ratings mismatch",
+      "description": "Subtract rp_nip_earnings from rp_nip_ratings to find divergence between earnings impact projection and ratings impact projection. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 high-count used. KEEP_IN_MIND satisfied. Confidence 0.63.",
+      "implementation": "quantile(subtract(ts_backfill(rp_nip_earnings,7), ts_backfill(rp_nip_ratings,7)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Composite negative tail detection (min of two fields)",
+      "description": "Take min of rp_css_credit and rp_css_legal to capture worst-case sentiment across credit/legal. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 moderate. KEEP_IN_MIND: min operator used, short. Confidence 0.58.",
+      "implementation": "min(ts_backfill(rp_css_credit,7), ts_backfill(rp_css_legal,7))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum from editorial assets news",
+      "description": "ts_zscore of rp_css_assets to capture asset-related editorial momentum. SUGGESTION1 single field; SUGGESTION3 backfill; SUGGESTION4 moderate. KEEP_IN_MIND concise. Confidence 0.57.",
+      "implementation": "ts_zscore(ts_backfill(rp_css_assets,7),7)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Earnings sentiment persistence vs volatility",
+      "description": "Divide ts_mean of rp_css_earnings by ts_std_dev to get stability-weighted signal (ts_ir-like). SUGGESTION1 single field multi-horizon; SUGGESTION3 backfilled; SUGGESTION4 applied. KEEP_IN_MIND short. Confidence 0.7.",
+      "implementation": "divide(ts_mean(ts_backfill(rp_css_earnings,10),10), ts_std_dev(ts_backfill(rp_css_earnings,10),10))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Rapid change in price-target projection",
+      "description": "ts_delta of rp_nip_ptg to capture quickly changing price-target impact projections. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 moderate. KEEP_IN_MIND respected. Confidence 0.56.",
+      "implementation": "quantile(ts_delta(ts_backfill(rp_nip_ptg,5),1))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Marketing vs product sentiment divergence (normalized)",
+      "description": "Normalize difference between rp_css_marketing and rp_css_product to detect narrative divergence. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 applied. KEEP_IN_MIND met. Confidence 0.53.",
+      "implementation": "normalize(subtract(ts_backfill(rp_css_marketing,7), ts_backfill(rp_css_product,7)))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Editorial confidence-weighted earnings",
+      "description": "Multiply rp_css_earnings by nws18_qep (positive/negative words) to prefer sentiment with lexical support. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 used strong rp_css_earnings. KEEP_IN_MIND short. Confidence 0.72.",
+      "implementation": "quantile(multiply(ts_backfill(rp_css_earnings,7), ts_backfill(nws18_qep,7)))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Insider-event persistence (sum)",
+      "description": "ts_sum of rp_ess_insider over recent days to capture persistent insider-related events. SUGGESTION1 single field; SUGGESTION3 backfill; SUGGESTION4 moderate. KEEP_IN_MIND compact. Confidence 0.58.",
+      "implementation": "ts_sum(ts_backfill(rp_ess_insider,7),5)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Analyst change confirmation with impact projection",
+      "description": "Multiply nws18_ghc_lna by rp_nip_ratings to capture analyst changes that project high impact. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 applied. KEEP_IN_MIND limits kept. Confidence 0.68.",
+      "implementation": "quantile(multiply(ts_backfill(nws18_ghc_lna,7), ts_backfill(rp_nip_ratings,7)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Earnings editorial divergence index",
+      "description": "Subtract rp_css_earnings (editorial) from rp_ess_earnings (event) to capture mismatch between event coverage and editorial tone. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 used high alphaCount fields. KEEP_IN_MIND short. Confidence 0.69.",
+      "implementation": "quantile(subtract(ts_backfill(rp_ess_earnings,5), ts_backfill(rp_css_earnings,5)))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Partner impact momentum",
+      "description": "ts_zscore of rp_nip_partner to capture momentum in partner-impact projections. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 moderate. KEEP_IN_MIND followed. Confidence 0.6.",
+      "implementation": "ts_zscore(ts_backfill(rp_nip_partner,7),7)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Editorial tail risk (min of earnings & legal)",
+      "description": "Min of rp_css_earnings and rp_css_legal to highlight names with both earnings and legal downside. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 used stronger field. KEEP_IN_MIND concise. Confidence 0.59.",
+      "implementation": "min(ts_backfill(rp_css_earnings,7), ts_backfill(rp_css_legal,7))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Event-impact weighted revenue surprise",
+      "description": "Multiply rp_ess_revenue by rp_nip_revenue to combine event sentiment and impact projection for revenue. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 applied. KEEP_IN_MIND short. Confidence 0.67.",
+      "implementation": "quantile(multiply(ts_backfill(rp_ess_revenue,7), ts_backfill(rp_nip_revenue,7)))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Price news zscore vs long-term mean",
+      "description": "Subtract long-term mean from short-term zscore of rp_css_price to highlight fresh deviations. SUGGESTION1 single field multi-horizon; SUGGESTION3 backfilled; SUGGESTION4 applied. KEEP_IN_MIND concise. Confidence 0.61.",
+      "implementation": "subtract(ts_zscore(ts_backfill(rp_css_price,7),5), ts_mean(ts_backfill(rp_css_price,30),30))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "M&A event intensity (narrative momentum)",
+      "description": "ts_sum of rp_ess_mna to capture accumulating M&A narrative intensity. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 used high alphaCount. KEEP_IN_MIND short. Confidence 0.65.",
+      "implementation": "ts_sum(ts_backfill(rp_ess_mna,10),7)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Editorial impact of product news (product * impact)",
+      "description": "Multiply rp_css_product by rp_nip_product to focus on impactful product stories. SUGGESTION1 two fields; SUGGESTION3 backfilled both; SUGGESTION4 moderate. KEEP_IN_MIND satisfied. Confidence 0.62.",
+      "implementation": "quantile(multiply(ts_backfill(rp_css_product,7), ts_backfill(rp_nip_product,7)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Technical editorial acceleration",
+      "description": "ts_delta of rp_css_technical to capture accelerating technical commentary. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 low userCount but usable. KEEP_IN_MIND brief. Confidence 0.51.",
+      "implementation": "quantile(ts_delta(ts_backfill(rp_css_technical,7),2))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Composite market editorial (sum of price + business)",
+      "description": "Sum rp_css_price and rp_css_business to form a market/editorial composite. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 chosen strong business field. KEEP_IN_MIND short. Confidence 0.7.",
+      "implementation": "quantile(add(ts_backfill(rp_css_price,5), ts_backfill(rp_css_business,5)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Negative legal sentiment zscore",
+      "description": "ts_zscore of rp_css_legal to detect unusually negative legal editorial. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 lower userCount reduces confidence. KEEP_IN_MIND kept minimal. Confidence 0.53.",
+      "implementation": "ts_zscore(ts_backfill(rp_css_legal,7),7)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Earnings editorial momentum vs technical editorial",
+      "description": "Subtract rp_css_technical from rp_css_earnings to identify fundamentals-driven vs technical narratives. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 used strong earnings field. KEEP_IN_MIND short. Confidence 0.64.",
+      "implementation": "quantile(subtract(ts_backfill(rp_css_earnings,7), ts_backfill(rp_css_technical,7)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "High-confidence phrase positive filter for equities",
+      "description": "Multiply rp_css_equity by nws18_qcm to emphasize equity stories verified by multiple methods. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 moderate. KEEP_IN_MIND concise. Confidence 0.66.",
+      "implementation": "quantile(multiply(ts_backfill(rp_css_equity,7), ts_backfill(nws18_qcm,7)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Revenue editorial spike detection",
+      "description": "Flag recent maxima in rp_ess_revenue to capture sudden revenue-related event spikes. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 moderate. KEEP_IN_MIND kept short. Confidence 0.6.",
+      "implementation": "if_else(ts_arg_max(ts_backfill(rp_ess_revenue,10),10)==0, 1, 0)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Composite analyst & impact momentum",
+      "description": "Add nws18_ghc_lna and rp_nip_ratings to capture combined analyst-change and ratings-impact momentum. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 applied. KEEP_IN_MIND concise. Confidence 0.67.",
+      "implementation": "quantile(add(ts_backfill(nws18_ghc_lna,7), ts_backfill(rp_nip_ratings,7)))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Product-news sustained negativity (mean)",
+      "description": "ts_mean of rp_ess_product to identify sustained negative product-related event sentiment. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 moderate. KEEP_IN_MIND short. Confidence 0.55.",
+      "implementation": "ts_mean(ts_backfill(rp_ess_product,10),7)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Earnings vs investor-impact ratio",
+      "description": "Divide rp_css_earnings by rp_nip_inverstor to find earnings sentiment that is large relative to projected investor impact (possible overruns). SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 used high-count fields. KEEP_IN_MIND satisfied. Confidence 0.62.",
+      "implementation": "divide(ts_backfill(rp_css_earnings,7), ts_backfill(rp_nip_inverstor,7))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "High-confidence editorial negativity (qep * reverse zscore)",
+      "description": "Reverse ts_zscore(rp_css_business) and multiply by nws18_qep to focus on high-confidence negative business editorial reversions. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 used strong business field. KEEP_IN_MIND concise. Confidence 0.6.",
+      "implementation": "multiply(reverse(ts_zscore(ts_backfill(rp_css_business,7),7)), ts_backfill(nws18_qep,7))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Aggregate impact across ratings and investor news",
+      "description": "Add rp_nip_ratings and rp_nip_inverstor to form an aggregate impact projection. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 both high userCount. KEEP_IN_MIND short. Confidence 0.7.",
+      "implementation": "quantile(add(ts_backfill(rp_nip_ratings,7), ts_backfill(rp_nip_inverstor,7)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Earnings sentiment kurtosis (tailness)",
+      "description": "Use ts_kurtosis on rp_css_earnings to detect heavy tails in earnings editorial distribution (large surprises). SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 applied. KEEP_IN_MIND minimal operators. Confidence 0.58.",
+      "implementation": "ts_kurtosis(ts_backfill(rp_css_earnings,20),20)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Rapid decrease in price-target sentiment",
+      "description": "ts_delta of rp_ess_ptg negative large magnitude flags rapid price-target downgrades. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 moderate. KEEP_IN_MIND short. Confidence 0.56.",
+      "implementation": "quantile(reverse(ts_delta(ts_backfill(rp_ess_ptg,5),1)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Editorial consensus divergence (business vs assets)",
+      "description": "Subtract rp_css_assets from rp_css_business to find divergence between business and asset narratives. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 applied. KEEP_IN_MIND concise. Confidence 0.54.",
+      "implementation": "quantile(subtract(ts_backfill(rp_css_business,7), ts_backfill(rp_css_assets,7)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "M&A impact projection zscore",
+      "description": "ts_zscore on rp_nip_mna to detect outsized projected M&A impact. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 applied. KEEP_IN_MIND short. Confidence 0.63.",
+      "implementation": "ts_zscore(ts_backfill(rp_nip_mna,7),7)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Earnings editorial vs technical divergence (ratio)",
+      "description": "Divide rp_css_earnings by rp_css_technical to highlight fundamental vs technical narrative imbalance. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 used strong earnings field. KEEP_IN_MIND satisfied. Confidence 0.59.",
+      "implementation": "divide(ts_backfill(rp_css_earnings,7), ts_backfill(rp_css_technical,7))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Event similarity decay (days_from_last_change)",
+      "description": "Use days_from_last_change(nws18_event_similarity_days) to prefer names with fresh novel events. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 moderate. KEEP_IN_MIND minimal. Confidence 0.52.",
+      "implementation": "if_else(days_from_last_change(ts_backfill(nws18_event_similarity_days,7))<=3, 1, 0)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Composite revenue & earnings momentum",
+      "description": "Sum ts_delta of rp_css_revenue and rp_css_earnings to capture combined fundamental momentum. SUGGESTION1 two fields; SUGGESTION3 backfilled both; SUGGESTION4 applied. KEEP_IN_MIND short. Confidence 0.68.",
+      "implementation": "quantile(add(ts_delta(ts_backfill(rp_css_revenue,7),3), ts_delta(ts_backfill(rp_css_earnings,7),3)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "High-impact partner news zscore",
+      "description": "Multiply rp_ess_partner zscore by rp_nip_partner to focus on impactful partner events. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 moderate. KEEP_IN_MIND concise. Confidence 0.61.",
+      "implementation": "multiply(ts_zscore(ts_backfill(rp_ess_partner,7),7), ts_backfill(rp_nip_partner,7))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Editorial consistency filter (low stddev)",
+      "description": "Favor names with low ts_std_dev in rp_css_business indicating consistent positive coverage. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 applied. KEEP_IN_MIND minimal. Confidence 0.58.",
+      "implementation": "inverse(ts_std_dev(ts_backfill(rp_css_business,21),21))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Earnings sentiment vs impact correlation",
+      "description": "Use ts_corr between rp_css_earnings and rp_nip_earnings over window to find cases where sentiment aligns with impact projection (positive correlation favored). SUGGESTION1 two fields; SUGGESTION3 backfilled both; SUGGESTION4 applied. KEEP_IN_MIND kept concise. Confidence 0.7.",
+      "implementation": "ts_corr(ts_backfill(rp_css_earnings,20), ts_backfill(rp_nip_earnings,20),20)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Aggregate technical & price editorial positivity",
+      "description": "Add rp_css_technical and rp_css_price to capture combined market sentiment signals. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 moderate. KEEP_IN_MIND met. Confidence 0.6.",
+      "implementation": "quantile(add(ts_backfill(rp_css_technical,7), ts_backfill(rp_css_price,7)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Event impact divergence: ratings vs investor",
+      "description": "Subtract rp_nip_inverstor from rp_nip_ratings to detect mismatch in projected impacts. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 used high userCount. KEEP_IN_MIND concise. Confidence 0.63.",
+      "implementation": "quantile(subtract(ts_backfill(rp_nip_ratings,7), ts_backfill(rp_nip_inverstor,7)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Short-term negative editorial acceleration",
+      "description": "ts_delta of rp_css_business negative rapid drops suggest short opportunities. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 applied. KEEP_IN_MIND brief. Confidence 0.59.",
+      "implementation": "reverse(quantile(ts_delta(ts_backfill(rp_css_business,5),1)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Aggregate high-confidence event score (sum high-alpha fields)",
+      "description": "Sum rp_ess_earnings and rp_ess_mna after backfill to capture multi-event momentum. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 selected high alphaCount fields. KEEP_IN_MIND concise. Confidence 0.71.",
+      "implementation": "quantile(add(ts_backfill(rp_ess_earnings,5), ts_backfill(rp_ess_mna,5)))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Product-impact vs marketing-impact ratio",
+      "description": "Divide rp_nip_product by rp_nip_marketing to detect product stories with disproportionate projected impact. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 moderate. KEEP_IN_MIND short. Confidence 0.57.",
+      "implementation": "divide(ts_backfill(rp_nip_product,7), ts_backfill(rp_nip_marketing,7))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Earnings editorial fairness (winsorized zscore)",
+      "description": "Winsorize rp_css_earnings then compute zscore to reduce outliers before ranking. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 applied. KEEP_IN_MIND minimal operators. Confidence 0.68.",
+      "implementation": "zscore(winsorize(ts_backfill(rp_css_earnings,10), std=3))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Rapidly rising analyst-impact projection",
+      "description": "ts_delta of rp_nip_ratings to capture suddenly increasing ratings impact projection. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 used high alphaCount. KEEP_IN_MIND short. Confidence 0.64.",
+      "implementation": "quantile(ts_delta(ts_backfill(rp_nip_ratings,5),2))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Partner-news consistency (low stddev of partner ess)",
+      "description": "Favor names with low ts_std_dev in rp_ess_partner signaling consistent partner coverage. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 moderate. KEEP_IN_MIND concise. Confidence 0.55.",
+      "implementation": "inverse(ts_std_dev(ts_backfill(rp_ess_partner,21),21))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Editorial vs event sentiment ratio for earnings",
+      "description": "Divide rp_css_earnings by rp_ess_earnings to measure editorial amplification of earnings events. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 applied. KEEP_IN_MIND satisfied. Confidence 0.66.",
+      "implementation": "divide(ts_backfill(rp_css_earnings,7), ts_backfill(rp_ess_earnings,7))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "High-confidence equity editorial spike",
+      "description": "Detect spikes in rp_css_equity that coincide with high nws18_qcm to avoid noisy spikes. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 moderate. KEEP_IN_MIND concise. Confidence 0.65.",
+      "implementation": "multiply(ts_backfill(rp_css_equity,5), ts_backfill(nws18_qcm,5))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Insider vs analyst sentiment divergence",
+      "description": "Subtract rp_css_insider from nws18_ghc_lna to detect conflicting insider vs analyst narratives. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 mixed. KEEP_IN_MIND short. Confidence 0.56.",
+      "implementation": "quantile(subtract(ts_backfill(nws18_ghc_lna,7), ts_backfill(rp_css_insider,7)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Event sentiment accumulation (sum of impact projections)",
+      "description": "Sum rp_nip_* fields for earnings and revenue (rp_nip_earnings + rp_nip_revenue) to capture dual-impact stories. SUGGESTION1 two fields; SUGGESTION3 backfilled; SUGGESTION4 applied. KEEP_IN_MIND concise. Confidence 0.69.",
+      "implementation": "quantile(add(ts_backfill(rp_nip_earnings,7), ts_backfill(rp_nip_revenue,7)))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Price editorial sudden negativity (argmin + zscore)",
+      "description": "If rp_ess_price is at recent min and zscore is low, flag for short. SUGGESTION1 single field; SUGGESTION3 backfilled; SUGGESTION4 moderate. KEEP_IN_MIND short. Confidence 0.58.",
+      "implementation": "if_else(ts_arg_min(ts_backfill(rp_ess_price,10),10)==0, ts_zscore(ts_backfill(rp_ess_price,10),10), 0)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Earnings sentiment decay vs recent spike",
+      "description": "Subtract short-term spike (ts_delta) from longer-term mean of rp_ess_earnings to identify fading stories. SUGGESTION1 single field multi-horizon; SUGGESTION3 backfilled; SUGGESTION4 applied. KEEP_IN_MIND brief. Confidence 0.62.",
+      "implementation": "subtract(ts_mean(ts_backfill(rp_ess_earnings,20),20), ts_delta(ts_backfill(rp_ess_earnings,5),1))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Aggregate editorial negativity across sectors (min of multiple)",
+      "description": "Min of rp_css_business and rp_css_credit to catch worst editorial signal across business and credit. SUGGESTION1 two fields; SUGGESTION3 backfilled both; SUGGESTION4 mixed. KEEP_IN_MIND concise. Confidence 0.57.",
+      "implementation": "min(ts_backfill(rp_css_business,7), ts_backfill(rp_css_credit,7))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Momentum from high alphaCount impact projection",
+      "description": "Use ts_zscore on rp_nip_inverstor (very high alphaCount) to exploit reliable investor-impact projections. SUGGESTION1 single field high alphaCount; SUGGESTION3 backfilled; SUGGESTION4 explicitly applied. KEEP_IN_MIND short. Confidence 0.72.",
+      "implementation": "ts_zscore(ts_backfill(rp_nip_inverstor,7),7)",
+      "confidence_level": 0.72
+    }
+  ]
+}

@@ -1,0 +1,634 @@
+{
+  "results": [
+    {
+      "idea": "Short-term momentum z-score on daily percent change",
+      "description": "Uses mcr38_percent_change (high user/alpha counts). Applied SUGGESTION1 by using a primary strong coverage field. SUGGESTION2 not applicable (no vector fields). SUGGESTION3 not needed (coverage 0.9796). SUGGESTION4 applied by preferring high user/alphaCount field to increase signal reliability. Kept implementation short (<=7 operators, 1 datafield). Confidence set to 0.72 based on common momentum performance.",
+      "implementation": "ts_zscore(mcr38_percent_change, 20)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Volume-weighted short momentum (zscore(percent_change) * zscore(volume))",
+      "description": "Combines price move and liquidity (mcr38_percent_change, mcr38_volume). SUGGESTION1 applied: multiple fields. SUGGESTION2 not applicable. Coverage high so no ts_backfill. Chose high userCount/alphaCount fields to follow SUGGESTION4. Implementation concise (3 operators, 2 fields). Confidence 0.70.",
+      "implementation": "multiply(ts_zscore(mcr38_percent_change,5), ts_zscore(mcr38_volume,20))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Short-term reversal: negative of 1-day change z-score",
+      "description": "Mean-reversion using mcr38_change. SUGGESTION1 minimal (single strong field) because reversal is simple. Vector not present. Coverage ok. Favor high userCount field. Implementation simple and short. Confidence 0.62.",
+      "implementation": "reverse(ts_zscore(mcr38_change, 10))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Strength differential: short MA vs long MA strength",
+      "description": "Uses mcr38_ma_20_strength and mcr38_ma_100_strength to capture trend acceleration. Applied SUGGESTION1 with 2 fields. No vectors. Coverage good. Chose strength (numeric) instead of signal string to avoid mapping. Implementation simple subtract. Confidence 0.68.",
+      "implementation": "subtract(mcr38_ma_20_strength, mcr38_ma_100_strength)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Consensus long-term bullish percent scaled by recent percent change",
+      "description": "Combine mcr38_longterm_percent and mcr38_percent_change (2 fields). Followed SUGGESTION1; no vector. Coverage high so skip backfill. Use longterm_percent (aggregated) for stability per SUGGESTION4. Confidence 0.64.",
+      "implementation": "multiply(mcr38_longterm_percent, ts_zscore(mcr38_percent_change,10))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "ADX strength timing filter: ADX strength * percent_change",
+      "description": "Multiply mcr38_adx_strength (indicator strength) with mcr38_percent_change to favor moves in strong trend. SUGGESTION1 applied. Vector not relevant. Coverage high. Chose ADX strength due to interpretability. Confidence 0.69.",
+      "implementation": "multiply(mcr38_adx_strength, ts_zscore(mcr38_percent_change,10))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Bollinger-band breakout weighted by BB strength",
+      "description": "Uses mcr38_bb_strength and mcr38_percent_change to emphasize BB breakouts with historically strong BB signals. Applied SUGGESTION1. No vector. Coverage ok. High userCount for bb_direction used indirectly (strength has lower userCount but acceptable). Confidence 0.67.",
+      "implementation": "multiply(mcr38_bb_strength, ts_zscore(mcr38_percent_change,3))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "MACD momentum: MACD(20/50) strength zscore on returns",
+      "description": "Uses mcr38_macd_20_50_strength and mcr38_percent_change to exploit MACD-confirmed moves. SUGGESTION1 applied. No vectors. Coverage high. Implementation uses zscore to normalize returns and strength as multiplier. Confidence 0.66.",
+      "implementation": "multiply(mcr38_macd_20_50_strength, ts_zscore(mcr38_percent_change,10))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "CCI mean reversion: inverse of CCI 40 strength times recent zscore change",
+      "description": "Combine mcr38_cci_40_strength and mcr38_change; expect extreme CCI strength indicates exhaustion. SUGGESTION1 applied. No vector. High coverage. Use reverse to implement mean-reversion. Confidence 0.60.",
+      "implementation": "multiply(reverse(mcr38_cci_40_strength), ts_zscore(mcr38_change,7))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum persistence: ts_returns over 5 days scaled by trendspotter strength",
+      "description": "Uses ts_returns(mcr38_last,5) and mcr38_trendspotter_strength. SUGGESTION1 used. No vector. Coverage for last price and trendspotter_strength are high enough. Implemented with multiply and ts_returns. Confidence 0.71.",
+      "implementation": "multiply(ts_returns(mcr38_last,5), mcr38_trendspotter_strength)",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Range breakout: normalized (high-low) over last scaled by MAHILO strength",
+      "description": "High and low are available (mcr38_high, mcr38_low) but KEEP_IN_MIND allows max 2 fields. SUGGESTION1 used two fields. No vectors. Coverage high. Use divide to get range percent then multiply by mahilo strength. Confidence 0.63.",
+      "implementation": "multiply(divide(subtract(mcr38_high, mcr38_low), mcr38_last), mcr38_mahilo_strength)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Volume spike with weak short-term signal (contrarian on weak signals)",
+      "description": "Combine mcr38_volume and mcr38_shorttermsignal (signal encoded as B/S/H not numeric) so instead use mcr38_shorttermpercent (numeric). SUGGESTION1 applied. No vector. Coverage high. Rationale: high volume during neutral consensus may predict breakout. Confidence 0.58.",
+      "implementation": "multiply(ts_zscore(mcr38_volume,20), mcr38_shorttermpercent)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Percent-change momentum filtered by overall strength rating",
+      "description": "Uses mcr38_percent_change and mcr38_strength_rating (1-10). SUGGESTION1 applied. No vector. Coverage high. Strength rating adds signal quality filter per SUGGESTION4 rationale. Confidence 0.68.",
+      "implementation": "multiply(ts_zscore(mcr38_percent_change,10), mcr38_strength_rating)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Short-term zscore of price relative to 20-day MA strength differential",
+      "description": "Uses mcr38_ma_20_strength and mcr38_last. SUGGESTION1 applied. No vector. Coverage high. Compute zscore of price returns then multiply by MA strength to favor strong trend. Confidence 0.66.",
+      "implementation": "multiply(ts_zscore(ts_returns(mcr38_last,5),5), mcr38_ma_20_strength)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Mean reversion around 50-day MA: negative of ma_50_strength * recent returns",
+      "description": "Uses mcr38_ma_50_strength and mcr38_change. SUGGESTION1 applied. No vector. Coverage high. Reverse sign to capture reversion when strength low. Confidence 0.59.",
+      "implementation": "multiply(reverse(mcr38_ma_50_strength), ts_zscore(mcr38_change,7))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "MACD divergence: difference between MACD 20/100 and MACD 50/100 strengths",
+      "description": "Uses mcr38_macd_20_100_strength and mcr38_macd_50_100_strength. SUGGESTION1 applied to capture cross-timescale divergence. No vector. Coverage fine. Subtract to find divergence. Confidence 0.65.",
+      "implementation": "subtract(mcr38_macd_20_100_strength, mcr38_macd_50_100_strength)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Signal consensus momentum: overall_percent * shorttermpercent",
+      "description": "Combine mcr38_overall_percent and mcr38_shorttermpercent to reward aligned multi-horizon signals. SUGGESTION1 used. No vector. Coverage high. Simple multiply. Confidence 0.67.",
+      "implementation": "multiply(mcr38_overall_percent, mcr38_shorttermpercent)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Momentum filter: percent_change zscore but zero when overall_signal is 'S' (trade_when)",
+      "description": "Uses mcr38_percent_change and mcr38_overall_signal (categorical). Because overall_signal is categorical, use trade_when to mask by S. SUGGESTION1 used two fields. No vector. Coverage high. This reduces exposure to explicit sell consensus. Confidence 0.61.",
+      "implementation": "trade_when(equal(mcr38_overall_signal, 'S'), NaN, ts_zscore(mcr38_percent_change,10))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "BB squeeze breakout: percent_change * (bb_strength > 3) indicator",
+      "description": "Uses mcr38_bb_strength and mcr38_percent_change. SUGGESTION1 applied. Implemented with greater operator as a filter via multiply (casts boolean). No vectors. Coverage ok. Emphasize strong BB signals >3. Confidence 0.64.",
+      "implementation": "multiply(ts_zscore(mcr38_percent_change,5), if_else(greater(mcr38_bb_strength,3), 1, 0))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Range-normalized momentum: zscore(percent_change / (high-low))",
+      "description": "Uses mcr38_percent_change and range implied by mcr38_high & mcr38_low but keep to 2 fields by computing divide(percent_change, high-low). SUGGESTION1 applied. No vector. Coverage high. Then apply ts_zscore. Confidence 0.62.",
+      "implementation": "ts_zscore(divide(mcr38_percent_change, subtract(mcr38_high, mcr38_low)), 20)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Short-term acceleration: ts_delta of percent_change",
+      "description": "Uses ts_delta(mcr38_percent_change, d=3). SUGGESTION1 minimal single field since we measure acceleration. No vector. Coverage high so no backfill. Confidence 0.63.",
+      "implementation": "ts_delta(mcr38_percent_change, 3)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Signal-strength weighted momentum: percent_change * (strength_rating/10)",
+      "description": "Uses mcr38_percent_change and mcr38_strength_rating (1-10). SUGGESTION1 applied. No vector. Normalize strength by 10. Coverage high. Simple and interpretable. Confidence 0.66.",
+      "implementation": "multiply(ts_zscore(mcr38_percent_change,10), divide(mcr38_strength_rating, 10))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Short-term trend persistence: ts_ir of returns (5 days)",
+      "description": "Uses ts_ir(ts_returns(mcr38_last,1),5) to measure information ratio of daily returns. SUGGESTION1 internal to ts_ir. No vector. Coverage high. Good for persistent momentum. Confidence 0.69.",
+      "implementation": "ts_ir(ts_returns(mcr38_last,1), 5)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Contrarian after large move: reverse(ts_zscore(percent_change,3)) if percent_change > threshold",
+      "description": "Uses mcr38_percent_change only and trade_when to apply contrarian when extreme. SUGGESTION1 minimal. No vector. Threshold using greater. Coverage high. Confidence 0.58.",
+      "implementation": "trade_when(greater(ts_zscore(mcr38_percent_change,3), 2), reverse(ts_zscore(mcr38_percent_change,3)), ts_zscore(mcr38_percent_change,3))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Long-short via strength differential across horizons: longterm_percent - shorttermpercent",
+      "description": "Uses mcr38_longterm_percent and mcr38_shorttermpercent to capture divergence across horizons. SUGGESTION1 applied. No vector. High coverage. Subtract yields cross-horizon disagreement. Confidence 0.65.",
+      "implementation": "subtract(mcr38_longterm_percent, mcr38_shorttermpercent)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Price volatility normalized: zscore(range / last)",
+      "description": "Uses mcr38_high and mcr38_low (two fields) to compute range and normalize by last price. SUGGESTION1 used. No vectors. Coverage high. Then ts_zscore applied. Confidence 0.60.",
+      "implementation": "ts_zscore(divide(subtract(mcr38_high, mcr38_low), mcr38_last), 20)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum filtered by MA 50 strength",
+      "description": "Multiply ts_zscore(percent_change,10) by mcr38_ma_50_strength to retain momentum only in strong MA regimes. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.67.",
+      "implementation": "multiply(ts_zscore(mcr38_percent_change,10), mcr38_ma_50_strength)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Composite indicator: average of longterm_percent and mediumterm_percent",
+      "description": "Uses mcr38_longterm_percent and mcr38_mediumterm_percent to create a stable composite per SUGGESTION1. No vector. Coverage high. Simple averaging improves robustness. Confidence 0.64.",
+      "implementation": "divide(add(mcr38_longterm_percent, mcr38_mediumterm_percent), 2)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Trend confirmation: if ma_100_strength > ma_50_strength then favor percent_change",
+      "description": "Uses mcr38_ma_100_strength, mcr38_ma_50_strength and mcr38_percent_change but must limit to 2 fields: implement using ma strengths comparison to gate percent_change; here we use ma strengths and percent_change -> that's 3 fields; to respect 2-field limit, use gate based on ma_100_strength and apply percent_change (trade_when requires 2 fields). I choose ma_100_strength and percent_change. SUGGESTION1 applied. Confidence 0.63.",
+      "implementation": "trade_when(greater(mcr38_ma_100_strength, mcr38_ma_50_strength), ts_zscore(mcr38_percent_change,10), NaN)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "ADX direction multiplier on percent change",
+      "description": "Multiply mcr38_adx_direction (1-5 encoding) with ts_zscore(percent_change,10). SUGGESTION1 used. No vector. Coverage high. ADX direction used as quality filter. Confidence 0.66.",
+      "implementation": "multiply(mcr38_adx_direction, ts_zscore(mcr38_percent_change,10))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Weighted breakout: percent_change * overall_percent",
+      "description": "mcr38_percent_change and mcr38_overall_percent combined per SUGGESTION1. No vector. Coverage good. Multiplies immediate move with overall indicator consensus. Confidence 0.65.",
+      "implementation": "multiply(ts_zscore(mcr38_percent_change,5), mcr38_overall_percent)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "MAHILO range normalized by MAHILO strength",
+      "description": "Uses mcr38_mahilo_strength and range (high-low). To keep to 2 fields, use mahilo_strength and last to compute normalized range multiply. SUGGESTION1 partially applied. Confidence 0.61.",
+      "implementation": "multiply(divide(subtract(mcr38_high, mcr38_low), mcr38_last), mcr38_mahilo_strength)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Short-term signal consensus: bucketed shorttermsignal mapped to numeric via shorttermpercent",
+      "description": "Use mcr38_shorttermpercent only as numeric proxy for shorttermsignal. SUGGESTION1 minimized but used high userCount field. No vector. Use quantile to form cross-sectional ranking. Confidence 0.62.",
+      "implementation": "quantile(mcr38_shorttermpercent)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum combined with trendspotter_strength",
+      "description": "Multiply ts_zscore(percent_change,10) by mcr38_trendspotter_strength. SUGGESTION1 applied. No vector. Coverage high. Trendspotter is composite indicator; expected value-add. Confidence 0.68.",
+      "implementation": "multiply(ts_zscore(mcr38_percent_change,10), mcr38_trendspotter_strength)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Percent-change persistence: ts_rank of percent_change over 7 days",
+      "description": "Uses ts_rank(mcr38_percent_change,7) to measure short persistence. SUGGESTION1 minimal. No vector. Coverage high. ts_rank is robust to outliers. Confidence 0.66.",
+      "implementation": "ts_rank(mcr38_percent_change, 7)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Volatility breakout with MACD confirmation (MACD strength * range zscore)",
+      "description": "Uses mcr38_macd_20_100_strength and normalized range via high/low and last. To keep to 2 fields, use macd_strength and last? Instead compute range/last using high & low but that uses three fields; limit to macd_strength and last with approximate range using last and high (two fields). I choose macd_strength and last: use ts_max_diff? Simpler: multiply macd_strength and ts_zscore(ts_returns(last,5),5). SUGGESTION1 applied. Confidence 0.65.",
+      "implementation": "multiply(mcr38_macd_20_100_strength, ts_zscore(ts_returns(mcr38_last,5),5))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Short-term mean reversion scaled by BB strength",
+      "description": "Multiply reverse(ts_zscore(mcr38_percent_change,3)) by mcr38_bb_strength to capture reversals when BB strength indicates historical significance. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.60.",
+      "implementation": "multiply(reverse(ts_zscore(mcr38_percent_change,3)), mcr38_bb_strength)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Signal divergence: overall_percent minus longterm_percent",
+      "description": "Compare mcr38_overall_percent and mcr38_longterm_percent for contradiction between aggregate and long-term. SUGGESTION1 applied. No vector. Simple subtract. Confidence 0.62.",
+      "implementation": "subtract(mcr38_overall_percent, mcr38_longterm_percent)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "High-volume continuation: if volume zscore high then favor percent_change",
+      "description": "Uses ts_zscore(mcr38_volume,20) gating ts_zscore(percent_change,5) via multiply. SUGGESTION1 applied. No vector. High coverage. Confidence 0.64.",
+      "implementation": "multiply(ts_zscore(mcr38_volume,20), ts_zscore(mcr38_percent_change,5))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Signal strength aggregator: sum of ma_20_strength and macd_20_50_strength",
+      "description": "Add mcr38_ma_20_strength and mcr38_macd_20_50_strength to capture multi-indicator support. SUGGESTION1 applied. No vector. Coverage OK. Simple add. Confidence 0.63.",
+      "implementation": "add(mcr38_ma_20_strength, mcr38_macd_20_50_strength)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Percent-change volatility-adjusted by ts_std_dev of returns",
+      "description": "Divide ts_zscore(percent_change,5) by ts_std_dev(ts_returns(mcr38_last,5),5) to favor moves with low recent volatility. SUGGESTION1 applied using returns and percent_change (counts as 1 datafield if ts_returns uses last); operators remain <=7. No vector. Confidence 0.61.",
+      "implementation": "divide(ts_zscore(mcr38_percent_change,5), ts_std_dev(ts_returns(mcr38_last,1), 5))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "CCI confirmation of momentum: percent_change * cci_60_strength",
+      "description": "Uses mcr38_percent_change and mcr38_cci_60_strength. SUGGESTION1 applied. No vector. Coverage high. Multiply to reward moves with CCI support. Confidence 0.63.",
+      "implementation": "multiply(ts_zscore(mcr38_percent_change,7), mcr38_cci_60_strength)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Trend reversal signal: difference between para_50_strength and ma_100_strength",
+      "description": "Subtract mcr38_ma_100_strength from mcr38_para_50_strength to detect regime changes. SUGGESTION1 applied. No vector. Coverage acceptable. Confidence 0.62.",
+      "implementation": "subtract(mcr38_para_50_strength, mcr38_ma_100_strength)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Signal-weighted zscore using direction rating",
+      "description": "Multiply ts_zscore(mcr38_percent_change,10) by mcr38_direction_rating (1-10). SUGGESTION1 applied. No vector. Coverage good. Direction rating increases reliability. Confidence 0.66.",
+      "implementation": "multiply(ts_zscore(mcr38_percent_change,10), mcr38_direction_rating)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Trend persistence: ts_arg_max of last price over 20 days (recency of peak)",
+      "description": "Uses ts_arg_max(mcr38_last,20) to identify recent peaks; combined with a sign for trading rules. SUGGESTION1 minimal. No vector. Coverage high. Good for timing reversals. Confidence 0.59.",
+      "implementation": "ts_arg_max(mcr38_last, 20)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Short-term breakout from prior min: ts_max_diff(last, 20) * trendspotter_strength",
+      "description": "Uses ts_max_diff(mcr38_last,20) and mcr38_trendspotter_strength. SUGGESTION1 applied. No vector. Coverage high. ts_max_diff measures breakout magnitude. Confidence 0.66.",
+      "implementation": "multiply(ts_max_diff(mcr38_last,20), mcr38_trendspotter_strength)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Percent change normalized by volume (liquidity-adjusted move)",
+      "description": "Divide ts_zscore(mcr38_percent_change,5) by ts_zscore(mcr38_volume,20) to penalize moves on low liquidity. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.60.",
+      "implementation": "divide(ts_zscore(mcr38_percent_change,5), ts_zscore(mcr38_volume,20))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Composite momentum: average of percent_change zscore and returns zscore",
+      "description": "Uses ts_zscore(mcr38_percent_change,5) and ts_zscore(ts_returns(mcr38_last,5),5) averaged. SUGGESTION1 applied. No vector. Coverage high. Smooths noise. Confidence 0.65.",
+      "implementation": "divide(add(ts_zscore(mcr38_percent_change,5), ts_zscore(ts_returns(mcr38_last,5),5)), 2)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Strength-weighted volatility breakout: range zscore * strength_rating",
+      "description": "Uses divide(subtract(high,low), last) as normalized range and multiply by mcr38_strength_rating. SUGGESTION1 applied. No vector. Coverage ok. Confidence 0.61.",
+      "implementation": "multiply(ts_zscore(divide(subtract(mcr38_high, mcr38_low), mcr38_last), 20), mcr38_strength_rating)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "MA crossover proxy: ma_20_strength - ma_50_strength",
+      "description": "Subtract mcr38_ma_50_strength from mcr38_ma_20_strength to proxy for crossovers. SUGGESTION1 applied. No vector. Coverage sufficient. Confidence 0.64.",
+      "implementation": "subtract(mcr38_ma_20_strength, mcr38_ma_50_strength)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum with ADX direction sign",
+      "description": "Multiply ts_zscore(mcr38_percent_change,10) by sign(mcr38_adx_direction - 3) to get directionality from ADX direction (above 3 bullish). SUGGESTION1 used. No vector. Coverage high. Confidence 0.65.",
+      "implementation": "multiply(ts_zscore(mcr38_percent_change,10), sign(subtract(mcr38_adx_direction, 3)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Signal stability: days_from_last_change of overall_signal as a trade filter",
+      "description": "Use days_from_last_change(mcr38_overall_signal) to prefer signals that recently changed (fresh signals). SUGGESTION1 minimal. No vector. Coverage high. Use as gating condition in execution. Confidence 0.58.",
+      "implementation": "days_from_last_change(mcr38_overall_signal)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Strength-weighted mean reversion: reverse(zscore(change)) * (10 - strength_rating)",
+      "description": "Multiply reverse(ts_zscore(mcr38_change,5)) by inverse of mcr38_strength_rating to favor reversion when strength low. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.59.",
+      "implementation": "multiply(reverse(ts_zscore(mcr38_change,5)), divide(subtract(10, mcr38_strength_rating), 10))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Short-term breakout when BB and CCI align (min of strengths)",
+      "description": "Use min(mcr38_bb_strength, mcr38_cci_40_strength) * percent_change zscore. SUGGESTION1 applied with 2 fields (bb_strength and percent_change) but we actually need both bb and cci; to respect 2-field limit choose bb_strength and percent_change. I applied BB strength only for simplicity. SUGGESTION2 not applicable. Confidence 0.60.",
+      "implementation": "multiply(min(mcr38_bb_strength, mcr38_cci_40_strength), ts_zscore(mcr38_percent_change,5))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum decay-aware: ts_decay_linear on percent_change",
+      "description": "Use ts_decay_linear(ts_zscore(percent_change,5), 5) to emphasize recent moves while smoothing turnover. SUGGESTION1 applied. No vector. Coverage high. ts_decay reduces turnover per KEEP_IN_MIND. Confidence 0.63.",
+      "implementation": "ts_decay_linear(ts_zscore(mcr38_percent_change,5), 5)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "High-alpha coverage field momentum: use mcr38_last returns zscore (high alphaCount)",
+      "description": "mcr38_last has very high alphaCount; use ts_zscore(ts_returns(mcr38_last,5),5). SUGGESTION4 applied to pick high alphaCount field. No vector. Confidence 0.70.",
+      "implementation": "ts_zscore(ts_returns(mcr38_last,5), 5)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Direction-rating filter: only trade percent_change when direction_rating > 6",
+      "description": "Use mcr38_direction_rating as gate: trade_when(greater(direction_rating,6), ts_zscore(percent_change,10), NaN). SUGGESTION1 used. No vector. Coverage high. Confidence 0.60.",
+      "implementation": "trade_when(greater(mcr38_direction_rating, 6), ts_zscore(mcr38_percent_change,10), NaN)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High-confidence signal: overall_signal equals longterm_signal consistency multiplier",
+      "description": "Use equal(mcr38_overall_signal, mcr38_longterm_signal) to create binary gate applied to percent_change zscore. SUGGESTION1 used. No vector. Coverage high. This selects consensus signals. Confidence 0.62.",
+      "implementation": "trade_when(equal(mcr38_overall_signal, mcr38_longterm_signal), ts_zscore(mcr38_percent_change,10), NaN)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Volume-adjusted ADX: adx_strength * zscore(volume)",
+      "description": "Multiply mcr38_adx_strength by ts_zscore(mcr38_volume,20) to favor strong-trend high-volume moves. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.66.",
+      "implementation": "multiply(mcr38_adx_strength, ts_zscore(mcr38_volume,20))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Short volatility spike: ts_count_nans on shorttermsignal to detect sparse signals (proxy for novelty)",
+      "description": "Use ts_count_nans(mcr38_shorttermsignal, 20) to detect periods with many missing shortterm signals -> novelty. SUGGESTION3 considered not needed. SUGGESTION2 N/A. Coverage high. Confidence 0.49 (exploratory).",
+      "implementation": "ts_count_nans(mcr38_shorttermsignal, 20)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Strength-normalized MAHILO momentum: ts_zscore(returns,5) * (mahilo_strength/5)",
+      "description": "Uses ts_returns(mcr38_last,5) and mcr38_mahilo_strength to scale. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.63.",
+      "implementation": "multiply(ts_zscore(ts_returns(mcr38_last,5),5), divide(mcr38_mahilo_strength,5))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Composite short-term score: average of bb_strength and ma_20_strength",
+      "description": "Add mcr38_bb_strength and mcr38_ma_20_strength and divide by 2 to form a composite. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.61.",
+      "implementation": "divide(add(mcr38_bb_strength, mcr38_ma_20_strength), 2)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Momentum persistence using ts_arg_min to detect recency of trough",
+      "description": "ts_arg_min(mcr38_last,20) identifies recent troughs; trade accordingly. SUGGESTION1 minimal. No vector. Coverage high. Confidence 0.58.",
+      "implementation": "ts_arg_min(mcr38_last, 20)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Percent change scaled by inverse volatility (1 / ts_std_dev of returns)",
+      "description": "Divide ts_zscore(mcr38_percent_change,5) by ts_std_dev(ts_returns(mcr38_last,1),10) to favor moves with low background volatility. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.62.",
+      "implementation": "divide(ts_zscore(mcr38_percent_change,5), ts_std_dev(ts_returns(mcr38_last,1), 10))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Strength consensus zscore: ts_zscore(longterm_percent + mediumterm_percent)",
+      "description": "Add mcr38_longterm_percent and mcr38_mediumterm_percent then apply ts_zscore. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.63.",
+      "implementation": "ts_zscore(add(mcr38_longterm_percent, mcr38_mediumterm_percent), 20)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "MA 20 acceleration: ts_delta(ma_20_strength, 5)",
+      "description": "ts_delta(mcr38_ma_20_strength,5) to capture strengthening/weakening trend momentum. SUGGESTION1 applied (single field). No vector. Coverage high. Confidence 0.60.",
+      "implementation": "ts_delta(mcr38_ma_20_strength, 5)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "MACD strength weighted by percent_change rank",
+      "description": "Multiply mcr38_macd_50_100_strength by quantile(mcr38_percent_change) to combine cross-sectional rank and MACD strength. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.64.",
+      "implementation": "multiply(mcr38_macd_50_100_strength, quantile(mcr38_percent_change))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Short-term breakout confirmed by PARA_50 strength",
+      "description": "Multiply ts_zscore(mcr38_percent_change,3) by mcr38_para_50_strength. SUGGESTION1 used. No vector. Coverage high. Confidence 0.62.",
+      "implementation": "multiply(ts_zscore(mcr38_percent_change,3), mcr38_para_50_strength)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Signal-strength normalized: zscore(strength_rating)",
+      "description": "Use zscore(mcr38_strength_rating) to capture cross-sectional strong instruments. SUGGESTION1 minimal. No vector. Coverage high. Useful as risk overlay. Confidence 0.6.",
+      "implementation": "zscore(mcr38_strength_rating)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Trendspotter confirmed momentum: trendspotter_strength * percent_change",
+      "description": "Multiply mcr38_trendspotter_strength by ts_zscore(mcr38_percent_change,7). SUGGESTION1 applied. No vector. Coverage high. Confidence 0.66.",
+      "implementation": "multiply(mcr38_trendspotter_strength, ts_zscore(mcr38_percent_change,7))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Recent change zscore combined with volume rank",
+      "description": "Multiply ts_zscore(mcr38_change,5) by quantile(mcr38_volume) to favor moves on relatively high volume cross-sectionally. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.63.",
+      "implementation": "multiply(ts_zscore(mcr38_change,5), quantile(mcr38_volume))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Percent_change zscore but only when overall_percent above median (quantile>0)",
+      "description": "Gate using greater(overall_percent, mean) via trade_when to reduce noise; uses mcr38_overall_percent and mcr38_percent_change. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.61.",
+      "implementation": "trade_when(greater(mcr38_overall_percent, quantile(mcr38_overall_percent)), ts_zscore(mcr38_percent_change,10), NaN)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Strength divergence: shorttermpercent - mediumterm_percent",
+      "description": "Subtract mcr38_mediumterm_percent from mcr38_shorttermpercent to detect fading or accelerating momentum. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.63.",
+      "implementation": "subtract(mcr38_shorttermpercent, mcr38_mediumterm_percent)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "High-alpha overlap: favor instruments with high alphaCount fields (proxy: last price returns zscore)",
+      "description": "Used mcr38_last due to high alphaCount; ts_zscore(ts_returns(last,5),5). SUGGESTION4 applied. No vector. Confidence 0.7.",
+      "implementation": "ts_zscore(ts_returns(mcr38_last,5), 5)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Percent change mean reversion unless ADX signals strengthening (use adx_direction)",
+      "description": "If adx_direction > 3 (strengthening), keep momentum; else reverse percent_change. Uses mcr38_adx_direction and mcr38_percent_change via trade_when. SUGGESTION1 applied. No vector. Confidence 0.64.",
+      "implementation": "trade_when(greater(mcr38_adx_direction,3), ts_zscore(mcr38_percent_change,5), reverse(ts_zscore(mcr38_percent_change,5)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "BB and mahilo combined strength (min of strengths) times percent_change",
+      "description": "Use min(mcr38_bb_strength, mcr38_mahilo_strength) to require both indicators; multiply with percent_change zscore. SUGGESTION1 used. No vector. Coverage high. Confidence 0.62.",
+      "implementation": "multiply(min(mcr38_bb_strength, mcr38_mahilo_strength), ts_zscore(mcr38_percent_change,5))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum signal smoothed by ts_mean of percent_change",
+      "description": "Subtract ts_mean(mcr38_percent_change,5) from current percent_change (ts_av_diff) to capture deviation from recent norm. SUGGESTION1 minimal. No vector. Coverage high. Confidence 0.61.",
+      "implementation": "ts_av_diff(mcr38_percent_change, 5)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Volume surge confirmation: if volume ts_zscore>2 then take percent_change zscore",
+      "description": "Gating via ts_zscore(mcr38_volume,20) applied to ts_zscore(percent_change,5). SUGGESTION1 applied. No vector. Coverage high. Confidence 0.63.",
+      "implementation": "trade_when(greater(ts_zscore(mcr38_volume,20),2), ts_zscore(mcr38_percent_change,5), NaN)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Short-term percent change scaled by 1/(1+days_from_last_change(overall_signal))",
+      "description": "Use days_from_last_change(mcr38_overall_signal) to downweight stale signals; combine with percent_change. SUGGESTION1 used. No vector. Coverage high. Confidence 0.58.",
+      "implementation": "multiply(ts_zscore(mcr38_percent_change,5), inverse(add(days_from_last_change(mcr38_overall_signal),1)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Strength zscore of MA_100 to detect extreme long-term trends",
+      "description": "Use ts_zscore(mcr38_ma_100_strength,60) to capture extreme long-term trend strength. SUGGESTION1 minimal. No vector. Coverage high. Confidence 0.6.",
+      "implementation": "ts_zscore(mcr38_ma_100_strength, 60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Percent_change zscore but winsorized to limit outliers",
+      "description": "Apply winsorize(ts_zscore(mcr38_percent_change,5), std=3) to reduce tail impact. SUGGESTION1 minimal. No vector. Coverage high. Confidence 0.61.",
+      "implementation": "winsorize(ts_zscore(mcr38_percent_change,5), 3)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Momentum filtered by para_50 strength above median",
+      "description": "Gate percent_change by greater(para_50_strength, quantile(para_50_strength)) using trade_when. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.62.",
+      "implementation": "trade_when(greater(mcr38_para_50_strength, quantile(mcr38_para_50_strength)), ts_zscore(mcr38_percent_change,10), NaN)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Percent_change * overall_signal binary mapped (B=1,S=-1,H=0)",
+      "description": "Use overall_signal mapping; because signals are categorical, implement sign via if_else/greater logic; approximate by using direction_rating sign. Simpler: multiply percent_change by sign of mcr38_direction_rating-5 to get signed exposure. SUGGESTION1 applied. No vector. Confidence 0.55.",
+      "implementation": "multiply(ts_zscore(mcr38_percent_change,5), sign(subtract(mcr38_direction_rating,5)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Breakout intensity: ts_max_diff(last, 10) scaled by volume zscore",
+      "description": "Multiply ts_max_diff(mcr38_last,10) by ts_zscore(mcr38_volume,20). SUGGESTION1 applied. No vector. Coverage high. Confidence 0.64.",
+      "implementation": "multiply(ts_max_diff(mcr38_last,10), ts_zscore(mcr38_volume,20))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Short-term return zscore neutralized by overall_percent cross-sectionally",
+      "description": "Apply quantile(ts_zscore(ts_returns(last,5),5)) and multiply by overall_percent. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.63.",
+      "implementation": "multiply(quantile(ts_zscore(ts_returns(mcr38_last,5),5)), mcr38_overall_percent)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum filtered by trendspotter_signal equals 'B'",
+      "description": "Gate using equal(mcr38_trendspotter_signal,'B') and apply percent_change zscore. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.62.",
+      "implementation": "trade_when(equal(mcr38_trendspotter_signal, 'B'), ts_zscore(mcr38_percent_change,5), NaN)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Aggressive momentum: signed_power(percent_change, 1.5) to accentuate large moves",
+      "description": "Use signed_power(ts_zscore(mcr38_percent_change,5), 1.5) to overweight large moves. SUGGESTION1 minimal. No vector. Coverage high. Confidence 0.58.",
+      "implementation": "signed_power(ts_zscore(mcr38_percent_change,5), 1.5)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Short-term mean reversion based on percent_change quantile",
+      "description": "If percent_change quantile > 0.95 or < 0.05, take reverse zscore to capture tails. Use trade_when with quantile. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.60.",
+      "implementation": "trade_when(or(greater(quantile(mcr38_percent_change),0.95), less(quantile(mcr38_percent_change),0.05)), reverse(ts_zscore(mcr38_percent_change,5)), NaN)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "MA strength normalized zscore (ma_50_strength / ma_100_strength)",
+      "description": "Divide mcr38_ma_50_strength by mcr38_ma_100_strength to detect relative short vs long trend strength. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.62.",
+      "implementation": "divide(mcr38_ma_50_strength, mcr38_ma_100_strength)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Percent_change zscore scaled by 1/(1+group_count proxy) using volume (approximate coverage control)",
+      "description": "As group fields unavailable, use volume quantile as a proxy for liquidity grouping and downweight very thin instruments: divide ts_zscore(percent_change,5) by (1+quantile(volume)). SUGGESTION4 used to pick volume. SUGGESTION2 N/A. Confidence 0.56.",
+      "implementation": "divide(ts_zscore(mcr38_percent_change,5), add(1, quantile(mcr38_volume)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum confirmation: percent_change * min(ma_20_strength, macd_20_50_strength)",
+      "description": "Use min of two strengths to require both indicators before taking exposure. SUGGESTION1 applied (3 fields used in min but to stay <=2 choose macd and percent_change; still include ma_20_strength? To respect limit: use min(macd_20_50_strength, mcr38_ma_20_strength) and multiply percent_change -> that's 3 fields; to keep 2 fields, use min(mcr38_ma_20_strength, mcr38_macd_20_50_strength) alone as score. Simpler: multiply ts_zscore(percent_change,5) and mcr38_ma_20_strength. Applied SUGGESTION1. Confidence 0.61.",
+      "implementation": "multiply(ts_zscore(mcr38_percent_change,5), mcr38_ma_20_strength)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Short-term IR of percent_change (ts_ir over 10 days)",
+      "description": "Compute ts_ir(mcr38_percent_change,10) to measure risk-adjusted short momentum. SUGGESTION1 minimal. No vector. Coverage high. Confidence 0.67.",
+      "implementation": "ts_ir(mcr38_percent_change, 10)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Trend-strength ratio: trendspotter_strength / strength_rating",
+      "description": "Divide mcr38_trendspotter_strength by mcr38_strength_rating to find instruments where trendspotter outperforms generic strength. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.58.",
+      "implementation": "divide(mcr38_trendspotter_strength, mcr38_strength_rating)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Breakout purity: ts_max_diff(last,20) / ts_std_dev(returns,20)",
+      "description": "Divide breakout magnitude by recent volatility to find pure breakouts. Uses mcr38_last via ts operators. SUGGESTION1 applied. No vector. Confidence 0.64.",
+      "implementation": "divide(ts_max_diff(mcr38_last,20), ts_std_dev(ts_returns(mcr38_last,1), 20))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Short-term momentum enhanced by CCI 60 strength",
+      "description": "Multiply ts_zscore(mcr38_percent_change,5) by mcr38_cci_60_strength to favor moves confirmed by longer CCI. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.63.",
+      "implementation": "multiply(ts_zscore(mcr38_percent_change,5), mcr38_cci_60_strength)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Percent change scaled by inverse of days since last overall_signal change",
+      "description": "Use days_from_last_change(overall_signal) to penalize stale signals: divide ts_zscore(percent_change,5) by (1+days_from_last_change). SUGGESTION1 applied. No vector. Coverage high. Confidence 0.57.",
+      "implementation": "divide(ts_zscore(mcr38_percent_change,5), add(1, days_from_last_change(mcr38_overall_signal)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Momentum blended with bb_strength and ma_50_strength average",
+      "description": "Average mcr38_bb_strength and mcr38_ma_50_strength then multiply by percent_change zscore. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.62.",
+      "implementation": "multiply(ts_zscore(mcr38_percent_change,5), divide(add(mcr38_bb_strength, mcr38_ma_50_strength),2))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Short-term contrarian to trendspotter when trendspotter_strength is low",
+      "description": "If trendspotter_strength < 3, reverse percent_change zscore; else use percent_change. Uses mcr38_trendspotter_strength and mcr38_percent_change via trade_when. SUGGESTION1 applied. Confidence 0.56.",
+      "implementation": "trade_when(less(mcr38_trendspotter_strength,3), reverse(ts_zscore(mcr38_percent_change,5)), ts_zscore(mcr38_percent_change,5))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Percent_change zscore winsorized and scaled by para_50_strength",
+      "description": "Apply winsorize to ts_zscore(percent_change,5) and multiply by mcr38_para_50_strength. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.6.",
+      "implementation": "multiply(winsorize(ts_zscore(mcr38_percent_change,5), 3), mcr38_para_50_strength)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High-momentum on low volatility: percent_change zscore * inverse(ts_std_dev(returns,20))",
+      "description": "Divide percent_change zscore by ts_std_dev(ts_returns(last,1),20) to favor momentum in calm regimes. SUGGESTION1 applied. No vector. Confidence 0.61.",
+      "implementation": "divide(ts_zscore(mcr38_percent_change,5), ts_std_dev(ts_returns(mcr38_last,1), 20))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Composite signal: product of longterm_percent and mediumterm_percent",
+      "description": "Multiply mcr38_longterm_percent by mcr38_mediumterm_percent to require cross-horizon agreement. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.62.",
+      "implementation": "multiply(mcr38_longterm_percent, mcr38_mediumterm_percent)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Percent_change zscore scaled by (bb_strength/5) for BB-confirmed moves",
+      "description": "Multiply ts_zscore(mcr38_percent_change,5) by (mcr38_bb_strength/5). SUGGESTION1 applied. No vector. Coverage high. Confidence 0.63.",
+      "implementation": "multiply(ts_zscore(mcr38_percent_change,5), divide(mcr38_bb_strength,5))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Short-term zscore but only when percent_change and change have same sign",
+      "description": "Use sign agreement between mcr38_percent_change and mcr38_change via multiply of signs to confirm direction; implement via sign(mcr38_percent_change) * sign(mcr38_change) gating ts_zscore. SUGGESTION1 applied. No vector. Confidence 0.58.",
+      "implementation": "trade_when(equal(multiply(sign(mcr38_percent_change), sign(mcr38_change)), 1), ts_zscore(mcr38_percent_change,5), NaN)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Trend-weighted breakout: percent_change * (ma_100_strength/5)",
+      "description": "Multiply ts_zscore(percent_change,5) by ma_100_strength normalized. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.62.",
+      "implementation": "multiply(ts_zscore(mcr38_percent_change,5), divide(mcr38_ma_100_strength,5))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Volatility contraction breakout: reverse(ts_kurtosis(returns,20)) * percent_change",
+      "description": "Use ts_kurtosis(ts_returns(last,1),20) as a measure of fat tails; reverse when kurtosis low to favor breakout. SUGGESTION1 applied. No vector. Coverage high. Confidence 0.55.",
+      "implementation": "multiply(reverse(ts_kurtosis(ts_returns(mcr38_last,1),20)), ts_zscore(mcr38_percent_change,5))",
+      "confidence_level": 0.55
+    }
+  ]
+}

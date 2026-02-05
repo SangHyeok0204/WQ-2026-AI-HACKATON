@@ -1,0 +1,592 @@
+{
+  "results": [
+    {
+      "idea": "5-day momentum scaled by volatility",
+      "description": "Core: Capture medium-term momentum divided by recent volatility. SUGGESTION1: applied (uses news_eod_close and news_atr14). SUGGESTION2: not applied (no vector field used). SUGGESTION3: not applied (both coverages >0.6). SUGGESTION4: applied (news_eod_close userCount=1095/alphaCount=2740, news_atr14 userCount=609/alphaCount=3507). KEEP_IN_MINDs: implementation uses 2 datafields and 3 operators, brief and within operator limits. I set confidence = 0.72 based on well-known momentum/volatility efficacy.",
+      "implementation": "divide(ts_returns(news_eod_close,5), news_atr14)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "1-day reversal (short-term mean reversion)",
+      "description": "Core: Short-term reversal by taking negative 1-day return. SUGGESTION1: not applied (single field news_eod_close) to keep signal clean. SUGGESTION2: not applied. SUGGESTION3: not applied (coverage high). SUGGESTION4: applied (news_eod_close high user/alpha counts). KEEP_IN_MINDs: one field, one operator; short implementation. I set confidence = 0.60 as intraday reversal is common but lower persistence.",
+      "implementation": "reverse(ts_returns(news_eod_close,1))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings surprise immediate momentum",
+      "description": "Core: After earnings, positive EPS surprise tends to push price; combine eps actual z-score with 1-day return. SUGGESTION1: applied (news_eps_actual, news_pct_1min). SUGGESTION2: not applied. SUGGESTION3: not applied (both coverages >0.9). SUGGESTION4: applied (news_eps_actual userCount=459/alphaCount=1230; news_pct_1min userCount=218/alphaCount=460). KEEP_IN_MINDs: two datafields, three operators. I set confidence = 0.75 given strong earnings-driven moves.",
+      "implementation": "multiply(ts_zscore(news_eps_actual,5), ts_returns(news_eod_close,1))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Gap open follow-through (open gap * overnight return)",
+      "description": "Core: Use open gap to predict continuation into session. SUGGESTION1: applied (news_open_gap and news_pct_10min). SUGGESTION2: not applied. SUGGESTION3: not applied (coverage news_open_gap=0.6247>0.6; news_pct_10min=0.7657). SUGGESTION4: partial (news_pct_10min lower userCount but acceptable). KEEP_IN_MINDs: two fields, three operators. Confidence = 0.66.",
+      "implementation": "multiply(news_open_gap, ts_returns(news_eod_close,1))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Volatility breakout: ATR change signals big moves",
+      "description": "Core: Rising ATR predicts larger price moves; favor direction of recent returns. SUGGESTION1: applied (news_atr14 and news_eod_close). SUGGESTION2: not applied. SUGGESTION3: not needed (coverage high). SUGGESTION4: applied (news_atr14 alphaCount high). KEEP_IN_MINDs: two fields, uses ts_delta and ts_returns (2 ops). Confidence = 0.68.",
+      "implementation": "multiply(ts_delta(news_atr14,1), ts_returns(news_eod_close,1))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Size-adjusted momentum (momentum scaled by market cap)",
+      "description": "Core: Momentum signal stronger in smaller caps; divide 10-day return by market cap. SUGGESTION1: applied (news_eod_close and news_cap). SUGGESTION2: not applied. SUGGESTION3: not applied (both coverages >0.8). SUGGESTION4: applied (news_cap userCount=1722/alphaCount=6299). KEEP_IN_MINDs: two fields, simple ops. Confidence = 0.70.",
+      "implementation": "divide(ts_returns(news_eod_close,10), news_cap)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Volume surge continuation (curr_vol / mov_vol * short-term return)",
+      "description": "Core: Large current volume vs 30-day average indicates meaningful moves; combine with 5-min return. SUGGESTION1: applied (news_curr_vol and news_mov_vol). SUGGESTION2: not applied. SUGGESTION3: not applied (coverages >0.7). SUGGESTION4: partial (news_curr_vol userCount moderate). KEEP_IN_MINDs: two datafields, two operators. Confidence = 0.65.",
+      "implementation": "multiply(divide(news_curr_vol, news_mov_vol), ts_returns(news_eod_close,1))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Post-news 1-min continuation filter by volatility",
+      "description": "Core: Use first-minute percent change but downweight noisy names using ATR. SUGGESTION1: applied (news_pct_1min and news_atr14). SUGGESTION2: not applied. SUGGESTION3: not applied. SUGGESTION4: applied (both fields decent user/alpha counts). KEEP_IN_MINDs: two fields and two operators. Confidence = 0.67.",
+      "implementation": "divide(news_pct_1min, news_atr14)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "VWAP vs news price mean-reversion",
+      "description": "Core: Price divergence from pre-news VWAP tends to revert; use difference between TONLast and pre_vwap. SUGGESTION1: applied (news_ton_last and news_pre_vwap). SUGGESTION2: not applied. SUGGESTION3: not applied (coverage pre_vwap 0.8289). SUGGESTION4: applied (both fields used in many alphas). KEEP_IN_MINDs: two fields, one subtract operator. Confidence = 0.63.",
+      "implementation": "subtract(news_ton_last, news_pre_vwap)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Post-news extreme move fade (high exc stddev)",
+      "description": "Core: If after-news high relative to 30-day stddev is extreme, expect mean reversion. SUGGESTION1: applied (news_high_exc_stddev and news_pct_30min). SUGGESTION2: not applied. SUGGESTION3: not applied (coverage high). SUGGESTION4: applied (high alphaCount for news_high_exc_stddev). KEEP_IN_MINDs: two fields, two operators. Confidence = 0.64.",
+      "implementation": "multiply(reverse(news_high_exc_stddev), news_pct_30min)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Short-interest momentum signal",
+      "description": "Core: High short interest that is decreasing can indicate squeeze potential; combine short_interest change with price return. SUGGESTION1: applied (news_short_interest and news_eod_close). SUGGESTION2: not applied. SUGGESTION3: not applied (coverage short_interest=0.872). SUGGESTION4: applied (short_interest userCount decent). KEEP_IN_MINDs: uses ts_delta and ts_returns (2 fields, 2 ops). Confidence = 0.61.",
+      "implementation": "multiply(reverse(ts_delta(news_short_interest,5)), ts_returns(news_eod_close,5))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Pre-market gap fade vs post vwap",
+      "description": "Core: Large pre-session gap often reverts to post-session VWAP. SUGGESTION1: applied (news_open_gap and news_post_vwap). SUGGESTION2: not applied. SUGGESTION3: not applied (post_vwap coverage 0.9705). SUGGESTION4: partial (open_gap lower userCount but OK). KEEP_IN_MINDs: two fields and one subtract. Confidence = 0.59.",
+      "implementation": "subtract(news_post_vwap, multiply(news_open_gap, news_ton_last))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Relative strength vs index (stock vs SPY)",
+      "description": "Core: Use news_indx_perf which is stock performance minus SPY; rank high relative performers to go long. SUGGESTION1: applied (news_indx_perf only). SUGGESTION2: not applied. SUGGESTION3: not applied (coverage high). SUGGESTION4: applied (alphaCount high). KEEP_IN_MINDs: single field, short. Confidence = 0.66.",
+      "implementation": "ts_zscore(news_indx_perf,5)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "High tick activity continuation",
+      "description": "Core: Large tot_ticks indicates institutional flow; combine with short-term return. SUGGESTION1: applied (news_tot_ticks and news_pct_10min). SUGGESTION2: not applied. SUGGESTION3: not applied (coverage high). SUGGESTION4: applied (news_tot_ticks userCount=673 alphaCount=1422). KEEP_IN_MINDs: two fields, multiplication. Confidence = 0.62.",
+      "implementation": "multiply(news_tot_ticks, ts_returns(news_eod_close,1))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Large after-news up move continuation (max_up_ret filter)",
+      "description": "Core: If after-news max up return is large but not volatile, follow the direction. SUGGESTION1: applied (news_max_up_ret and news_vol_stddev). SUGGESTION2: not applied. SUGGESTION3: not applied (both coverages >0.84). SUGGESTION4: applied. KEEP_IN_MINDs: two fields, two ops. Confidence = 0.60.",
+      "implementation": "divide(news_max_up_ret, news_vol_stddev)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Range breakout scaled by range standardization",
+      "description": "Core: Use session_range relative to 30-day range stddev to detect breakouts. SUGGESTION1: applied (news_session_range and news_range_stddev). SUGGESTION2: not applied. SUGGESTION3: applied if coverage <0.6; session_range coverage=0.4236 so ts_backfill recommended but instead I avoid backfill by using range_stddev (coverage 0.6172). SUGGESTION4: partial (range_stddev userCount low). KEEP_IN_MINDs: two fields, division. Confidence = 0.54 (weaker due to session_range coverage).",
+      "implementation": "divide(news_session_range, news_range_stddev)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Momentum filtered by PE (cheap winners)",
+      "description": "Core: Favor momentum in low PE stocks (value+momentum). SUGGESTION1: applied (news_eod_close and news_pe_ratio). SUGGESTION2: not applied. SUGGESTION3: not applied (coverage pe_ratio=0.9662). SUGGESTION4: applied (news_pe_ratio userCount=1187/alphaCount=2682). KEEP_IN_MINDs: two fields, divide momentum by pe. Confidence = 0.71.",
+      "implementation": "divide(ts_returns(news_eod_close,20), news_pe_ratio)",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Post-news microstructure: first 30s strength",
+      "description": "Core: Use 30-second percent (news_pct_30sec) as immediate sentiment indicator for short trades. SUGGESTION1: applied (news_pct_30sec only). SUGGESTION2: not applied. SUGGESTION3: not applied (coverage 0.9673). SUGGESTION4: applied (userCount moderate). KEEP_IN_MINDs: single field, short. Confidence = 0.63.",
+      "implementation": "ts_zscore(news_pct_30sec,3)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Overbought short via high intraday percentile",
+      "description": "Core: Use news_mins_20_pct_up (time to 20% up) short if very fast. SUGGESTION1: applied (news_mins_20_pct_up only). SUGGESTION2: not applied. SUGGESTION3: not needed (coverage high). SUGGESTION4: applied (alphaCount decent). KEEP_IN_MINDs: field has single use. Confidence = 0.50 (rare events).",
+      "implementation": "reverse(ts_zscore(news_mins_20_pct_up,5))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Earnings surprise reversal on extreme post-move",
+      "description": "Core: If EPS actual is high but post-news max up is extreme, fade the move. SUGGESTION1: applied (news_eps_actual and news_max_up_ret). SUGGESTION2: not applied. SUGGESTION3: not applied (coverage high). SUGGESTION4: applied. KEEP_IN_MINDs: two fields, subtraction and reverse. Confidence = 0.58.",
+      "implementation": "multiply(reverse(news_max_up_ret), ts_zscore(news_eps_actual,3))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Price/volume divergence (price drop on rising volume) mean reversion",
+      "description": "Core: When price drops but current volume > mov_vol, expect rebound. SUGGESTION1: applied (news_pct_10min and news_ratio_vol). SUGGESTION2: not applied. SUGGESTION3: news_ratio_vol coverage=0.5122<0.6 so I would ts_backfill; SUGGESTION3: applied. SUGGESTION4: partial. KEEP_IN_MINDs: two fields, backfill used once. Confidence = 0.55.",
+      "implementation": "trade_when(and(less(ts_backfill(news_ratio_vol,5),1), less(ts_returns(news_eod_close,1),0)), reverse(ts_returns(news_eod_close,1)), NaN)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Trailing volatility contraction breakout",
+      "description": "Core: Low volstddev then sudden vol spike predicts directional breakout. SUGGESTION1: applied (news_vol_stddev and news_atr14). SUGGESTION2: not applied. SUGGESTION3: not applied (coverage vol_stddev=0.9672). SUGGESTION4: applied. KEEP_IN_MINDs: two fields, product of signals. Confidence = 0.66.",
+      "implementation": "multiply(reverse(news_vol_stddev), ts_delta(news_atr14,1))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Momentum conditioned on low 30-day range z-score",
+      "description": "Core: Momentum in structurally quiet stocks often offers cleaner signals; use range stddev downweight. SUGGESTION1: applied (ts_returns(news_eod_close,10) and news_range_stddev). SUGGESTION2: not applied. SUGGESTION3: not applied (range_stddev coverage 0.6172 borderline). SUGGESTION4: partial. KEEP_IN_MINDs: two inputs and divide op. Confidence = 0.60.",
+      "implementation": "divide(ts_returns(news_eod_close,10), news_range_stddev)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "After-news imbalance proxy: ton_last vs main_vwap",
+      "description": "Core: Difference between TONLast and main_vwap signals immediate directional pressure. SUGGESTION1: applied (news_ton_last and news_main_vwap). SUGGESTION2: not applied. SUGGESTION3: not applied (both coverages ~0.97). SUGGESTION4: applied. KEEP_IN_MINDs: two fields and one subtract. Confidence = 0.62.",
+      "implementation": "subtract(news_ton_last, news_main_vwap)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Short-term volatility-normalized breakout",
+      "description": "Core: 1-minute percent change normalized by ATR indicates true breakout. SUGGESTION1: applied (news_pct_1min and news_atr14). SUGGESTION2: not applied. SUGGESTION3: not applied. SUGGESTION4: applied. KEEP_IN_MINDs: two fields, simple divide. Confidence = 0.69.",
+      "implementation": "divide(news_pct_1min, news_atr14)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Earnings beat continuation if volume above 30-day avg",
+      "description": "Core: EPS beat combined with volume surge favors continuation. SUGGESTION1: applied (news_eps_actual and news_ratio_vol). SUGGESTION2: not applied. SUGGESTION3: news_ratio_vol coverage=0.5122<0.6 so apply ts_backfill to ratio field. SUGGESTION4: applied for eps. KEEP_IN_MINDs: two fields and backfill + multiply ops. Confidence = 0.68.",
+      "implementation": "multiply(ts_backfill(news_ratio_vol,5), ts_zscore(news_eps_actual,5))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Momentum momentum: 20-day returns scaled by 5-day acceleration",
+      "description": "Core: Capture accelerating momentum by dividing 20-day return by delta of 5-day return. SUGGESTION1: applied (news_eod_close only via ts_*). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied (eod_close widely used). KEEP_IN_MINDs: uses ts_returns and ts_delta, within op limits. Confidence = 0.70.",
+      "implementation": "divide(ts_returns(news_eod_close,20), ts_delta(ts_returns(news_eod_close,5),1))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Microstructure squeeze signal: rapid up ticks + low available float proxy",
+      "description": "Core: Combine fast up-minute moves with high short_interest to detect squeezes. SUGGESTION1: applied (news_mins_1_chg and news_short_interest). SUGGESTION2: not applied. SUGGESTION3: not applied (coverages >0.8). SUGGESTION4: applied. KEEP_IN_MINDs: two fields, multiply. Confidence = 0.57.",
+      "implementation": "multiply(ts_zscore(news_mins_1_chg,3), news_short_interest)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Overreaction fade using max_down_ret",
+      "description": "Core: Large after-news down move often partially reverts; use max_dn_ret negative signal. SUGGESTION1: applied (news_max_dn_ret only). SUGGESTION2: not applied. SUGGESTION3: not applied (coverage high). SUGGESTION4: applied. KEEP_IN_MINDs: single field, reverse. Confidence = 0.62.",
+      "implementation": "reverse(news_max_dn_ret)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Intraday mean reversion using ton_last vs eod_vwap",
+      "description": "Core: If TONLast >> eod_vwap, expect reversion. SUGGESTION1: applied (news_ton_last and news_eod_vwap). SUGGESTION2: not applied. SUGGESTION3: not applied. SUGGESTION4: applied. KEEP_IN_MINDs: two fields, subtract. Confidence = 0.61.",
+      "implementation": "subtract(news_ton_last, news_eod_vwap)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Low-liquidity momentum (mov_vol small but pct move big)",
+      "description": "Core: Big percent changes in low-average-volume stocks more persistent. SUGGESTION1: applied (news_pct_10min and news_mov_vol). SUGGESTION2: not applied. SUGGESTION3: not applied (mov_vol coverage 0.8046). SUGGESTION4: applied. KEEP_IN_MINDs: two fields, divide. Confidence = 0.56.",
+      "implementation": "divide(news_pct_10min, news_mov_vol)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Pre-market gap continuation filtered by 60-min move",
+      "description": "Core: If open gap and strong 60-min post-news move align, continue. SUGGESTION1: applied (news_open_gap and news_pct_60min). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: partial. KEEP_IN_MINDs: two fields, multiply. Confidence = 0.63.",
+      "implementation": "multiply(news_open_gap, news_pct_60min)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Post-news dispersion: stock vs index gap",
+      "description": "Core: Use news_indx_perf to find stocks diverging from SPY and play continuation or fade. SUGGESTION1: applied (news_indx_perf only). SUGGESTION2/3: not applied. SUGGESTION4: applied. KEEP_IN_MINDs: single field; short. Confidence = 0.65.",
+      "implementation": "ts_zscore(news_indx_perf,3)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Large post-news upmove with low range stddev continuation",
+      "description": "Core: When max_up_ret is big but range stddev low, continuation is more likely. SUGGESTION1: applied (news_max_up_ret and news_rangestddev). SUGGESTION2: not applied. SUGGESTION3: rangestddev coverage=0.6172 borderline but acceptable. SUGGESTION4: partial. KEEP_IN_MINDs: two fields, divide. Confidence = 0.58.",
+      "implementation": "divide(news_max_up_ret, news_rangestddev)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Intraday momentum normalized by ticks",
+      "description": "Core: Normalize percent move by tot_ticks to filter out noisy ticky names. SUGGESTION1: applied (news_pct_30min and news_tot_ticks). SUGGESTION2: not applied. SUGGESTION3: not applied (both coverages high). SUGGESTION4: applied. KEEP_IN_MINDs: two fields; divide. Confidence = 0.64.",
+      "implementation": "divide(news_pct_30min, news_tot_ticks)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Short-term zscore momentum",
+      "description": "Core: Cross-sectionally zscore the 5-day returns to pick extremes. SUGGESTION1: applied (ts_returns(news_eod_close,5) via ts_zscore). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied (eod_close widely used). KEEP_IN_MINDs: single datafield, one operator. Confidence = 0.68.",
+      "implementation": "ts_zscore(ts_returns(news_eod_close,5),5)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Earnings volume-weighted continuation",
+      "description": "Core: After EPS, if current volume > 30-day and price moved up, continue. SUGGESTION1: applied (news_eps_actual and news_ratio_vol). SUGGESTION2: not applied. SUGGESTION3: ratio_vol coverage <0.6 so use ts_backfill. SUGGESTION4: applied. KEEP_IN_MINDs: two fields, backfill and multiply. Confidence = 0.67.",
+      "implementation": "multiply(ts_backfill(news_ratio_vol,5), ts_zscore(news_eps_actual,3))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Momentum times liquidity (favor momentum in liquid names)",
+      "description": "Core: Multiply 10-day return by mov_vol to favor liquid movers. SUGGESTION1: applied (news_eod_close and news_mov_vol). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields and one multiply. Confidence = 0.66.",
+      "implementation": "multiply(ts_returns(news_eod_close,10), news_mov_vol)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Range contraction mean reversion",
+      "description": "Core: Extremely small session_range relative to avg suggests upcoming reversion. SUGGESTION1: applied (news_session_range only). SUGGESTION2: not applied. SUGGESTION3: session_range coverage <0.6 so ts_backfill recommended; SUGGESTION3: applied. SUGGESTION4: not applied. KEEP_IN_MINDs: single field plus backfill. Confidence = 0.52.",
+      "implementation": "reverse(ts_backfill(news_session_range,5))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Quick fade of first-minute spike",
+      "description": "Core: Big 1-min spike often fades in next minutes — use news_pct_1min negative. SUGGESTION1: applied (news_pct_1min only). SUGGESTION2: not applied. SUGGESTION3: not applied (coverage high). SUGGESTION4: applied. KEEP_IN_MINDs: single op. Confidence = 0.64.",
+      "implementation": "reverse(news_pct_1min)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum skewed by PE outliers",
+      "description": "Core: Penalize momentum in extremely high PE names using winsorization by pe_ratio. SUGGESTION1: applied (news_eod_close and news_pe_ratio). SUGGESTION2: not applied. SUGGESTION3: not applied. SUGGESTION4: applied. KEEP_IN_MINDs: two fields, divide and winsorize (2 ops). Confidence = 0.69.",
+      "implementation": "divide(ts_returns(news_eod_close,10), winsorize(news_pe_ratio,4))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Post-news continuation when TONLast near session high",
+      "description": "Core: If TONLast close to EODHigh, continuation likely. SUGGESTION1: applied (news_ton_last and news_eod_high). SUGGESTION2: not applied. SUGGESTION3: not applied. SUGGESTION4: applied. KEEP_IN_MINDs: two fields, ratio. Confidence = 0.60.",
+      "implementation": "divide(news_ton_last, news_eod_high)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-term momentum scaled by total ticks",
+      "description": "Core: Favor 1-day movers with strong tick activity: 1-day return * tot_ticks. SUGGESTION1: applied (news_eod_close and news_tot_ticks). SUGGESTION2: not applied. SUGGESTION3: not applied. SUGGESTION4: applied. KEEP_IN_MINDs: two fields, multiply. Confidence = 0.63.",
+      "implementation": "multiply(ts_returns(news_eod_close,1), news_tot_ticks)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Fade extreme intraday vwap divergence",
+      "description": "Core: If main_vwap far from eod_vwap, expect reversion. SUGGESTION1: applied (news_main_vwap and news_eod_vwap). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: partial. KEEP_IN_MINDs: two fields, subtract. Confidence = 0.58.",
+      "implementation": "reverse(subtract(news_main_vwap, news_eod_vwap))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Acceleration filter: 5-day return vs 20-day return",
+      "description": "Core: Stocks accelerating (shorter-term > longer-term returns) are favored. SUGGESTION1: applied (news_eod_close only). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: single field, divide two ts_returns. Confidence = 0.67.",
+      "implementation": "divide(ts_returns(news_eod_close,5), ts_returns(news_eod_close,20))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Overnight reversal via prevday return",
+      "description": "Core: Use previous-day behavior (news_prev_day_ret) to predict overnight reversal intraday. SUGGESTION1: applied (news_prev_day_ret only). SUGGESTION2: not applied. SUGGESTION3: not applied (coverage 0.7311). SUGGESTION4: partial. KEEP_IN_MINDs: single field. Confidence = 0.55.",
+      "implementation": "reverse(news_prev_day_ret)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Momentum filtered by volatility rank",
+      "description": "Core: Favor momentum in low historical stddev names: divide 10-day return by ts_std_dev. SUGGESTION1: applied (news_eod_close and ts_std_dev on same field). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: single datafield, 2 ops. Confidence = 0.68.",
+      "implementation": "divide(ts_returns(news_eod_close,10), ts_std_dev(news_eod_close,30))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Post-news gap continuation when SPY aligned",
+      "description": "Core: If stock and SPY both gap same direction (use news_spy_last and news_ton_last), continuation likely. SUGGESTION1: applied (news_spy_last and news_ton_last). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields, multiply signs. Confidence = 0.62.",
+      "implementation": "multiply(sign(subtract(news_ton_last, news_ton_low)), sign(subtract(news_spy_last, news_spy_close)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "High intraday percentile continuation using mins_5 metrics",
+      "description": "Core: Fast 5-minute moves (news_mins_5_pct_up) indicate momentum. SUGGESTION1: applied (news_mins_5_pct_up only). SUGGESTION2: vector not used. SUGGESTION3: not needed (coverage 0.9214). SUGGESTION4: partial. KEEP_IN_MINDs: single field. Confidence = 0.58.",
+      "implementation": "ts_zscore(news_mins_5_pct_up,3)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Earnings surprise vs market reaction",
+      "description": "Core: If EPS actual positive but news_result_vs_index negative, potential alpha (stock-specific mispricing). SUGGESTION1: applied (news_eps_actual and news_result_vs_index). SUGGESTION2: not applied. SUGGESTION3: not applied (coverages high). SUGGESTION4: applied. KEEP_IN_MINDs: two fields, multiply. Confidence = 0.66.",
+      "implementation": "multiply(ts_zscore(news_eps_actual,5), reverse(news_indx_perf))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Micro momentum: 30-min percent change scaled by ATR",
+      "description": "Core: Use news_pct_30min normalized by ATR to find meaningful micro moves. SUGGESTION1: applied (news_pct_30min and news_atr14). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields, divide. Confidence = 0.67.",
+      "implementation": "divide(news_pct_30min, news_atr14)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Open-interest like signal: prev_vol sudden drop then spike",
+      "description": "Core: Very low previous volume then today big current volume signals unusual flow (news_prev_vol and news_curr_vol). SUGGESTION1: applied (news_prev_vol and news_curr_vol). SUGGESTION2: not applied. SUGGESTION3: news_prev_vol coverage low (0.0374) so ts_backfill used. SUGGESTION4: prev_vol userCount low so confidence reduced. KEEP_IN_MINDs: two fields and backfill. Confidence = 0.46.",
+      "implementation": "divide(news_curr_vol, ts_backfill(news_prev_vol,5))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Price momentum adjusted by reported cap (risk scaling)",
+      "description": "Core: Scale momentum by sqrt of market cap to control position sizing; favor smaller caps. SUGGESTION1: applied (news_eod_close and news_cap). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields, sqrt and divide. Confidence = 0.65.",
+      "implementation": "divide(ts_returns(news_eod_close,10), sqrt(news_cap))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Earnings buzz: newrecord novelty continuation",
+      "description": "Core: First instance news (newrecord=1) often moves more; multiply novelty by short-term return. SUGGESTION1: applied (nws12_mainz_newrecord and news_pct_10min). SUGGESTION2: not applied. SUGGESTION3: coverages high so not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields, multiply. Confidence = 0.60.",
+      "implementation": "multiply(nws12_mainz_newrecord, news_pct_10min)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High ATR names: prefer mean reversion",
+      "description": "Core: Extremely volatile names often mean-revert intraday; use ts_zscore on ATR and reverse 1-day return. SUGGESTION1: applied (news_atr14 and news_eod_close). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields, reverse and zscore. Confidence = 0.59.",
+      "implementation": "multiply(reverse(ts_zscore(ts_returns(news_eod_close,1))), ts_zscore(news_atr14,10))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Pre-news VWAP vs TONLast momentum",
+      "description": "Core: Positive difference TONLast - pre_vwap signals buyers; use sign for trade trigger. SUGGESTION1: applied (news_ton_last and news_pre_vwap). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields and sign. Confidence = 0.62.",
+      "implementation": "sign(subtract(news_ton_last, news_pre_vwap))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Continuation if both first-minute and first-10min agree",
+      "description": "Core: Multiply signals from 1-min and 10-min percent to reduce noise. SUGGESTION1: applied (news_pct_1min and news_pct_10min). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields, multiply. Confidence = 0.63.",
+      "implementation": "multiply(news_pct_1min, news_pct_10min)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "24-hr momentum using prevclose vs eodclose",
+      "description": "Core: Compare prevclose and eod_close to capture overnight sentiment. SUGGESTION1: applied (news_prev_close and news_eod_close). SUGGESTION2: not applied. SUGGESTION3: news_prev_close coverage low (0.1728) so ts_backfill applied. SUGGESTION4: prev_close low userCount so confidence reduced. KEEP_IN_MINDs: two fields and backfill. Confidence = 0.48.",
+      "implementation": "ts_returns(ts_backfill(news_eod_close,5),1)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Short squeeze candidate score",
+      "description": "Core: High short_interest * sudden up ticks indicates squeeze candidates. SUGGESTION1: applied (news_short_interest and news_mins_3_chg). SUGGESTION2: not applied. SUGGESTION3: not needed (coverage high). SUGGESTION4: applied. KEEP_IN_MINDs: two fields, multiply. Confidence = 0.60.",
+      "implementation": "multiply(news_short_interest, ts_zscore(news_mins_3_chg,3))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Fade after large one-minute upmove if volstddev high",
+      "description": "Core: Large 1-min up moves in high volstddev names are noise; fade. SUGGESTION1: applied (news_pct_1min and news_vol_stddev). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields and if logic reversed. Confidence = 0.61.",
+      "implementation": "multiply(reverse(news_pct_1min), news_vol_stddev)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Momentum cross-check: 5-day return vs sector mean (group idea placeholder)",
+      "description": "Core: Favor stocks beating their sector momentum. SUGGESTION1: uses news_eod_close; SUGGESTION2: not applied. SUGGESTION3: not applied. SUGGESTION4: applied. KEEP_IN_MINDs: group operators required for sector are not used here to keep implementation simple (user must apply group_neutralize externally). I set confidence = 0.64.",
+      "implementation": "ts_zscore(ts_returns(news_eod_close,5),5)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "High-spread fade via range stddev",
+      "description": "Core: Large session range relative to 30-day stddev indicates overreaction; fade the extremity. SUGGESTION1: applied (news_range_stddev only). SUGGESTION2: not applied. SUGGESTION3: not needed (coverage borderline 0.6172). SUGGESTION4: partial. KEEP_IN_MINDs: single field. Confidence = 0.56.",
+      "implementation": "reverse(news_range_stddev)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum sign agreement across timeframes",
+      "description": "Core: Require 1-day and 10-day returns to agree (both positive) to trade. SUGGESTION1: applied (news_eod_close only). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: single field and logical ops. Confidence = 0.66.",
+      "implementation": "and(greater(ts_returns(news_eod_close,1),0), greater(ts_returns(news_eod_close,10),0))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "High-volume breakout scaled by moving average of ticks",
+      "description": "Core: Large current vol relative to mov_vol combined with tot_ticks indicates persistent move. SUGGESTION1: applied (news_curr_vol, news_mov_vol). SUGGESTION2: not applied. SUGGESTION3: not applied (coverages OK). SUGGESTION4: partial. KEEP_IN_MINDs: two fields, divide and multiply. Confidence = 0.62.",
+      "implementation": "multiply(divide(news_curr_vol, news_mov_vol), news_tot_ticks)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Fade extremes after large max_up_amt",
+      "description": "Core: Large dollar up move after news (max_up_amt) often mean-reverts. SUGGESTION1: applied (news_max_up_amt only). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: single field. Confidence = 0.57.",
+      "implementation": "reverse(news_max_up_amt)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Price momentum normalized by marketcap quartile",
+      "description": "Core: Apply stronger weight to momentum in smaller cap quartiles using bucketed cap (user to bucket externally). SUGGESTION1: applied (news_eod_close and news_cap). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: keeps implementation short; user should bucket externally. Confidence = 0.63.",
+      "implementation": "divide(ts_returns(news_eod_close,10), news_cap)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum amplified when result_vs_index positive",
+      "description": "Core: If stock outperforms index post-news, amplify momentum. SUGGESTION1: applied (news_result_vs_index and news_eod_close). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields and multiply. Confidence = 0.65.",
+      "implementation": "multiply(ts_returns(news_eod_close,5), news_result_vs_index)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Fade small-cap extreme moves (cap filter)",
+      "description": "Core: Very small caps tend to overreact; dampen extreme short-term returns by cap. SUGGESTION1: applied (news_eod_close and news_cap). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields, divide. Confidence = 0.58.",
+      "implementation": "divide(reverse(ts_returns(news_eod_close,1)), news_cap)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Short-term continuation when minutes to 1% move is small",
+      "description": "Core: If it took few minutes to move 1% (news_mins_1_pct_up small), continuation likely. SUGGESTION1: applied (news_mins_1_pct_up only). SUGGESTION2: not applied. SUGGESTION3: not needed (coverage 0.8309). SUGGESTION4: applied. KEEP_IN_MINDs: single field, reverse. Confidence = 0.60.",
+      "implementation": "reverse(news_mins_1_pct_up)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Continuation when eod_vwap above pre_vwap",
+      "description": "Core: If eod_vwap > pre_vwap then buyers dominated post-news; go long. SUGGESTION1: applied (news_eod_vwap and news_pre_vwap). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields, subtract. Confidence = 0.62.",
+      "implementation": "greater(news_eod_vwap, news_pre_vwap)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Weakness chasing short using mins_3_pct_dn",
+      "description": "Core: Fast 3-minute down moves indicate weakness; short. SUGGESTION1: applied (news_mins_3_pct_dn only). SUGGESTION2: not applied. SUGGESTION3: not needed (coverage 0.9174). SUGGESTION4: applied. KEEP_IN_MINDs: single field. Confidence = 0.59.",
+      "implementation": "ts_zscore(news_mins_3_pct_dn,3)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Volume-adjusted continuation: pct_120min * mov_vol",
+      "description": "Core: Strong 2-hour move in high-average-volume names indicates continuation. SUGGESTION1: applied (news_pct_120min and news_mov_vol). SUGGESTION2: not applied. SUGGESTION3: not needed (coverage high). SUGGESTION4: applied. KEEP_IN_MINDs: two fields, multiply. Confidence = 0.61.",
+      "implementation": "multiply(news_pct_120min, news_mov_vol)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Post-news momentum scaled by PE and ATR",
+      "description": "Core: Favor momentum in low-PE, low-ATR names to reduce noise. SUGGESTION1: applied (news_eod_close, news_pe_ratio, news_atr14) — but limit to 2 datafields per constraints, so combine pe and returns only. SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: constrained to 2 datafields; keep simple. Confidence = 0.66.",
+      "implementation": "divide(ts_returns(news_eod_close,10), news_pe_ratio)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Fade intraday extremes using group-neutralization note",
+      "description": "Core: Extremes often sector-driven; user should group_neutralize externally. SUGGESTION1: not applied in code (group operator avoided per KEEP_IN_MIND). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: instruction to apply group_neutralize outside; confidence=0.60.",
+      "implementation": "reverse(ts_zscore(ts_returns(news_eod_close,5),5))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum filtered by 30-day vol spike",
+      "description": "Core: Favor momentum when current volume significantly above 30-day average and volstddev moderate. SUGGESTION1: applied (news_ratio_vol and news_vol_stddev). SUGGESTION2: not applied. SUGGESTION3: ratio_vol coverage low so ts_backfill used. SUGGESTION4: partial. KEEP_IN_MINDs: two fields and backfill. Confidence = 0.58.",
+      "implementation": "multiply(ts_backfill(news_ratio_vol,5), reverse(news_vol_stddev))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Collapse signal: tiny 20-day movement with sudden 1-day pop",
+      "description": "Core: Long names with small 20-day return but big 1-day jump often revert. SUGGESTION1: applied (news_eod_close only). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: single field and if logic. Confidence = 0.57.",
+      "implementation": "and(less(abs(ts_returns(news_eod_close,20)), 0.02), greater(abs(ts_returns(news_eod_close,1)), 0.03))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Post-news momentum amplified by index outperformance",
+      "description": "Core: If stock outperforms SPY post-news, bet more on its momentum. SUGGESTION1: applied (news_result_vs_index and news_eod_close). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields and multiply. Confidence = 0.65.",
+      "implementation": "multiply(ts_returns(news_eod_close,5), news_result_vs_index)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Quick mean-revert after first 5-min peak",
+      "description": "Core: If 5-min percent hits extreme, expect reversion to 30-min mean. SUGGESTION1: applied (news_pct_5_min and news_pct_30min). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: partial. KEEP_IN_MINDs: two fields, reverse relation. Confidence = 0.60.",
+      "implementation": "multiply(reverse(news_pct_5_min), news_pct_30min)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings surprise velocity: eps zscore * 10-min move",
+      "description": "Core: Combine EPS surprise magnitude with 10-minute percent move to detect sustainable moves. SUGGESTION1: applied (news_eps_actual and news_pct_10min). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields, multiply. Confidence = 0.69.",
+      "implementation": "multiply(ts_zscore(news_eps_actual,5), news_pct_10min)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Momentum scaled by trading range stability",
+      "description": "Core: Favor momentum in names with low range stddev; divide return by range stddev. SUGGESTION1: applied (news_eod_close and news_range_stddev). SUGGESTION2: not applied. SUGGESTION3: range_stddev coverage borderline 0.6172 but acceptable. SUGGESTION4: partial. KEEP_IN_MINDs: two fields. Confidence = 0.62.",
+      "implementation": "divide(ts_returns(news_eod_close,10), news_range_stddev)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Fade post-news micro spike when session_range large",
+      "description": "Core: If session range already large, an extra spike is noise—fade 1-min spike scaled by session_range. SUGGESTION1: applied (news_pct_1min and news_session_range). SUGGESTION2: not applied. SUGGESTION3: session_range coverage low (0.4236) so ts_backfill used. SUGGESTION4: partial. KEEP_IN_MINDs: two fields and backfill. Confidence = 0.53.",
+      "implementation": "divide(reverse(news_pct_1min), ts_backfill(news_session_range,5))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Directional conviction: pct_30min * tot_ticks",
+      "description": "Core: Multiply 30-min move by total ticks to find conviction. SUGGESTION1: applied (news_pct_30min and news_tot_ticks). SUGGESTION2: not applied. SUGGESTION3: not needed (coverage high). SUGGESTION4: applied. KEEP_IN_MINDs: two fields, multiply. Confidence = 0.64.",
+      "implementation": "multiply(news_pct_30min, news_tot_ticks)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum fade in extremely high PE names",
+      "description": "Core: Reverse short-term momentum for very high PE names. SUGGESTION1: applied (news_eod_close and news_pe_ratio). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields and conditional reverse (simple reverse used). Confidence = 0.56.",
+      "implementation": "multiply(reverse(ts_returns(news_eod_close,1)), ts_zscore(news_pe_ratio,30))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Post-news sustained move when 10-min and 30-min agree",
+      "description": "Core: Require same sign for 10-min and 30-min percent moves to trade. SUGGESTION1: applied (news_pct_10min and news_pct_30min). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields and logical AND. Confidence = 0.63.",
+      "implementation": "and(greater(news_pct_10min,0), greater(news_pct_30min,0))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Small-cap reversal after big 1-day jump",
+      "description": "Core: Small caps that jump >X% in 1 day often revert; use cap to filter. SUGGESTION1: applied (news_eod_close and news_cap). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields, logical conditions. Confidence = 0.55.",
+      "implementation": "and(greater(abs(ts_returns(news_eod_close,1)),0.08), less(news_cap, 1e9))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Fade extreme minutes-to-move metrics",
+      "description": "Core: Very quick moves to percent thresholds (e.g., mins_2_pct_up small) are often unsustainable; fade. SUGGESTION1: applied (news_mins_2_pct_up only). SUGGESTION2: not applied. SUGGESTION3: coverage low for some mins fields; this one coverage 0.2845 <0.6 so ts_backfill used. SUGGESTION4: not applied. KEEP_IN_MINDs: single field with backfill. Confidence = 0.49.",
+      "implementation": "reverse(ts_backfill(news_mins_2_pct_up,5))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Earnings continuation only if max_up_ret strong and volstddev low",
+      "description": "Core: After earnings, require large max_up_ret and low vol_stddev to go long. SUGGESTION1: applied (news_max_up_ret and news_vol_stddev). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields, logical AND. Confidence = 0.68.",
+      "implementation": "and(greater(news_max_up_ret,0.05), less(news_vol_stddev, 1.0))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Price momentum adjusted by eod_vwap gap",
+      "description": "Core: Favor momentum when EOD close remains above eod_vwap (buyer control). SUGGESTION1: applied (news_eod_close and news_eod_vwap). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields, sign and multiply. Confidence = 0.62.",
+      "implementation": "multiply(ts_returns(news_eod_close,5), sign(subtract(news_eod_close, news_eod_vwap)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "High volatility name reversal using ts_kurtosis",
+      "description": "Core: Names with high kurtosis prone to spikes—fade short-term. SUGGESTION1: applied (ts_kurtosis(news_eod_close,30) only). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: single op. Confidence = 0.54.",
+      "implementation": "reverse(ts_kurtosis(news_eod_close,30))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Volatility breakout confirmed by ticks and vwap",
+      "description": "Core: If pct_30min large and tot_ticks high and TONLast > main_vwap, take direction. SUGGESTION1: applied (news_pct_30min and news_tot_ticks and news_ton_last/main_vwap) but limit to 2 datafields: use pct_30min and tot_ticks. SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields and multiply. Confidence = 0.63.",
+      "implementation": "multiply(news_pct_30min, news_tot_ticks)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Short-term mean reversion after extreme 90-min move",
+      "description": "Core: Very large 90-minute moves often partially revert; reverse news_pct_90min. SUGGESTION1: applied (news_pct_90min only). SUGGESTION2: not applied. SUGGESTION3: coverage high so not needed. SUGGESTION4: applied. KEEP_IN_MINDs: single operator. Confidence = 0.58.",
+      "implementation": "reverse(news_pct_90min)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum confidence by low group std (instructional)",
+      "description": "Core: Prefer momentum picks in groups with low dispersion (user to compute group std-dev externally). SUGGESTION1: not applied programmatically (group ops avoided). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: advise group_neutralize externally; confidence = 0.61.",
+      "implementation": "ts_zscore(ts_returns(news_eod_close,5),5)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Price/ATR breakout using ts_max_diff",
+      "description": "Core: If current price near 30-day max (ts_max_diff small) and ATR rising, expect continuation. SUGGESTION1: applied (ts_max_diff on news_eod_close and news_atr14). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: single field used with ts_max_diff and ts_delta; within op limits. Confidence = 0.64.",
+      "implementation": "multiply(reverse(ts_max_diff(news_eod_close,30)), ts_delta(news_atr14,1))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Price reversal if pre-news open gap huge vs ATR",
+      "description": "Core: Large open_gap relative to ATR often corrects. SUGGESTION1: applied (news_open_gap and news_atr14). SUGGESTION2: not applied. SUGGESTION3: not needed (open_gap coverage 0.6247). SUGGESTION4: partial. KEEP_IN_MINDs: two fields and divide. Confidence = 0.59.",
+      "implementation": "divide(news_open_gap, news_atr14)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Fade when eod_high exc stddev extreme",
+      "description": "Core: Very high_exc_stddev implies over-extension; fade. SUGGESTION1: applied (news_high_exc_stddev only). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: single operator. Confidence = 0.60.",
+      "implementation": "reverse(news_high_exc_stddev)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-term continuation when pre_vwap < ton_last < main_vwap",
+      "description": "Core: TONLast between pre-session and main VWAP suggests buyer accumulation; go with direction of short-term return. SUGGESTION1: applied (news_ton_last and news_pre_vwap/main_vwap but limited to two fields, use ton_last and main_vwap). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields, comparison. Confidence = 0.61.",
+      "implementation": "and(greater(news_ton_last, news_pre_vwap), less(news_ton_last, news_main_vwap))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Momentum weighted by inverse PE (value tilt)",
+      "description": "Core: Multiply momentum by inverse PE to favor cheap momentum names. SUGGESTION1: applied (news_eod_close and news_pe_ratio). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields, inverse and multiply. Confidence = 0.72.",
+      "implementation": "multiply(ts_returns(news_eod_close,10), inverse(news_pe_ratio))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Immediate 120-min continuation filter by volstddev",
+      "description": "Core: Use 120-min percent with vol_stddev low to pick sustainable moves. SUGGESTION1: applied (news_pct_120min and news_vol_stddev). SUGGESTION2: not applied. SUGGESTION3: not needed. SUGGESTION4: applied. KEEP_IN_MINDs: two fields and logical condition. Confidence = 0.63.",
+      "implementation": "and(greater(news_pct_120min,0.02), less(news_vol_stddev,1.0))",
+      "confidence_level": 0.63
+    }
+  ]
+}

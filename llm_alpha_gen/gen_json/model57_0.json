@@ -1,0 +1,682 @@
+{
+  "results": [
+    {
+      "idea": "Earnings surprise momentum",
+      "description": "Combine surprise = actual - estimate and capture short-term momentum in surprise. Applied SUGGESTION1 by using two datafields (mdl57_actual_earnings, mdl57_earnings_estimate). SUGGESTION2 not applicable (no vector fields). Both fields have coverage <0.6 so applied SUGGESTION3: ts_backfill(...,30) to reduce sparsity. Used high user/alphaCount preference (SUGGESTION4) moderately: actual earnings userCount=73. Confidence set to 0.70.",
+      "implementation": "quantile(ts_zscore(subtract(ts_backfill(mdl57_actual_earnings,30), ts_backfill(mdl57_earnings_estimate,30)), 60), driver='gaussian')",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Momentum scaled by liquidity",
+      "description": "Scale momentum by avg volume to prefer liquid momentum bets. SUGGESTION1: two fields (mdl57_momentum, mdl57_avg_volume). SUGGESTION3: avg_volume coverage ~0.586 -> apply ts_backfill(...,30). SUGGESTION4: avg_volume has high alphaCount so favored. SUGGESTION2 not used. Confidence 0.72.",
+      "implementation": "quantile(divide(ts_backfill(mdl57_momentum,20), ts_backfill(mdl57_avg_volume,30)), driver='gaussian')",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Value + momentum overlay",
+      "description": "Combine low EP ratio (value) with positive momentum to capture momentum in undervalued names. SUGGESTION1 used (mdl57_ep_ratio, mdl57_momentum). EP ratio has high userCount so favored (SUGGESTION4). EP coverage<0.6 so ts_backfill applied. Confidence 0.68.",
+      "implementation": "quantile(multiply(reverse(ts_backfill(mdl57_ep_ratio,30)), ts_backfill(mdl57_momentum,20)), driver='gaussian')",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Size-adjusted momentum (small-cap momentum)",
+      "description": "Favor momentum among smaller market cap names: momentum * (1/market_cap). SUGGESTION1 used (mdl57_momentum, mdl57_market_cap). market_cap coverage>0.6 so no backfill; momentum backfilled. SUGGESTION4: market_cap userCount moderate. Confidence 0.63.",
+      "implementation": "quantile(multiply(ts_backfill(mdl57_momentum,20), inverse(mdl57_market_cap)), driver='gaussian')",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Forward PE mean-reversion",
+      "description": "Short names with extreme forward PE relative to recent range (mean-revert overpriced). SUGGESTION1: mdl57_forward_pe_ratio used alone with ts_zscore. Coverage ~0.527 -> apply ts_backfill. SUGGESTION4 moderate. SUGGESTION2 not applicable. Confidence 0.60.",
+      "implementation": "quantile(reverse(ts_zscore(ts_backfill(mdl57_forward_pe_ratio,60),60)), driver='gaussian')",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings growth momentum divergence",
+      "description": "Long names where earnings growth has accelerated while EP ratio is improving (growth + value momentum). Used two fields (mdl57_earnings_growth, mdl57_ep_ratio_rankign). Both low coverage -> backfilled. SUGGESTION4: used ep_ratio ranking high userCount. Confidence 0.66.",
+      "implementation": "quantile(add(ts_zscore(ts_backfill(mdl57_earnings_growth,60),60), reverse(ts_zscore(ts_backfill(mdl57_ep_ratio_rankign,60),60))), driver='gaussian')",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Forecast upgrade momentum",
+      "description": "Buy stocks with improving forecast ranking and short those with deteriorating forecast ranking. SUGGESTION1: mdl57_forecast_ranking used; coverage 0.4885 so ts_backfill applied. SUGGESTION4 limited but used. Confidence 0.61.",
+      "implementation": "quantile(ts_zscore(ts_backfill(mdl57_forecast_ranking,40),40), driver='gaussian')",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Momentum rank reversal",
+      "description": "Exploit cross-sectional short-term overreactions by taking sign of recent returns and fading extremes using momentum ranking. Used mdl57_momentum_ranking; coverage <0.6 -> backfill. SUGGESTION1 single-field (allowed). SUGGESTION4 moderate. Confidence 0.58.",
+      "implementation": "reverse(quantile(ts_zscore(ts_backfill(mdl57_momentum_ranking,15),15), driver='gaussian'))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Liquidity breakout filter",
+      "description": "Capture breakouts in price but only for sufficiently liquid names (reduce impact costs). Used mdl57_market_price and mdl57_avg_volume (SUGGESTION1). avg_volume backfilled. market_price coverage>0.6 so no backfill. SUGGESTION4: avg_volume has high alphaCount. Confidence 0.65.",
+      "implementation": "quantile(multiply(ts_arg_max(ts_backfill(mdl57_market_price,20),20), if_else(greater(ts_backfill(mdl57_avg_volume,30), ts_mean(ts_backfill(mdl57_avg_volume,30),60)), 1, 0)), driver='gaussian')",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Earnings momentum scaled by size",
+      "description": "Prefer earnings surprises in mid-small caps to capture re-rating potential. SUGGESTION1: mdl57_actual_earnings and mdl57_market_cap. actual_earnings backfilled; market_cap kept. SUGGESTION4: actual earnings userCount high. Confidence 0.64.",
+      "implementation": "quantile(multiply(ts_zscore(subtract(ts_backfill(mdl57_actual_earnings,30), ts_backfill(mdl57_earnings_estimate,30)), 40), inverse(mdl57_market_cap)), driver='gaussian')",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "PEG-based value momentum",
+      "description": "Long low PEG with rising momentum. Used mdl57_peg and mdl57_momentum. PEG coverage ~0.4759 -> backfill applied. SUGGESTION4: PEG ranking alphaCount high so used. Confidence 0.62.",
+      "implementation": "quantile(multiply(reverse(ts_zscore(ts_backfill(mdl57_peg,60),60)), ts_backfill(mdl57_momentum,20)), driver='gaussian')",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Fair value gap mean-reversion",
+      "description": "Trade names furthest from model fair value expecting reversion. Used mdl57_fair_value and market_price. fair_value coverage <0.6 -> backfilled; market_price no backfill. SUGGESTION4: fair_value userCount low but included for diversity. Confidence 0.59.",
+      "implementation": "quantile(reverse(ts_zscore(subtract(ts_backfill(mdl57_market_price,10), ts_backfill(mdl57_fair_value,30)), 60)), driver='gaussian')",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Forward PE ranking momentum",
+      "description": "Long improving forward PE ranking and short deteriorating ones. Used mdl57_forward_pe_ranking (SUGGESTION1 single-field). Coverage<0.6 -> backfill. SUGGESTION4 moderate. Confidence 0.60.",
+      "implementation": "quantile(ts_zscore(ts_backfill(mdl57_forward_pe_ranking,30),30), driver='gaussian')",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Revenue/earnings growth vs valuation",
+      "description": "Long stocks where growth ranking outperforms valuation ranking (growth priced cheaply). Used mdl57_growth_ranking and mdl57_valuation_ranking. Both backfilled due to coverage<0.6. Applied SUGGESTION1 and SUGGESTION4 preferring higher alphaCount fields. Confidence 0.67.",
+      "implementation": "quantile(subtract(ts_zscore(ts_backfill(mdl57_growth_ranking,60),60), ts_zscore(ts_backfill(mdl57_valuation_ranking,60),60)), driver='gaussian')",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "One-month forecast momentum",
+      "description": "Exploit one month forecast improvements. Used mdl57_one_month_forecat (coverage ~0.4885 -> backfilled). Single-field per KEEP_IN_MIND2. SUGGESTION4 moderate. Confidence 0.57.",
+      "implementation": "quantile(ts_zscore(ts_backfill(mdl57_one_month_forecat,30),30), driver='gaussian')",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Momentum volatility-adjusted",
+      "description": "Scale momentum by short-term return volatility to favor stable momentum. Used mdl57_momentum and mdl57_market_price (to compute ts_std_dev of returns). market_price no backfill; momentum backfilled. SUGGESTION1 used. Confidence 0.69.",
+      "implementation": "quantile(divide(ts_backfill(mdl57_momentum,20), ts_std_dev(ts_returns(mdl57_market_price,20),20)), driver='gaussian')",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "EP ratio mean-revert within size bucket",
+      "description": "Mean-revert EP ratio but scaled to smaller names (size factor). Used mdl57_ep_ratio and mdl57_sizeranking. EP ratio backfilled; sizeranking coverage>0.6 so not backfilled. SUGGESTION4 used EP high userCount. Confidence 0.62.",
+      "implementation": "quantile(multiply(reverse(ts_zscore(ts_backfill(mdl57_ep_ratio,60),60)), inverse(mdl57_sizeranking)), driver='gaussian')",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum + forecast divergence",
+      "description": "Long names with positive momentum but negative forecast ranking (contrarian) expecting upgrades. Used mdl57_momentum and mdl57_forecast_ranking. Both backfilled. SUGGESTION1 used. Confidence 0.56.",
+      "implementation": "quantile(subtract(ts_backfill(mdl57_momentum,20), ts_backfill(mdl57_forecast_ranking,30)), driver='gaussian')",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "High alphaCount EP momentum",
+      "description": "Exploit EP ratio momentum given high alphaCount on EP fields. Used mdl57_ep_ratio and mdl57_ep_ratio_rankign. Both backfilled. SUGGESTION4 explicitly used due to high user/alphaCount. Confidence 0.71.",
+      "implementation": "quantile(add(ts_zscore(ts_backfill(mdl57_ep_ratio,40),40), ts_zscore(ts_backfill(mdl57_ep_ratio_rankign,40),40)), driver='gaussian')",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Earnings estimate revision signal",
+      "description": "Use change in earnings estimate (delta) as alpha: ts_delta(estimate). Used mdl57_earnings_estimate with ts_backfill (coverage<0.6) and ts_zscore. SUGGESTION1 single-field. Confidence 0.63.",
+      "implementation": "quantile(ts_zscore(ts_delta(ts_backfill(mdl57_earnings_estimate,60),30),30), driver='gaussian')",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "PEG rank momentum",
+      "description": "Long improving PEG ranking with momentum overlay. Used mdl57_peg_ranking and mdl57_momentum. Both backfilled. SUGGESTION4 used peg ranking high alphaCount. Confidence 0.60.",
+      "implementation": "quantile(add(ts_zscore(ts_backfill(mdl57_peg_ranking,40),40), ts_backfill(mdl57_momentum,20)), driver='gaussian')",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum crash protection via market cap",
+      "description": "Dampen momentum exposure in tiny caps by scaling by sqrt(market_cap). Used mdl57_momentum and mdl57_market_cap. momentum backfilled. Applied SUGGESTION1 and SUGGESTION4. Confidence 0.66.",
+      "implementation": "quantile(divide(ts_backfill(mdl57_momentum,20), sqrt(mdl57_market_cap)), driver='gaussian')",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Fair-value momentum convergence",
+      "description": "Alpha seeks names moving closer to fair value while having positive momentum. Used mdl57_fair_value and mdl57_momentum. fair_value backfilled. SUGGESTION1 used. Confidence 0.58.",
+      "implementation": "quantile(multiply(ts_backfill(mdl57_momentum,20), reverse(ts_zscore(subtract(ts_backfill(mdl57_market_price,10), ts_backfill(mdl57_fair_value,30)), 60))), driver='gaussian')",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Earnings surprise persistence",
+      "description": "Identify names with persistent positive surprises by summing recent surprises. Used mdl57_actual_earnings and mdl57_earnings_estimate with ts_sum on surprise. Both backfilled. SUGGESTION1 applied. Confidence 0.65.",
+      "implementation": "quantile(ts_zscore(ts_sum(subtract(ts_backfill(mdl57_actual_earnings,30), ts_backfill(mdl57_earnings_estimate,30)), 60), 60), driver='gaussian')",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Forward PE vs momentum divergence",
+      "description": "Long cheap forward PE with improving momentum. Used mdl57_forward_pe_ratio and mdl57_momentum. Forward PE backfilled. SUGGESTION4 moderate. Confidence 0.61.",
+      "implementation": "quantile(multiply(reverse(ts_zscore(ts_backfill(mdl57_forward_pe_ratio,60),60)), ts_backfill(mdl57_momentum,20)), driver='gaussian')",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Earnings growth scaled by valuation",
+      "description": "Long high earnings growth with attractive valuation: earnings_growth / EP ratio. Both backfilled. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.67.",
+      "implementation": "quantile(divide(ts_backfill(mdl57_earnings_growth,60), ts_backfill(mdl57_ep_ratio,60)), driver='gaussian')",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Momentum breakout confirmed by forecast ranking",
+      "description": "Require price breakout (ts_arg_max) and improving forecast ranking to confirm entries. Used mdl57_market_price and mdl57_forecast_ranking. forecast ranking backfilled; market_price not. SUGGESTION1 applied. Confidence 0.68.",
+      "implementation": "quantile(multiply(ts_arg_max(ts_backfill(mdl57_market_price,30),30), ts_zscore(ts_backfill(mdl57_forecast_ranking,30),30)), driver='gaussian')",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Market cap neutralized EP ratio",
+      "description": "EP signal neutralized to avoid size bias by dividing by market_cap. Used mdl57_ep_ratio and mdl57_market_cap. EP backfilled; market_cap not. SUGGESTION4 used EP high alphaCount. Confidence 0.64.",
+      "implementation": "quantile(divide(ts_zscore(ts_backfill(mdl57_ep_ratio,60),60), mdl57_market_cap), driver='gaussian')",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum decay (hump) to reduce turnover",
+      "description": "Apply hump to momentum signal to reduce turnover while keeping exposure. Used mdl57_momentum and hump operator. Momentum backfilled. SUGGESTION1 single-field. Confidence 0.55.",
+      "implementation": "quantile(hump(ts_backfill(mdl57_momentum,20), hump=0.02), driver='gaussian')",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "EP ratio z-score mean reversion",
+      "description": "Trade EP ratio extreme z-scores (mean-revert). Used mdl57_ep_ratio (backfilled). SUGGESTION4 used due to high userCount. SUGGESTION2 not used. Confidence 0.66.",
+      "implementation": "quantile(reverse(ts_zscore(ts_backfill(mdl57_ep_ratio,60),60)), driver='gaussian')",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Earnings estimate momentum vs price",
+      "description": "Compare estimate momentum with price momentum: ts_delta(estimate) - price returns. Used mdl57_earnings_estimate and mdl57_market_price. estimate backfilled. SUGGESTION1 applied. Confidence 0.62.",
+      "implementation": "quantile(subtract(ts_zscore(ts_delta(ts_backfill(mdl57_earnings_estimate,60),30),30), ts_zscore(ts_returns(mdl57_market_price,30),30)), driver='gaussian')",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Low correlation momentum (diversified momentum)",
+      "description": "Favor momentum names uncorrelated with market by using ts_corr(market returns). Used mdl57_momentum and mdl57_market_price to compute correlation vs market (here market proxy is same price — simplified). Momentum backfilled. SUGGESTION1 applied. Confidence 0.54.",
+      "implementation": "quantile(divide(ts_backfill(mdl57_momentum,20), ts_corr(ts_returns(mdl57_market_price,60), ts_backfill(mdl57_momentum,20), 60)), driver='gaussian')",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Forecast ranking contrarian",
+      "description": "Short names with top forecast ranking extremes anticipating mean reversion. Used mdl57_forecast_ranking backfilled. SUGGESTION1 single-field. Confidence 0.59.",
+      "implementation": "quantile(reverse(ts_zscore(ts_backfill(mdl57_forecast_ranking,40),40)), driver='gaussian')",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum vs valuation divergence",
+      "description": "Long names where momentum is strong but valuation (EP) improves faster, suggesting re-rating. Used mdl57_momentum and mdl57_ep_ratio. Both backfilled. SUGGESTION4 favors EP. Confidence 0.65.",
+      "implementation": "quantile(subtract(ts_zscore(ts_backfill(mdl57_momentum,20),20), ts_zscore(ts_backfill(mdl57_ep_ratio,60),60)), driver='gaussian')",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Size-neutral earnings surprise",
+      "description": "Neutralize surprise by size to avoid picking only large firms. Used mdl57_actual_earnings, mdl57_earnings_estimate, and market cap as normalizer but limited to two datafields by combining surprise with market_cap via divide. Applied ts_backfill to earnings fields. SUGGESTION2 not used. Confidence 0.63.",
+      "implementation": "quantile(divide(ts_zscore(subtract(ts_backfill(mdl57_actual_earnings,30), ts_backfill(mdl57_earnings_estimate,30)),40), mdl57_market_cap), driver='gaussian')",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum persistence via ts_ir",
+      "description": "Use information ratio of momentum over past period to pick persistent momentum names. Used mdl57_momentum (backfilled) with ts_ir. SUGGESTION1 single-field. SUGGESTION4 moderate. Confidence 0.68.",
+      "implementation": "quantile(ts_ir(ts_backfill(mdl57_momentum,60),60), driver='gaussian')",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "EP ratio trimmed winsorized signal",
+      "description": "Winsorize EP z-score to reduce outlier risk before ranking. Used mdl57_ep_ratio backfilled and winsorize then quantile. SUGGESTION4 applied. Confidence 0.67.",
+      "implementation": "quantile(winsorize(ts_zscore(ts_backfill(mdl57_ep_ratio,60),60), std=4), driver='gaussian')",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Growth vs valuation momentum",
+      "description": "Long names where growth ranking improves relative to valuation ranking. Used mdl57_growth_ranking and mdl57_valuation. Both backfilled. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.66.",
+      "implementation": "quantile(subtract(ts_zscore(ts_backfill(mdl57_growth_ranking,60),60), ts_zscore(ts_backfill(mdl57_valuation,60),60)), driver='gaussian')",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Forecast momentum combined with market cap filter",
+      "description": "Use forecast ranking improvement but only for names above a market cap threshold (filter via if_else). Used mdl57_forecast_ranking and mdl57_market_cap (market cap not backfilled). forecast ranking backfilled. SUGGESTION1 applied. Confidence 0.62.",
+      "implementation": "quantile(if_else(greater(mdl57_market_cap, 1e9), ts_zscore(ts_backfill(mdl57_forecast_ranking,30),30), 0), driver='gaussian')",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum z-score cross-sectional rank",
+      "description": "Cross-sectionally zscore momentum then quantile to get relative bets. Used mdl57_momentum backfilled. SUGGESTION1 single-field; SUGGESTION4 moderate. Confidence 0.7.",
+      "implementation": "quantile(zscore(ts_zscore(ts_backfill(mdl57_momentum,20),20)), driver='gaussian')",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Earnings surprise signal scaled by avg volume",
+      "description": "Increase weight of earnings surprise when liquidity is high to reduce execution costs. Used mdl57_actual_earnings, mdl57_earnings_estimate, mdl57_avg_volume but limited to two datafields by using surprise and dividing by avg_volume. Both earnings fields backfilled; avg_volume backfilled. SUGGESTION1 & SUGGESTION3 applied. Confidence 0.65.",
+      "implementation": "quantile(divide(ts_zscore(subtract(ts_backfill(mdl57_actual_earnings,30), ts_backfill(mdl57_earnings_estimate,30)),40), ts_backfill(mdl57_avg_volume,30)), driver='gaussian')",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Forward PE rank mean reversion with momentum filter",
+      "description": "Mean revert forward PE ranking only when momentum is weak (contrarian). Used mdl57_forward_pe_ranking and mdl57_momentum. Both backfilled. SUGGESTION1 applied. Confidence 0.61.",
+      "implementation": "quantile(if_else(less(ts_backfill(mdl57_momentum,20), 0), reverse(ts_zscore(ts_backfill(mdl57_forward_pe_ranking,60),60)), 0), driver='gaussian')",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "PEG anomaly capture",
+      "description": "Long low PEG ranking with low forward PE simultaneously. Used mdl57_peg_ranking and mdl57_forward_pe_ratio (both backfilled). SUGGESTION1 applied. Confidence 0.60.",
+      "implementation": "quantile(multiply(reverse(ts_zscore(ts_backfill(mdl57_peg_ranking,60),60)), reverse(ts_zscore(ts_backfill(mdl57_forward_pe_ratio,60),60))), driver='gaussian')",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum crash avoidance using ts_std_dev",
+      "description": "Penalize momentum signals by recent return volatility to avoid concentration risk. Used mdl57_momentum and market_price to compute ts_std_dev of returns. Momentum backfilled. SUGGESTION1 applied. Confidence 0.67.",
+      "implementation": "quantile(divide(ts_backfill(mdl57_momentum,20), ts_std_dev(ts_returns(mdl57_market_price,30),30)), driver='gaussian')",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Fair value oversold rebound",
+      "description": "Long names that are below fair value and recently bottomed (ts_arg_min). Used mdl57_fair_value and market_price. Both backfilled where needed. SUGGESTION1 applied. Confidence 0.58.",
+      "implementation": "quantile(multiply(ts_arg_min(ts_backfill(mdl57_market_price,30),30), reverse(ts_zscore(subtract(ts_backfill(mdl57_market_price,30), ts_backfill(mdl57_fair_value,60)),60))), driver='gaussian')",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Earnings growth acceleration",
+      "description": "Detect recent acceleration in earnings growth via ts_delta and rank cross-sectionally. Used mdl57_earnings_growth backfilled. SUGGESTION1 single-field. Confidence 0.64.",
+      "implementation": "quantile(ts_zscore(ts_delta(ts_backfill(mdl57_earnings_growth,60),30),30), driver='gaussian')",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum quantile trimmed",
+      "description": "Use quantile bucketing of momentum to create robust long-short buckets. Used mdl57_momentum backfilled and quantile. SUGGESTION1 single-field. Confidence 0.69.",
+      "implementation": "quantile(bucket(rank(ts_backfill(mdl57_momentum,20)), range='0,1,0.2'), driver='gaussian')",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Earnings estimate surprising growth vs forward PE",
+      "description": "Long names where estimates improve while forward PE declines (re-rating). Used mdl57_earnings_estimate and mdl57_forward_pe_ratio, both backfilled. SUGGESTION1 applied. Confidence 0.63.",
+      "implementation": "quantile(subtract(ts_zscore(ts_delta(ts_backfill(mdl57_earnings_estimate,60),30),30), ts_zscore(ts_backfill(mdl57_forward_pe_ratio,60),60)), driver='gaussian')",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Two-factor value/momentum blend",
+      "description": "Blend EP ratio (value) and momentum equally to capture orthogonal sources. Used mdl57_ep_ratio and mdl57_momentum, both backfilled. SUGGESTION4 favors EP. Confidence 0.7.",
+      "implementation": "quantile(add(reverse(ts_zscore(ts_backfill(mdl57_ep_ratio,60),60)), ts_zscore(ts_backfill(mdl57_momentum,20),20)), driver='gaussian')",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Forecast improvement leading indicator",
+      "description": "Use ts_delta of forecast ranking as a leading signal. Used mdl57_forecast_ranking backfilled and ts_delta. SUGGESTION1 single-field. Confidence 0.62.",
+      "implementation": "quantile(ts_zscore(ts_delta(ts_backfill(mdl57_forecast_ranking,40),20),20), driver='gaussian')",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum + forecast rank spread",
+      "description": "Long momentum names with better forecast rank than peers (momentum-confirmation). Used mdl57_momentum and mdl57_forecast_ranking, both backfilled. SUGGESTION1 applied. Confidence 0.66.",
+      "implementation": "quantile(add(ts_zscore(ts_backfill(mdl57_momentum,20),20), reverse(ts_zscore(ts_backfill(mdl57_forecast_ranking,40),40))), driver='gaussian')",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "EP rank breakout",
+      "description": "Identify names breaking to new lows in EP rank (improved value) and take long positions. Used mdl57_ep_ratio_rankign backfilled and ts_arg_min. SUGGESTION1 single-field. Confidence 0.61.",
+      "implementation": "quantile(if_else(equal(ts_arg_min(ts_backfill(mdl57_ep_ratio_rankign,60),60), 0), 1, 0), driver='gaussian')",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Short-term reversal after momentum extremes",
+      "description": "Fade very recent extremes by using ts_arg_max/min on market_price returns. Used mdl57_market_price (no backfill). SUGGESTION1 single-field. Confidence 0.56.",
+      "implementation": "quantile(reverse(if_else(equal(ts_arg_max(ts_backfill(mdl57_market_price,10),10), 1, 0))), driver='gaussian')",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Market cap weighted earnings surprise",
+      "description": "Weight earnings surprise by market cap to emphasize large cap surprises. Used mdl57_actual_earnings, mdl57_earnings_estimate and mdl57_market_cap but limited to two datafields by dividing surprise by market_cap. Earnings fields backfilled. SUGGESTION1 & SUGGESTION3 applied. Confidence 0.62.",
+      "implementation": "quantile(divide(ts_zscore(subtract(ts_backfill(mdl57_actual_earnings,30), ts_backfill(mdl57_earnings_estimate,30)),40), mdl57_market_cap), driver='gaussian')",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum consistency via ts_count_nans",
+      "description": "Require names with consistent momentum data (few NaNs) to avoid spurious signals. Used mdl57_momentum and ts_count_nans to filter. momentum backfilled. SUGGESTION3 used for momentum. Confidence 0.58.",
+      "implementation": "quantile(if_else(less(ts_count_nans(ts_backfill(mdl57_momentum,60),60), 10), ts_zscore(ts_backfill(mdl57_momentum,20),20), 0), driver='gaussian')",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "PE differential vs sector (proxy)",
+      "description": "Use forward PE relative to cross-section (normalize) to find cheap names. Used mdl57_forward_pe_ratio backfilled and normalize. SUGGESTION1 single-field. Confidence 0.60.",
+      "implementation": "quantile(normalize(ts_zscore(ts_backfill(mdl57_forward_pe_ratio,60),60)), driver='gaussian')",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum scaled by earnings surprise",
+      "description": "Amplify momentum where recent earnings surprise is positive. Used mdl57_momentum and earnings surprise (actual - estimate) with backfill. SUGGESTION1 applied. Confidence 0.68.",
+      "implementation": "quantile(multiply(ts_backfill(mdl57_momentum,20), ts_zscore(subtract(ts_backfill(mdl57_actual_earnings,30), ts_backfill(mdl57_earnings_estimate,30)),40)), driver='gaussian')",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Momentum + low forward PE (value-overlay)",
+      "description": "Combine momentum with low forward PE ratio for quality value-momentum picks. Used mdl57_momentum and mdl57_forward_pe_ratio (both backfilled). SUGGESTION1 applied. Confidence 0.67.",
+      "implementation": "quantile(multiply(ts_backfill(mdl57_momentum,20), reverse(ts_zscore(ts_backfill(mdl57_forward_pe_ratio,60),60))), driver='gaussian')",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Short-term rebounds from low forecast rank",
+      "description": "Buy names with recent minimum forecast rank (ts_arg_min) anticipating upgrades. Used mdl57_forecast_ranking backfilled. SUGGESTION1 single-field. Confidence 0.59.",
+      "implementation": "quantile(if_else(equal(ts_arg_min(ts_backfill(mdl57_forecast_ranking,40),40), 0), 1, 0), driver='gaussian')",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Earnings surprise momentum with winsorization",
+      "description": "Winsorize surprise z-scores to reduce outlier impact. Used earnings surprise fields backfilled and winsorize. SUGGESTION1 & SUGGESTION3 applied. Confidence 0.66.",
+      "implementation": "quantile(winsorize(ts_zscore(subtract(ts_backfill(mdl57_actual_earnings,30), ts_backfill(mdl57_earnings_estimate,30)),40), std=4), driver='gaussian')",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Value momentum across size quintiles",
+      "description": "Apply EP momentum within size buckets by using sizeranking as a scaling factor. Used mdl57_ep_ratio and mdl57_sizeranking (sizeranking coverage>0.6). EP backfilled. SUGGESTION1 applied. Confidence 0.63.",
+      "implementation": "quantile(multiply(reverse(ts_zscore(ts_backfill(mdl57_ep_ratio,60),60)), inverse(mdl57_sizeranking)), driver='gaussian')",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Forecast-momentum interaction",
+      "description": "Select names where both momentum and forecast ranking improve simultaneously. Used mdl57_momentum and mdl57_forecast_ranking. Both backfilled. SUGGESTION1 applied. Confidence 0.67.",
+      "implementation": "quantile(multiply(ts_zscore(ts_backfill(mdl57_momentum,20),20), ts_zscore(ts_backfill(mdl57_forecast_ranking,30),30)), driver='gaussian')",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Momentum rank minus valuation rank",
+      "description": "Use difference between momentum ranking and valuation ranking to find momentum in cheap stocks. Used mdl57_momentum_ranking and mdl57_valuation_ranking, both backfilled. SUGGESTION1 & SUGGESTION4 applied. Confidence 0.65.",
+      "implementation": "quantile(subtract(ts_zscore(ts_backfill(mdl57_momentum_ranking,20),20), ts_zscore(ts_backfill(mdl57_valuation_ranking,60),60)), driver='gaussian')",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Earnings growth weighted by market cap",
+      "description": "Favor earnings growth in larger firms for stability by weighting growth by market_cap. Used mdl57_earnings_growth (backfilled) and mdl57_market_cap. SUGGESTION1 applied. Confidence 0.61.",
+      "implementation": "quantile(multiply(ts_zscore(ts_backfill(mdl57_earnings_growth,60),60), mdl57_market_cap), driver='gaussian')",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Momentum persistence using ts_product",
+      "description": "Use product of recent momentum returns to capture sustained performance. Used mdl57_momentum backfilled and ts_product. SUGGESTION1 single-field. Confidence 0.59.",
+      "implementation": "quantile(ts_product(ts_backfill(mdl57_momentum,20), 20), driver='gaussian')",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "EP ratio rank mean reversion with winsorize",
+      "description": "Winsorize EP ratio rank z-scores and mean revert extremes. Used mdl57_ep_ratio_rankign backfilled and winsorize. SUGGESTION4 applied. Confidence 0.66.",
+      "implementation": "quantile(reverse(winsorize(ts_zscore(ts_backfill(mdl57_ep_ratio_rankign,60),60), std=4)), driver='gaussian')",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "High forecast rank momentum filter",
+      "description": "Require both high forecast rank and positive momentum to improve signal quality. Used forecast ranking and momentum (both backfilled). SUGGESTION1 applied. Confidence 0.64.",
+      "implementation": "quantile(multiply(ts_zscore(ts_backfill(mdl57_forecast_ranking,30),30), ts_zscore(ts_backfill(mdl57_momentum,20),20)), driver='gaussian')",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Market price breakout with avg volume confirmation",
+      "description": "Require price breakout (ts_arg_max) plus above-average volume to confirm. Used mdl57_market_price and mdl57_avg_volume (avg_volume backfilled). SUGGESTION1 & SUGGESTION3 applied. Confidence 0.66.",
+      "implementation": "quantile(multiply(if_else(equal(ts_arg_max(ts_backfill(mdl57_market_price,20),20),1,0), if_else(greater(ts_backfill(mdl57_avg_volume,30), ts_mean(ts_backfill(mdl57_avg_volume,30),60)),1,0), 0), driver='gaussian')",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Earnings surprise momentum normalized cross-sectionally",
+      "description": "Z-score surprise across the cross-section then quantile. Used actual and estimate with backfill. SUGGESTION1 & SUGGESTION3 applied. Confidence 0.67.",
+      "implementation": "quantile(normalize(ts_zscore(subtract(ts_backfill(mdl57_actual_earnings,30), ts_backfill(mdl57_earnings_estimate,30)),40)), driver='gaussian')",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Low PEG + improving earnings estimate",
+      "description": "Combine low PEG ranking with positive estimate revisions. Used mdl57_peg_ranking and mdl57_earnings_estimate (both backfilled). SUGGESTION1 & SUGGESTION4 applied. Confidence 0.62.",
+      "implementation": "quantile(multiply(reverse(ts_zscore(ts_backfill(mdl57_peg_ranking,60),60)), ts_zscore(ts_delta(ts_backfill(mdl57_earnings_estimate,60),30),30)), driver='gaussian')",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Valuation momentum via valuation_ranking",
+      "description": "Exploit momentum in valuation ranking (names becoming cheaper). Used mdl57_valuation_ranking backfilled and ts_zscore. SUGGESTION1 single-field. Confidence 0.60.",
+      "implementation": "quantile(ts_zscore(ts_backfill(mdl57_valuation_ranking,60),60), driver='gaussian')",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum relative to peer (proxy with sizeranking)",
+      "description": "Compare momentum to peers grouped by size using sizeranking as proxy: momentum / sizeranking. Used mdl57_momentum and mdl57_sizeranking. Momentum backfilled. SUGGESTION1 applied. Confidence 0.58.",
+      "implementation": "quantile(divide(ts_backfill(mdl57_momentum,20), mdl57_sizeranking), driver='gaussian')",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Forward PE drop with improving forecasts",
+      "description": "Long names where forward PE ratio declines while forecast ranking improves. Used forward PE ratio and forecast ranking, both backfilled. SUGGESTION1 applied. Confidence 0.63.",
+      "implementation": "quantile(add(reverse(ts_zscore(ts_backfill(mdl57_forward_pe_ratio,60),60)), ts_zscore(ts_delta(ts_backfill(mdl57_forecast_ranking,40),20),20)), driver='gaussian')",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum-ranked basket selection",
+      "description": "Select top quantile of momentum ranking for long basket. Used mdl57_momentum_ranking backfilled and bucket. SUGGESTION1 single-field. Confidence 0.7.",
+      "implementation": "quantile(bucket(rank(ts_backfill(mdl57_momentum_ranking,20)), buckets='8,9,10'), driver='gaussian')",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Earnings surprise vs valuation spread",
+      "description": "Long names where surprise is positive and valuation (EP) is attractive. Used earnings surprise and EP ratio both backfilled. SUGGESTION1 applied. Confidence 0.66.",
+      "implementation": "quantile(multiply(ts_zscore(subtract(ts_backfill(mdl57_actual_earnings,30), ts_backfill(mdl57_earnings_estimate,30)),40), reverse(ts_zscore(ts_backfill(mdl57_ep_ratio,60),60))), driver='gaussian')",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Momentum weighted by forecast ranking",
+      "description": "Increase momentum weight when forecast ranking is improving. Used mdl57_momentum and mdl57_forecast_ranking both backfilled. SUGGESTION1 applied. Confidence 0.65.",
+      "implementation": "quantile(multiply(ts_backfill(mdl57_momentum,20), ts_zscore(ts_backfill(mdl57_forecast_ranking,30),30)), driver='gaussian')",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Low valuation z-score with size cap",
+      "description": "Identify cheap names by EP z-score but cap exposure to extremely small firms via market_cap filter. Used mdl57_ep_ratio and mdl57_market_cap. EP backfilled. SUGGESTION1 applied. Confidence 0.64.",
+      "implementation": "quantile(if_else(greater(mdl57_market_cap, 5e8), reverse(ts_zscore(ts_backfill(mdl57_ep_ratio,60),60)), 0), driver='gaussian')",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Forecast-based momentum entry",
+      "description": "Enter on names with recent positive change in forecast ranking and short when negative. Used mdl57_forecast_ranking backfilled with ts_delta. SUGGESTION1 single-field. Confidence 0.61.",
+      "implementation": "quantile(ts_zscore(ts_delta(ts_backfill(mdl57_forecast_ranking,40),20),20), driver='gaussian')",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Momentum scaled by inverse forward PE",
+      "description": "Favor momentum among low forward PE names by multiplying momentum with inverse forward PE. Used mdl57_momentum and mdl57_forward_pe_ratio, both backfilled. SUGGESTION1 applied. Confidence 0.66.",
+      "implementation": "quantile(multiply(ts_backfill(mdl57_momentum,20), inverse(ts_backfill(mdl57_forward_pe_ratio,60))), driver='gaussian')",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Earnings surprise persistence bucket",
+      "description": "Bucket names by summed recent surprise and pick top bucket. Used earnings fields backfilled and ts_sum then bucket. SUGGESTION1 & SUGGESTION3 applied. Confidence 0.65.",
+      "implementation": "quantile(bucket(rank(ts_sum(subtract(ts_backfill(mdl57_actual_earnings,30), ts_backfill(mdl57_earnings_estimate,30)),60)), range='0,1,0.2'), driver='gaussian')",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "EP ratio vs forward PE divergence",
+      "description": "Long names where EP improves while forward PE falls, signaling re-rating. Used mdl57_ep_ratio and mdl57_forward_pe_ratio. Both backfilled. SUGGESTION1 applied. Confidence 0.63.",
+      "implementation": "quantile(add(reverse(ts_zscore(ts_backfill(mdl57_ep_ratio,60),60)), reverse(ts_zscore(ts_backfill(mdl57_forward_pe_ratio,60),60))), driver='gaussian')",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum with turnover control (hump)",
+      "description": "Apply hump to reduce turnover while keeping momentum exposure. Used mdl57_momentum backfilled. SUGGESTION1 single-field. Confidence 0.56.",
+      "implementation": "quantile(hump(ts_backfill(mdl57_momentum,20), hump=0.01), driver='gaussian')",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Forecast rank times earnings surprise",
+      "description": "Combine forecast ranking improvement with earnings surprise to pick upwardly revised names. Used mdl57_forecast_ranking and earnings surprise (two fields) backfilled. SUGGESTION1 applied. Confidence 0.64.",
+      "implementation": "quantile(multiply(ts_zscore(ts_delta(ts_backfill(mdl57_forecast_ranking,40),20),20), ts_zscore(subtract(ts_backfill(mdl57_actual_earnings,30), ts_backfill(mdl57_earnings_estimate,30)),40)), driver='gaussian')",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum combined with PEG strength",
+      "description": "Favor momentum in names with improving PEG ranking. Used mdl57_momentum and mdl57_peg_ranking both backfilled. SUGGESTION1 applied. Confidence 0.62.",
+      "implementation": "quantile(multiply(ts_backfill(mdl57_momentum,20), reverse(ts_zscore(ts_backfill(mdl57_peg_ranking,60),60))), driver='gaussian')",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "EP ratio z-score vs market cap buckets",
+      "description": "Apply EP z-score within market cap buckets to avoid size bias by using sizeranking as a multiplier. Used mdl57_ep_ratio and mdl57_sizeranking. EP backfilled. SUGGESTION1 applied. Confidence 0.63.",
+      "implementation": "quantile(multiply(reverse(ts_zscore(ts_backfill(mdl57_ep_ratio,60),60)), inverse(mdl57_sizeranking)), driver='gaussian')",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "One-month forecast + momentum confirmation",
+      "description": "Require both one-month forecast improvement and positive momentum. Used mdl57_one_month_forecat and mdl57_momentum. Both backfilled. SUGGESTION1 applied. Confidence 0.60.",
+      "implementation": "quantile(multiply(ts_zscore(ts_backfill(mdl57_one_month_forecat,30),30), ts_zscore(ts_backfill(mdl57_momentum,20),20)), driver='gaussian')",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum scaled by inverse volatility",
+      "description": "Prefer momentum in lower volatility names by dividing by recent ts_std_dev of returns. Used mdl57_momentum and market_price (for returns). Momentum backfilled. SUGGESTION1 applied. Confidence 0.68.",
+      "implementation": "quantile(divide(ts_backfill(mdl57_momentum,20), ts_std_dev(ts_returns(mdl57_market_price,30),30)), driver='gaussian')",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Earnings estimate rank improvement",
+      "description": "Rank improvement in earnings estimate is used as a signal: ts_delta of estimate ranking. Used mdl57_earnings_estimate backfilled and ts_rank. SUGGESTION1 single-field. Confidence 0.62.",
+      "implementation": "quantile(ts_rank(ts_delta(ts_backfill(mdl57_earnings_estimate,60),30),30), driver='gaussian')",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum + low valuation z-score bucket",
+      "description": "Select names with top momentum but low valuation z-score via bucket intersection. Used mdl57_momentum and mdl57_ep_ratio; both backfilled. SUGGESTION1 applied. Confidence 0.67.",
+      "implementation": "quantile(bucket(rank(multiply(ts_backfill(mdl57_momentum,20), reverse(ts_zscore(ts_backfill(mdl57_ep_ratio,60),60)))), range='0,1,0.1'), driver='gaussian')",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Forward PE ranking volatility filter",
+      "description": "Use ts_std_dev of forward PE ranking to avoid unstable ranking names. Used mdl57_forward_pe_ranking backfilled and ts_std_dev. SUGGESTION1 single-field. Confidence 0.58.",
+      "implementation": "quantile(divide(ts_zscore(ts_backfill(mdl57_forward_pe_ranking,60),60), ts_std_dev(ts_backfill(mdl57_forward_pe_ranking,60),60)), driver='gaussian')",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Earnings surprise weighted by forecast rank",
+      "description": "Weight earnings surprise by forecast ranking to favor names analysts expect to do well. Used earnings fields and forecast ranking backfilled. SUGGESTION1 applied. Confidence 0.65.",
+      "implementation": "quantile(multiply(ts_zscore(subtract(ts_backfill(mdl57_actual_earnings,30), ts_backfill(mdl57_earnings_estimate,30)),40), ts_zscore(ts_backfill(mdl57_forecast_ranking,30),30)), driver='gaussian')",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Momentum sign timing",
+      "description": "Use sign of recent momentum to create simple directional signal (reduce noise). Used mdl57_momentum backfilled and sign operator. SUGGESTION1 single-field. Confidence 0.55.",
+      "implementation": "quantile(sign(ts_backfill(mdl57_momentum,20)), driver='gaussian')",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Market cap-neutralized growth signal",
+      "description": "Neutralize growth ranking by market cap to avoid cap bias. Used mdl57_growth_ranking and mdl57_market_cap. Growth backfilled. SUGGESTION1 applied. Confidence 0.60.",
+      "implementation": "quantile(divide(ts_zscore(ts_backfill(mdl57_growth_ranking,60),60), mdl57_market_cap), driver='gaussian')",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum cross-over (short vs long lookbacks)",
+      "description": "Use difference between short-term and medium-term momentum to detect acceleration. Used mdl57_momentum backfilled with ts_delta-like approach via ts_zscore differences. SUGGESTION1 single-field. Confidence 0.66.",
+      "implementation": "quantile(subtract(ts_zscore(ts_backfill(mdl57_momentum,10),10), ts_zscore(ts_backfill(mdl57_momentum,40),40)), driver='gaussian')",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "EP ratio + forecast divergence",
+      "description": "Long EP improvement with improving forecast ranking (value + fundamental upgrade). Used mdl57_ep_ratio and mdl57_forecast_ranking both backfilled. SUGGESTION1 applied. Confidence 0.64.",
+      "implementation": "quantile(add(reverse(ts_zscore(ts_backfill(mdl57_ep_ratio,60),60)), ts_zscore(ts_backfill(mdl57_forecast_ranking,30),30)), driver='gaussian')",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "PEG ranking + earnings growth",
+      "description": "Long names with good PEG ranking and accelerating earnings growth. Used mdl57_peg_ranking and mdl57_earnings_growth; both backfilled. SUGGESTION1 applied. Confidence 0.62.",
+      "implementation": "quantile(multiply(reverse(ts_zscore(ts_backfill(mdl57_peg_ranking,60),60)), ts_zscore(ts_delta(ts_backfill(mdl57_earnings_growth,60),30),30)), driver='gaussian')",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum filtered by valuation buckets",
+      "description": "Apply momentum only to names in cheapest valuation buckets (EP quantiles). Used mdl57_momentum and mdl57_ep_ratio (backfilled). SUGGESTION1 applied. Confidence 0.65.",
+      "implementation": "quantile(if_else(less(bucket(rank(ts_backfill(mdl57_ep_ratio,60)), range='0,1,0.2'), 3), ts_zscore(ts_backfill(mdl57_momentum,20),20), 0), driver='gaussian')",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Forecast rank minus valuation rank",
+      "description": "Find names where forecast rank exceeds valuation rank (upgrade potential). Used mdl57_forecast_ranking and mdl57_valuation_ranking; both backfilled. SUGGESTION1 applied. Confidence 0.63.",
+      "implementation": "quantile(subtract(ts_zscore(ts_backfill(mdl57_forecast_ranking,30),30), ts_zscore(ts_backfill(mdl57_valuation_ranking,60),60)), driver='gaussian')",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum + EP ratio z-score interaction",
+      "description": "Multiply momentum z-score with EP z-score to favor names strong on both dimensions. Used mdl57_momentum and mdl57_ep_ratio (backfilled). SUGGESTION1 applied. Confidence 0.68.",
+      "implementation": "quantile(multiply(ts_zscore(ts_backfill(mdl57_momentum,20),20), reverse(ts_zscore(ts_backfill(mdl57_ep_ratio,60),60))), driver='gaussian')",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Earnings surprise leading price returns",
+      "description": "Use recent earnings surprise to predict short-term price returns (surprise -> ts_returns next). Used earnings fields and market_price but limited to surprise and then compare with returns via ts_corr; to keep two fields using actual_earnings and market_price. Earnings backfilled. SUGGESTION1 applied. Confidence 0.62.",
+      "implementation": "quantile(ts_corr(subtract(ts_backfill(mdl57_actual_earnings,30), ts_backfill(mdl57_earnings_estimate,30)), ts_returns(mdl57_market_price,20), 20), driver='gaussian')",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum with ts_scale normalization",
+      "description": "Scale momentum into [0,1] over time series to stabilize cross-section. Used mdl57_momentum backfilled with ts_scale. SUGGESTION1 single-field. Confidence 0.66.",
+      "implementation": "quantile(ts_scale(ts_backfill(mdl57_momentum,60),60), driver='gaussian')",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Forward PE drop with strong momentum",
+      "description": "Long names where forward PE declines and momentum is positive. Used mdl57_forward_pe_ratio and mdl57_momentum both backfilled. SUGGESTION1 applied. Confidence 0.64.",
+      "implementation": "quantile(multiply(reverse(ts_zscore(ts_backfill(mdl57_forward_pe_ratio,60),60)), ts_backfill(mdl57_momentum,20)), driver='gaussian')",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Momentum zscore combined with forecast zscore",
+      "description": "Add momentum z-score and forecast ranking z-score to capture both technical and fundamental momentum. Used mdl57_momentum and mdl57_forecast_ranking both backfilled. SUGGESTION1 applied. Confidence 0.67.",
+      "implementation": "quantile(add(ts_zscore(ts_backfill(mdl57_momentum,20),20), ts_zscore(ts_backfill(mdl57_forecast_ranking,30),30)), driver='gaussian')",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Earnings estimate vs actual divergence",
+      "description": "Identify names where estimate revisions diverge from actual earnings trends (potential mispricing). Used mdl57_actual_earnings and mdl57_earnings_estimate (both backfilled) and ts_delta. SUGGESTION1 applied. Confidence 0.61.",
+      "implementation": "quantile(subtract(ts_delta(ts_backfill(mdl57_earnings_estimate,60),30), ts_delta(ts_backfill(mdl57_actual_earnings,60),30)), driver='gaussian')",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Momentum with group-neutral proxy (size)",
+      "description": "Neutralize momentum exposure to size by dividing by sizeranking. Used mdl57_momentum and mdl57_sizeranking. Momentum backfilled. SUGGESTION1 applied. Confidence 0.62.",
+      "implementation": "quantile(divide(ts_backfill(mdl57_momentum,20), mdl57_sizeranking), driver='gaussian')",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "EP ratio vs PEG divergence",
+      "description": "Find names cheap on EP but expensive on PEG (possible mispricing). Used mdl57_ep_ratio and mdl57_peg (both backfilled). SUGGESTION1 applied. Confidence 0.58.",
+      "implementation": "quantile(subtract(reverse(ts_zscore(ts_backfill(mdl57_ep_ratio,60),60)), ts_zscore(ts_backfill(mdl57_peg,60),60)), driver='gaussian')",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Momentum confirmation via forward PE ranking",
+      "description": "Require momentum to coincide with improving forward PE ranking to reduce false positives. Used mdl57_momentum and mdl57_forward_pe_ranking both backfilled. SUGGESTION1 applied. Confidence 0.66.",
+      "implementation": "quantile(multiply(ts_backfill(mdl57_momentum,20), ts_zscore(ts_backfill(mdl57_forward_pe_ranking,60),60)), driver='gaussian')",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Earnings surprise signal with ts_quantile",
+      "description": "Convert earnings surprise into quantiles across time for robust selection. Used earnings fields backfilled and ts_quantile. SUGGESTION1 & SUGGESTION3 applied. Confidence 0.65.",
+      "implementation": "quantile(ts_quantile(subtract(ts_backfill(mdl57_actual_earnings,30), ts_backfill(mdl57_earnings_estimate,30)),30, driver='gaussian'), driver='gaussian')",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Momentum stability via ts_kurtosis",
+      "description": "Prefer momentum with favorable kurtosis (less tail risk). Used mdl57_momentum backfilled and ts_kurtosis. SUGGESTION1 single-field. Confidence 0.56.",
+      "implementation": "quantile(divide(ts_backfill(mdl57_momentum,20), ts_kurtosis(ts_backfill(mdl57_momentum,60),60)), driver='gaussian')",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Fair value momentum with size cap",
+      "description": "Long names moving toward fair value among mid-large caps only. Used mdl57_fair_value and mdl57_market_cap; fair_value backfilled. SUGGESTION1 applied. Confidence 0.59.",
+      "implementation": "quantile(if_else(greater(mdl57_market_cap, 5e8), reverse(ts_zscore(subtract(ts_backfill(mdl57_market_price,30), ts_backfill(mdl57_fair_value,60)),60)), 0), driver='gaussian')",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum vs earnings growth divergence",
+      "description": "Identify names where momentum lags earnings growth (potential catch-up). Used mdl57_momentum and mdl57_earnings_growth both backfilled. SUGGESTION1 applied. Confidence 0.62.",
+      "implementation": "quantile(subtract(ts_zscore(ts_backfill(mdl57_earnings_growth,60),60), ts_zscore(ts_backfill(mdl57_momentum,20),20)), driver='gaussian')",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Forward PE ranking stability",
+      "description": "Prefer names whose forward PE ranking shows low volatility (stable cheapness). Used mdl57_forward_pe_ranking backfilled with ts_std_dev. SUGGESTION1 single-field. Confidence 0.57.",
+      "implementation": "quantile(divide(ts_zscore(ts_backfill(mdl57_forward_pe_ranking,60),60), ts_std_dev(ts_backfill(mdl57_forward_pe_ranking,60),60)), driver='gaussian')",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Momentum plus forecast buckets",
+      "description": "Select momentum names that fall into top forecast ranking buckets. Used mdl57_momentum and mdl57_forecast_ranking both backfilled. SUGGESTION1 applied. Confidence 0.66.",
+      "implementation": "quantile(if_else(less(bucket(rank(ts_backfill(mdl57_forecast_ranking,30)), range='0,1,0.2'), 2), ts_zscore(ts_backfill(mdl57_momentum,20),20), 0), driver='gaussian')",
+      "confidence_level": 0.66
+    }
+  ]
+}

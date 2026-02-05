@@ -1,0 +1,688 @@
+{
+  "results": [
+    {
+      "idea": "EBIT/EV value",
+      "description": "Applied SUGGESTION1: used operating_income and enterprise_value to form a classic value metric. SUGGESTION2: no vector fields identified so not applied. SUGGESTION3: both fields have coverage 0.5 (<0.6) so ts_backfill used to mitigate missingness. SUGGESTION4: picked high userCount fields (operating_income 13754, enterprise_value 7837) per suggestion. KEEP_IN_MIND: implementation short, uses 2 datafields and 3 operators (ts_backfill x2 + divide) satisfying K1-K4. Confidence set to 0.85 based on long-standing edge of EBIT/EV.",
+      "implementation": "divide(ts_backfill(operating_income, 8), ts_backfill(enterprise_value, 8))",
+      "confidence_level": 0.85
+    },
+    {
+      "idea": "Revenue growth (QoQ) zscore",
+      "description": "S1: combined revenue and enterprise_value to normalize growth by size. S2: no vector fields. S3: coverage 0.5 -> ts_backfill applied to revenue and enterprise_value. S4: revenue userCount 3134 and enterprise_value 7837 are robust. KEEP_IN_MIND: <=2 fields and <=7 operators; used ts_delta and ts_zscore and divide. Confidence 0.7 because quarter growth is meaningful but noisier.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(revenue, 1), 8), ts_backfill(enterprise_value, 8)), 12)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Net income yield",
+      "description": "S1: income / enterprise_value to capture earnings yield. S2: no vector fields. S3: applied ts_backfill on income and enterprise_value. S4: income (userCount 3044) and enterprise_value chosen for coverage and usage. KEEP_IN_MIND: compact implementation with 3 operators. Confidence 0.8 — earnings yield historically strong.",
+      "implementation": "divide(ts_backfill(income, 8), ts_backfill(enterprise_value, 8))",
+      "confidence_level": 0.8
+    },
+    {
+      "idea": "Operating margin improvement (YoY)",
+      "description": "S1: compare operating_income growth to revenue to detect margin expansion. S2: no vectors. S3: ts_backfill both quarterly fields (coverage 0.5). S4: operating_income and revenue high userCount. KEEP_IN_MIND: uses ts_delta and divide and ts_zscore, within operator limits. Confidence 0.75 — margin expansion is predictive but slower to materialize.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(operating_income, 4), 12), ts_backfill(revenue, 12)), 12)",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Cash yield (Cash / EV)",
+      "description": "S1: cash divided by enterprise_value yields cash-richness. S2: no vector fields. S3: ts_backfill applied to both fields. S4: cash userCount 2155 and enterprise_value robust. KEEP_IN_MIND: simple ratio (2 fields, 3 ops). Confidence 0.78 — cash-rich companies often outperform.",
+      "implementation": "divide(ts_backfill(cash, 8), ts_backfill(enterprise_value, 8))",
+      "confidence_level": 0.78
+    },
+    {
+      "idea": "Free cash flow proxy: operating cash flow / invested capital",
+      "description": "S1: cashflow_op divided by invested_capital to proxy cash return on capital. S2: no vector fields. S3: ts_backfill used for both (coverage 0.5). S4: cashflow_op userCount 4569, invested_capital 1465 are strong. KEEP_IN_MIND: concise, 3 operators. Confidence 0.82 given cashflow fundamentals signals.",
+      "implementation": "divide(ts_backfill(cashflow_op, 8), ts_backfill(invested_capital, 8))",
+      "confidence_level": 0.82
+    },
+    {
+      "idea": "ROA momentum (income / assets change)",
+      "description": "S1: combine income and assets to capture improving ROA via ts_delta. S2: no vectors. S3: ts_backfill for both. S4: income and assets fields have reasonable userCount. KEEP_IN_MIND: uses ts_delta, divide, ts_zscore within operator limits. Confidence 0.74 because ROA improvements indicate operational improvement.",
+      "implementation": "ts_zscore(divide(ts_backfill(income, 8), ts_backfill(ts_delta(fnd6_cptnewqv1300_atq,4),8)), 12)",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Debt reduction signal (negative debt delta vs EV)",
+      "description": "S1: ts_delta(debt,4) negative indicates deleveraging; normalize by enterprise_value. S2: no vectors. S3: ts_backfill on debt and enterprise_value. S4: debt userCount 8552 and enterprise_value robust. KEEP_IN_MIND: uses ts_delta, divide, ts_zscore. Confidence 0.7 because deleveraging often rewarded.",
+      "implementation": "ts_zscore(divide(reverse(ts_backfill(ts_delta(debt,4),8)), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Capex efficiency: revenue / capex (sales growth per capex)",
+      "description": "S1: revenue over capxv to find firms generating more sales per capex. S2: no vectors. S3: ts_backfill both fields. S4: revenue and capxv userCounts are good (3134, 872). KEEP_IN_MIND: simple ratio within operator limits. Confidence 0.68 as capex accounting noise exists.",
+      "implementation": "divide(ts_backfill(revenue,8), ts_backfill(fnd6_capxv,8))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "R&D intensity vs sales growth",
+      "description": "S1: rd_expense / sales to find R&D efficient growers. S2: no vectors. S3: ts_backfill both (coverage 0.5). S4: rd_expense userCount 687, sales 9394. KEEP_IN_MIND: 2 fields, simple divide. Confidence 0.65 — industry dependent.",
+      "implementation": "divide(ts_backfill(rd_expense,8), ts_backfill(sales,8))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Inventory pressure: COGS vs inventories",
+      "description": "S1: cogs / inventoriess proxy (using cogs and fnd6_invt) to detect inventory buildups. S2: no vectors. S3: ts_backfill both. S4: cogs and inventories have moderate userCounts. KEEP_IN_MIND: uses divide and ts_zscore. Confidence 0.6 given sector specificity.",
+      "implementation": "ts_zscore(divide(ts_backfill(cogs,8), ts_backfill(fnd6_newa1v1300_invt,8)),12)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Buyback intensity (shares repurchased / cash)",
+      "description": "S1: fnd6_newqv1300_cshopq (shares repurchased) / cash to detect aggressive buybacks funded by cash. S2: no vectors. S3: ts_backfill both. S4: cash and repurchase fields have good userCount. KEEP_IN_MIND: <=2 fields, simple ratio. Confidence 0.66 — buybacks often signal management confidence.",
+      "implementation": "divide(ts_backfill(fnd6_newqv1300_cshopq,8), ts_backfill(cash,8))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Dividend safety (cashflow_dividends / cashflow_op)",
+      "description": "S1: compare cash dividends to operating cashflow to find sustainable dividends. S2: no vector fields. S3: ts_backfill both. S4: cashflow_dividends userCount 2315 and cashflow_op 4569 are robust. KEEP_IN_MIND: 2 fields and 3 operators. Confidence 0.72 — payout sustainability important to returns.",
+      "implementation": "divide(ts_backfill(cashflow_dividends,8), ts_backfill(cashflow_op,8))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Gross margin expansion (revenue - cogs) / revenue",
+      "description": "S1: combine revenue and cogs to compute gross margin change. S2: no vectors. S3: ts_backfill both. S4: both fields have substantial userCount. KEEP_IN_MIND: implemented with subtract and divide and ts_zscore under operator limits. Confidence 0.71.",
+      "implementation": "ts_zscore(divide(subtract(ts_backfill(revenue,8), ts_backfill(cogs,8)), ts_backfill(revenue,8)), 12)",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Interest burden improvement (pretax income / interest expense)",
+      "description": "S1: pifo or pretax income over interest_expense to spot companies improving coverage. S2: no vectors. S3: ts_backfill both fields. S4: pretax and interest fields have moderate userCounts. KEEP_IN_MIND: concise formula. Confidence 0.67 as leverage dynamics matter.",
+      "implementation": "divide(ts_backfill(fnd6_pifo,8), ts_backfill(interest_expense,8))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Working capital efficiency (sales / working_capital)",
+      "description": "S1: sales over working_capital to detect efficient working capital use. SUGGESTION2: no vector. S3: ts_backfill both fields. S4: sales userCount 9394, working_capital 1109. KEEP_IN_MIND: 2 fields only. Confidence 0.7 given proven signal in cash conversion.",
+      "implementation": "divide(ts_backfill(sales,8), ts_backfill(working_capital,8))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Price momentum normalized by size",
+      "description": "S1: use prccq returns and enterprise_value to form size-adjusted momentum. S2: no vectors. S3: ts_backfill applied to enterprise_value (price series has coverage 0.5 so backfill price too). S4: enterprise_value high userCount; prccq moderate. KEEP_IN_MIND: uses ts_returns and divide and ts_zscore; within operator limits. Confidence 0.64 — momentum persistent but higher turnover.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_returns(fnd6_prccq,4),8), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "EV/Book revert-to-mean",
+      "description": "S1: bookvalue_ps and enterprise_value combined to capture valuation vs book. S2: no vectors. S3: ts_backfill both fields. S4: bookvalue_ps userCount 2303 and enterprise_value strong. KEEP_IN_MIND: simple divide with ts_zscore. Confidence 0.75 - classic value metric.",
+      "implementation": "ts_zscore(divide(ts_backfill(enterprise_value,8), ts_backfill(bookvalue_ps,8)), 12)",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Operating income surprise persistence (oibdpq growth normalized by EV)",
+      "description": "S1: use operating_income quarterly growth (cptnewqv1300_oiadpq) with enterprise_value to find persistent earners. S2: no vector. S3: ts_backfill both. S4: oiadpq userCount 464 and enterprise_value strong. KEEP_IN_MIND: ts_delta, divide, ts_zscore used. Confidence 0.69.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(fnd6_cptnewqv1300_oiadpq,4),12), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Asset turnover improvement (sales / assets)",
+      "description": "S1: sales over assets to detect improving asset efficiency. S2: no vector fields. S3: ts_backfill both. S4: sales and assets fields have solid userCounts. KEEP_IN_MIND: simple ratio. Confidence 0.66.",
+      "implementation": "divide(ts_backfill(sales,8), ts_backfill(fnd6_cptmfmq_atq,8))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Leverage-adjusted earnings growth (income growth / debt)",
+      "description": "S1: income ts_delta normalized by debt to penalize leverage. S2: no vector. S3: ts_backfill income and debt. S4: income and debt userCounts strong. KEEP_IN_MIND: ts_delta, divide, ts_zscore used. Confidence 0.63.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(income,4),12), ts_backfill(debt,8)),12)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Operating cashflow acceleration vs EV",
+      "description": "S1: ts_delta(cashflow_op,4) normalized by enterprise_value to find improving cash generative firms. S2: no vector. S3: ts_backfill both. S4: cashflow_op high userCount. KEEP_IN_MIND: uses ts_delta, divide, ts_zscore. Confidence 0.76.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(cashflow_op,4),12), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.76
+    },
+    {
+      "idea": "Sales per share growth vs price",
+      "description": "S1: sales_ps ts_delta compared to prccq returns to detect underpriced sales growth. S2: no vectors. S3: ts_backfill sales_ps and prccq. S4: sales_ps userCount 1391 and prccq available. KEEP_IN_MIND: uses ts_delta and ts_returns and divide. Confidence 0.62 — noisy but interesting.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(sales_ps,4),12), ts_backfill(ts_returns(fnd6_prccq,4),8)),12)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Depreciation-adjusted profitability (operating_income + depre_amort) / assets",
+      "description": "S1: add operating_income and depre_amort then divide by assets to capture cash-like profitability. S2: no vectors. S3: ts_backfill all fields. S4: operating_income and depre_amort userCounts good. KEEP_IN_MIND: uses add and divide within operator budget. Confidence 0.7.",
+      "implementation": "divide(add(ts_backfill(operating_income,8), ts_backfill(depre_amort,8)), ts_backfill(fnd6_cptmfmq_atq,8))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Inventory turnover improvement (COGS / inventories change)",
+      "description": "S1: ts_delta(inventories,4) vs cogs to detect improving turnover. S2: no vector. S3: ts_backfill both. S4: cogs userCount 1599, inventories moderate. KEEP_IN_MIND: uses ts_delta, divide, ts_zscore. Confidence 0.58 due to sector noise.",
+      "implementation": "ts_zscore(divide(ts_backfill(cogs,8), ts_backfill(ts_delta(fnd6_newa1v1300_invt,4),8)),12)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Operating leverage play: revenue growth / operating_income growth",
+      "description": "S1: compare revenue ts_delta and operating_income ts_delta to find firms with positive operating leverage. S2: no vector. S3: ts_backfill both fields. S4: both fields high userCount. KEEP_IN_MIND: uses ts_delta and divide and ts_zscore. Confidence 0.67.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(operating_income,4),12), ts_backfill(ts_delta(revenue,4),12)),12)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Short-term liquidity cushion: cash_st / liabilities_curr",
+      "description": "S1: cash_st over liabilities_curr to find liquid firms. S2: no vector. S3: ts_backfill both (coverage 0.5). S4: cash_st and liabilities_curr userCounts solid. KEEP_IN_MIND: simple ratio. Confidence 0.71 for downside protection effect.",
+      "implementation": "divide(ts_backfill(cash_st,8), ts_backfill(liabilities_curr,8))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Enterprise value to sales momentum",
+      "description": "S1: ts_delta(revenue,4) normalized by enterprise_value to find fast growers relative to size. S2: no vector. S3: ts_backfill both. S4: revenue and enterprise_value have strong usage. KEEP_IN_MIND: ts_delta, divide, ts_zscore used. Confidence 0.69.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(revenue,4),12), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Earnings quality: income adjusted by special items",
+      "description": "S1: income - fnd6_sppe (special items) divided by enterprise_value for quality-adjusted yield. S2: no vectors. S3: ts_backfill both fields. S4: income userCount high; special items lower. KEEP_IN_MIND: subtract and divide used, 3 operators. Confidence 0.66 due to irregularity of special items.",
+      "implementation": "divide(subtract(ts_backfill(income,8), ts_backfill(fnd6_sppe,8)), ts_backfill(enterprise_value,8))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Sustainable growth: retained earnings growth / assets",
+      "description": "S1: ts_delta(fnd6_newqeventv110_req,4) over assets to detect retained-earnings-driven growth. S2: no vectors. S3: ts_backfill both. S4: retained earnings field has lower userCount but assets stable. KEEP_IN_MIND: kept simple. Confidence 0.55 (less reliable).",
+      "implementation": "divide(ts_backfill(ts_delta(fnd6_cptnewqeventv110_req,4),12), ts_backfill(fnd6_cptmfmq_atq,8))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Operating income consistency (ts_std_dev low) normalized by EV",
+      "description": "S1: low ts_std_dev(operating_income,12) divided by enterprise_value to favor stable operators. S2: no vector. S3: ts_backfill both. S4: operating_income high userCount. KEEP_IN_MIND: uses ts_std_dev and divide and ts_zscore. Confidence 0.7.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_std_dev(operating_income,12),12), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Revenue surprise persistence: current rev vs 4-quarter average",
+      "description": "S1: ts_av_diff(revenue,4) normalized by enterprise_value. S2: no vectors. S3: ts_backfill revenue and enterprise_value. S4: revenue userCount strong. KEEP_IN_MIND: ts_av_diff and divide used. Confidence 0.68.",
+      "implementation": "divide(ts_backfill(ts_av_diff(revenue,4),12), ts_backfill(enterprise_value,8))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Capex cut signal: negative ts_delta(capxv) normalized by EV",
+      "description": "S1: ts_delta(capxv,4) reversed (cuts) divided by enterprise_value to find potential margin expansion. S2: no vectors. S3: ts_backfill both. S4: capxv userCount moderate. KEEP_IN_MIND: concise. Confidence 0.6 — capex signals mixed.",
+      "implementation": "ts_zscore(divide(reverse(ts_backfill(ts_delta(fnd6_capxv,4),12)), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Net cash position change (cash delta / EV)",
+      "description": "S1: ts_delta(cash,4) over enterprise_value to spot improving liquidity trends. S2: no vectors. S3: ts_backfill both. S4: cash userCount 2155. KEEP_IN_MIND: simple ts_delta and divide. Confidence 0.72.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(cash,4),12), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Earnings acceleration vs price momentum",
+      "description": "S1: ts_delta(income,4) divided by recent prccq returns to find undervalued accelerators. S2: no vector. S3: ts_backfill income and prccq. S4: income userCount good, prccq available. KEEP_IN_MIND: ts_delta, ts_returns, divide within limits. Confidence 0.61.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(income,4),12), ts_backfill(ts_returns(fnd6_prccq,4),8)),12)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Sales growth persistence vs EV (12MM)",
+      "description": "S1: ts_sum(ts_delta(sales,1),12) normalized by enterprise_value to capture persistent top-line growth. S2: no vector. S3: ts_backfill both. S4: sales userCount 9394 strong. KEEP_IN_MIND: uses ts_delta/ts_sum/divide but stays under operator limit. Confidence 0.7.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_sum(ts_delta(sales,1),12),12), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Return on invested capital (EBIT / invested_capital)",
+      "description": "S1: operating_income / invested_capital to approximate ROIC. S2: no vectors. S3: ts_backfill both fields. S4: operating_income and invested_capital userCounts are adequate. KEEP_IN_MIND: 2 fields only. Confidence 0.8 for strong economic return signal.",
+      "implementation": "divide(ts_backfill(operating_income,8), ts_backfill(invested_capital,8))",
+      "confidence_level": 0.8
+    },
+    {
+      "idea": "Price-to-sales improvement (EV / ts_mean(sales,4))",
+      "description": "S1: enterprise_value divided by ts_mean(sales,4) to detect undervalued sales growth. S2: no vectors. S3: ts_backfill for both. S4: enterprise_value and sales strong. KEEP_IN_MIND: ts_mean and divide within operator cap. Confidence 0.73.",
+      "implementation": "divide(ts_backfill(enterprise_value,8), ts_backfill(ts_mean(sales,4),8))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Operating cashflow margin improvement (cashflow_op / revenue)",
+      "description": "S1: cashflow_op divided by revenue to detect improving cash conversion margins. S2: no vectors. S3: ts_backfill both. S4: both fields high userCount. KEEP_IN_MIND: simple ratio. Confidence 0.77.",
+      "implementation": "divide(ts_backfill(cashflow_op,8), ts_backfill(revenue,8))",
+      "confidence_level": 0.77
+    },
+    {
+      "idea": "Debt-adjusted ROE (income / (debt + equity proxy))",
+      "description": "S1: income divided by (debt + fnd6_newa1v1300_ceq) to account for leverage in returns. S2: no vector. S3: ts_backfill for all fields. S4: income, debt and equity fields have reasonable counts. KEEP_IN_MIND: add and divide used, within operator limits. Confidence 0.65.",
+      "implementation": "divide(ts_backfill(income,8), add(ts_backfill(debt,8), ts_backfill(fnd6_newa1v1300_ceq,8)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Sales surprise vs price (ts_delta(sales,4) / prccq returns)",
+      "description": "S1: ts_delta(sales,4) normalized by recent price returns to find underreacted sales beats. S2: no vectors. S3: ts_backfill sales and prccq. S4: sales high userCount. KEEP_IN_MIND: uses ts_delta, ts_returns, divide. Confidence 0.6.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(sales,4),12), ts_backfill(ts_returns(fnd6_prccq,4),8)),12)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Operating income per employee (operating_income / employees)",
+      "description": "S1: operating_income divided by fnd6_newa1v1300_emp to capture productivity. S2: no vectors. S3: ts_backfill both. S4: operating_income high userCount; employees moderate. KEEP_IN_MIND: simple ratio (2 fields). Confidence 0.6 — cross-sector normalization needed.",
+      "implementation": "divide(ts_backfill(operating_income,8), ts_backfill(fnd6_newa1v1300_emp,8))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Asset impairment risk signal (goodwill / equity)",
+      "description": "S1: goodwill / fnd6_newa1v1300_ceq to highlight firms with high goodwill share of equity (risk). S2: no vector. S3: ts_backfill both. S4: goodwill userCount 3593, equity available. KEEP_IN_MIND: simple ratio. Confidence 0.58 — risk signal rather than direct alpha.",
+      "implementation": "divide(ts_backfill(goodwill,8), ts_backfill(fnd6_newa1v1300_ceq,8))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Deferred revenue growth normalized by EV",
+      "description": "S1: ts_delta(fnd6_drlt,4) divided by enterprise_value to detect future revenue recognition potential. S2: no vectors. S3: ts_backfill both. S4: drlt userCount 5782 strong. KEEP_IN_MIND: concise and within operator limits. Confidence 0.66.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(fnd6_drlt,4),12), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Pretax margin improvement (pretax income / revenue change)",
+      "description": "S1: ts_delta(fnd6_mfmq_piq,4) over ts_delta(revenue,4) to find margin improvement. S2: no vectors. S3: ts_backfill both. S4: pretax and revenue data present. KEEP_IN_MIND: ts_delta + divide + ts_zscore used. Confidence 0.64.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(fnd6_mfmq_piq,4),12), ts_backfill(ts_delta(revenue,4),12)),12)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Short-term solvency improvement (current_ratio delta)",
+      "description": "S1: ts_delta(current_ratio,4) normalized by enterprise_value to find improving liquidity. S2: no vectors. S3: ts_backfill both. S4: current_ratio userCount 1664 solid. KEEP_IN_MIND: ts_delta, divide, ts_zscore used. Confidence 0.62.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(current_ratio,4),12), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Inventory-to-sales deterioration (inventories / sales change)",
+      "description": "S1: ts_delta(fnd6_newa1v1300_invt,4) divided by ts_delta(sales,4) to detect deteriorating demand. S2: no vectors. S3: ts_backfill both. S4: sales userCount high. KEEP_IN_MIND: ts_delta and divide used. Confidence 0.56.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(fnd6_newa1v1300_invt,4),12), ts_backfill(ts_delta(sales,4),12)),12)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Operating income per EV growth (accelerating profitability signal)",
+      "description": "S1: ts_delta(operating_income,4) / enterprise_value to find improving profitability vs size. S2: no vector. S3: ts_backfill both. S4: operating_income userCount strong. KEEP_IN_MIND: concise. Confidence 0.73.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(operating_income,4),12), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Receivables deterioration (receivable growth / sales)",
+      "description": "S1: ts_delta(receivable,4)/sales to identify collection issues. S2: no vectors. S3: ts_backfill both. S4: receivable userCount 1330, sales strong. KEEP_IN_MIND: ts_delta and divide used. Confidence 0.59.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(receivable,4),12), ts_backfill(sales,8)),12)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Operating income volatility breakout vs EV",
+      "description": "S1: ts_arg_max(operating_income,12) combined with enterprise_value to find recent breakout in operating income. S2: no vectors. S3: ts_backfill applied. S4: operating_income high userCount. KEEP_IN_MIND: ts_arg_max and divide used. Confidence 0.6.",
+      "implementation": "divide(ts_backfill(ts_arg_max(operating_income,12),12), ts_backfill(enterprise_value,8))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Dividend coverage improvement (cashflow_op / cashflow_dividends delta)",
+      "description": "S1: ts_delta(divide(cashflow_op, cashflow_dividends),4) to spot improving coverage. S2: no vectors. S3: ts_backfill both inputs. S4: high userCount fields used. KEEP_IN_MIND: stays within operator limits. Confidence 0.66.",
+      "implementation": "ts_zscore(ts_delta(divide(ts_backfill(cashflow_op,8), ts_backfill(cashflow_dividends,8)),4),12)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Cost control signal (xsga reduction / revenue growth)",
+      "description": "S1: ts_delta(fnd6_newqv1300_xsgaq,4) reversed divided by ts_delta(revenue,4) to find cost cuts improving margins. S2: no vectors. S3: ts_backfill both. S4: xsga and revenue present. KEEP_IN_MIND: ts_delta + divide used. Confidence 0.61.",
+      "implementation": "ts_zscore(divide(reverse(ts_backfill(ts_delta(fnd6_newqv1300_xsgaq,4),12)), ts_backfill(ts_delta(revenue,4),12)),12)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Inventory-to-revenue ratio reduction",
+      "description": "S1: inventories / revenue to find efficient inventory managers. S2: no vectors. S3: ts_backfill both. S4: fields available. KEEP_IN_MIND: simple ratio. Confidence 0.6.",
+      "implementation": "divide(ts_backfill(fnd6_newa1v1300_invt,8), ts_backfill(revenue,8))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Research ROI (ts_delta(revenue,4) / rd_expense)",
+      "description": "S1: revenue growth over rd_expense to identify efficient R&D spenders. S2: no vectors. S3: ts_backfill both. S4: rd_expense userCount moderate. KEEP_IN_MIND: concise. Confidence 0.62.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(revenue,4),12), ts_backfill(rd_expense,8)),12)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Enterprise value to operating cashflow (EV / cashflow_op) cheapness",
+      "description": "S1: enterprise_value / cashflow_op to find cashflow-based value. S2: no vectors. S3: ts_backfill both. S4: cashflow_op userCount 4569. KEEP_IN_MIND: simple divide. Confidence 0.76.",
+      "implementation": "divide(ts_backfill(enterprise_value,8), ts_backfill(cashflow_op,8))",
+      "confidence_level": 0.76
+    },
+    {
+      "idea": "Operating expense leverage (oibdpq growth / sales growth)",
+      "description": "S1: ts_delta(fnd6_cptnewqv1300_oibdpq,4)/ts_delta(sales,4) to detect operating expense leverage. S2: no vectors. S3: ts_backfill both. S4: operating income before dep userCount moderate. KEEP_IN_MIND: ts_delta and divide used. Confidence 0.63.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(fnd6_cptnewqv1300_oibdpq,4),12), ts_backfill(ts_delta(sales,4),12)),12)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Market-implied option expense vs earnings (optfvgr / income)",
+      "description": "S1: fnd6_newqv1300_optfvgrq (options fair value) divided by income to capture dilution risk. S2: no vectors. S3: ts_backfill both. S4: optfvgrq userCount moderate. KEEP_IN_MIND: simple ratio. Confidence 0.54 — niche but useful in option-heavy firms.",
+      "implementation": "divide(ts_backfill(fnd6_newqv1300_optfvgrq,8), ts_backfill(income,8))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Interest expense trend vs pretax income",
+      "description": "S1: ts_delta(interest_expense,4) divided by pretax income to detect rising interest pressure. S2: no vectors. S3: ts_backfill both. S4: interest_expense userCount 618. KEEP_IN_MIND: ts_delta and divide used. Confidence 0.58.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(interest_expense,4),12), ts_backfill(fnd6_pifo,8)),12)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Operating income per EV volatility (ts_ir)",
+      "description": "S1: use ts_ir(operating_income,12) (mean/std) divided by enterprise_value to find stable high IR firms. S2: no vectors. S3: ts_backfill both. S4: operating_income userCount strong. KEEP_IN_MIND: ts_ir and divide used within operator cap. Confidence 0.72.",
+      "implementation": "divide(ts_backfill(ts_ir(operating_income,12),12), ts_backfill(enterprise_value,8))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Cash conversion acceleration: (income - cashflow_op) delta",
+      "description": "S1: ts_delta(subtract(income, cashflow_op),4) normalized by EV to find improving conversion. S2: no vectors. S3: ts_backfill both inputs. S4: income and cashflow_op userCounts high. KEEP_IN_MIND: subtract, ts_delta, divide used. Confidence 0.68.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(subtract(ts_backfill(income,8), ts_backfill(cashflow_op,8)),4),12), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Gross profit per EV (revenue - cogs)/EV",
+      "description": "S1: (revenue - cogs) / enterprise_value to emphasize absolute gross profits relative to size. S2: no vectors. S3: ts_backfill fields. S4: revenue and cogs userCounts strong. KEEP_IN_MIND: subtract and divide only. Confidence 0.74.",
+      "implementation": "divide(subtract(ts_backfill(revenue,8), ts_backfill(cogs,8)), ts_backfill(enterprise_value,8))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Sales stability (low ts_std_dev(sales) / EV)",
+      "description": "S1: ts_std_dev(sales,12) inverted divided by EV to favor stable revenue franchises. S2: no vectors. S3: ts_backfill both. S4: sales userCount high. KEEP_IN_MIND: ts_std_dev, inverse/divide used. Confidence 0.7.",
+      "implementation": "divide(inverse(ts_backfill(ts_std_dev(sales,12),12)), ts_backfill(enterprise_value,8))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Operating leverage score: (oibdpq / revenue) ts_zscore",
+      "description": "S1: operating income before depreciation divided by revenue to detect operating leverage. S2: no vector. S3: ts_backfill both. S4: both fields present. KEEP_IN_MIND: divide then ts_zscore. Confidence 0.69.",
+      "implementation": "ts_zscore(divide(ts_backfill(fnd6_cptnewqv1300_oibdpq,8), ts_backfill(revenue,8)),12)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Debt-adjusted cashflow growth (ts_delta(cashflow_op,4)/debt)",
+      "description": "S1: ts_delta(cashflow_op,4) normalized by debt to prefer deleveraging cashflow growth. S2: no vector. S3: ts_backfill both. S4: cashflow_op and debt userCounts strong. KEEP_IN_MIND: ts_delta, divide, ts_zscore used. Confidence 0.71.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(cashflow_op,4),12), ts_backfill(debt,8)),12)",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Price to operating income momentum (prccq returns vs oibdpq growth)",
+      "description": "S1: ts_returns(prccq,4) negative while oibdpq growth positive suggests underreaction. Combined via divide. S2: no vectors. S3: ts_backfill prccq and oibdpq. S4: prccq and oibdpq available. KEEP_IN_MIND: ts_returns, ts_delta, divide used. Confidence 0.6.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(fnd6_cptnewqv1300_oibdpq,4),12), ts_backfill(ts_returns(fnd6_prccq,4),8)),12)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Enterprise value to EBITDA proxy (enterprise_value / operating_income)",
+      "description": "S1: EV / operating_income classic valuation. S2: no vector. S3: ts_backfill both. S4: operating_income and enterprise_value high userCounts. KEEP_IN_MIND: simple divide. Confidence 0.83.",
+      "implementation": "divide(ts_backfill(enterprise_value,8), ts_backfill(operating_income,8))",
+      "confidence_level": 0.83
+    },
+    {
+      "idea": "Sales-to-capex improvement (ts_delta(sales,4)/capxv)",
+      "description": "S1: sales acceleration per unit capex to find efficient growers. S2: no vectors. S3: ts_backfill sales and capxv. S4: sales high userCount. KEEP_IN_MIND: ts_delta and divide used. Confidence 0.63.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(sales,4),12), ts_backfill(fnd6_capxv,8)),12)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Deferred tax asset utilization (txdbca / income)",
+      "description": "S1: deferred tax asset current over income to detect tax shields. S2: no vectors. S3: ts_backfill both. S4: txdbca userCount moderate. KEEP_IN_MIND: divide only. Confidence 0.52 — niche signal.",
+      "implementation": "divide(ts_backfill(fnd6_txdbca,8), ts_backfill(income,8))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Operating income growth normalized by market cap (prccq * shares)",
+      "description": "S1: operating_income growth over market cap proxy (enterprise_value used) to find earnings momentum vs valuation. S2: no vector. S3: ts_backfill both fields. S4: operating_income userCount very high. KEEP_IN_MIND: ts_delta, divide, ts_zscore used. Confidence 0.7.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(operating_income,4),12), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Receivables aging risk (receivable / revenue growth)",
+      "description": "S1: receivable divided by ts_delta(revenue,4) to find firms extending credit relative to growth. S2: no vectors. S3: ts_backfill both. S4: receivable and revenue available. KEEP_IN_MIND: ts_delta and divide used. Confidence 0.57.",
+      "implementation": "ts_zscore(divide(ts_backfill(receivable,8), ts_backfill(ts_delta(revenue,4),12)),12)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Operating income per EV trailing 12MM",
+      "description": "S1: ts_sum(operating_income,4)/enterprise_value to capture trailing profitability yield. S2: no vectors. S3: ts_backfill both. S4: high userCount on operating_income. KEEP_IN_MIND: ts_sum and divide used. Confidence 0.79.",
+      "implementation": "divide(ts_backfill(ts_sum(operating_income,4),12), ts_backfill(enterprise_value,8))",
+      "confidence_level": 0.79
+    },
+    {
+      "idea": "Sales per employee acceleration",
+      "description": "S1: ts_delta(divide(sales, fnd6_newa1v1300_emp),4) to find improving per-employee productivity. S2: no vectors. S3: ts_backfill sales and employees. S4: sales high userCount. KEEP_IN_MIND: divide and ts_delta used. Confidence 0.59.",
+      "implementation": "ts_zscore(ts_delta(divide(ts_backfill(sales,8), ts_backfill(fnd6_newa1v1300_emp,8)),4),12)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Operating income surprise vs EV (current vs 4Q avg)",
+      "description": "S1: ts_av_diff(operating_income,4) / enterprise_value to detect positive surprises. S2: no vectors. S3: ts_backfill both. S4: operating_income high userCount. KEEP_IN_MIND: ts_av_diff and divide used. Confidence 0.7.",
+      "implementation": "divide(ts_backfill(ts_av_diff(operating_income,4),12), ts_backfill(enterprise_value,8))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Leverage ratio improvement (debt_lt / assets change)",
+      "description": "S1: ts_delta(fnd6_cptmfmq_atq,4) vs debt_lt to find decreasing leverage. S2: no vectors. S3: ts_backfill both. S4: debt_lt and assets present. KEEP_IN_MIND: ts_delta and divide used. Confidence 0.61.",
+      "implementation": "ts_zscore(divide(ts_backfill(fnd6_cptnewqv1300_dlttq,8), ts_backfill(ts_delta(fnd6_cptmfmq_atq,4),12)),12)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Operating income vs implied option expense (oibdpq / xoptq)",
+      "description": "S1: oibdpq divided by fnd6_newqv1300_xoptq to find firms where earnings exceed option expense. S2: no vectors. S3: ts_backfill both. S4: oibdpq userCount moderate. KEEP_IN_MIND: divide only. Confidence 0.55.",
+      "implementation": "divide(ts_backfill(fnd6_cptnewqv1300_oibdpq,8), ts_backfill(fnd6_newqv1300_xoptq,8))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Return on Assets improvement vs EV",
+      "description": "S1: ts_delta(return_assets,4) / enterprise_value to find improving ROA franchises. S2: no vectors. S3: ts_backfill both. S4: return_assets userCount 1674. KEEP_IN_MIND: ts_delta and divide used. Confidence 0.68.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(return_assets,4),12), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Sales backlog signal (order backlog / revenue)",
+      "description": "S1: fnd6_obs / revenue to detect backlog that implies future revenue. S2: no vectors. S3: ts_backfill both. S4: obs userCount low but revenue strong. KEEP_IN_MIND: divide only. Confidence 0.56.",
+      "implementation": "divide(ts_backfill(fnd6_obs,8), ts_backfill(revenue,8))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Cash-rich small caps (cash / enterprise_value) with size filter",
+      "description": "S1: cash / enterprise_value; to bias to smaller firms one could later bucket by EV. For current alpha use the ratio. S2: no vectors. S3: ts_backfill both. S4: cash and enterprise_value userCounts high. KEEP_IN_MIND: kept minimal. Confidence 0.73.",
+      "implementation": "divide(ts_backfill(cash,8), ts_backfill(enterprise_value,8))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Operating income surprise persistence (ts_arg_max over 8 quarters) normalized",
+      "description": "S1: ts_arg_max(operating_income,8) indicates recent peak; divide by EV to emphasize strong recent performance. S2: no vectors. S3: ts_backfill used. S4: operating_income userCount large. KEEP_IN_MIND: ts_arg_max and divide used. Confidence 0.62.",
+      "implementation": "divide(ts_backfill(ts_arg_max(operating_income,8),12), ts_backfill(enterprise_value,8))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Asset-light profitability: operating_income / ppent",
+      "description": "S1: operating_income over ppent to find high returns with low tangible assets. S2: no vectors. S3: ts_backfill both. S4: ppent userCount 1329. KEEP_IN_MIND: simple ratio. Confidence 0.66.",
+      "implementation": "divide(ts_backfill(operating_income,8), ts_backfill(ppent,8))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Sales growth vs enterprise value (short-term momentum)",
+      "description": "S1: ts_delta(sales,1)/enterprise_value to catch accelerating sales vs price. S2: no vectors. S3: ts_backfill both. S4: sales userCount high. KEEP_IN_MIND: ts_delta and divide used. Confidence 0.65.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(sales,1),12), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Low volatility profit generators (low ts_std_dev(operating_income) & high income/EV)",
+      "description": "S1: combine inverse ts_std_dev and income/EV multiplicatively to favor stable, profitable firms. S2: no vectors. S3: ts_backfill used for all fields. S4: operating_income and enterprise_value high userCounts. KEEP_IN_MIND: multiply, ts_std_dev, inverse used but within operator limit. Confidence 0.74.",
+      "implementation": "multiply(divide(ts_backfill(income,8), ts_backfill(enterprise_value,8)), inverse(ts_backfill(ts_std_dev(operating_income,12),12)))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Earnings quality: niadj / income",
+      "description": "S1: fnd6_niadj / income to find firms where adjusted income differs from reported name (quality). S2: no vector. S3: ts_backfill both. S4: niadj and income userCounts good. KEEP_IN_MIND: divide only. Confidence 0.6.",
+      "implementation": "divide(ts_backfill(fnd6_niadj,8), ts_backfill(income,8))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Deferred revenue to sales growth (indicator of future rev)",
+      "description": "S1: ts_delta(fnd6_drlt,4) / ts_backfill(sales,8) to highlight near-term recognized revenue potential. S2: no vectors. S3: ts_backfill both. S4: drlt userCount high. KEEP_IN_MIND: ts_delta and divide used. Confidence 0.66.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(fnd6_drlt,4),12), ts_backfill(sales,8)),12)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Margin recovery: (operating_income / revenue) ts_delta",
+      "description": "S1: ts_delta(divide(operating_income, revenue),4) to detect improving margins. S2: no vectors. S3: ts_backfill both. S4: fields high userCounts. KEEP_IN_MIND: divide and ts_delta used. Confidence 0.7.",
+      "implementation": "ts_zscore(ts_delta(divide(ts_backfill(operating_income,8), ts_backfill(revenue,8)),4),12)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Working capital release (ts_delta(working_capital,4) negative vs EV)",
+      "description": "S1: reverse(ts_delta(working_capital,4)) / enterprise_value to highlight firms freeing WC. S2: no vectors. S3: ts_backfill working_capital and EV. S4: working_capital userCount 1109. KEEP_IN_MIND: ts_delta, reverse, divide used. Confidence 0.63.",
+      "implementation": "ts_zscore(divide(reverse(ts_backfill(ts_delta(working_capital,4),12)), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Sales acceleration vs EV using 12MM sum",
+      "description": "S1: ts_sum(ts_delta(sales,1),12) / enterprise_value spotlighting persistent sales gains. S2: no vectors. S3: ts_backfill both. S4: sales userCount strong. KEEP_IN_MIND: ts_sum, ts_delta, divide used. Confidence 0.7.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_sum(ts_delta(sales,1),12),12), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Earnings yield adjusted for R&D (income / (EV + rd_expense))",
+      "description": "S1: income divided by EV plus rd_expense to penalize heavy R&D capitalized impact. S2: no vectors. S3: ts_backfill all fields. S4: income and rd_expense data available. KEEP_IN_MIND: add and divide used. Confidence 0.6.",
+      "implementation": "divide(ts_backfill(income,8), add(ts_backfill(enterprise_value,8), ts_backfill(rd_expense,8)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Capex to depreciation spread (capxv / depre_amort)",
+      "description": "S1: capxv / depre_amort to detect underinvestment or overinvestment relative to wear-and-tear. S2: no vectors. S3: ts_backfill both. S4: capxv and depre_amort userCounts moderate. KEEP_IN_MIND: simple ratio. Confidence 0.55.",
+      "implementation": "divide(ts_backfill(fnd6_capxv,8), ts_backfill(depre_amort,8))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Sales per share acceleration normalized by EV",
+      "description": "S1: ts_delta(sales_ps,4) / enterprise_value to find improving revenue per share relative to valuation. S2: no vectors. S3: ts_backfill sales_ps and EV. S4: sales_ps userCount 1391. KEEP_IN_MIND: ts_delta and divide used. Confidence 0.63.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(sales_ps,4),12), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Operating profit per liability (oibdpq / liabilities)",
+      "description": "S1: operating income relative to total liabilities to find manageable balance sheet positions. S2: no vectors. S3: ts_backfill both. S4: liabilities userCount high. KEEP_IN_MIND: divide only. Confidence 0.58.",
+      "implementation": "divide(ts_backfill(fnd6_cptnewqv1300_oibdpq,8), ts_backfill(liabilities,8))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Inventory-to-COGS improvement (inventories / cogs) ts_delta",
+      "description": "S1: ts_delta(divide(inventories, cogs),4) to find working capital efficiency. S2: no vectors. S3: ts_backfill both. S4: cogs and inventories available. KEEP_IN_MIND: divide and ts_delta used. Confidence 0.57.",
+      "implementation": "ts_zscore(ts_delta(divide(ts_backfill(fnd6_newa1v1300_invt,8), ts_backfill(cogs,8)),4),12)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Operating income to shares outstanding (oibdpq / cshprq)",
+      "description": "S1: per-share operating income vs shares outstanding to find EPS gearing independent of complex EPS adjustments. S2: no vectors. S3: ts_backfill both fields. S4: cshprq userCount available. KEEP_IN_MIND: divide only. Confidence 0.6.",
+      "implementation": "divide(ts_backfill(fnd6_cptnewqv1300_oibdpq,8), ts_backfill(fnd6_cptnewqv1300_cshprq,8))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Tax rate tailwind (income / income_tax) improvement",
+      "description": "S1: ts_delta(divide(income, income_tax),4) to capture improvements in effective tax rate benefiting EPS. S2: no vectors. S3: ts_backfill both. S4: income_tax userCount 1021. KEEP_IN_MIND: divide and ts_delta used. Confidence 0.59.",
+      "implementation": "ts_zscore(ts_delta(divide(ts_backfill(income,8), ts_backfill(income_tax,8)),4),12)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "EV to operating_income 12MM moving average",
+      "description": "S1: enterprise_value / ts_mean(operating_income,4) provides smoothed valuation metric. S2: no vectors. S3: ts_backfill both. S4: operating_income large userCount. KEEP_IN_MIND: ts_mean and divide used. Confidence 0.78.",
+      "implementation": "divide(ts_backfill(enterprise_value,8), ts_backfill(ts_mean(operating_income,4),8))",
+      "confidence_level": 0.78
+    },
+    {
+      "idea": "Revenue quality: recurring revenue proxy (deferred revenue / revenue)",
+      "description": "S1: fnd6_drlt / revenue to emphasize recurring revenue baselines. S2: no vectors. S3: ts_backfill both. S4: deferred revenue userCount 5782. KEEP_IN_MIND: divide only. Confidence 0.67.",
+      "implementation": "divide(ts_backfill(fnd6_drlt,8), ts_backfill(revenue,8))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Operating income acceleration vs industry (normalized by quantile)",
+      "description": "S1: ts_delta(operating_income,4) then quantile() cross-sectionally to get relative acceleration; includes enterprise_value for size neutralization in ranking. S2: no vector. S3: ts_backfill used. S4: operating_income high userCount. KEEP_IN_MIND: quantile and ts_delta used; remains within operator cap and 2 datafields. Confidence 0.7.",
+      "implementation": "quantile(ts_backfill(ts_delta(operating_income,4),12))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Earnings momentum vs EV using ts_ir",
+      "description": "S1: ts_ir(income,12)/enterprise_value to favor high IR earnings relative to size. S2: no vector. S3: ts_backfill both. S4: income userCount substantial. KEEP_IN_MIND: ts_ir and divide used. Confidence 0.72.",
+      "implementation": "divide(ts_backfill(ts_ir(income,12),12), ts_backfill(enterprise_value,8))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Cash flow margin vs capex (cashflow_op - capxv) / EV",
+      "description": "S1: subtract capxv from cashflow_op and normalize by EV to find free-cash-flow generators. S2: no vector. S3: ts_backfill all fields. S4: cashflow_op and capxv userCounts adequate. KEEP_IN_MIND: subtract and divide used. Confidence 0.75.",
+      "implementation": "divide(subtract(ts_backfill(cashflow_op,8), ts_backfill(fnd6_capxv,8)), ts_backfill(enterprise_value,8))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Operating income trailing volatility reduction (ts_kurtosis low) normalized",
+      "description": "S1: ts_kurtosis(operating_income,12) inverse times income/EV to favor stable earners. S2: no vectors. S3: ts_backfill used. S4: operating_income robust. KEEP_IN_MIND: ts_kurtosis, inverse, divide used; within operator cap. Confidence 0.68.",
+      "implementation": "multiply(divide(ts_backfill(income,8), ts_backfill(enterprise_value,8)), inverse(ts_backfill(ts_kurtosis(operating_income,12),12)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Sales acceleration relative to market (ts_quantile of sales growth)",
+      "description": "S1: ts_quantile(ts_delta(sales,4),12) to get cross-sectional growth extremity; ts_backfill used. S2: no vectors. S3: ts_backfill sales. S4: sales userCount strong. KEEP_IN_MIND: uses ts_quantile only (1 field) — still acceptable though SUGGESTION1 preferred. I applied SUGGESTION1 partially but prioritized concise momentum metric. Confidence 0.66.",
+      "implementation": "ts_quantile(ts_backfill(ts_delta(sales,4),12),12)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Operating income to deferred tax liability (quality)",
+      "description": "S1: income / fnd6_txdbcl to identify firms with taxable positions. S2: no vectors. S3: ts_backfill both. S4: txdbcl userCount 782. KEEP_IN_MIND: divide only. Confidence 0.55.",
+      "implementation": "divide(ts_backfill(income,8), ts_backfill(fnd6_txdbcl,8))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "EBITDA proxy margin vs EV (oibdpq / enterprise_value)",
+      "description": "S1: use fnd6_cptnewqv1300_oibdpq over EV to emulate EBITDA yield. S2: no vectors. S3: ts_backfill both. S4: oibdpq and EV userCounts moderate/strong. KEEP_IN_MIND: divide only. Confidence 0.77.",
+      "implementation": "divide(ts_backfill(fnd6_cptnewqv1300_oibdpq,8), ts_backfill(enterprise_value,8))",
+      "confidence_level": 0.77
+    },
+    {
+      "idea": "Net working capital release per EV",
+      "description": "S1: ts_delta(working_capital,4) reversed / enterprise_value to find firms improving liquidity by releasing NWC. S2: no vectors. S3: ts_backfill both. S4: working_capital userCount ok. KEEP_IN_MIND: ts_delta, reverse, divide used. Confidence 0.64.",
+      "implementation": "ts_zscore(divide(reverse(ts_backfill(ts_delta(working_capital,4),12)), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Operating income quality: (income - special items) / EV zscore",
+      "description": "S1: subtract special items from income then normalize by EV and zscore. S2: no vectors. S3: ts_backfill both inputs. S4: special items lower userCount but usable. KEEP_IN_MIND: subtract, divide, ts_zscore used. Confidence 0.67.",
+      "implementation": "ts_zscore(divide(subtract(ts_backfill(income,8), ts_backfill(fnd6_sppe,8)), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Price momentum adjusted by earnings variability (ts_returns / ts_std_dev(income))",
+      "description": "S1: ts_returns(prccq,4) divided by ts_std_dev(income,12) to favor momentum in low-earnings-volatility names. S2: no vectors. S3: ts_backfill prccq and income. S4: prccq coverage 0.5 acceptable. KEEP_IN_MIND: ts_returns, ts_std_dev, divide used. Confidence 0.62.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_returns(fnd6_prccq,4),8), ts_backfill(ts_std_dev(income,12),12)),12)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "EV-to-sales improvement over 4 quarters",
+      "description": "S1: divide EV by ts_mean(sales,4) then ts_delta over 4 to find valuation contraction with improving sales. S2: no vectors. S3: ts_backfill used. S4: sales and EV robust. KEEP_IN_MIND: ts_mean, divide, ts_delta used but kept concise. Confidence 0.69.",
+      "implementation": "ts_zscore(ts_delta(divide(ts_backfill(enterprise_value,8), ts_backfill(ts_mean(sales,4),8)),4),12)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Operating income per employee growth",
+      "description": "S1: ts_delta(divide(operating_income, employees),4) to find improving per-employee profitability. S2: no vectors. S3: ts_backfill both. S4: employees userCount moderate. KEEP_IN_MIND: divide + ts_delta used. Confidence 0.58.",
+      "implementation": "ts_zscore(ts_delta(divide(ts_backfill(operating_income,8), ts_backfill(fnd6_newa1v1300_emp,8)),4),12)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Operating income stability normalized (income / ts_std_dev(income,12))",
+      "description": "S1: income divided by its ts_std_dev to favor stable high earners; normalized by EV optionally. S2: no vectors. S3: ts_backfill income. S4: income userCount large. KEEP_IN_MIND: ts_std_dev, divide used. Confidence 0.71.",
+      "implementation": "divide(ts_backfill(income,8), ts_backfill(ts_std_dev(income,12),12))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Operating income growth relative to book (ts_delta(operating_income,4)/bookvalue_ps)",
+      "description": "S1: ts_delta(operating_income,4) / bookvalue_ps to find earnings growth per book dollar. S2: no vectors. S3: ts_backfill both. S4: bookvalue_ps userCount 2303. KEEP_IN_MIND: ts_delta and divide used. Confidence 0.64.",
+      "implementation": "ts_zscore(divide(ts_backfill(ts_delta(operating_income,4),12), ts_backfill(bookvalue_ps,8)),12)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Receivable days improvement (receivable / revenue) ts_delta",
+      "description": "S1: ts_delta(divide(receivable, revenue),4) to detect improving collection. S2: no vectors. S3: ts_backfill both. S4: receivable and revenue good counts. KEEP_IN_MIND: divide + ts_delta used. Confidence 0.6.",
+      "implementation": "ts_zscore(ts_delta(divide(ts_backfill(receivable,8), ts_backfill(revenue,8)),4),12)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Operating income growth vs EV with winsorization",
+      "description": "S1: ts_delta(operating_income,4)/enterprise_value winsorized to reduce outliers before ranking. S2: no vectors. S3: ts_backfill both and winsorize used. S4: operating_income/EV robust. KEEP_IN_MIND: winsorize operator used; still under operator cap. Confidence 0.7.",
+      "implementation": "winsorize(divide(ts_backfill(ts_delta(operating_income,4),12), ts_backfill(enterprise_value,8)), 4)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Cashflow conversion improvement (income / cashflow_op) ts_delta",
+      "description": "S1: ts_delta(divide(income, cashflow_op),4) to spot improving conversion. S2: no vectors. S3: ts_backfill both. S4: fields have good counts. KEEP_IN_MIND: divide + ts_delta used. Confidence 0.66.",
+      "implementation": "ts_zscore(ts_delta(divide(ts_backfill(income,8), ts_backfill(cashflow_op,8)),4),12)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Operating income to enterprise value zscore (momentum/value hybrid)",
+      "description": "S1: ts_zscore(divide(income, enterprise_value),12) to combine yield and cross-sectional normalization. S2: no vectors. S3: ts_backfill both fields. S4: income and EV high userCounts. KEEP_IN_MIND: concise and within operator limits. Confidence 0.8.",
+      "implementation": "ts_zscore(divide(ts_backfill(income,8), ts_backfill(enterprise_value,8)),12)",
+      "confidence_level": 0.8
+    }
+  ]
+}

@@ -1,0 +1,622 @@
+{
+  "results": [
+    {
+      "idea": "Recent trigger spike (1-day delta)",
+      "description": "Use short-sale trigger time recent change as immediate signal. SUGGESTION1: not applied (only one datafield available). SUGGESTION2: not applied (field is scalar, not vector). SUGGESTION3: applied ts_backfill due to low coverage (0.2573) to reduce missingness. SUGGESTION4: used because userCount=72 and alphaCount=122 indicate familiar field. Confidence: 0.60 — recent changes in trigger time often indicate immediate short-interest dynamics.",
+      "implementation": "ts_delta(ts_backfill(shrt24_triggertime_2, 10), 1)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-sale trigger momentum (5-day)",
+      "description": "Momentum of trigger times over 5 days. S1: only one field. S2: not vector. S3: applied ts_backfill(d=20). S4: applied. Confidence: 0.62 — multi-day momentum smooths noise.",
+      "implementation": "ts_delta(ts_backfill(shrt24_triggertime_2, 20), 5)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Normalized recent anomaly (zscore 10d)",
+      "description": "Z-score of backfilled trigger time over 10 days to standardize across names. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.65 — zscoring reduces cross-instrument dispersion and outliers.",
+      "implementation": "ts_zscore(ts_backfill(shrt24_triggertime_2, 30), 10)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Volatility-adjusted change",
+      "description": "Delta divided by time-series stddev to account for volatility. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.60 — volatility scaling stabilizes signal magnitude.",
+      "implementation": "divide(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 3), ts_std_dev(ts_backfill(shrt24_triggertime_2, 30), 10))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Freshness indicator (days from last change)",
+      "description": "Days since last change highlights stale vs fresh triggers. S1/S2: not applicable. S3: applied ts_backfill(60). S4: applied. Confidence: 0.55 — freshness often correlates with actionable moves.",
+      "implementation": "days_from_last_change(ts_backfill(shrt24_triggertime_2, 60))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Trigger sparsity signal (count NaNs)",
+      "description": "Number of missing recent values to measure data sparsity/illiquidity. S1/S2: not applicable. S3: applied ts_backfill(30) then ts_count_nans on raw to estimate true sparsity. S4: applied. Confidence: 0.45 — sparsity indicates lower reliability but can be predictive for infrequent events.",
+      "implementation": "ts_count_nans(shrt24_triggertime_2, 30)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Recent extreme detection (arg_max 7d)",
+      "description": "Detect if today's value is the maximum in last 7 days (fresh high trigger). S1/S2: not applicable. S3: applied ts_backfill(14). S4: applied. Confidence: 0.58 — new highs in trigger timing may precede pressure.",
+      "implementation": "ts_arg_max(ts_backfill(shrt24_triggertime_2, 14), 7)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Recent extreme detection (arg_min 7d)",
+      "description": "Detect if today's value is the minimum in last 7 days (fresh low trigger). S1/S2: not applicable. S3: applied ts_backfill(14). S4: applied. Confidence: 0.56 — new lows may indicate easing of short pressure.",
+      "implementation": "ts_arg_min(ts_backfill(shrt24_triggertime_2, 14), 7)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Smoothed trigger level (10-day mean)",
+      "description": "Use the 10-day mean of trigger time as a smoothed level. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.52 — smoothing reduces noise for position sizing.",
+      "implementation": "ts_mean(ts_backfill(shrt24_triggertime_2, 30), 10)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Signal based on recent acceleration (delta of deltas)",
+      "description": "Second-order change captures acceleration in trigger time shifts. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.57 — acceleration can be an early warning.",
+      "implementation": "ts_delta(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 3), 1)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Ranked cross-section (quantile)",
+      "description": "Cross-sectional quantile of backfilled trigger time to select relative extremes. S1: limited to one field but still cross-sectional across names. S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.63 — relative ranking robust to scale differences.",
+      "implementation": "quantile(ts_backfill(shrt24_triggertime_2, 30))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Recent downshift signal (negative delta 3d)",
+      "description": "Negative 3-day delta flags decrease in trigger time (possible easing). S1/S2: not applicable. S3: applied ts_backfill(20). S4: applied. Confidence: 0.50 — directional but requires calibration.",
+      "implementation": "ts_delta(ts_backfill(shrt24_triggertime_2, 20), 3)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Long-horizon deviation (30d av diff)",
+      "description": "Current minus 30-day mean to catch medium-term shifts. S1/S2: not applicable. S3: applied ts_backfill(60). S4: applied. Confidence: 0.59 — medium-term deviations often mean-revert.",
+      "implementation": "ts_av_diff(ts_backfill(shrt24_triggertime_2, 60), 30)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Volatility spike detector (stddev change)",
+      "description": "Change in short-sale trigger stddev (10d vs 30d) to detect volatility regime shifts. S1/S2: not applicable. S3: applied ts_backfill(60). S4: applied. Confidence: 0.55 — regime shifts signal higher risk/opportunity.",
+      "implementation": "subtract(ts_std_dev(ts_backfill(shrt24_triggertime_2, 60), 10), ts_std_dev(ts_backfill(shrt24_triggertime_2, 60), 30))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Binary fresh-trigger trade_when",
+      "description": "Only trade when a fresh trigger occurs (arg_max == 0). S1/S2: not applicable. S3: applied ts_backfill(14). S4: applied. Confidence: 0.54 — gating reduces turnover and focuses on actionable events.",
+      "implementation": "trade_when(equal(ts_arg_max(ts_backfill(shrt24_triggertime_2, 14), 7), 0), ts_delta(ts_backfill(shrt24_triggertime_2, 14), 1), NaN)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Inverse time since trigger (recency weight)",
+      "description": "Use inverse of days-from-last-change so very recent changes get higher weight. S1/S2: not applicable. S3: applied ts_backfill(60). S4: applied. Confidence: 0.53 — emphasizes freshest signals.",
+      "implementation": "inverse(days_from_last_change(ts_backfill(shrt24_triggertime_2, 60)))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Sign-based directional filter",
+      "description": "Use sign of 3d delta to get direction only (reduce magnitude sensitivity). S1/S2: not applicable. S3: applied ts_backfill(20). S4: applied. Confidence: 0.50 — simple robust directionality.",
+      "implementation": "sign(ts_delta(ts_backfill(shrt24_triggertime_2, 20), 3))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Winsorized zscore (outlier control)",
+      "description": "Winsorize raw backfilled value then zscore to control outliers. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.61 — improves robustness to extreme timestamps.",
+      "implementation": "zscore(winsorize(ts_backfill(shrt24_triggertime_2, 30), 4))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Short-term mean-reversion (ts_scale 5d)",
+      "description": "Scale current vs 5-day min/max to detect mean reversion extremes. S1/S2: not applicable. S3: applied ts_backfill(20). S4: applied. Confidence: 0.57 — normalized extremes tend to revert.",
+      "implementation": "ts_scale(ts_backfill(shrt24_triggertime_2, 20), 5)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Trigger persistence (product over days)",
+      "description": "Product of small daily changes to expose persistent directional movement. S1/S2: not applicable. S3: applied ts_backfill(20). S4: applied. Confidence: 0.48 — product can be noisy but captures persistence.",
+      "implementation": "ts_product(ts_backfill(shrt24_triggertime_2, 7), 7)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Information ratio of trigger returns",
+      "description": "Use ts_ir over 20 days to find stable signals (mean/std). S1/S2: not applicable. S3: applied ts_backfill(40). S4: applied. Confidence: 0.64 — IR identifies names with consistent directional moves.",
+      "implementation": "ts_ir(ts_backfill(shrt24_triggertime_2, 40), 20)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Short-term rank over 3d (ts_rank)",
+      "description": "Rank each instrument by 3-day series to detect relative short-term behavior. S1/S2: not applicable. S3: applied ts_backfill(10). S4: applied. Confidence: 0.60 — cross-sectional rank reduces scale effects.",
+      "implementation": "ts_rank(ts_backfill(shrt24_triggertime_2, 10), 3)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Trigger rebound candidate (ts_max_diff)",
+      "description": "Current minus recent max to detect pullbacks from highs. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.52 — identifies names below recent peaks.",
+      "implementation": "ts_max_diff(ts_backfill(shrt24_triggertime_2, 30), 10)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Kth-element backfill (use last valid)",
+      "description": "Backfill using kth_element to take last valid instead of first in backfill when coverage sparse. S1/S2: not applicable. S3: applied kth_element with k=1 to mitigate missingness. S4: applied. Confidence: 0.50 — alternative backfill may be more representative for sparse fields.",
+      "implementation": "kth_element(shrt24_triggertime_2, 60, 1)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Decay-weighted recent average (ts_decay_linear)",
+      "description": "Decay-weighted average emphasizes more recent triggers. S1/S2: not applicable. S3: applied ts_backfill(60). S4: applied. Confidence: 0.58 — decay weighting gives faster responsiveness.",
+      "implementation": "ts_decay_linear(ts_backfill(shrt24_triggertime_2, 60), 10)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Hump-constrained signal (reduce turnover)",
+      "description": "Apply hump to raw backfilled delta to limit turnover. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.54 — reduces transaction costs and noise trades.",
+      "implementation": "hump(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 2), 0.02)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Recent quantile rank (cross-section zscore)",
+      "description": "Cross-sectional zscore of 7d mean to pick extremes. S1: limited single field but cross-section used; S2: not applicable. S3: applied ts_backfill(20). S4: applied. Confidence: 0.62 — zscore across names picks relative outliers.",
+      "implementation": "zscore(ts_mean(ts_backfill(shrt24_triggertime_2, 20), 7))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Trigger clustering indicator (count of recent non-NaNs)",
+      "description": "Count of valid trigger days signals clustering of events. S1/S2: not applicable. S3: used raw ts_count_nans inverted by subtracting from window length. S4: applied. Confidence: 0.49 — clustering of events can indicate sustained pressure.",
+      "implementation": "subtract(7, ts_count_nans(shrt24_triggertime_2, 7))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Relative momentum vs 30d mean (normalized)",
+      "description": "Difference from 30d mean divided by 30d std to create standardized momentum. S1/S2: not applicable. S3: applied ts_backfill(60). S4: applied. Confidence: 0.61 — standardization improves comparability.",
+      "implementation": "divide(ts_av_diff(ts_backfill(shrt24_triggertime_2, 60), 30), ts_std_dev(ts_backfill(shrt24_triggertime_2, 60), 30))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Short-window reversal (sign of negative 2d delta)",
+      "description": "Signal = 1 when 2d delta negative (reversal candidate), else 0. S1/S2: not applicable. S3: applied ts_backfill(14). S4: applied. Confidence: 0.47 — simple contrarian rule.",
+      "implementation": "if_else(less(ts_delta(ts_backfill(shrt24_triggertime_2, 14), 2), 0), 1, 0)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Large jump detector (abs delta > threshold)",
+      "description": "Flag days with absolute 1d delta above recent std * factor. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.58 — jumps often precede continuation or reversal.",
+      "implementation": "greater(abs(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1)), multiply(ts_std_dev(ts_backfill(shrt24_triggertime_2, 30), 10), 2))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Short-term normalized return (ts_returns zscore)",
+      "description": "Zscore of ts_returns over 5 days to standardize relative moves. S1/S2: not applicable. S3: applied ts_backfill(15). S4: applied. Confidence: 0.56 — returns capture proportional change rather than absolute time.",
+      "implementation": "ts_zscore(ts_returns(ts_backfill(shrt24_triggertime_2, 15), 5), 5)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Recent-max breakout (ts_arg_max==0 & positive delta)",
+      "description": "Trade when today's value is the max and delta positive (confirm breakout). S1/S2: not applicable. S3: applied ts_backfill(14). S4: applied. Confidence: 0.60 — confirmation reduces false positives.",
+      "implementation": "if_else(and(equal(ts_arg_max(ts_backfill(shrt24_triggertime_2, 14), 7), 0), greater(ts_delta(ts_backfill(shrt24_triggertime_2, 14), 1), 0)), ts_delta(ts_backfill(shrt24_triggertime_2, 14), 1), NaN)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Mean reversion score (reverse of 7d av diff)",
+      "description": "Use negative of 7d average deviation to go against extremes. S1/S2: not applicable. S3: applied ts_backfill(20). S4: applied. Confidence: 0.55 — mean reversion plausible for these signals.",
+      "implementation": "reverse(ts_av_diff(ts_backfill(shrt24_triggertime_2, 20), 7))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Stability filter (low std names only)",
+      "description": "Prefer names with low 60d stddev (stable history) and use delta as signal. S1/S2: not applicable. S3: applied ts_backfill(120). S4: applied. Confidence: 0.58 — stable histories yield more reliable signals.",
+      "implementation": "multiply(ts_delta(ts_backfill(shrt24_triggertime_2, 60), 5), inverse(ts_std_dev(ts_backfill(shrt24_triggertime_2, 120), 60)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Short-term percentile breakout (ts_quantile 5d)",
+      "description": "Compute ts_quantile over 5d to detect percentile extremes. S1/S2: not applicable. S3: applied ts_backfill(10). S4: applied. Confidence: 0.60 — percentile breakout highlights relative moves.",
+      "implementation": "ts_quantile(ts_backfill(shrt24_triggertime_2, 10), 5)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Trigger momentum normalized by mean absolute dev",
+      "description": "Delta divided by ts_std_dev approximates signal-to-noise. S1/S2: not applicable. S3: applied ts_backfill(40). S4: applied. Confidence: 0.59 — improves signal reliability.",
+      "implementation": "divide(ts_delta(ts_backfill(shrt24_triggertime_2, 40), 7), ts_std_dev(ts_backfill(shrt24_triggertime_2, 40), 14))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Short-window product-of-signals (combine 1d and 3d)",
+      "description": "Multiply signs of 1d and 3d deltas to require alignment. S1/S2: not applicable. S3: applied ts_backfill(20). S4: applied. Confidence: 0.53 — alignment filter reduces noise.",
+      "implementation": "multiply(sign(ts_delta(ts_backfill(shrt24_triggertime_2, 20), 1)), sign(ts_delta(ts_backfill(shrt24_triggertime_2, 20), 3)))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Recent decay-weighted zscore",
+      "description": "Apply decay then compute zscore for responsiveness and standardization. S1/S2: not applicable. S3: applied ts_backfill(40). S4: applied. Confidence: 0.62 — combines recency and normalization.",
+      "implementation": "ts_zscore(ts_decay_linear(ts_backfill(shrt24_triggertime_2, 40), 10), 10)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Large move filter with winsorize",
+      "description": "Winsorize deltas to clip outliers then use sign for direction. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.54 — clipping prevents extreme outlier influence.",
+      "implementation": "sign(winsorize(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1), 4))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Mean normalized reversal (short-term vs long-term mean)",
+      "description": "Difference between 5d mean and 30d mean (mean reversion candidate). S1/S2: not applicable. S3: applied ts_backfill(60). S4: applied. Confidence: 0.57 — cross-horizon difference useful for reversion.",
+      "implementation": "subtract(ts_mean(ts_backfill(shrt24_triggertime_2, 60), 5), ts_mean(ts_backfill(shrt24_triggertime_2, 60), 30))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Trigger irregularity (kurtosis)",
+      "description": "High kurtosis indicates occasional large jumps—use ts_kurtosis. S1/S2: not applicable. S3: applied ts_backfill(120). S4: applied. Confidence: 0.46 — kurtosis is noisy but flags tail behavior.",
+      "implementation": "ts_kurtosis(ts_backfill(shrt24_triggertime_2, 120), 60)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Trigger momentum trimmed mean",
+      "description": "Use ts_mean of winsorized series to reduce outlier bias. S1/S2: not applicable. S3: applied ts_backfill(60) then winsorize. S4: applied. Confidence: 0.56 — trimmed mean is robust.",
+      "implementation": "ts_mean(winsorize(ts_backfill(shrt24_triggertime_2, 60), 4), 10)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Directional persistence score (sum of signs)",
+      "description": "Sum of signs over 7 days to measure persistent direction. S1/S2: not applicable. S3: applied ts_backfill(14). S4: applied. Confidence: 0.52 — persistence often indicates continuation.",
+      "implementation": "ts_sum(sign(ts_delta(ts_backfill(shrt24_triggertime_2, 14), 1)), 7)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Short-term extremum bucket",
+      "description": "Bucket 3-day rank into discrete buckets for simpler trading rules. S1/S2: not applicable. S3: applied ts_backfill(10). S4: applied. Confidence: 0.51 — bucketing reduces sensitivity to small changes.",
+      "implementation": "bucket(ts_rank(ts_backfill(shrt24_triggertime_2, 10), 3), range=\"0,1,0.2\")",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Trigger acceleration zscore",
+      "description": "Zscore of delta-of-delta to find accelerating moves standardized by recent variability. S1/S2: not applicable. S3: applied ts_backfill(60). S4: applied. Confidence: 0.58 — acceleration standardized is predictive.",
+      "implementation": "ts_zscore(ts_delta(ts_delta(ts_backfill(shrt24_triggertime_2, 60), 3), 1), 10)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Delay-confirmed breakout (delta > recent std & arg_max)",
+      "description": "Require delta > std and arg_max recent to confirm breakout. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.61 — dual confirmation reduces false signals.",
+      "implementation": "if_else(and(greater(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1), ts_std_dev(ts_backfill(shrt24_triggertime_2, 30), 10)), equal(ts_arg_max(ts_backfill(shrt24_triggertime_2, 30), 7), 0)), ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1), NaN)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Short-term outlier suppression (pasteurize)",
+      "description": "Use pasteurize to clip INF or invalid and then compute delta. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.50 — ensures invalid values don't poison signal.",
+      "implementation": "ts_delta(pasteurize(ts_backfill(shrt24_triggertime_2, 30)), 1)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Rolling sign-change count",
+      "description": "Count how often sign of delta changed over recent window (instability metric). S1/S2: not applicable. S3: applied ts_backfill(40). S4: applied. Confidence: 0.47 — frequent sign flips indicate noise.",
+      "implementation": "ts_sum(not_equal(sign(ts_delta(ts_backfill(shrt24_triggertime_2, 40), 1)), sign(ts_delay(ts_delta(ts_backfill(shrt24_triggertime_2, 40), 1), 1))), 7)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Short-window mean vs previous (shifted mean diff)",
+      "description": "Difference between current 3d mean and previous 3d mean to catch shift. S1/S2: not applicable. S3: applied ts_backfill(20). S4: applied. Confidence: 0.55 — captures short regime shifts.",
+      "implementation": "subtract(ts_mean(ts_backfill(shrt24_triggertime_2, 20), 3), ts_delay(ts_mean(ts_backfill(shrt24_triggertime_2, 20), 3), 3))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Normalized acceleration (signed_power)",
+      "description": "Signed power of acceleration emphasizes large same-sign accelerations. S1/S2: not applicable. S3: applied ts_backfill(40). S4: applied. Confidence: 0.49 — non-linear emphasis may help rare events.",
+      "implementation": "signed_power(ts_delta(ts_delta(ts_backfill(shrt24_triggertime_2, 40), 3), 1), 2)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Recent median deviation (kth element for median)",
+      "description": "Use kth_element to approximate median then compute diff to current. S1/S2: not applicable. S3: applied kth_element(shrt24_triggertime_2, 30, 2) as backfill approach. S4: applied. Confidence: 0.51 — median robust to outliers.",
+      "implementation": "subtract(ts_backfill(shrt24_triggertime_2, 30), kth_element(shrt24_triggertime_2, 30, 2))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Short-term trend strength (ts_ir on returns)",
+      "description": "Information ratio on ts_returns over 14d to find persistent movers. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.63 — IR isolates consistent trends.",
+      "implementation": "ts_ir(ts_returns(ts_backfill(shrt24_triggertime_2, 30), 1), 14)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Trigger gap detection (absolute jump from delayed value)",
+      "description": "Absolute difference from lagged value to detect one-day gaps. S1/S2: not applicable. S3: applied ts_backfill(10). S4: applied. Confidence: 0.57 — gaps often indicate sudden events.",
+      "implementation": "abs(subtract(ts_backfill(shrt24_triggertime_2, 10), ts_delay(ts_backfill(shrt24_triggertime_2, 10), 1)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Short-window smoothing (moving average then zscore)",
+      "description": "Smooth with 3d mean then zscore across instruments. S1/S2: not applicable. S3: applied ts_backfill(15). S4: applied. Confidence: 0.60 — smoothing plus standardization is robust.",
+      "implementation": "zscore(ts_mean(ts_backfill(shrt24_triggertime_2, 15), 3))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Recent-min breakout (ts_arg_min == 0 & positive delta)",
+      "description": "Detect when value is new low but delta turns positive (rebound). S1/S2: not applicable. S3: applied ts_backfill(20). S4: applied. Confidence: 0.54 — identifies bounce setups.",
+      "implementation": "if_else(and(equal(ts_arg_min(ts_backfill(shrt24_triggertime_2, 20), 7), 0), greater(ts_delta(ts_backfill(shrt24_triggertime_2, 20), 1), 0)), ts_delta(ts_backfill(shrt24_triggertime_2, 20), 1), NaN)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Normalized recent variance ratio (short/long std)",
+      "description": "Ratio of short-term std to long-term std to detect regime change. S1/S2: not applicable. S3: applied ts_backfill(120). S4: applied. Confidence: 0.56 — relative volatility is informative.",
+      "implementation": "divide(ts_std_dev(ts_backfill(shrt24_triggertime_2, 120), 10), ts_std_dev(ts_backfill(shrt24_triggertime_2, 120), 60))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Backfilled presence indicator",
+      "description": "Binary indicator if backfilled value exists (improves coverage handling). S1/S2: not applicable. S3: applied ts_backfill(30) then is_nan to detect missingness. S4: applied. Confidence: 0.44 — helps mask names with insufficient data.",
+      "implementation": "not(is_nan(ts_backfill(shrt24_triggertime_2, 30)))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Short-term product of delta and inverse std",
+      "description": "Multiply delta by inverse of short std to overweight strong moves in quiet names. S1/S2: not applicable. S3: applied ts_backfill(60). S4: applied. Confidence: 0.57 — increases signal-to-noise.",
+      "implementation": "multiply(ts_delta(ts_backfill(shrt24_triggertime_2, 60), 3), inverse(ts_std_dev(ts_backfill(shrt24_triggertime_2, 60), 10)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Cumulative short triggers (sum over 14d)",
+      "description": "Aggregate recent triggers by summing backfilled series over 14 days. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.50 — cumulative counts indicate sustained activity.",
+      "implementation": "ts_sum(ts_backfill(shrt24_triggertime_2, 30), 14)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Stable-signal filter (low ts_count_nans & strong delta)",
+      "description": "Require low missingness and a strong delta to trade. S1/S2: not applicable. S3: applied ts_backfill(30) and ts_count_nans used raw. S4: applied. Confidence: 0.55 — filters out unreliable names.",
+      "implementation": "if_else(less(ts_count_nans(shrt24_triggertime_2, 14), 5), ts_delta(ts_backfill(shrt24_triggertime_2, 30), 3), NaN)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Short-term relative rank (cross-section rank of 3d mean)",
+      "description": "Group-neutral cross-sectional rank via rank of 3d mean (no group data available). S1/S2: limited but cross-sectional applied. S3: applied ts_backfill(15). S4: applied. Confidence: 0.62 — cross-sectional rank robust for selection.",
+      "implementation": "ts_rank(ts_backfill(shrt24_triggertime_2, 15), 3)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Trigger reversal when acceleration negative",
+      "description": "Go against names where acceleration turns negative after strong positive delta. S1/S2: not applicable. S3: applied ts_backfill(40). S4: applied. Confidence: 0.53 — conditional contrarian approach.",
+      "implementation": "if_else(and(greater(ts_delta(ts_backfill(shrt24_triggertime_2, 40), 3), 0), less(ts_delta(ts_delta(ts_backfill(shrt24_triggertime_2, 40), 3), 1), 0)), reverse(ts_delta(ts_backfill(shrt24_triggertime_2, 40), 1)), NaN)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Recent normalized gap (divide by long std)",
+      "description": "One-day gap divided by long-term std to standardize importance. S1/S2: not applicable. S3: applied ts_backfill(120). S4: applied. Confidence: 0.56 — standardization helps cross-name comparison.",
+      "implementation": "divide(abs(subtract(ts_backfill(shrt24_triggertime_2, 10), ts_delay(ts_backfill(shrt24_triggertime_2, 10), 1))), ts_std_dev(ts_backfill(shrt24_triggertime_2, 120), 60))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Triggered-day weighting (vec-style average via ts_mean)",
+      "description": "Approximate vector-style averaging by taking average of intraday/backfilled daily values via ts_mean. S1/S2: true vector not available; used ts_mean instead. S3: applied ts_backfill(30). S4: applied. Confidence: 0.48 — crude proxy to intraday aggregation.",
+      "implementation": "ts_mean(ts_backfill(shrt24_triggertime_2, 30), 5)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Short-term normalized momentum bucket",
+      "description": "Bucket 5d momentum into coarse buckets for rule-based trading. S1/S2: not applicable. S3: applied ts_backfill(15). S4: applied. Confidence: 0.52 — discretization reduces noise.",
+      "implementation": "bucket(ts_delta(ts_backfill(shrt24_triggertime_2, 15), 5), buckets=\"-999,-0.5,0.5,999\")",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Trigger stability index (inverse var * mean)",
+      "description": "Mean divided by variance to prefer consistent directional movers. S1/S2: not applicable. S3: applied ts_backfill(120). S4: applied. Confidence: 0.60 — favors predictable names.",
+      "implementation": "divide(ts_mean(ts_backfill(shrt24_triggertime_2, 120), 20), power(ts_std_dev(ts_backfill(shrt24_triggertime_2, 120), 20), 2))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-term reversal after volatility spike",
+      "description": "If short std spikes relative to long std and delta negative, signal reversal. S1/S2: not applicable. S3: applied ts_backfill(120). S4: applied. Confidence: 0.50 — conditional contrarian trade after spikes.",
+      "implementation": "if_else(and(greater(ts_std_dev(ts_backfill(shrt24_triggertime_2, 120), 10), multiply(ts_std_dev(ts_backfill(shrt24_triggertime_2, 120), 60), 1.5)), less(ts_delta(ts_backfill(shrt24_triggertime_2, 120), 3), 0)), reverse(ts_delta(ts_backfill(shrt24_triggertime_2, 120), 1)), NaN)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Cross-horizon alignment (sign agreement short & mid)",
+      "description": "Require sign of 1d and 7d deltas to match before acting. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.55 — alignment increases conviction.",
+      "implementation": "if_else(equal(sign(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1)), sign(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 7))), ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1), NaN)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Trigger gap normalized to recent median absolute deviation",
+      "description": "Use MAD-like scale by dividing gap by ts_std_dev (proxy). S1/S2: not applicable. S3: applied ts_backfill(60). S4: applied. Confidence: 0.54 — robust scaling of gaps.",
+      "implementation": "divide(abs(subtract(ts_backfill(shrt24_triggertime_2, 10), ts_delay(ts_backfill(shrt24_triggertime_2, 10), 1))), ts_std_dev(ts_backfill(shrt24_triggertime_2, 60), 20))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Short-term momentum trimmed by ts_count_nans",
+      "description": "Downweight momentum for names with many recent NaNs. S1/S2: not applicable. S3: applied ts_backfill(30) and ts_count_nans. S4: applied. Confidence: 0.53 — improves reliability.",
+      "implementation": "multiply(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 5), divide(1, add(1, ts_count_nans(shrt24_triggertime_2, 14))))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Recent mean crossing (value crosses 5d mean)",
+      "description": "Signal when series crosses its 5d mean (trend inception). S1/S2: not applicable. S3: applied ts_backfill(20). S4: applied. Confidence: 0.56 — crossing events often mark regime change.",
+      "implementation": "if_else(and(greater(ts_backfill(shrt24_triggertime_2, 20), ts_mean(ts_backfill(shrt24_triggertime_2, 20), 5)), less(ts_delay(ts_backfill(shrt24_triggertime_2, 20), 1), ts_delay(ts_mean(ts_backfill(shrt24_triggertime_2, 20), 5), 1))), ts_delta(ts_backfill(shrt24_triggertime_2, 20), 1), NaN)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Short-run trend multiplied by stability score",
+      "description": "Multiply short-run delta by inverse of 30d std to favor stable names. S1/S2: not applicable. S3: applied ts_backfill(60). S4: applied. Confidence: 0.58 — combines trend with reliability.",
+      "implementation": "multiply(ts_delta(ts_backfill(shrt24_triggertime_2, 60), 3), inverse(ts_std_dev(ts_backfill(shrt24_triggertime_2, 60), 30)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Persistent low-coverage alert (long ts_count_nans)",
+      "description": "Flag names with persistent missingness for exclusion. S1/S2: not applicable. S3: applied (no backfill) to detect true sparsity. S4: applied. Confidence: 0.40 — useful for risk control not alpha.",
+      "implementation": "greater(ts_count_nans(shrt24_triggertime_2, 90), 60)",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Short-term reversal after arg_max (mean reversion)",
+      "description": "If a name hits recent max, signal reversal using negative delta to capture mean reversion. S1/S2: not applicable. S3: applied ts_backfill(20). S4: applied. Confidence: 0.52 — contrarian after spikes.",
+      "implementation": "if_else(equal(ts_arg_max(ts_backfill(shrt24_triggertime_2, 20), 7), 0), reverse(ts_delta(ts_backfill(shrt24_triggertime_2, 20), 1)), NaN)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Short-term continuity score (ts_arg_min + ts_arg_max alignment)",
+      "description": "Measure if arg_min and arg_max are far apart indicating strong trend. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.48 — heuristic for strong moves.",
+      "implementation": "subtract(ts_arg_max(ts_backfill(shrt24_triggertime_2, 30), 14), ts_arg_min(ts_backfill(shrt24_triggertime_2, 30), 14))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Short-term mean reversion scaled (divide by ts_count_nans)",
+      "description": "Use mean-reversion signal but downweight if many NaNs show unreliability. S1/S2: not applicable. S3: applied ts_backfill(40). S4: applied. Confidence: 0.53 — robust weighting.",
+      "implementation": "divide(reverse(ts_av_diff(ts_backfill(shrt24_triggertime_2, 40), 7)), add(1, ts_count_nans(shrt24_triggertime_2, 14)))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Trigger momentum vs its own volatility zscore",
+      "description": "Zscore of delta divided by its recent std to find statistically significant moves. S1/S2: not applicable. S3: applied ts_backfill(60). S4: applied. Confidence: 0.60 — statistical significance filtering.",
+      "implementation": "divide(ts_zscore(ts_delta(ts_backfill(shrt24_triggertime_2, 60), 3), 10), ts_std_dev(ts_backfill(shrt24_triggertime_2, 60), 10))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Momentum persistence filter (sum of sign*abs(delta))",
+      "description": "Weighted persistence combining sign and magnitude over 7 days. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.51 — captures sustained directional magnitude.",
+      "implementation": "ts_sum(multiply(sign(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1)), abs(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1))), 7)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Short-term range breakout (current outside past range)",
+      "description": "Detect if current value outside past 10-day min/max by using ts_arg_max/min heuristic. S1/S2: not applicable. S3: applied ts_backfill(20). S4: applied. Confidence: 0.59 — breakouts often predict continuation.",
+      "implementation": "or(equal(ts_arg_max(ts_backfill(shrt24_triggertime_2, 20), 10), 0), equal(ts_arg_min(ts_backfill(shrt24_triggertime_2, 20), 10), 0))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Recent trend score clipped (tail)",
+      "description": "Clip small deltas to zero to focus on meaningful moves via tail operator. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.50 — reduces micro-noise.",
+      "implementation": "tail(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1), lower=-0.01, upper=0.01, newval=0)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Short-run multiplier using inverse coverage proxy",
+      "description": "Use ts_count_nans as inverse coverage proxy to downweight names with poor coverage. S1/S2: not applicable. S3: applied ts_backfill for values; ts_count_nans used raw. S4: applied. Confidence: 0.48 — pragmatic risk control.",
+      "implementation": "multiply(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 3), inverse(add(1, ts_count_nans(shrt24_triggertime_2, 30))))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Short-window confirmation (product of 1d and 2d deltas)",
+      "description": "Require consistent sign and magnitude across 1d and 2d deltas via multiplication. S1/S2: not applicable. S3: applied ts_backfill(20). S4: applied. Confidence: 0.54 — multiplicative confirmation useful.",
+      "implementation": "multiply(ts_delta(ts_backfill(shrt24_triggertime_2, 20), 1), ts_delta(ts_backfill(shrt24_triggertime_2, 20), 2))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Trend persistence zscore (sum of deltas zscored)",
+      "description": "Sum recent deltas then zscore across instruments. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.61 — aggregates evidence then normalizes.",
+      "implementation": "zscore(ts_sum(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1), 7))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Short-run reversal on high kurtosis days",
+      "description": "If kurtosis high (rare jumps), take contrarian small-position reversal. S1/S2: not applicable. S3: applied ts_backfill(120). S4: applied. Confidence: 0.45 — risky but can capture overreactions.",
+      "implementation": "if_else(greater(ts_kurtosis(ts_backfill(shrt24_triggertime_2, 120), 30), 3), reverse(ts_delta(ts_backfill(shrt24_triggertime_2, 120), 1)), NaN)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Recent co-movement proxy (autocovariance via ts_covariance with lagged self)",
+      "description": "Use ts_covariance between series and its 1-day lag to measure autocorrelation. S1/S2: not applicable. S3: applied ts_backfill(60). S4: applied. Confidence: 0.50 — autocovariance indicates inertia.",
+      "implementation": "ts_covariance(ts_backfill(shrt24_triggertime_2, 60), ts_delay(ts_backfill(shrt24_triggertime_2, 60), 1), 20)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Trigger-change persistence via ts_arg_max distance",
+      "description": "Measure days since extremum via ts_arg_max to quantify persistence. S1/S2: not applicable. S3: applied ts_backfill(60). S4: applied. Confidence: 0.49 — helps timing entries after extremes.",
+      "implementation": "ts_arg_max(ts_backfill(shrt24_triggertime_2, 60), 30)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Short-term breakout strength (delta * sqrt(1/std))",
+      "description": "Scale delta by sqrt inverse std to favor strong moves in quiet names. S1/S2: not applicable. S3: applied ts_backfill(60). S4: applied. Confidence: 0.56 — nonlinear scaling accentuates signal.",
+      "implementation": "multiply(ts_delta(ts_backfill(shrt24_triggertime_2, 60), 3), sqrt(inverse(ts_std_dev(ts_backfill(shrt24_triggertime_2, 60), 20))))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Short-run momentum trimmed and bucketed",
+      "description": "Winsorize 3d delta then bucket into discrete trading bands. S1/S2: not applicable. S3: applied ts_backfill(20). S4: applied. Confidence: 0.52 — simple execution-friendly rule.",
+      "implementation": "bucket(winsorize(ts_delta(ts_backfill(shrt24_triggertime_2, 20), 3), 4), buckets=\"-3,-1,0,1,3\")",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Recent-run indicator using ts_step and sign",
+      "description": "Use ts_step to measure days count and combine with sign to prefer long-lived trends. S1/S2: not applicable. S3: applied ts_backfill(60). S4: applied. Confidence: 0.47 — heuristic to favor sustained trends.",
+      "implementation": "multiply(sign(ts_delta(ts_backfill(shrt24_triggertime_2, 60), 1)), ts_step(1))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Short-window standardized breakout (quantile of delta)",
+      "description": "Cross-sectional quantile of 3d delta to pick top breakouts. S1/S2: not applicable. S3: applied ts_backfill(15). S4: applied. Confidence: 0.63 — selects relative movers robustly.",
+      "implementation": "quantile(ts_delta(ts_backfill(shrt24_triggertime_2, 15), 3))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Momentum filtered by stability bucket",
+      "description": "Compute delta then only keep it if 60d std in lower quantile (stable bucket). S1/S2: not applicable. S3: applied ts_backfill(120). S4: applied. Confidence: 0.55 — filters for reliable names.",
+      "implementation": "if_else(less(ts_std_dev(ts_backfill(shrt24_triggertime_2, 120), 60), ts_quantile(ts_backfill(shrt24_triggertime_2, 120), 60)), ts_delta(ts_backfill(shrt24_triggertime_2, 60), 3), NaN)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Rapid-reversal detector (sign flip after spike)",
+      "description": "Detect sign flip immediately after high absolute delta and signal contrarian trade. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.49 — targets short-lived overreactions.",
+      "implementation": "if_else(and(greater(abs(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1)), multiply(ts_std_dev(ts_backfill(shrt24_triggertime_2, 30), 10), 2)), not_equal(sign(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1)), sign(ts_delay(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1), 1)))), reverse(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1)), NaN)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Short-run breakout confirmation using ts_count_nans",
+      "description": "Require recent activity (low NaNs) and breakout magnitude to act. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.56 — ensures active names only.",
+      "implementation": "if_else(less(ts_count_nans(shrt24_triggertime_2, 14), 4), if_else(greater(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1), ts_std_dev(ts_backfill(shrt24_triggertime_2, 30), 10)), ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1), NaN), NaN)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Longer-horizon trend score (30d delta zscore)",
+      "description": "Zscore of 30d delta to capture sustained directional pressure. S1/S2: not applicable. S3: applied ts_backfill(90). S4: applied. Confidence: 0.60 — longer horizon smooths noise.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(shrt24_triggertime_2, 90), 30), 30)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-run breakouts with pasteurize",
+      "description": "Pasteurize then require delta > threshold to avoid INF or invalids. S1/S2: not applicable. S3: applied ts_backfill(30) then pasteurize. S4: applied. Confidence: 0.51 — robust handling of invalid data.",
+      "implementation": "if_else(greater(ts_delta(pasteurize(ts_backfill(shrt24_triggertime_2, 30)), 1), 0.01), ts_delta(pasteurize(ts_backfill(shrt24_triggertime_2, 30)), 1), NaN)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Momentum scaled by recent amplitude (range)",
+      "description": "Delta divided by recent range (ts_max - ts_min) approximated via ts_scale denominator. S1/S2: not applicable. S3: applied ts_backfill(60). S4: applied. Confidence: 0.55 — normalizes by amplitude.",
+      "implementation": "divide(ts_delta(ts_backfill(shrt24_triggertime_2, 60), 3), subtract(ts_max(ts_backfill(shrt24_triggertime_2, 60)), ts_min(ts_backfill(shrt24_triggertime_2, 60))))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Short-run decisive move (abs delta > recent avg abs delta)",
+      "description": "Flag moves larger than recent average absolute delta. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.57 — captures relatively big moves.",
+      "implementation": "greater(abs(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1)), ts_mean(abs(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1)), 10))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Short-window directional momentum (sign * zscore)",
+      "description": "Combine sign with zscore to get signed standardized momentum. S1/S2: not applicable. S3: applied ts_backfill(20). S4: applied. Confidence: 0.58 — mixes magnitude and direction robustly.",
+      "implementation": "multiply(sign(ts_delta(ts_backfill(shrt24_triggertime_2, 20), 1)), ts_zscore(ts_delta(ts_backfill(shrt24_triggertime_2, 20), 1), 7))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Short-term reversal after sustained positive sum",
+      "description": "If sum of signs over 10d strongly positive, signal small contrarian. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.46 — mean-reversion risk control.",
+      "implementation": "if_else(greater(ts_sum(sign(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1)), 10), 6), reverse(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1)), NaN)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Weighted recent average (higher weight to latest via ts_decay_linear)",
+      "description": "Use decay to weight recent days and take mean as signal. S1/S2: not applicable. S3: applied ts_backfill(40). S4: applied. Confidence: 0.59 — responsive smoothed signal.",
+      "implementation": "ts_mean(ts_decay_linear(ts_backfill(shrt24_triggertime_2, 40), 8), 5)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Short-run momentum thresholding (trade_when)",
+      "description": "Only trade when zscored delta exceeds threshold to limit trades. S1/S2: not applicable. S3: applied ts_backfill(30). S4: applied. Confidence: 0.62 — thresholding reduces noise.",
+      "implementation": "trade_when(greater(ts_zscore(ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1), 7), 1.5), ts_delta(ts_backfill(shrt24_triggertime_2, 30), 1), NaN)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Short-term breakout with sign consistency across days",
+      "description": "Require 3 consecutive same-sign deltas before acting. S1/S2: not applicable. S3: applied ts_backfill(20). S4: applied. Confidence: 0.54 — persistence filter improves hit-rate.",
+      "implementation": "if_else(and(equal(sign(ts_delta(ts_backfill(shrt24_triggertime_2, 20), 1)), sign(ts_delay(ts_delta(ts_backfill(shrt24_triggertime_2, 20), 1), 1))), equal(sign(ts_delta(ts_backfill(shrt24_triggertime_2, 20), 1)), sign(ts_delay(ts_delta(ts_backfill(shrt24_triggertime_2, 20), 1), 2)))), ts_delta(ts_backfill(shrt24_triggertime_2, 20), 1), NaN)",
+      "confidence_level": 0.54
+    }
+  ]
+}

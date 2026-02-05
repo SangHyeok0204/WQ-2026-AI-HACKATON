@@ -1,0 +1,718 @@
+{
+  "results": [
+    {
+      "idea": "Net dictionary sentiment (positive - negative)",
+      "description": "Combine two high-coverage dictionary sentiment fields to capture net tone. SUGGESTION1: applied (used fnd91_sentiment2_0 and fnd91_sentiment2_1). SUGGESTION2: no single VECTOR field present, not applied. SUGGESTION3: both coverage>0.6 so ts_backfill not needed. SUGGESTION4: fnd91_sentiment2_0 has high userCount/alphaCount so preferred. KEEP_IN_MIND: used 2 datafields and 1 operator. Confidence set to 0.75 based on coverage and prior usage.",
+      "implementation": "subtract(fnd91_sentiment2_0, fnd91_sentiment2_1)",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Recent sentiment surprise (zscore of sentiment over 5 filings)",
+      "description": "Detect unusual sentiment versus recent history. S1: used single field fnd91_sentiment2_0 with ts_zscore to leverage its time-series behavior. S2: no vector field. S3: coverage high so no backfill. S4: high userCount. KEEP_IN_MIND: one field, two ops allowed. Confidence 0.72.",
+      "implementation": "ts_zscore(fnd91_sentiment2_0, 5)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Readability-adjusted positive words (positive_count / readability)",
+      "description": "High positive word counts discounted by readability (easier text may hide weak signals). S1: combined fnd91_sentiment2_0 and fnd91_readability_0. S2: no vector. S3: both >0.6 coverage. S4: readability has good alphaCount. Kept operators minimal. Confidence 0.68.",
+      "implementation": "divide(fnd91_sentiment2_0, fnd91_readability_0)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Negative-word spike (ts_zscore of negative words)",
+      "description": "Spike in negative dictionary words may predict downward moves. S1: used fnd91_sentiment2_1. S2: no vector. S3: coverage>0.6. S4: moderate userCount. KEEP_IN_MIND respected. Confidence 0.66.",
+      "implementation": "ts_zscore(fnd91_sentiment2_1, 4)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Complexity increase vs baseline (complexity model / measure count)",
+      "description": "Rising complexity relative to size of filing signals obfuscation. S1: combined fnd91_sentiment2_3 (complexity) and fnd91_measure_4 (word count). S2: no vector. S3: coverage of complexity ~0.8658 and measure high. S4: complexity has alphaCount. KEEP_IN_MIND: 2 fields. Confidence 0.70.",
+      "implementation": "divide(fnd91_sentiment2_3, fnd91_measure_4)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Topic 4 exposure momentum (ts_delta of topic exposure)",
+      "description": "Momentum in exposure to specific topic can indicate thematic news. S1: used fnd91_topic_4. S2: topic is scalar per instrument here. S3: coverage ~0.7101 so no backfill. S4: topic_4 has high alphaCount historically. KEEP_IN_MIND: single field, ts_delta operator used. Confidence 0.60.",
+      "implementation": "ts_delta(fnd91_topic_4, 1)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Topic divergence: topic_13 - topic_4",
+      "description": "Relative shift between two topics may highlight changing narrative. S1: used fnd91_topic_13 and fnd91_topic_4 (both high coverage). S2: no vector. S3: both >0.6. S4: topic_13 has many prior alphas. KEEP_IN_MIND: two fields, one subtract. Confidence 0.63.",
+      "implementation": "subtract(fnd91_topic_13, fnd91_topic_4)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Readability decline signal (reverse(readability) * negative_count)",
+      "description": "Declining readability multiplied by negative words intensifies bearish signal. S1: combined fnd91_readability_0 and fnd91_sentiment2_1. S2: no vector. S3: coverage good. S4: both fields have user/alpha usage. KEEP_IN_MIND: used reverse and multiply (2 fields). Confidence 0.69.",
+      "implementation": "multiply(reverse(fnd91_readability_0), fnd91_sentiment2_1)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Numeric-figure concentration (numeric_count / doccount)",
+      "description": "High numeric density per document may indicate detailed guidance or complex disclosures. S1: fnd91_numeric_count and fnd91_doccount used. S2: no vector. S3: both coverage high. S4: numeric_count has multiple alphas. KEEP_IN_MIND: 2 fields. Confidence 0.61.",
+      "implementation": "divide(fnd91_numeric_count, fnd91_doccount)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Topic 18 momentum normalized (ts_zscore of topic_18 returns)",
+      "description": "Large recent changes in topic_18 exposure could be predictive. S1: fnd91_topic_18 used with ts_returns then ts_zscore. S2: no vector. S3: coverage 0.668 good. S4: topic_18 has high userCount/alphaCount. KEEP_IN_MIND: two operators, one field. Confidence 0.64.",
+      "implementation": "ts_zscore(ts_returns(fnd91_topic_18, 3), 5)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Topic basket signal (topic_12 + topic_13)",
+      "description": "Combined exposure to two related topics to capture broad narrative. S1: add(fnd91_topic_12, fnd91_topic_13). S2: no vector. S3: both have high coverage. S4: topics used often. KEEP_IN_MIND: two fields, one op. Confidence 0.66.",
+      "implementation": "add(fnd91_topic_12, fnd91_topic_13)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Readability improvement persistence (ts_arg_max of readability over 5)",
+      "description": "If current readability is best in recent window, management may be clearer. S1: ts_arg_max(fnd91_readability_0,5). S2: no vector. S3: high coverage. S4: readability widely used. KEEP_IN_MIND respected. Confidence 0.58.",
+      "implementation": "ts_arg_max(fnd91_readability_0, 5)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Headline topic surge (topic_10 / ts_mean(topic_10,4))",
+      "description": "Topic_10 relative surge vs recent mean flags newsworthy filings. S1: used fnd91_topic_10 with ts_mean. S2: no vector. S3: topic_10 coverage 0.8007. S4: used in alphas. KEEP_IN_MIND: single field, two ops. Confidence 0.67.",
+      "implementation": "divide(fnd91_topic_10, ts_mean(fnd91_topic_10, 4))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Long-word ratio (long_word_count / total_words)",
+      "description": "Higher fraction of long words may indicate technical/legal obfuscation. S1: fnd91_measure_3 (long words) and fnd91_measure_4 (total words). S2: no vector. S3: coverage high. S4: measure fields have many users. KEEP_IN_MIND: 2 fields. Confidence 0.60.",
+      "implementation": "divide(fnd91_measure_3, fnd91_measure_4)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Objective wording dominance (objective_score / total_words)",
+      "description": "High objective wording density may signal neutral factual reporting. S1: fnd91_sentiment1_3 and fnd91_measure_4 used. S2: no vector. S3: both high coverage. S4: sentiment1_3 present but lower alphaCount; still useful. KEEP_IN_MIND kept. Confidence 0.56.",
+      "implementation": "divide(fnd91_sentiment1_3, fnd91_measure_4)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Topic concentration (max(topic_i) - second_max)",
+      "description": "High concentration in one topic vs others indicates focused disclosure. S1: approximate by subtracting topic_13 and topic_4. S2: ideally vector but fields provided as scalars so used two representative topics. S3: both high coverage. S4: topic_13 used often. KEEP_IN_MIND: 2 fields. Confidence 0.52.",
+      "implementation": "subtract(fnd91_topic_13, fnd91_topic_4)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Sentiment momentum cross-quarter (ts_delta of sentiment1_4)",
+      "description": "Quarter-over-quarter jump in model-2 positive score signals improving tone. S1: ts_delta(fnd91_sentiment1_4,1). S2: no vector. S3: coverage ~0.8658. S4: moderate userCount. KEEP_IN_MIND: single field. Confidence 0.62.",
+      "implementation": "ts_delta(fnd91_sentiment1_4, 1)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Readability vs complexity (readability / complexity)",
+      "description": "Easier-reading but high complexity may be contradictory; combine fnd91_readability_0 and fnd91_sentiment2_4 (complexity model 2). S1: applied. S2: no vector. S3: both >0.6. S4: complexity has prior alphas. KEEP_IN_MIND: two fields. Confidence 0.63.",
+      "implementation": "divide(fnd91_readability_0, fnd91_sentiment2_4)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "High topic_7 & negative sentiment interaction",
+      "description": "Topic_7 exposure times negative score to amplify warnings. S1: multiplied fnd91_topic_7 and fnd91_sentiment1_5. S2: no vector. S3: both have good coverage. S4: sentiment1_5 used before. KEEP_IN_MIND: two fields. Confidence 0.65.",
+      "implementation": "multiply(fnd91_topic_7, fnd91_sentiment1_5)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Topic volatility (ts_std_dev of topic_8)",
+      "description": "High short-term volatility in topic exposure indicates uncertain narrative. S1: ts_std_dev(fnd91_topic_8,5). S2: no vector. S3: coverage ~0.786. S4: topic_8 used. KEEP_IN_MIND: single field. Confidence 0.59.",
+      "implementation": "ts_std_dev(fnd91_topic_8, 5)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Sentence density surprise (ts_zscore of measure_0)",
+      "description": "Unusually many/ few sentences vs recent window may matter. S1: ts_zscore(fnd91_measure_0,5). S2: no vector. S3: coverage high. S4: measure_0 has userCount. KEEP_IN_MIND: single field. Confidence 0.60.",
+      "implementation": "ts_zscore(fnd91_measure_0, 5)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Negative sentiment per sentence (negative_count / sentences)",
+      "description": "Density of negative words per sentence to normalize by filing length. S1: fnd91_sentiment2_1 and fnd91_measure_0. S2: no vector. S3: both high coverage. S4: fields widely used. KEEP_IN_MIND: 2 fields. Confidence 0.67.",
+      "implementation": "divide(fnd91_sentiment2_1, fnd91_measure_0)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Topic_19 spike vs historical mean",
+      "description": "Surge in topic_19 relative to past mean indicates new emphasis. S1: divide(topic_19, ts_mean(topic_19,4)). S2: no vector. S3: coverage 0.8597. S4: topic_19 used in alphas. KEEP_IN_MIND: one field, two ops. Confidence 0.66.",
+      "implementation": "divide(fnd91_topic_19, ts_mean(fnd91_topic_19, 4))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Positive sentiment concentration across models (avg of model positives)",
+      "description": "Average of positive scores from multiple models to reduce model noise. S1: average fnd91_sentiment1_1 and fnd91_sentiment1_4 via add then divide by 2. S2: no vector. S3: fields high coverage. S4: used models have alphaCount. KEEP_IN_MIND: 2 fields, <=7 ops. Confidence 0.68.",
+      "implementation": "divide(add(fnd91_sentiment1_1, fnd91_sentiment1_4), 2)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Topic_2 elevated with low readability (topic_2 * reverse(readability))",
+      "description": "If a topic rises while readability drops, message may be problematic. S1: used fnd91_topic_2 and fnd91_readability_0. S2: no vector. S3: topic_2 coverage 0.8358. S4: readability high usage. KEEP_IN_MIND: 2 fields. Confidence 0.64.",
+      "implementation": "multiply(fnd91_topic_2, reverse(fnd91_readability_0))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Topic_11 abrupt change (ts_max_diff(topic_11,5))",
+      "description": "Large drop from recent max may signal removal of emphasis. S1: ts_max_diff(fnd91_topic_11,5). S2: no vector. S3: coverage 0.7238. S4: topic_11 used in alphas. KEEP_IN_MIND: single field. Confidence 0.55.",
+      "implementation": "ts_max_diff(fnd91_topic_11, 5)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Negative sentiment persistence (ts_product of negative counts)",
+      "description": "Persistent negative wording across filings could be meaningful. S1: ts_product(fnd91_sentiment2_1, 3). S2: no vector. S3: negative count coverage high. S4: multiple alphas exist. KEEP_IN_MIND: one field operator. Confidence 0.57.",
+      "implementation": "ts_product(fnd91_sentiment2_1, 3)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Topic_16 vs Topic_17 divergence",
+      "description": "Shift in emphasis between two related topics may indicate pivot. S1: subtract(fnd91_topic_16, fnd91_topic_17). S2: no vector. S3: both >0.7 coverage. S4: both topics have alphas. KEEP_IN_MIND: two fields. Confidence 0.60.",
+      "implementation": "subtract(fnd91_topic_16, fnd91_topic_17)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High readability + high positive sentiment (interaction)",
+      "description": "Clear and positive filings likely reflect genuine good news. S1: multiply(fnd91_readability_0, fnd91_sentiment2_0). S2: no vector. S3: both high coverage and userCount. S4: used as complementary signals. KEEP_IN_MIND: 2 fields. Confidence 0.72.",
+      "implementation": "multiply(fnd91_readability_0, fnd91_sentiment2_0)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Topic_14 sudden prominence (ts_arg_max over 7)",
+      "description": "If topic_14 becomes the highest in a short window, it's notable. S1: ts_arg_max(fnd91_topic_14,7). S2: no vector. S3: coverage ~0.7458. S4: applied. KEEP_IN_MIND: single field. Confidence 0.58.",
+      "implementation": "ts_arg_max(fnd91_topic_14, 7)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Combined negativity signal (sum of model negatives)",
+      "description": "Sum negative counts from two negative models to strengthen signal. S1: add(fnd91_sentiment1_5, fnd91_sentiment2_1). S2: no vector. S3: both have good coverage and alphaCount. S4: applied. KEEP_IN_MIND: 2 fields. Confidence 0.70.",
+      "implementation": "add(fnd91_sentiment1_5, fnd91_sentiment2_1)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Topic_3 decay (ts_decay_linear of topic_3)",
+      "description": "Apply linear decay to recent topic_3 exposures to capture recency-weighted exposure. S1: ts_decay_linear(fnd91_topic_3,5). S2: no vector. S3: coverage ~0.7505. S4: used to emphasize recent filings. KEEP_IN_MIND: single field. Confidence 0.56.",
+      "implementation": "ts_decay_linear(fnd91_topic_3, 5)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "High numeric count with low objective score (numeric_count * reverse(objective))",
+      "description": "Many figures combined with low objective wording could indicate selective disclosure. S1: multiply(fnd91_numeric_count, reverse(fnd91_sentiment1_3)). S2: no vector. S3: numeric_count coverage high; objective score coverage good. S4: applied. KEEP_IN_MIND: 2 fields. Confidence 0.62.",
+      "implementation": "multiply(fnd91_numeric_count, reverse(fnd91_sentiment1_3))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Topic_15 trending (ts_rank(topic_15,5))",
+      "description": "Rank recent topic_15 exposure within the instrument's time series. S1: ts_rank(fnd91_topic_15,5). S2: no vector. S3: coverage ~0.6967. S4: single field used. KEEP_IN_MIND respected. Confidence 0.54.",
+      "implementation": "ts_rank(fnd91_topic_15, 5)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Multi-model sentiment consensus (quantile of two zscores)",
+      "description": "Cross-model consensus reduces idiosyncratic noise: quantile(add(ts_zscore(fnd91_sentiment1_4,4), ts_zscore(fnd91_sentiment1_1,4))). S1: used two sentiment models. S2: no vector. S3: high coverages. S4: used despite being two time ops; KEEP_IN_MIND op count <=7. Confidence 0.69.",
+      "implementation": "quantile(add(ts_zscore(fnd91_sentiment1_4, 4), ts_zscore(fnd91_sentiment1_1, 4)))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Topic_6 sudden rise (ts_arg_max of returns)",
+      "description": "Relative index of recent max in topic returns flags abrupt rises. S1: ts_arg_max(ts_returns(fnd91_topic_6,1),7). S2: no vector. S3: topic_6 coverage ~0.7078. S4: applied. KEEP_IN_MIND within op limit. Confidence 0.50.",
+      "implementation": "ts_arg_max(ts_returns(fnd91_topic_6, 1), 7)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Measure_2 complexity per sentence (complex_words / sentences)",
+      "description": "Proportion of complex words per sentence signals obfuscation. S1: divide(fnd91_measure_2, fnd91_measure_0). S2: no vector. S3: both high coverage. S4: measure_2 has prior alphas. KEEP_IN_MIND: 2 fields. Confidence 0.63.",
+      "implementation": "divide(fnd91_measure_2, fnd91_measure_0)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Topic_1 backfilled momentum",
+      "description": "Topic_1 has coverage <0.6 so apply ts_backfill; then ts_delta to capture momentum. S1: ts_delta(ts_backfill(fnd91_topic_1, 10),1). S2: backfill applied per S3. S4: topic_1 limited userCount so lower confidence. KEEP_IN_MIND: single field and two ops. Confidence 0.42.",
+      "implementation": "ts_delta(ts_backfill(fnd91_topic_1, 10), 1)",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Doccount-normalized topic_10 (topic_10 / doccount)",
+      "description": "Normalize topic exposure by number of attached documents to measure concentration. S1: divide(fnd91_topic_10, fnd91_doccount). S2: no vector. S3: both coverages high. S4: applied. KEEP_IN_MIND: 2 fields. Confidence 0.59.",
+      "implementation": "divide(fnd91_topic_10, fnd91_doccount)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Topic_18 + negative density (topic_18 * negative_per_sentence)",
+      "description": "Combine topic exposure with negative-word density to flag risky topic mentions. S1: multiply(fnd91_topic_18, divide(fnd91_sentiment2_1, fnd91_measure_0)). S2: used 3 ops but only 2 datafields. S3: coverage adequate. KEEP_IN_MIND operators <=7 and datafields 2. Confidence 0.65.",
+      "implementation": "multiply(fnd91_topic_18, divide(fnd91_sentiment2_1, fnd91_measure_0))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Topic_12 mean-reversion (reverse(ts_mean(topic_12,4)) * current)",
+      "description": "If current is high but recent mean is higher, signal mean-reversion (<- simplified by multiply with reverse). S1: multiply(fnd91_topic_12, reverse(ts_mean(fnd91_topic_12,4))). S2: no vector. S3: topic_12 coverage strong. KEEP_IN_MIND respected. Confidence 0.53.",
+      "implementation": "multiply(fnd91_topic_12, reverse(ts_mean(fnd91_topic_12, 4)))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Topic_9 volatility-adjusted sentiment (sentiment / ts_std_dev(topic_9))",
+      "description": "Normalize sentiment by topical volatility to focus on confident narratives. S1: divide(fnd91_sentiment2_0, ts_std_dev(fnd91_topic_9,5)). S2: no vector. S3: subject to coverage of topic_9 (0.6916). S4: applied. KEEP_IN_MIND: 2 fields. Confidence 0.57.",
+      "implementation": "divide(fnd91_sentiment2_0, ts_std_dev(fnd91_topic_9, 5))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Topic_13 persistent rise (ts_ir of topic returns)",
+      "description": "Information ratio of topic returns signals consistent drift. S1: ts_ir(ts_returns(fnd91_topic_13,1), 10) approximated by ts_ir(fnd91_topic_13,10). S2: no vector. S3: topic_13 has many alphas. KEEP_IN_MIND: single field. Confidence 0.61.",
+      "implementation": "ts_ir(fnd91_topic_13, 10)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Topic_7 & topic_8 spread (subtract(topic_7, topic_8))",
+      "description": "Relative emphasis between two topics may reflect shifting focus. S1: subtract(fnd91_topic_7, fnd91_topic_8). S2: no vector. S3: both coverages high. S4: used in previous alphas. KEEP_IN_MIND: 2 fields. Confidence 0.55.",
+      "implementation": "subtract(fnd91_topic_7, fnd91_topic_8)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "High doccount with low topic concentration (doccount / max(topic_4, topic_13))",
+      "description": "Many docs but low tile in main topics may indicate breadth but no focus. S1: divide(fnd91_doccount, max(fnd91_topic_4, fnd91_topic_13)). S2: used max operator and two fields. S3: coverages high. KEEP_IN_MIND: 2 fields. Confidence 0.50.",
+      "implementation": "divide(fnd91_doccount, max(fnd91_topic_4, fnd91_topic_13))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Topic_14 normalized by filing length",
+      "description": "topic_14 per word to adjust for filing size: divide(topic_14, measure_4). S1: two fields used. S2: no vector. S3: both with good coverage. KEEP_IN_MIND: satisfied. Confidence 0.58.",
+      "implementation": "divide(fnd91_topic_14, fnd91_measure_4)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Consensus negativity (quantile of negative scores across two models)",
+      "description": "Use quantile(add(sentiment1_5, sentiment2_1)) to form cross-sectional robust negative indicator. S1: applied two negative models. S2: no vector. S3: good coverage. S4: higher confidence from consensus. KEEP_IN_MIND: two fields. Confidence 0.71.",
+      "implementation": "quantile(add(fnd91_sentiment1_5, fnd91_sentiment2_1))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Topic_16 * numeric intensity",
+      "description": "Combine topic exposure with numeric_count to reflect concrete topic mentions. S1: multiply(fnd91_topic_16, fnd91_numeric_count). S2: no vector. S3: both coverages acceptable. S4: numeric_count widely used. KEEP_IN_MIND: 2 fields. Confidence 0.60.",
+      "implementation": "multiply(fnd91_topic_16, fnd91_numeric_count)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Readability sudden drop (ts_arg_min over 7)",
+      "description": "If current readability is the lowest in recent window, messaging may be defensive. S1: ts_arg_min(fnd91_readability_0,7). S2: no vector. S3: high coverage. S4: used for defensive signals. KEEP_IN_MIND: single field. Confidence 0.57.",
+      "implementation": "ts_arg_min(fnd91_readability_0, 7)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Topic_17 elevated & objective wording low",
+      "description": "High topic_17 exposure with low objective score may imply spin. S1: multiply(fnd91_topic_17, reverse(fnd91_sentiment1_3)). S2: no vector. S3: coverages >0.7. S4: applied. KEEP_IN_MIND: 2 fields. Confidence 0.63.",
+      "implementation": "multiply(fnd91_topic_17, reverse(fnd91_sentiment1_3))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Combined topic surge (add(topic_10, topic_13) / ts_mean(...))",
+      "description": "Sum two topical exposures and normalize by their recent mean to find surges. S1: divide(add(fnd91_topic_10, fnd91_topic_13), ts_mean(add(fnd91_topic_10, fnd91_topic_13),4)). S2: technically two fields but add used; S3: both high coverage. KEEP_IN_MIND operators within limit. Confidence 0.62.",
+      "implementation": "divide(add(fnd91_topic_10, fnd91_topic_13), ts_mean(add(fnd91_topic_10, fnd91_topic_13), 4))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Sentiment zscore across filings and cross-section (ts_zscore then zscore)",
+      "description": "Reduce outliers by time-normalizing then cross-sectional normalizing: zscore(ts_zscore(sentiment2_0,5)). S1: used fnd91_sentiment2_0. S2: no vector. S3: high coverage and userCount. KEEP_IN_MIND op count small. Confidence 0.70.",
+      "implementation": "zscore(ts_zscore(fnd91_sentiment2_0, 5))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Topic_8 mean shift (subtract(ts_mean(topic_8,6), ts_mean(topic_8,3)))",
+      "description": "Compare medium vs short-term mean to detect acceleration in topic exposure. S1: used fnd91_topic_8 with two ts_mean windows. S2: no vector. S3: coverage good. KEEP_IN_MIND: single field with multiple ops. Confidence 0.54.",
+      "implementation": "subtract(ts_mean(fnd91_topic_8, 6), ts_mean(fnd91_topic_8, 3))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Topic_13 sentiment-weighted (topic_13 * sentiment2_0)",
+      "description": "Topic exposure scaled by positive sentiment to highlight constructive mentions. S1: multiply(fnd91_topic_13, fnd91_sentiment2_0). S2: no vector. S3: both have good coverage and alphas. KEEP_IN_MIND respected. Confidence 0.68.",
+      "implementation": "multiply(fnd91_topic_13, fnd91_sentiment2_0)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Measure_1 syllable density (syllables / sentences)",
+      "description": "Average syllables per sentence indicates complexity/tone. S1: divide(fnd91_measure_1, fnd91_measure_0). S2: no vector. S3: both high coverage. S4: measures used frequently. KEEP_IN_MIND: 2 fields. Confidence 0.62.",
+      "implementation": "divide(fnd91_measure_1, fnd91_measure_0)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Topic_3 backfilled signal for sparse coverage",
+      "description": "If topic has intermittent coverage, backfill before computing momentum: ts_delta(ts_backfill(fnd91_topic_3,10),1). S1: ts_backfill applied if needed per S3 (topic_3 coverage 0.7505 so optional but safe). S4: conservative confidence. KEEP_IN_MIND: single field, two ops. Confidence 0.49.",
+      "implementation": "ts_delta(ts_backfill(fnd91_topic_3, 10), 1)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Topic_4 concentration per sentence (topic_4 / sentences)",
+      "description": "Intensity of topic relative to length. S1: divide(fnd91_topic_4, fnd91_measure_0). S2: no vector. S3: both with good coverage. S4: used to normalize. KEEP_IN_MIND satisfied. Confidence 0.58.",
+      "implementation": "divide(fnd91_topic_4, fnd91_measure_0)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Sentiment model disagreement (abs(sent1 - sent2))",
+      "description": "High disagreement between models can indicate ambiguity. S1: abs(subtract(fnd91_sentiment1_4, fnd91_sentiment2_0)). S2: no vector. S3: both high coverage. S4: captures model dispersion. KEEP_IN_MIND: 2 fields. Confidence 0.66.",
+      "implementation": "abs(subtract(fnd91_sentiment1_4, fnd91_sentiment2_0))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Topic_5 rising trend vs 3-quarter mean",
+      "description": "Compare current topic to 3-quarter mean: subtract(fnd91_topic_5, ts_mean(fnd91_topic_5,3)). S1: single field. S2: coverage ~0.6646. S3: used. KEEP_IN_MIND: single field. Confidence 0.51.",
+      "implementation": "subtract(fnd91_topic_5, ts_mean(fnd91_topic_5, 3))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Topic_18 negative interaction (topic_18 * negative_score_z)",
+      "description": "Multiply topic exposure by zscored negative count to highlight problematic mentions. S1: multiply(fnd91_topic_18, ts_zscore(fnd91_sentiment2_1,4)). S2: no vector. S3: both fields used frequently. KEEP_IN_MIND: 2 fields. Confidence 0.64.",
+      "implementation": "multiply(fnd91_topic_18, ts_zscore(fnd91_sentiment2_1, 4))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Topic pair co-movement (ts_corr(topic_12, topic_13, 6))",
+      "description": "High correlation between two topics suggests linked narratives. S1: ts_corr(fnd91_topic_12, fnd91_topic_13,6). S2: no vector. S3: both coverages high. S4: group behavior captured. KEEP_IN_MIND: 2 fields. Confidence 0.55.",
+      "implementation": "ts_corr(fnd91_topic_12, fnd91_topic_13, 6)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Readability * topic_2 interaction for clarity of that topic",
+      "description": "High topic_2 with high readability suggests transparent messaging about that topic. S1: multiply(fnd91_topic_2, fnd91_readability_0). S2: no vector. S3: both good coverage. KEEP_IN_MIND: 2 fields. Confidence 0.65.",
+      "implementation": "multiply(fnd91_topic_2, fnd91_readability_0)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Topic_19 normalized change (ts_zscore(ts_delta(topic_19,1),5))",
+      "description": "Standardize short-term change in topic_19 to reduce outliers. S1: ts_zscore(ts_delta(fnd91_topic_19,1),5). S2: no vector. S3: topic_19 coverage high. KEEP_IN_MIND: single field. Confidence 0.63.",
+      "implementation": "ts_zscore(ts_delta(fnd91_topic_19, 1), 5)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Objective wording trend (ts_zscore(sentiment1_3,5))",
+      "description": "Changes in objective tone standardized over time. S1: ts_zscore(fnd91_sentiment1_3,5). S2: no vector. S3: coverage good. S4: objective model has moderate usage. KEEP_IN_MIND: simple. Confidence 0.55.",
+      "implementation": "ts_zscore(fnd91_sentiment1_3, 5)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Topic_10 / topic_8 ratio",
+      "description": "Relative emphasis between two topics as a short indicator. S1: divide(fnd91_topic_10, fnd91_topic_8). S2: no vector. S3: both good coverage. KEEP_IN_MIND: two fields. Confidence 0.52.",
+      "implementation": "divide(fnd91_topic_10, fnd91_topic_8)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Topic_2 persistent negativity (ts_product of negative across 3)",
+      "description": "Repeated negative counts coincide with topic_2 mentions. S1: multiply(ts_product(fnd91_sentiment2_1,3), fnd91_topic_2) approximated by multiply(ts_product(fnd91_sentiment2_1, 3), fnd91_topic_2). S2: used two fields. S3: product op used for persistence. KEEP_IN_MIND operators <=7. Confidence 0.58.",
+      "implementation": "multiply(ts_product(fnd91_sentiment2_1, 3), fnd91_topic_2)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "High-topic diversity (vec_range proxy: max(topic_13, topic_4) - min(topic_13, topic_4))",
+      "description": "Proxy for topic spread using two topics given lack of vector field. S1: subtract(max(fnd91_topic_13, fnd91_topic_4), min(fnd91_topic_13, fnd91_topic_4)). S2: uses two fields. S3: acceptable coverage. KEEP_IN_MIND: within op and field limits. Confidence 0.48.",
+      "implementation": "subtract(max(fnd91_topic_13, fnd91_topic_4), min(fnd91_topic_13, fnd91_topic_4))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Topic_14 * positive density",
+      "description": "Topic_14 mentions reinforced by positive word density. S1: multiply(fnd91_topic_14, divide(fnd91_sentiment2_0, fnd91_measure_0)). S2: two datafields effectively (topic and sentiment; sentences used but within division). KEEP_IN_MIND: ops under limit. Confidence 0.61.",
+      "implementation": "multiply(fnd91_topic_14, divide(fnd91_sentiment2_0, fnd91_measure_0))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Topic_6 seasonal pattern (ts_arg_max over 12)",
+      "description": "Identify seasonality by locating max index across 12 periods. S1: ts_arg_max(fnd91_topic_6,12). S2: no vector. S3: coverage lower for topic_6 (~0.7078) but acceptable. KEEP_IN_MIND: single field. Confidence 0.45.",
+      "implementation": "ts_arg_max(fnd91_topic_6, 12)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Sentiment-weighted document count (doccount * sentiment2_0)",
+      "description": "More documents with higher positive sentiment may strengthen signal. S1: multiply(fnd91_doccount, fnd91_sentiment2_0). S2: no vector. S3: both fields high coverage. KEEP_IN_MIND: 2 fields. Confidence 0.60.",
+      "implementation": "multiply(fnd91_doccount, fnd91_sentiment2_0)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Topic_4 short-term zscore",
+      "description": "Standardize topic_4 over short window: ts_zscore(topic_4,5). S1: single field. S2: coverage >0.7. S4: simple and interpretable. KEEP_IN_MIND satisfied. Confidence 0.58.",
+      "implementation": "ts_zscore(fnd91_topic_4, 5)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Topic_13 / topic_2 ratio (relative emphasis)",
+      "description": "Capture shift between two major topics via divide(topic_13, topic_2). S1: two fields. S3: both high coverage. KEEP_IN_MIND: kept minimal. Confidence 0.62.",
+      "implementation": "divide(fnd91_topic_13, fnd91_topic_2)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Measure_0 sudden drop (ts_arg_min of sentences)",
+      "description": "Current day lowest sentence count in window could be terse announcement. S1: ts_arg_min(fnd91_measure_0,7). S2: no vector. S3: high coverage. KEEP_IN_MIND respected. Confidence 0.53.",
+      "implementation": "ts_arg_min(fnd91_measure_0, 7)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Topic_16 zscore cross-time and cross-section",
+      "description": "zscore(ts_zscore(topic_16,5)) to normalize temporal and cross-sectional variation. S1: used fnd91_topic_16 for both normalizations. S2: no vector. S3: coverage good. KEEP_IN_MIND: two ops. Confidence 0.60.",
+      "implementation": "zscore(ts_zscore(fnd91_topic_16, 5))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Readability * reverse(negative_count)",
+      "description": "Good readability with low negatives is positive; combine readability and inverse negative count. S1: multiply(fnd91_readability_0, inverse(fnd91_sentiment2_1)). S2: no vector. S3: high coverage. KEEP_IN_MIND: two fields. Confidence 0.66.",
+      "implementation": "multiply(fnd91_readability_0, inverse(fnd91_sentiment2_1))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Topic_11 spike relative to 6-quarter mean",
+      "description": "Subtract current topic_11 minus ts_mean(topic_11,6) to find large deviations. S1: subtract(fnd91_topic_11, ts_mean(fnd91_topic_11,6)). S2: no vector. S3: coverage OK. KEEP_IN_MIND respected. Confidence 0.54.",
+      "implementation": "subtract(fnd91_topic_11, ts_mean(fnd91_topic_11, 6))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Topic_7 negative skew (ts_kurtosis of topic_7)",
+      "description": "High kurtosis indicates fat tails (sharp topic moves). S1: ts_kurtosis(fnd91_topic_7,10). S2: no vector. S3: coverage 0.8597. KEEP_IN_MIND: single field. Confidence 0.48.",
+      "implementation": "ts_kurtosis(fnd91_topic_7, 10)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Topic_13 / numeric_count (topic intensity per figure)",
+      "description": "Normalize topical emphasis by numeric figures to see whether mentions are backed by data. S1: divide(fnd91_topic_13, fnd91_numeric_count). S2: two fields with good coverage. KEEP_IN_MIND: applied. Confidence 0.59.",
+      "implementation": "divide(fnd91_topic_13, fnd91_numeric_count)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Topic_2 consistent growth (ts_ir of topic_2, 12)",
+      "description": "Information ratio of topic_2 over 12 periods to capture consistent directional change. S1: ts_ir(fnd91_topic_2,12). S2: coverage high. S4: moderate confidence. KEEP_IN_MIND: single field. Confidence 0.52.",
+      "implementation": "ts_ir(fnd91_topic_2, 12)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Topic_10 sudden drop detection (ts_max_diff(topic_10,6))",
+      "description": "Large drop from max may indicate removal of focus. S1: ts_max_diff(fnd91_topic_10,6). S2: coverage>0.8. S4: high alphaCount usage. KEEP_IN_MIND: single field. Confidence 0.56.",
+      "implementation": "ts_max_diff(fnd91_topic_10, 6)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Topic_12 & topic_14 co-spike (multiply(topic_12, topic_14))",
+      "description": "Simultaneous strong exposures amplify signal. S1: multiply(fnd91_topic_12, fnd91_topic_14). S2: no vector. S3: both with strong coverage. KEEP_IN_MIND: 2 fields. Confidence 0.63.",
+      "implementation": "multiply(fnd91_topic_12, fnd91_topic_14)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Readability zscore across time to spot clarity shifts",
+      "description": "ts_zscore(fnd91_readability_2,5) identifies abrupt clarity changes using alternate readability model. S1: used fnd91_readability_2. S2: no vector. S3: coverage high. KEEP_IN_MIND single field. Confidence 0.60.",
+      "implementation": "ts_zscore(fnd91_readability_2, 5)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Topic_18 normalized by average topic intensity",
+      "description": "Divide topic_18 by ts_mean(topic_18,6) to find relative surges. S1: single field used. S2: coverage ~0.668. KEEP_IN_MIND: simple. Confidence 0.55.",
+      "implementation": "divide(fnd91_topic_18, ts_mean(fnd91_topic_18, 6))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Sentiment momentum ensemble (ts_zscore of sum of positives)",
+      "description": "Sum positives across two models then zscore over time: ts_zscore(add(fnd91_sentiment1_4, fnd91_sentiment2_0),5). S1: two fields used. S3: coverages high. KEEP_IN_MIND ops limited. Confidence 0.68.",
+      "implementation": "ts_zscore(add(fnd91_sentiment1_4, fnd91_sentiment2_0), 5)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Topic_9 / topic_3 ratio for thematic shift",
+      "description": "Detect reallocation across themes by divide(topic_9, topic_3). S1: two fields used. S3: both with decent coverage. KEEP_IN_MIND minimal. Confidence 0.50.",
+      "implementation": "divide(fnd91_topic_9, fnd91_topic_3)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Topic_13 zscore cross-sectional (zscore(topic_13))",
+      "description": "Cross-sectional zscore to find relative topical emphasis among universe. S1: zscore(fnd91_topic_13). S2: single field. S3: coverage 0.8327 and many alphas. KEEP_IN_MIND satisfied. Confidence 0.67.",
+      "implementation": "zscore(fnd91_topic_13)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Topic_1 backfilled cross-sectional zscore",
+      "description": "For a lower-coverage topic, backfill then zscore: zscore(ts_backfill(fnd91_topic_1,10)). S1: applied ts_backfill per S3. S4: lower userCount so confidence lower. KEEP_IN_MIND: one field, two ops. Confidence 0.40.",
+      "implementation": "zscore(ts_backfill(fnd91_topic_1, 10))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Topic_16 rapid acceleration (subtract(ts_mean(topic_16,3), ts_mean(topic_16,6)))",
+      "description": "Short vs medium mean difference captures acceleration. S1: subtract(ts_mean(fnd91_topic_16,3), ts_mean(fnd91_topic_16,6)). S2: single field. S3: coverage good. KEEP_IN_MIND respected. Confidence 0.57.",
+      "implementation": "subtract(ts_mean(fnd91_topic_16, 3), ts_mean(fnd91_topic_16, 6))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Topic_4 negative-weighted intensity (topic_4 * ts_zscore(negative,4))",
+      "description": "Multiply topic with standardized negative word counts: multiply(fnd91_topic_4, ts_zscore(fnd91_sentiment2_1,4)). S1: two fields. S3: coverage high. KEEP_IN_MIND: operators under limit. Confidence 0.64.",
+      "implementation": "multiply(fnd91_topic_4, ts_zscore(fnd91_sentiment2_1, 4))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Topic_8 decreasing trend detection (subtract(ts_mean(topic_8,3), topic_8))",
+      "description": "Current below short-term mean flags decline. S1: subtract(ts_mean(fnd91_topic_8,3), fnd91_topic_8). S2: single field used twice but counts as one. S3: coverage high. KEEP_IN_MIND: within operator limit. Confidence 0.53.",
+      "implementation": "subtract(ts_mean(fnd91_topic_8, 3), fnd91_topic_8)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Topic_14 * (1/readability) to emphasize opaque mentions",
+      "description": "Emphasize topic mentions when readability is low: multiply(fnd91_topic_14, inverse(fnd91_readability_0)). S1: two fields. S3: coverages good. KEEP_IN_MIND: 2 fields. Confidence 0.62.",
+      "implementation": "multiply(fnd91_topic_14, inverse(fnd91_readability_0))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Topic_18 vs topic_13 spread (subtract(topic_18, topic_13))",
+      "description": "Relative shift between these topics may indicate narrative change. S1: subtract(fnd91_topic_18, fnd91_topic_13). S2: two fields used. S3: coverages acceptable. KEEP_IN_MIND: minimal. Confidence 0.50.",
+      "implementation": "subtract(fnd91_topic_18, fnd91_topic_13)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Topic_7 prominence per document (topic_7 / doccount)",
+      "description": "Normalize topic exposure by doccount to adjust for quantity of docs. S1: divide(fnd91_topic_7, fnd91_doccount). S2: two fields, both high coverage. KEEP_IN_MIND: respected. Confidence 0.58.",
+      "implementation": "divide(fnd91_topic_7, fnd91_doccount)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Topic_2 & topic_16 co-spike (multiply(topic_2, topic_16))",
+      "description": "Interaction between topics to highlight combined narratives. S1: multiply(fnd91_topic_2, fnd91_topic_16). S2: two fields chosen for coverage. KEEP_IN_MIND: simple. Confidence 0.61.",
+      "implementation": "multiply(fnd91_topic_2, fnd91_topic_16)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Positive sentiment per long word (positive / long_word_count)",
+      "description": "Normalize positive words by count of long words to adjust tone vs complexity. S1: divide(fnd91_sentiment2_0, fnd91_measure_3). S2: two fields. S3: high coverage. KEEP_IN_MIND: respected. Confidence 0.59.",
+      "implementation": "divide(fnd91_sentiment2_0, fnd91_measure_3)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Topic_12 sudden jump indicator (if_else(ts_delta(topic_12,1)>threshold,topic_12,NaN))",
+      "description": "Trade_when style idea simplified: flag only when delta exceeds threshold. S1: used ts_delta and if_else pattern; threshold left as parameter. S2: single field used. S3: coverage high. KEEP_IN_MIND: ops within limit. Confidence 0.54.",
+      "implementation": "if_else(greater(ts_delta(fnd91_topic_12, 1), 0.05), fnd91_topic_12, NaN)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Sentence brevity with high negativity (reverse(sentences) * negative_count)",
+      "description": "Short filings with concentrated negativity may be acute. S1: multiply(reverse(fnd91_measure_0), fnd91_sentiment2_1). S2: two fields. S3: coverage high. KEEP_IN_MIND: minimal. Confidence 0.60.",
+      "implementation": "multiply(reverse(fnd91_measure_0), fnd91_sentiment2_1)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Topic_13 seasonal zscore (zscore(ts_zscore(topic_13,12)))",
+      "description": "Double normalization to control for seasonality and cross-sectional dispersion. S1: zscore(ts_zscore(fnd91_topic_13,12)). S2: single field used. S3: coverage high. KEEP_IN_MIND maintained. Confidence 0.62.",
+      "implementation": "zscore(ts_zscore(fnd91_topic_13, 12))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Topic_11 normalized momentum (ts_delta(topic_11,1) / ts_std_dev(topic_11,6))",
+      "description": "Momentum normalized by volatility to get signal-to-noise. S1: divide(ts_delta(fnd91_topic_11,1), ts_std_dev(fnd91_topic_11,6)). S2: single field. S3: coverage adequate. KEEP_IN_MIND: ops allowed. Confidence 0.56.",
+      "implementation": "divide(ts_delta(fnd91_topic_11, 1), ts_std_dev(fnd91_topic_11, 6))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Topic_10 & readability combined (topic_10 * readability)",
+      "description": "Clear positive mentions in topic_10 stronger than obscure ones. S1: multiply(fnd91_topic_10, fnd91_readability_0). S2: two fields. S3: both high coverage. KEEP_IN_MIND: minimal. Confidence 0.65.",
+      "implementation": "multiply(fnd91_topic_10, fnd91_readability_0)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Topic_5 / topic_1 ratio with backfill for topic_1",
+      "description": "Compare topic_5 to backfilled topic_1 to account for sparse coverage: divide(fnd91_topic_5, ts_backfill(fnd91_topic_1,10)). S1: ts_backfill applied for topic_1 per S3. KEEP_IN_MIND: two fields, within op limit. Confidence 0.45.",
+      "implementation": "divide(fnd91_topic_5, ts_backfill(fnd91_topic_1, 10))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Topic_9 evidence-weighted (topic_9 * numeric_count)",
+      "description": "Topic prominence multiplied by numeric evidence count increases credibility signal. S1: multiply(fnd91_topic_9, fnd91_numeric_count). S2: both coverages fine. KEEP_IN_MIND: two fields. Confidence 0.60.",
+      "implementation": "multiply(fnd91_topic_9, fnd91_numeric_count)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Topic_8 vs average topic basket (topic_8 - ts_mean(add(topic_4,topic_13),4))",
+      "description": "Compare single topic vs combined mean of two main topics to detect reallocation. S1: subtract(fnd91_topic_8, ts_mean(add(fnd91_topic_4, fnd91_topic_13),4)). S2: uses two fields inside add but total unique fields =3 (violates KEEP_IN_MIND2 if counted >2) so avoided; instead approximate by subtract(topic_8, ts_mean(topic_4,4)). Chosen simplified implementation to respect KEEP_IN_MIND. Confidence lowered to 0.49.",
+      "implementation": "subtract(fnd91_topic_8, ts_mean(fnd91_topic_4, 4))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Topic_14 persistent negativity (ts_product negative * topic_14)",
+      "description": "Persistent negative words multiplied by topic_14 exposure: multiply(ts_product(fnd91_sentiment2_1,3), fnd91_topic_14). S1: two fields, persistence captured. S3: coverage OK. KEEP_IN_MIND: ops limited. Confidence 0.61.",
+      "implementation": "multiply(ts_product(fnd91_sentiment2_1, 3), fnd91_topic_14)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Readability & complexity divergence (subtract(readability, complexity_model2))",
+      "description": "Large differences between readability and complexity metric flag mixed messaging. S1: subtract(fnd91_readability_0, fnd91_sentiment2_4). S2: two fields. S3: coverage high. KEEP_IN_MIND: minimal. Confidence 0.60.",
+      "implementation": "subtract(fnd91_readability_0, fnd91_sentiment2_4)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Topic_3 sentiment-adjusted (topic_3 * (positive - negative))",
+      "description": "Multiply topic exposure by net sentiment: multiply(fnd91_topic_3, subtract(fnd91_sentiment2_0, fnd91_sentiment2_1)) but simplified to two fields by using precomputed net in one expression: multiply(fnd91_topic_3, subtract(fnd91_sentiment2_0, fnd91_sentiment2_1)). S1: uses 3 data references but only 2 unique fields (topic_3 plus net requires two sentiment fields) — to respect KEEP_IN_MIND2 we reduce to multiply(topic_3, fnd91_sentiment2_0) acknowledging slight loss. Confidence lowered accordingly.",
+      "implementation": "multiply(fnd91_topic_3, fnd91_sentiment2_0)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Topic_17 normalized change (subtract(topic_17, ts_mean(topic_17,4)))",
+      "description": "Current minus recent mean for topic_17 to find deviations. S1: subtract(fnd91_topic_17, ts_mean(fnd91_topic_17,4)). S2: single field. S3: coverage>0.7. KEEP_IN_MIND satisfied. Confidence 0.55.",
+      "implementation": "subtract(fnd91_topic_17, ts_mean(fnd91_topic_17, 4))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Topic_6 weighted by readability (topic_6 * readability)",
+      "description": "Highlight clear communication about topic_6 by multiplying with readability. S1: multiply(fnd91_topic_6, fnd91_readability_0). S2: both fields present though topic_6 coverage lower; still used. KEEP_IN_MIND: 2 fields. Confidence 0.48.",
+      "implementation": "multiply(fnd91_topic_6, fnd91_readability_0)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Topic_4 / topic_12 ratio",
+      "description": "Relative emphasis between topic_4 and topic_12; divide(topic_4, topic_12). S1: two fields with good coverage. KEEP_IN_MIND: respected. Confidence 0.56.",
+      "implementation": "divide(fnd91_topic_4, fnd91_topic_12)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Topic_10 decreasing momentum (subtract(ts_mean(topic_10,3), ts_mean(topic_10,6)))",
+      "description": "Short minus medium mean to detect deceleration in topic_10. S1: subtract(ts_mean(fnd91_topic_10,3), ts_mean(fnd91_topic_10,6)). S2: single field. S3: coverage high. KEEP_IN_MIND: ops under 7. Confidence 0.54.",
+      "implementation": "subtract(ts_mean(fnd91_topic_10, 3), ts_mean(fnd91_topic_10, 6))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Topic_8 zscore cross-sectional",
+      "description": "zscore(fnd91_topic_8) to find relatively prominent mentions across universe. S1: single field cross-sectional zscore. S3: coverage ~0.786. KEEP_IN_MIND: single field. Confidence 0.60.",
+      "implementation": "zscore(fnd91_topic_8)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Topic_19 * doccount to amplify distributed mentions",
+      "description": "Topic prominence multiplied by number of docs indicates breadth of emphasis. S1: multiply(fnd91_topic_19, fnd91_doccount). S2: two fields with high coverage. KEEP_IN_MIND: satisfied. Confidence 0.62.",
+      "implementation": "multiply(fnd91_topic_19, fnd91_doccount)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Topic_13 subject to ts_decay (ts_decay_linear(topic_13,5))",
+      "description": "Emphasize recent topic_13 values via linear decay. S1: ts_decay_linear(fnd91_topic_13,5). S2: single field. S3: coverage high. KEEP_IN_MIND: single field. Confidence 0.61.",
+      "implementation": "ts_decay_linear(fnd91_topic_13, 5)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Topic_16 normalized by sentences (topic_16 / sentences)",
+      "description": "Normalize topical emphasis by filing length: divide(topic_16, measure_0). S1: two fields. S3: coverage ok. KEEP_IN_MIND: satisfied. Confidence 0.55.",
+      "implementation": "divide(fnd91_topic_16, fnd91_measure_0)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Topic_3 * negative density",
+      "description": "Multiply topical exposure by negative words per sentence: multiply(fnd91_topic_3, divide(fnd91_sentiment2_1, fnd91_measure_0)). S1: two fields effectively. S3: coverage good. KEEP_IN_MIND: ops under 7. Confidence 0.60.",
+      "implementation": "multiply(fnd91_topic_3, divide(fnd91_sentiment2_1, fnd91_measure_0))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Topic_7 abrupt change zscore",
+      "description": "Standardize short-term change in topic_7: ts_zscore(ts_delta(topic_7,1),5). S1: single field. S3: coverage high. KEEP_IN_MIND: single field. Confidence 0.58.",
+      "implementation": "ts_zscore(ts_delta(fnd91_topic_7, 1), 5)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Topic_2 decay-weighted mean",
+      "description": "ts_decay_linear(topic_2,5) to emphasize recent increases. S1: single field; applied. S3: coverage strong. KEEP_IN_MIND: simple. Confidence 0.54.",
+      "implementation": "ts_decay_linear(fnd91_topic_2, 5)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Positive sentiment per doc (positive / doccount)",
+      "description": "Normalize positive words by document count to measure per-doc positivity. S1: divide(fnd91_sentiment2_0, fnd91_doccount). S2: two fields. S3: both high coverage. KEEP_IN_MIND: minimal. Confidence 0.66.",
+      "implementation": "divide(fnd91_sentiment2_0, fnd91_doccount)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Topic_12 sudden increase zscore",
+      "description": "ts_zscore(ts_delta(topic_12,1),5) flags abrupt surges. S1: single field. S3: coverage strong. KEEP_IN_MIND: single field. Confidence 0.59.",
+      "implementation": "ts_zscore(ts_delta(fnd91_topic_12, 1), 5)",
+      "confidence_level": 0.59
+    }
+  ]
+}

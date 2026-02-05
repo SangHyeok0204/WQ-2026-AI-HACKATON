@@ -1,0 +1,670 @@
+{
+  "results": [
+    {
+      "idea": "Projected vs Trailing Dividend Yield Divergence",
+      "description": "Used SUGGESTION1 by combining projected 12-month yield (anl48_bp12m_yld) and trailing 12-month yield (anl48_equity_m21_dly_dvd_yqe). SUGGESTION2: no vector fields clearly available so not applied. SUGGESTION3: both fields have coverage ~0.51; applied ts_backfill(...,60) to mitigate missing data. SUGGESTION4: applied high userCount field anl48_bp12m_yld (userCount=106) to capture established signal. Kept KEEP_IN_MIND: implementation uses 4 operators and 2 datafields. Confidence set at 0.70 because yield divergence is an economically intuitive and historically used signal but data coverage and forecasting noise reduce certainty.",
+      "implementation": "quantile(ts_zscore(subtract(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_equity_m21_dly_dvd_yqe,60)), 60))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Dividend Health Momentum",
+      "description": "SUGGESTION1: combined dividend health score (anl48_bdvd_curr_dvd_health) with recent announced dividend (anl48_equity_sh_last). SUGGESTION2: no vector wrapping. SUGGESTION3: applied ts_backfill(...,90) for coverage ~0.52 fields. SUGGESTION4: used anl48_bdvd_curr_dvd_health (userCount=10). Respected KEEP_IN_MIND by using 4 operators and 2 fields. Confidence 0.62 due to sensible fundamental signal but moderate coverage.",
+      "implementation": "quantile(ts_zscore(multiply(ts_backfill(anl48_bdvd_curr_dvd_health,90), ts_backfill(anl48_equity_sh_last,90)), 60))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Upcoming Pay-Date Momentum (Forecasted vs History)",
+      "description": "SUGGESTION1: combined next forecasted pay date proxy (anl48_bnepd) and last dividend amount (anl48_equity_sh_last). SUGGESTION3: bnepd coverage ~0.524 applied ts_backfill(...,30). SUGGESTION2: not applicable. KEEP_IN_MIND: used 3 operators and 2 fields. Confidence 0.55 because pay-date proximity can move prices but date quality and sparsity lower confidence.",
+      "implementation": "quantile(ts_zscore(subtract(ts_backfill(anl48_bnepd,30), ts_backfill(anl48_equity_sh_last,30)), 30))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Dividend Forecast Surprise (Delta in Analyst DPS)",
+      "description": "SUGGESTION1: used next forecasted DPS (anl48_bpda) and 3-year projected DPS growth (anl48_bp3y_dg). SUGGESTION3: both ~0.51 coverage -> ts_backfill(...,60). SUGGESTION4: bpda has moderate userCount. KEEP_IN_MIND satisfied. Confidence 0.60; forecast revisions can be predictive but noisy.",
+      "implementation": "quantile(ts_zscore(ts_delta(ts_backfill(anl48_bpda,60), 30) - ts_backfill(anl48_bp3y_dg,60), 60))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High Projected Yield & High Dividend Health",
+      "description": "SUGGESTION1: combined anl48_bp12m_yld (projected yield) with anl48_bdvd_curr_dvd_health. SUGGESTION3: both backfilled 60d due to coverage ~0.52. SUGGESTION4: bp12m_yld is high userCount (106). KEEP_IN_MIND: 4 operators, 2 fields. Confidence 0.72 because coupling yield and health filters yield traps.",
+      "implementation": "quantile(multiply(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_bdvd_curr_dvd_health,60)))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Yield Reversion: Extreme Projected Yield Reversal",
+      "description": "SUGGESTION1: used projected yield (anl48_bp12m_yld) alone as primary signal but normalized cross-sectionally. SUGGESTION3: applied ts_backfill(...,60). SUGGESTION4: field has high userCount. KEEP_IN_MIND: simple implementation under operator limits. Confidence 0.63 since mean reversion of yields is plausible but execution sensitive.",
+      "implementation": "quantile(reverse(ts_zscore(ts_backfill(anl48_bp12m_yld,60), 90)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Dividend Growth Acceleration (3yr)",
+      "description": "SUGGESTION1: used anl48_bp3y_dg (3yr projected DPS growth) and anl48_edg3yr_g (gross DPR growth) to capture consistent growth. SUGGESTION3: coverage ~0.48-0.41 -> ts_backfill(...,120). SUGGESTION4: both have low userCount; noted reduced reliability. KEEP_IN_MIND obeyed. Confidence 0.50 due to low coverage and user counts.",
+      "implementation": "quantile(ts_zscore(add(ts_backfill(anl48_bp3y_dg,120), ts_backfill(anl48_edg3yr_g,120)), 120))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Index Dividend Yield Spread",
+      "description": "SUGGESTION1: compared stock projected yield (anl48_bp12m_yld) vs index rolling yield (anl48_index_m21_dly_dvd_yqe). SUGGESTION3: backfilled stock field 60d; index coverage high so no backfill. SUGGESTION4: used high userCount stock field. KEEP_IN_MIND: 4 operators, 2 fields. Confidence 0.66: relative value between stock and index is useful.",
+      "implementation": "quantile(ts_zscore(subtract(ts_backfill(anl48_bp12m_yld,60), anl48_index_m21_dly_dvd_yqe), 60))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Dividend Consistency Score (Last 12 Months)",
+      "description": "SUGGESTION1: combined anl48_m21_hs_dvd (12m gross dividend sum) and anl48_equity_m21_dly_dvd_yqe (trailing yield). SUGGESTION3: backfilled both ~60d. SUGGESTION4: used anl48_equity_m21_dly_dvd_yqe with moderate userCount. KEEP_IN_MIND respected. Confidence 0.61 as consistency reduces risk of cuts.",
+      "implementation": "quantile(divide(ts_backfill(anl48_m21_hs_dvd,60), ts_backfill(anl48_equity_m21_dly_dvd_yqe,60)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Dividend Announcement Recency (Record Date Signal)",
+      "description": "SUGGESTION1: used latest record date field (anl48_dvd_record_dt) with recent dividend amount anl48_equity_sh_last. SUGGESTION3: record_dt coverage ~0.5243 -> ts_backfill(...,30). SUGGESTION4: equity_sh_last has decent alphaCount. KEEP_IN_MIND satisfied. Confidence 0.52 due to date field noisiness.",
+      "implementation": "quantile(ts_zscore(subtract(ts_backfill(anl48_equity_sh_last,30), ts_backfill(anl48_dvd_record_dt,30)), 30))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Dividend Yield vs Gross Dividend Amount",
+      "description": "SUGGESTION1: compared projected yield (anl48_bp12m_yld) to gross last dividend (anl48_equity_ldg). SUGGESTION3: applied ts_backfill to both (60d). SUGGESTION4: prioritized high userCount field. KEEP_IN_MIND: under operator limits. Confidence 0.65 because yield normalized by gross amount can expose mispriced yields.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_equity_ldg,60)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Projected Dividend per Share Upside",
+      "description": "SUGGESTION1: used projected DPS (anl48_bpda) minus last gross dividend (anl48_equity_ldg). SUGGESTION3: backfilled both 90d. SUGGESTION4: bpda has moderate userCount. KEEP_IN_MIND: kept short. Confidence 0.58 given analyst forecasts' mixed quality.",
+      "implementation": "quantile(ts_zscore(subtract(ts_backfill(anl48_bpda,90), ts_backfill(anl48_equity_ldg,90)), 60))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Dividend Yield Momentum (Short-term)",
+      "description": "SUGGESTION1: used ts_returns on projected yield (anl48_bp12m_yld) and zscored cross-sectionally. SUGGESTION3: backfilled 60d. SUGGESTION4: field has strong userCount. KEEP_IN_MIND minimal operators. Confidence 0.64 as momentum in forecast revisions often precedes price moves.",
+      "implementation": "quantile(ts_zscore(ts_returns(ts_backfill(anl48_bp12m_yld,60), 10), 30))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Dividend Health-Weighted Yield",
+      "description": "SUGGESTION1: weighted projected yield by dividend health: multiply anl48_bp12m_yld * anl48_bdvd_curr_dvd_health. SUGGESTION3: backfilled both 60d. SUGGESTION4 used high userCount yield field. KEEP_IN_MIND: 3 operators. Confidence 0.69 since weighting by health reduces exposure to risky high yields.",
+      "implementation": "quantile(multiply(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_bdvd_curr_dvd_health,60)))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Dividend Cut Risk Indicator (Health Drop)",
+      "description": "SUGGESTION1: used ts_delta on dividend health score (anl48_bdvd_curr_dvd_health) and compared to last announced dividend (anl48_equity_sh_last). SUGGESTION3: backfilled health 90d. SUGGESTION4: health has moderate userCount. KEEP_IN_MIND respected. Confidence 0.56: drops in health may precede cuts but signal timing uncertain.",
+      "implementation": "quantile(ts_zscore(multiply(ts_delta(ts_backfill(anl48_bdvd_curr_dvd_health,90),30), ts_backfill(anl48_equity_sh_last,90)), 60))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Ex-date Forecast Surprise",
+      "description": "SUGGESTION1: compared next forecasted ex-date (anl48_bdvd_next_est_ex_dt) with recent ex-date trend implied by dividend history fields. SUGGESTION3: backfilled next_ex_dt 60d. SUGGESTION2: vector fields not used. KEEP_IN_MIND simple. Confidence 0.50 due to weak signal from dates alone.",
+      "implementation": "quantile(ts_zscore(subtract(ts_backfill(anl48_bdvd_next_est_ex_dt,60), ts_backfill(anl48_bdhpd,60)), 60))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High Yield with Low Historical Volatility (Dividend Stability)",
+      "description": "SUGGESTION1: combined projected yield (anl48_bp12m_yld) with ts_std_dev of historical gross dividends (anl48_equity_m21_dly_dvd_yqe) to favor stable payers. SUGGESTION3: backfilled both 60d. SUGGESTION4 used high userCount yield. KEEP_IN_MIND: 4 operators. Confidence 0.68 because stable high yields are attractive.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bp12m_yld,60), ts_std_dev(ts_backfill(anl48_equity_m21_dly_dvd_yqe,60),60)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Dividend Yield vs Index Type Adjustment",
+      "description": "SUGGESTION1: used stock projected yield (anl48_bp12m_yld) vs index type proxy (anl48_indx_typ) to find misfits in index composition. SUGGESTION3: backfilled stock yield 60d; index type coverage high so no backfill. SUGGESTION4: used high-user stock field. KEEP_IN_MIND: 3 operators. Confidence 0.47 because index type is coarse.",
+      "implementation": "quantile(subtract(ts_backfill(anl48_bp12m_yld,60), anl48_indx_typ))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Dividend Yield Scaled by Dividend History Count",
+      "description": "SUGGESTION1: scaled projected yield by count of dividend history entries (anl48_bulk_dvd_hist_ibs) to favor consistent payers. SUGGESTION3: backfilled yield 60d, history count coverage ~0.5153 so ts_backfill used. SUGGESTION4: prioritized yield high userCount. KEEP_IN_MIND: 3 operators. Confidence 0.60 due to robustness of frequency signal.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_bulk_dvd_hist_ibs,60)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Dividend Yield vs Gross Dividend Growth",
+      "description": "SUGGESTION1: compared projected yield (anl48_bp12m_yld) to 3-year gross dividend growth (anl48_edg3yr_g). SUGGESTION3: backfilled both 120d due to edg3yr_g low coverage. SUGGESTION4: bp12m_yld has high userCount. KEEP_IN_MIND met. Confidence 0.59 because growth can justify higher yields.",
+      "implementation": "quantile(ts_zscore(divide(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_edg3yr_g,120)), 90))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Dividend Yield Spread vs Index Rolling Yield (Normalized)",
+      "description": "SUGGESTION1: subtracted index rolling yield (anl48_index_m21_dly_dvd_yqe) from projected stock yield (anl48_bp12m_yld) and normalized cross-sectionally. SUGGESTION3: backfilled stock 60d. SUGGESTION4 used high userCount. KEEP_IN_MIND ok. Confidence 0.67 as relative yield is strong factor.",
+      "implementation": "quantile(normalize(subtract(ts_backfill(anl48_bp12m_yld,60), anl48_index_m21_dly_dvd_yqe)))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Projected Dividend per Share vs Index Dividend Level",
+      "description": "SUGGESTION1: compared projected DPS (anl48_bpda) to index last gross dividend (anl48_index_ldg) to find outsized company-level forecasts. SUGGESTION3: backfilled company field 90d; index field has high coverage. SUGGESTION4: bpda userCount moderate. KEEP_IN_MIND ok. Confidence 0.53 due to heterogeneity between index and stock scales.",
+      "implementation": "quantile(ts_zscore(subtract(ts_backfill(anl48_bpda,90), anl48_index_ldg), 60))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "High Forecasted Dividend Index Points per Share",
+      "description": "SUGGESTION1: used anl48_bp12m_dip (total dividend projection index points) cross-sectionally to find names with large index impact. SUGGESTION3: coverage ~0.8291 high so no backfill. SUGGESTION4: userCount low but coverage high. KEEP_IN_MIND minimal operators. Confidence 0.48 because index-point metrics are more index-level than stock-specific.",
+      "implementation": "quantile(ts_zscore(anl48_bp12m_dip, 60))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Dividend Announcement Frequency Trend",
+      "description": "SUGGESTION1: compared bulk dividend history field count (anl48_bulk_dvd_hist_par_amt) to bulk index members (anl48_bulk_count_index_members) as a proxy for announcement concentration. SUGGESTION3: backfilled low coverage fields 120d. SUGGESTION4: used available counts per SUGGESTION4 where possible. KEEP_IN_MIND used 3 operators. Confidence 0.42 due to indirectness of proxy.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bulk_dvd_hist_par_amt,120), ts_backfill(anl48_bulk_count_index_members,120)))",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Dividend Yield Surprise vs Last Announced Dividend",
+      "description": "SUGGESTION1: compared change in projected yield (ts_delta on anl48_bp12m_yld) to last announced dividend anl48_equity_sh_last. SUGGESTION3: backfilled both 60d. SUGGESTION4: used high-user projection field. KEEP_IN_MIND ok. Confidence 0.62 as revision momentum can signal repricing.",
+      "implementation": "quantile(ts_zscore(divide(ts_delta(ts_backfill(anl48_bp12m_yld,60),14), ts_backfill(anl48_equity_sh_last,60)), 60))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Dividend Health Relative Rank",
+      "description": "SUGGESTION1: used groupless cross-sectional rank of anl48_bdvd_curr_dvd_health (zscore). SUGGESTION3: backfilled 60d. SUGGESTION4: field has moderate userCount. KEEP_IN_MIND simple. Confidence 0.54 as health score is informative but coarse.",
+      "implementation": "quantile(ts_zscore(ts_backfill(anl48_bdvd_curr_dvd_health,60), 90))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Largest Projected Yield Increases (30-day)",
+      "description": "SUGGESTION1: measured ts_delta 30d on projected yield (anl48_bp12m_yld) and cross-sectional quantile. SUGGESTION3: backfilled 60d. SUGGESTION4 used high-user field. KEEP_IN_MIND minimal. Confidence 0.66 since forecast upgrades often precede moves.",
+      "implementation": "quantile(ts_zscore(ts_delta(ts_backfill(anl48_bp12m_yld,60),30), 60))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Dividend Yield Adjusted for Index Dividend Level",
+      "description": "SUGGESTION1: divide stock projected yield by index 12m rolling yield (anl48_index_m21_dly_dvd_yqe) to find relative bargains. SUGGESTION3: backfilled stock 60d; index no backfill. SUGGESTION4 used established stock field. KEEP_IN_MIND: 2 fields, 2 operators. Confidence 0.68 because relative yield normalized by index is practical.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bp12m_yld,60), anl48_index_m21_dly_dvd_yqe))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Dividend Per Share Revision Persistence",
+      "description": "SUGGESTION1: used ts_returns on bpda (anl48_bpda) to detect persistent upward DPS revisions and ts_zscore to standardize. SUGGESTION3: backfilled 90d. SUGGESTION4: bpda moderate userCount. KEEP_IN_MIND complied. Confidence 0.57 as analyst DPS revisions have signal but are noisy.",
+      "implementation": "quantile(ts_zscore(ts_returns(ts_backfill(anl48_bpda,90), 20), 60))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "High Gross Dividend but Low Projected Yield (Potential Repricing)",
+      "description": "SUGGESTION1: signals where gross last dividend (anl48_equity_ldg) is large but projected yield (anl48_bp12m_yld) is low, implying price-driven low yield. SUGGESTION3: backfilled both 60d. SUGGESTION4: bp12m_yld high userCount. KEEP_IN_MIND okay. Confidence 0.51 since differences may reflect price moves rather than fundamentals.",
+      "implementation": "quantile(ts_zscore(subtract(ts_backfill(anl48_equity_ldg,60), ts_backfill(anl48_bp12m_yld,60)), 60))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Dividend Yield Normalized by Count of Historical Dividends",
+      "description": "SUGGESTION1: divided projected yield (anl48_bp12m_yld) by bulk dividend history count (anl48_bulk_dvd_hist_ibs) to favor yields supported by many events. SUGGESTION3: backfilled yield 60d and history 120d. SUGGESTION4: used high-user yield. KEEP_IN_MIND observed. Confidence 0.63 because frequency supports sustainability.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_bulk_dvd_hist_ibs,120)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Projected Dividend Yield vs Last Net Dividend",
+      "description": "SUGGESTION1: compared projected yield (anl48_bp12m_yld) to last net dividend (anl48_index_dvd_sh_last for index or anl48_equity_sh_last for stock). Chose company-level equity_sh_last. SUGGESTION3: backfilled both 60d. SUGGESTION4 used high-user projected yield. KEEP_IN_MIND ok. Confidence 0.60.",
+      "implementation": "quantile(ts_zscore(subtract(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_equity_sh_last,60)), 60))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Dividend Health Weighted Growth Signal",
+      "description": "SUGGESTION1: weighted 3yr DPS growth (anl48_bp3y_dg) by dividend health (anl48_bdvd_curr_dvd_health). SUGGESTION3: backfilled both 120d. SUGGESTION4: health has more users; used it to improve reliability. KEEP_IN_MIND: 3 operators. Confidence 0.55 due to moderate data quality.",
+      "implementation": "quantile(multiply(ts_backfill(anl48_bp3y_dg,120), ts_backfill(anl48_bdvd_curr_dvd_health,120)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Dividend Forecast Consistency (bpda vs bp12m_yld)",
+      "description": "SUGGESTION1: compared projected DPS (anl48_bpda) scaled by price-implied projected yield (anl48_bp12m_yld) to find consistency between per-share forecasts and yield projections. SUGGESTION3: backfilled both 90d/60d. SUGGESTION4: used high-user yield field. KEEP_IN_MIND ok. Confidence 0.58.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bpda,90), ts_backfill(anl48_bp12m_yld,60)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Recent Increases in Gross Dividend Amount",
+      "description": "SUGGESTION1: used ts_delta on anl48_equity_ldg (gross last dividend) to capture upward changes. SUGGESTION3: backfilled 60d. SUGGESTION4: equity_ldg userCount moderate. KEEP_IN_MIND minimal operators. Confidence 0.61 as dividend raises are typically positive signals.",
+      "implementation": "quantile(ts_zscore(ts_delta(ts_backfill(anl48_equity_ldg,60),30), 60))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Dividend Yield vs Historical 12m Gross Sum",
+      "description": "SUGGESTION1: compared projected yield (anl48_bp12m_yld) to m21 gross dividend sum (anl48_m21_hs_dvd). SUGGESTION3: backfilled stock 60d and m21 field 60d. SUGGESTION4: used well-used yield field. KEEP_IN_MIND ok. Confidence 0.62 because combining flow and rate improves signal.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_m21_hs_dvd,60)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Dividend Yield vs Index Last Gross Dividend (Cross-Section)",
+      "description": "SUGGESTION1: subtract index last gross dividend (anl48_index_ldg) from projected yield (anl48_bp12m_yld) and rank. SUGGESTION3: backfilled stock field 60d. KEEP_IN_MIND simple. Confidence 0.49 as index-level comparisons can be noisy.",
+      "implementation": "quantile(ts_zscore(subtract(ts_backfill(anl48_bp12m_yld,60), anl48_index_ldg), 60))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "High Projected Yield with Low Forecast Variability",
+      "description": "SUGGESTION1: selected high projected yield (anl48_bp12m_yld) but low ts_std_dev of projected yield to favor stable forecasts. SUGGESTION3: backfilled 60d. SUGGESTION4 applied high-user field. KEEP_IN_MIND: 3 operators. Confidence 0.7 because stable high forecasts reduce risk.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bp12m_yld,60), ts_std_dev(ts_backfill(anl48_bp12m_yld,60),60)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Dividend Health vs Index Dividend Level (Relative Strength)",
+      "description": "SUGGESTION1: combined dividend health (anl48_bdvd_curr_dvd_health) with index dividend level (anl48_index_m21_dly_dvd_yqe) to find healthy outliers. SUGGESTION3: backfilled health 90d. KEEP_IN_MIND fine. Confidence 0.53 due to mixed cross-level comparability.",
+      "implementation": "quantile(multiply(ts_backfill(anl48_bdvd_curr_dvd_health,90), anl48_index_m21_dly_dvd_yqe))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Recent Spike in Projected Dividend Index Points",
+      "description": "SUGGESTION1: used ts_delta on anl48_bp12m_dip to capture index-point spikes. SUGGESTION3: bp12m_dip coverage high so no backfill. SUGGESTION4: userCount low but metric informative for index movers. KEEP_IN_MIND minimal operators. Confidence 0.46.",
+      "implementation": "quantile(ts_zscore(ts_delta(anl48_bp12m_dip,30), 60))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Yield Momentum Filtered by Dividend Health",
+      "description": "SUGGESTION1: ts_delta of projected yield (anl48_bp12m_yld) multiplied by dividend health (anl48_bdvd_curr_dvd_health) to favor positive revisions in healthy names. SUGGESTION3: backfilled both 60d/90d. SUGGESTION4: used high-user yield. KEEP_IN_MIND OK. Confidence 0.71; combining momentum with quality improves edge.",
+      "implementation": "quantile(multiply(ts_delta(ts_backfill(anl48_bp12m_yld,60),14), ts_backfill(anl48_bdvd_curr_dvd_health,90)))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Dividend Yield vs Count of Index Members (Liquidity Proxy)",
+      "description": "SUGGESTION1: divided projected yield by bulk_count_index_members (anl48_bulk_count_index_members) to downweight yield in thin indices. SUGGESTION3: backfilled yield 60d; index member count coverage ~0.8259 high so no backfill. KEEP_IN_MIND: simple. Confidence 0.45 given indirectness.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bp12m_yld,60), anl48_bulk_count_index_members))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Dividend Forecast Stability (Historic vs Projected)",
+      "description": "SUGGESTION1: compared ts_std_dev of historical dividends (anl48_equity_m21_dly_dvd_yqe) with ts_std_dev of projected yield (anl48_bp12m_yld) to find stable forecasted payers. SUGGESTION3: backfilled both 60d. SUGGESTION4: used widely used fields. KEEP_IN_MIND: 3 operators. Confidence 0.65.",
+      "implementation": "quantile(divide(ts_std_dev(ts_backfill(anl48_equity_m21_dly_dvd_yqe,60),60), ts_std_dev(ts_backfill(anl48_bp12m_yld,60),60)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Large Gap Between Net and Gross Last Dividend",
+      "description": "SUGGESTION1: compared anl48_equity_ldg (gross) and anl48_equity_sh_last (net) to flag tax/credit anomalies. SUGGESTION3: backfilled both 60d. SUGGESTION4: both have moderate userCounts. KEEP_IN_MIND ok. Confidence 0.44 as tax differences may not persist as price signals.",
+      "implementation": "quantile(ts_zscore(subtract(ts_backfill(anl48_equity_ldg,60), ts_backfill(anl48_equity_sh_last,60)), 60))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Projected DPS Upside Percent",
+      "description": "SUGGESTION1: measured percent change between projected DPS (anl48_bpda) and last announced gross dividend (anl48_equity_ldg). SUGGESTION3: backfilled 90/60d. SUGGESTION4: bpda moderate userCount. KEEP_IN_MIND: few operators. Confidence 0.59.",
+      "implementation": "quantile(ts_zscore(divide(subtract(ts_backfill(anl48_bpda,90), ts_backfill(anl48_equity_ldg,60)), ts_backfill(anl48_equity_ldg,60)), 90))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Dividend Yield vs Bulk Par Amount (Activity Proxy)",
+      "description": "SUGGESTION1: compared projected yield to anl48_bulk_bdvd_all_projections_par_amt (activity/par proxy). SUGGESTION3: backfilled yield 60d and bulk field 120d due to low coverage. SUGGESTION4: used high-user yield. KEEP_IN_MIND satisfied. Confidence 0.43; proxy indirect.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_bulk_bdvd_all_projections_par_amt,120)))",
+      "confidence_level": 0.43
+    },
+    {
+      "idea": "Dividend Cut Likelihood (Health Down + Yield Drop)",
+      "description": "SUGGESTION1: combined negative ts_delta in health (anl48_bdvd_curr_dvd_health) and negative ts_delta in projected yield (anl48_bp12m_yld) to flag cut risk. SUGGESTION3: backfilled both 90d/60d. KEEP_IN_MIND respected. Confidence 0.54 since cuts are rare but detectable by combined deterioration.",
+      "implementation": "quantile(add(reverse(ts_delta(ts_backfill(anl48_bdvd_curr_dvd_health,90),30)), reverse(ts_delta(ts_backfill(anl48_bp12m_yld,60),30))))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "High Index Impact Forecasts (bp12m_dip per member)",
+      "description": "SUGGESTION1: divided bp12m_dip (anl48_bp12m_dip) by count_index_members to find names whose dividend projection meaningfully moves the index. SUGGESTION3: backfilled if needed; index members coverage high. SUGGESTION4: field coverage high. KEEP_IN_MIND small operator set. Confidence 0.47.",
+      "implementation": "quantile(divide(anl48_bp12m_dip, anl48_bulk_count_index_members))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Dividend Forecast vs History Ratio",
+      "description": "SUGGESTION1: ratio of projected DPS (anl48_bpda) to average last 12-month gross dividend (anl48_m21_hs_dvd) to detect aggressive forecasts. SUGGESTION3: backfilled 90/60d. SUGGESTION4: used m21 field with moderate coverage. KEEP_IN_MIND ok. Confidence 0.56.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bpda,90), ts_backfill(anl48_m21_hs_dvd,60)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Dividend Yield vs Divisor (Index Adjustment)",
+      "description": "SUGGESTION1: compared projected yield (anl48_bp12m_yld) to index divisor (anl48_idivisor) to find oddities; divisor reflects index adjustments. SUGGESTION3: backfilled yield 60d; divisor coverage ~0.5019 so ts_backfill(...,120) applied. KEEP_IN_MIND minimal operators. Confidence 0.38 as relation is tenuous.",
+      "implementation": "quantile(subtract(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_idivisor,120)))",
+      "confidence_level": 0.38
+    },
+    {
+      "idea": "Dividend Health Cross-Sectional Rank",
+      "description": "SUGGESTION1: cross-sectional quantile of anl48_bdvd_curr_dvd_health to pick healthiest payers. SUGGESTION3: backfilled 60d. SUGGESTION4 moderate userCount. KEEP_IN_MIND minimal. Confidence 0.52.",
+      "implementation": "quantile(ts_zscore(ts_backfill(anl48_bdvd_curr_dvd_health,60), 90))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Projected Yield Relative to Last Dividend Event",
+      "description": "SUGGESTION1: subtract last dividend per share (anl48_equity_ldg) from projected yield (anl48_bp12m_yld) to find mismatches. SUGGESTION3: backfilled both 60d. SUGGESTION4 used high-user yield. KEEP_IN_MIND satisfied. Confidence 0.55.",
+      "implementation": "quantile(ts_zscore(subtract(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_equity_ldg,60)), 60))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Projected Yield Co-Movement with Index Yield (ts_corr)",
+      "description": "SUGGESTION1: used ts_corr between stock projected yield (anl48_bp12m_yld) and index rolling yield (anl48_index_m21_dly_dvd_yqe) to find decoupling. SUGGESTION3: backfilled stock 60d. SUGGESTION4: high-user stock field. KEEP_IN_MIND: operator count small. Confidence 0.63; decoupling can signal idiosyncratic moves.",
+      "implementation": "quantile(ts_zscore(ts_corr(ts_backfill(anl48_bp12m_yld,60), anl48_index_m21_dly_dvd_yqe, 60), 60))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Dividend Announcement Concentration Signal",
+      "description": "SUGGESTION1: used bulk_count_index_members (anl48_bulk_count_index_members) and bulk_dvd_hist_ibs to find days with concentrated announcements that may create cross-sectional opportunities. SUGGESTION3: backfilled bulk_dvd_hist_ibs 60d. SUGGESTION4 index field low userCount but high coverage. KEEP_IN_MIND ok. Confidence 0.41; noisy but can create short-term moves.",
+      "implementation": "quantile(divide(anl48_bulk_count_index_members, ts_backfill(anl48_bulk_dvd_hist_ibs,60)))",
+      "confidence_level": 0.41
+    },
+    {
+      "idea": "Dividend Yield Reversion Filtered by Dividend History Volume",
+      "description": "SUGGESTION1: reversed high projected yields but only for names with many historical dividends (anl48_bulk_dvd_hist_ibs). SUGGESTION3: backfilled both 60/120d. SUGGESTION4 used high-user yield. KEEP_IN_MIND respected. Confidence 0.67 as combining mean reversion with history improves reliability.",
+      "implementation": "quantile(multiply(reverse(ts_zscore(ts_backfill(anl48_bp12m_yld,60), 90)), ts_backfill(anl48_bulk_dvd_hist_ibs,120)))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Dividend Yield Upside vs Index Dividend History",
+      "description": "SUGGESTION1: compared upward revisions in stock projected yield to index 12m dividend sum (anl48_index_m21_dly_dvd_yqe) to spot idiosyncratic divergence. SUGGESTION3: backfilled stock 60d. KEEP_IN_MIND ok. Confidence 0.58.",
+      "implementation": "quantile(ts_zscore(divide(ts_delta(ts_backfill(anl48_bp12m_yld,60),30), anl48_index_m21_dly_dvd_yqe), 60))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Gross Dividend Stability vs Forecasted Yield",
+      "description": "SUGGESTION1: favored names with steady gross dividends (low ts_std_dev of anl48_equity_ldg) and high projected yield. SUGGESTION3: backfilled both 60d. SUGGESTION4 used high-user projected yield. KEEP_IN_MIND satisfied. Confidence 0.69.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bp12m_yld,60), ts_std_dev(ts_backfill(anl48_equity_ldg,60),60)))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Dividend Forecast vs Last Announce Date Gap",
+      "description": "SUGGESTION1: used last announce date (anl48_bdhad) and next forecasted ex-date (anl48_bdvd_next_est_ex_dt) to detect stretched schedules. SUGGESTION3: backfilled both 90d. SUGGESTION4: fields have low userCounts. KEEP_IN_MIND: used 3 operators. Confidence 0.40 due to weak timing signal.",
+      "implementation": "quantile(ts_zscore(subtract(ts_backfill(anl48_bdvd_next_est_ex_dt,90), ts_backfill(anl48_bdhad,90)), 60))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Dividend Health Adjusted Yield Momentum",
+      "description": "SUGGESTION1: multiplied short-term yield momentum (ts_delta of anl48_bp12m_yld) with dividend health (anl48_bdvd_curr_dvd_health) to emphasize healthy upward revisions. SUGGESTION3: backfilled both 60/90d. SUGGESTION4 used high-user yield. KEEP_IN_MIND OK. Confidence 0.72; combining momentum and quality is robust.",
+      "implementation": "quantile(multiply(ts_delta(ts_backfill(anl48_bp12m_yld,60),14), ts_backfill(anl48_bdvd_curr_dvd_health,90)))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Dividend Yield Standardized by Par Amount",
+      "description": "SUGGESTION1: divide projected yield by anl48_bulk_bdvd_all_projections_ibs as a size-normalizer. SUGGESTION3: backfilled yield 60d and bulk field 60d. SUGGESTION4 used yield high-userCount. KEEP_IN_MIND minimal operators. Confidence 0.46.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_bulk_bdvd_all_projections_ibs,60)))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Dividend Yield vs Index Type (Price vs Cap Weight)",
+      "description": "SUGGESTION1: compared projected yield to index type (anl48_indx_typ) to detect anomalies across index constructions. SUGGESTION3: backfilled yield 60d. SUGGESTION4: primarily used high-user yield field. KEEP_IN_MIND ok. Confidence 0.41 since signal is weak.",
+      "implementation": "quantile(subtract(ts_backfill(anl48_bp12m_yld,60), anl48_indx_typ))",
+      "confidence_level": 0.41
+    },
+    {
+      "idea": "Dividend Momentum Filtered by Announcement Recency",
+      "description": "SUGGESTION1: used ts_delta on projected yield (anl48_bp12m_yld) and penalized names whose last announce date (anl48_bdhad) is far away; backfilled both. SUGGESTION3: applied ts_backfill 60/120d. KEEP_IN_MIND: under operator limit. Confidence 0.6.",
+      "implementation": "quantile(multiply(ts_delta(ts_backfill(anl48_bp12m_yld,60),30), inverse(ts_backfill(anl48_bdhad,120))))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Projected DPS Growth vs Trailing Yield",
+      "description": "SUGGESTION1: measured anl48_bp3y_dg (3yr DPS growth) relative to trailing yield anl48_equity_m21_dly_dvd_yqe; backfilled both. SUGGESTION4: trailing yield has good alphaCount. KEEP_IN_MIND satisfied. Confidence 0.57.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bp3y_dg,120), ts_backfill(anl48_equity_m21_dly_dvd_yqe,60)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Dividend Health Momentum vs Price-Implied Yield",
+      "description": "SUGGESTION1: compared ts_delta in dividend health score and ts_delta in projected yield to find improving fundamentals with yield revisions. SUGGESTION3: backfilled both 90/60d. KEEP_IN_MIND minimal. Confidence 0.59.",
+      "implementation": "quantile(ts_zscore(add(ts_delta(ts_backfill(anl48_bdvd_curr_dvd_health,90),14), ts_delta(ts_backfill(anl48_bp12m_yld,60),14)), 60))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Yield Upside in Low Coverage Names (Backfilled Robustness)",
+      "description": "SUGGESTION1: targeted names with big ts_delta in projection (anl48_bp12m_yld) but low original coverage; applied ts_backfill(,120) to improve data quality. SUGGESTION4: still favored high userCount fields when present. KEEP_IN_MIND: limited operators. Confidence 0.5 due to backfill uncertainty.",
+      "implementation": "quantile(ts_zscore(ts_delta(ts_backfill(anl48_bp12m_yld,120),30), 60))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Projected Yield vs Equity Last (Price Adjustment)",
+      "description": "SUGGESTION1: divide projected yield (anl48_bp12m_yld) by last equity dividend (anl48_equity_sh_last) to find yield per unit of last paid dividend. SUGGESTION3: backfilled both 60d. KEEP_IN_MIND ok. Confidence 0.54.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_equity_sh_last,60)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "High Projected Yield with Low Index Contribution",
+      "description": "SUGGESTION1: identified names with high projected yield but low bp12m_dip (anl48_bp12m_dip) to find idiosyncratic opportunities. SUGGESTION3: backfilled yield 60d; dip has high coverage so no backfill. KEEP_IN_MIND respected. Confidence 0.61.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bp12m_yld,60), anl48_bp12m_dip))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Dividend Forecast Strength vs Bulk Field Activity",
+      "description": "SUGGESTION1: multiplied projected yield (anl48_bp12m_yld) by bulk_bdvd_all_projections_ibs to emphasize forecasts with activity. SUGGESTION3: backfilled yield 60d and bulk field 60d. SUGGESTION4: yield high-user preferred. KEEP_IN_MIND ok. Confidence 0.47.",
+      "implementation": "quantile(multiply(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_bulk_bdvd_all_projections_ibs,60)))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Recent Dividend Increase Normalized by History Count",
+      "description": "SUGGESTION1: ts_delta of last gross dividend (anl48_equity_ldg) divided by bulk history count to favor meaningful increases in well-established payers. SUGGESTION3: backfilled 60/120d. KEEP_IN_MIND satisfied. Confidence 0.62.",
+      "implementation": "quantile(divide(ts_delta(ts_backfill(anl48_equity_ldg,60),30), ts_backfill(anl48_bulk_dvd_hist_ibs,120)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Dividend Yield Stability vs Projected DPS",
+      "description": "SUGGESTION1: divided projected DPS (anl48_bpda) by ts_std_dev of projected yield to favor consistent scenarios. SUGGESTION3: backfilled 90/60d. KEEP_IN_MIND minimal. Confidence 0.56.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bpda,90), ts_std_dev(ts_backfill(anl48_bp12m_yld,60),60)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Dividend Health Outperformance vs Trailing Yield",
+      "description": "SUGGESTION1: multiplied dividend health (anl48_bdvd_curr_dvd_health) by trailing yield (anl48_equity_m21_dly_dvd_yqe) to capture healthy high-yield names. SUGGESTION3: backfilled both 60/90d. SUGGESTION4 used trailing yield alphaCount moderate. KEEP_IN_MIND ok. Confidence 0.7.",
+      "implementation": "quantile(multiply(ts_backfill(anl48_bdvd_curr_dvd_health,90), ts_backfill(anl48_equity_m21_dly_dvd_yqe,60)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Projected Yield vs Recent Pay Date Lag",
+      "description": "SUGGESTION1: compared projected yield to days since last pay date (anl48_bdhpd) using backfill to detect irregular timing. SUGGESTION3: backfilled 120d for date fields. SUGGESTION4: used high-user yield. KEEP_IN_MIND simple. Confidence 0.45 due to weak link.",
+      "implementation": "quantile(subtract(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_bdhpd,120)))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Dividend Forecast Consistency Index (bpda vs bp12m_yld zscore)",
+      "description": "SUGGESTION1: zscored bpda and bp12m_yld then added to reward consistent strong forecasts. SUGGESTION3: backfilled both 90/60d. SUGGESTION4: used high-user yield. KEEP_IN_MIND 3 operators. Confidence 0.6.",
+      "implementation": "quantile(add(ts_zscore(ts_backfill(anl48_bpda,90),60), ts_zscore(ts_backfill(anl48_bp12m_yld,60),60)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Large Projected Dividend per Share Relative to Index",
+      "description": "SUGGESTION1: compared projected DPS (anl48_bpda) to index divisor-adjusted level (anl48_index_ldg) to find outliers. SUGGESTION3: backfilled bpda 90d; index ok. KEEP_IN_MIND respected. Confidence 0.5.",
+      "implementation": "quantile(ts_zscore(divide(ts_backfill(anl48_bpda,90), anl48_index_ldg), 60))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Dividend Health vs Last Record Date Gap",
+      "description": "SUGGESTION1: penalized health score (anl48_bdvd_curr_dvd_health) by large gaps to last record date (anl48_bdhrd) using backfill. SUGGESTION3 applied 90/120d. KEEP_IN_MIND minimal operators. Confidence 0.48.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bdvd_curr_dvd_health,90), ts_backfill(anl48_bdhrd,120)))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Dividend Yield vs Recently Announced Index Member Count",
+      "description": "SUGGESTION1: scaled projected yield by index member count to adjust for index concentration. SUGGESTION3: backfilled yield 60d. SUGGESTION4 used high-user yield. KEEP_IN_MIND ok. Confidence 0.44.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bp12m_yld,60), anl48_count_index_members))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Dividend Forecast Upside Momentum Adjusted by History",
+      "description": "SUGGESTION1: ts_delta in bpda (anl48_bpda) multiplied by bulk history count to emphasize persistent upgraders. SUGGESTION3: backfilled 90/120d. SUGGESTION4 moderate. KEEP_IN_MIND: 3 operators. Confidence 0.58.",
+      "implementation": "quantile(multiply(ts_delta(ts_backfill(anl48_bpda,90),30), ts_backfill(anl48_bulk_dvd_hist_ibs,120)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Dividend Yield vs Index Rolling Yield Z-Score",
+      "description": "SUGGESTION1: normalized the spread between projected yield and index rolling yield using ts_zscore for robust cross-sectional selection. SUGGESTION3: backfilled stock 60d. KEEP_IN_MIND minimal. Confidence 0.66.",
+      "implementation": "quantile(ts_zscore(subtract(ts_backfill(anl48_bp12m_yld,60), anl48_index_m21_dly_dvd_yqe), 60))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Dividend Health Weighted by Projected DPS Growth",
+      "description": "SUGGESTION1: multiplied dividend health (anl48_bdvd_curr_dvd_health) by bp3y_dg (anl48_bp3y_dg) to favor healthy high-growth payers. SUGGESTION3: backfilled 120d both. SUGGESTION4: health field better userCount. KEEP_IN_MIND ok. Confidence 0.54.",
+      "implementation": "quantile(multiply(ts_backfill(anl48_bdvd_curr_dvd_health,120), ts_backfill(anl48_bp3y_dg,120)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Dividend Announcement Lead Indicator (bulk fields)",
+      "description": "SUGGESTION1: used changes in bulk projection serials (anl48_bulk_bdvd_all_projections_ibs) as a lead indicator for dividend-related moves, ts_delta applied. SUGGESTION3: backfilled 60d. SUGGESTION4 limited. KEEP_IN_MIND minimal. Confidence 0.39 as proxy is noisy.",
+      "implementation": "quantile(ts_zscore(ts_delta(ts_backfill(anl48_bulk_bdvd_all_projections_ibs,60),14), 60))",
+      "confidence_level": 0.39
+    },
+    {
+      "idea": "Projected Yield Upside with Low ts_kurtosis (Stable Signal)",
+      "description": "SUGGESTION1: select high projected yield (anl48_bp12m_yld) with low ts_kurtosis of yield to avoid outlier-driven noise. SUGGESTION3: backfilled yield 60d and used ts_kurtosis. SUGGESTION4 used high-user field. KEEP_IN_MIND: 3 operators. Confidence 0.66.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bp12m_yld,60), ts_kurtosis(ts_backfill(anl48_bp12m_yld,60),60)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Dividend Yield Signal Neutralized by Index Level",
+      "description": "SUGGESTION1: neutralized projected yield by subtracting index rolling yield then normalized cross-sectionally. SUGGESTION3: backfilled stock 60d. SUGGESTION4 prioritized high-user field. KEEP_IN_MIND simple. Confidence 0.64.",
+      "implementation": "quantile(normalize(subtract(ts_backfill(anl48_bp12m_yld,60), anl48_index_m21_dly_dvd_yqe)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Projected DPS vs Historical Record (bpda vs m21_hs_dvd)",
+      "description": "SUGGESTION1: compared bpda to historical 12m gross sum (anl48_m21_hs_dvd) using divide; backfilled both. SUGGESTION4: used moderate fields. KEEP_IN_MIND ok. Confidence 0.55.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bpda,90), ts_backfill(anl48_m21_hs_dvd,60)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Short-Term Spike in Index Member Announcements",
+      "description": "SUGGESTION1: ts_delta on anl48_bulk_count_index_members to detect sudden index membership shifts that may coincide with dividend events. SUGGESTION3: field coverage high so no backfill. KEEP_IN_MIND minimal. Confidence 0.35; indirect and low signal.",
+      "implementation": "quantile(ts_zscore(ts_delta(anl48_bulk_count_index_members,14), 60))",
+      "confidence_level": 0.35
+    },
+    {
+      "idea": "Forecasted Dividend vs Recent Pay Date Proximity",
+      "description": "SUGGESTION1: combined bpda and days since last pay date (anl48_bdhpd) using backfill to find near-term distribution risks/opportunities. SUGGESTION3: backfilled 90/120d. KEEP_IN_MIND: limited operators. Confidence 0.49.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bpda,90), ts_backfill(anl48_bdhpd,120)))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Dividend Yield Momentum vs Historical Dividend Count",
+      "description": "SUGGESTION1: multiplied ts_delta of projected yield with bulk history count to favor momentum in established payers. SUGGESTION3: backfilled 60/120d. KEEP_IN_MIND ok. Confidence 0.63.",
+      "implementation": "quantile(multiply(ts_delta(ts_backfill(anl48_bp12m_yld,60),30), ts_backfill(anl48_bulk_dvd_hist_ibs,120)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Projected Yield Spike Filtered by Dividend Health Drop",
+      "description": "SUGGESTION1: reward yield spikes (ts_delta on anl48_bp12m_yld) only if health score is stable or improving; applied backfill. SUGGESTION4 used health userCount moderate. KEEP_IN_MIND: 3 operators. Confidence 0.68.",
+      "implementation": "quantile(multiply(ts_delta(ts_backfill(anl48_bp12m_yld,60),14), ts_backfill(anl48_bdvd_curr_dvd_health,90)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Dividend Per Share Upside Relative to Index Mover",
+      "description": "SUGGESTION1: compared bpda to index_bp12m_dip to find names where per-share forecasts are large relative to index impact. SUGGESTION3: backfilled bpda 90d; index dip high coverage. KEEP_IN_MIND small operator set. Confidence 0.52.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bpda,90), anl48_bp12m_dip))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Trailing Yield Z-Score Filtered by Forecast Strength",
+      "description": "SUGGESTION1: selected stocks with high zscore of trailing yield anl48_equity_m21_dly_dvd_yqe and positive bpda to reduce traps. SUGGESTION3: backfilled both 60/90d. SUGGESTION4 used fields with decent userCounts. KEEP_IN_MIND ok. Confidence 0.65.",
+      "implementation": "quantile(multiply(ts_zscore(ts_backfill(anl48_equity_m21_dly_dvd_yqe,60),60), sign(ts_backfill(anl48_bpda,90))))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Dividend Health Momentum Cross-Section",
+      "description": "SUGGESTION1: ts_delta of anl48_bdvd_curr_dvd_health cross-sectionally ranked to find improving names. SUGGESTION3: backfilled 90d. SUGGESTION4 moderate userCount. KEEP_IN_MIND minimal. Confidence 0.53.",
+      "implementation": "quantile(ts_zscore(ts_delta(ts_backfill(anl48_bdvd_curr_dvd_health,90),30), 60))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Projected Yield vs Historical Ex-Date Timing",
+      "description": "SUGGESTION1: compared projected yield to timing of last ex-date (anl48_td_xe_dvd) to identify timing mismatches. SUGGESTION3: backfilled 60/120d. KEEP_IN_MIND small operator count. Confidence 0.46.",
+      "implementation": "quantile(ts_zscore(subtract(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_td_xe_dvd,120)), 60))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "High Projected Yield with Low Forecast Dispersion (ts_std_dev of bpda)",
+      "description": "SUGGESTION1: divided projected yield by ts_std_dev of analyst DPS forecasts (proxy using ts_std_dev on anl48_bpda) to favor consensus high forecasts. SUGGESTION3: backfilled 90/60d. SUGGESTION4 moderate user counts. KEEP_IN_MIND ok. Confidence 0.62.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bp12m_yld,60), ts_std_dev(ts_backfill(anl48_bpda,90),60)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Index vs Stock Dividend Growth Differential",
+      "description": "SUGGESTION1: difference between stock 3yr DPS growth (anl48_bp3y_dg) and index growth proxy (anl48_edg3yr_g at index-level if available) to spot relative accelerators. SUGGESTION3: backfilled 120d due to low coverage. KEEP_IN_MIND minimal. Confidence 0.5.",
+      "implementation": "quantile(ts_zscore(subtract(ts_backfill(anl48_bp3y_dg,120), ts_backfill(anl48_edg3yr_g,120)), 120))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Dividend Yield Reversion after Announcement Concentration",
+      "description": "SUGGESTION1: picked names with high projected yield but where bulk_dvd_hist_ibs spiked (announcement concentration), then counter-position (reversion). SUGGESTION3: backfilled 60/120d. KEEP_IN_MIND: operators limited. Confidence 0.48.",
+      "implementation": "quantile(multiply(reverse(ts_zscore(ts_backfill(anl48_bp12m_yld,60),60)), ts_zscore(ts_backfill(anl48_bulk_dvd_hist_ibs,120),60)))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Dividend Forecast Upside per Index Member",
+      "description": "SUGGESTION1: divided bp12m_dip by index member count to identify large per-member forecasts. SUGGESTION3: fields high coverage so backfill not needed. KEEP_IN_MIND simple. Confidence 0.45.",
+      "implementation": "quantile(divide(anl48_bp12m_dip, anl48_count_index_members))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Projected Yield vs Gross Dividend Rolling Correlation",
+      "description": "SUGGESTION1: used ts_corr between projected yield and gross dividends (anl48_equity_ldg) to find decoupled names. SUGGESTION3: backfilled both 60d. KEEP_IN_MIND operator count small. Confidence 0.61.",
+      "implementation": "quantile(ts_zscore(ts_corr(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_equity_ldg,60), 60), 60))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Dividend Yield vs Last Record Date Relative Rank",
+      "description": "SUGGESTION1: ranked stock projected yield against days since last record date (anl48_bdhrd) to favor yields with recent record events. SUGGESTION3: backfilled 60/120d. KEEP_IN_MIND minimal. Confidence 0.47.",
+      "implementation": "quantile(subtract(ts_zscore(ts_backfill(anl48_bp12m_yld,60)), ts_zscore(ts_backfill(anl48_bdhrd,120))))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Dividend Health Weighted by Gross Dividend Amount",
+      "description": "SUGGESTION1: multiply health score (anl48_bdvd_curr_dvd_health) with gross last dividend (anl48_equity_ldg) to prefer large healthy payers. SUGGESTION3: backfilled 90/60d. KEEP_IN_MIND ok. Confidence 0.66.",
+      "implementation": "quantile(multiply(ts_backfill(anl48_bdvd_curr_dvd_health,90), ts_backfill(anl48_equity_ldg,60)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Projected Yield Acceleration with Low Announcement Volatility",
+      "description": "SUGGESTION1: ts_delta of projected yield (anl48_bp12m_yld) divided by ts_std_dev of bulk projections to find stable accelerating forecasts. SUGGESTION3: backfilled 60/120d. KEEP_IN_MIND small operators. Confidence 0.6.",
+      "implementation": "quantile(divide(ts_delta(ts_backfill(anl48_bp12m_yld,60),30), ts_std_dev(ts_backfill(anl48_bulk_bdvd_all_projections_ibs,120),60)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High Projected Yield but Low Historical Ex-Date Frequency",
+      "description": "SUGGESTION1: selected high projected yield with low count of ex-date events (anl48_dvd_xe) to spot risky near-term yields. SUGGESTION3: backfilled 60/120d. KEEP_IN_MIND: 3 operators. Confidence 0.49.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bp12m_yld,60), ts_backfill(anl48_dvd_xe,120)))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Projected DPS Growth Momentum vs Trailing Yield",
+      "description": "SUGGESTION1: used ts_delta on bp3y_dg (anl48_bp3y_dg) relative to trailing yield to find accelerating dividend growth with modest yields. SUGGESTION3: backfilled 120/60d. KEEP_IN_MIND ok. Confidence 0.55.",
+      "implementation": "quantile(divide(ts_delta(ts_backfill(anl48_bp3y_dg,120),30), ts_backfill(anl48_equity_m21_dly_dvd_yqe,60)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Dividend Forecast Confidence (low ts_count_nans)",
+      "description": "SUGGESTION1: favored names with few NaNs in projected yield series (using ts_count_nans) and high projected yield. SUGGESTION3: backfilled yield 60d and used ts_count_nans to measure completeness. SUGGESTION4 used high-user field. KEEP_IN_MIND operators within limit. Confidence 0.64.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bp12m_yld,60), add(1, ts_count_nans(ts_backfill(anl48_bp12m_yld,60),60))))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Dividend Health vs Bulk Gross History",
+      "description": "SUGGESTION1: multiplied health score with bulk_eqy_dvd_hist_gross_ibc to favor healthy names with gross history. SUGGESTION3: backfilled 90/60d. SUGGESTION4 limited userCounts in bulk fields. KEEP_IN_MIND small operators. Confidence 0.5.",
+      "implementation": "quantile(multiply(ts_backfill(anl48_bdvd_curr_dvd_health,90), ts_backfill(anl48_bulk_eqy_dvd_hist_gross_ibc,60)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Projected Yield vs Index Rolling Yield Hurdle",
+      "description": "SUGGESTION1: long names where projected yield exceeds index rolling yield by a threshold (implemented via subtract + quantile). SUGGESTION3: backfilled stock 60d. SUGGESTION4 used high-user yield. KEEP_IN_MIND simple. Confidence 0.68.",
+      "implementation": "quantile(subtract(ts_backfill(anl48_bp12m_yld,60), anl48_index_m21_dly_dvd_yqe))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Dividend Stability Score: Low ts_std_dev of Gross Dividends and Positive Health",
+      "description": "SUGGESTION1: combined low ts_std_dev of anl48_equity_ldg and positive anl48_bdvd_curr_dvd_health to rank stable healthy payers. SUGGESTION3: backfilled 60/90d. KEEP_IN_MIND: 3 operators. Confidence 0.7.",
+      "implementation": "quantile(multiply(inverse(ts_std_dev(ts_backfill(anl48_equity_ldg,60),60)), ts_backfill(anl48_bdvd_curr_dvd_health,90)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Projected Yield Momentum Adjusted by Dividend History Winsorized",
+      "description": "SUGGESTION1: used ts_delta on projected yield and winsorized by bulk history to reduce outliers. SUGGESTION3: backfilled 60/120d. KEEP_IN_MIND: operators under limit. Confidence 0.62.",
+      "implementation": "quantile(divide(winsorize(ts_delta(ts_backfill(anl48_bp12m_yld,60),30), std=4), ts_backfill(anl48_bulk_dvd_hist_ibs,120)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Projected Dividend Upside with Low Index Sensitivity (ts_covariance)",
+      "description": "SUGGESTION1: used ts_covariance between bpda and index m21 yield to find names with forecast upside uncorrelated to index. SUGGESTION3: backfilled bpda 90d. SUGGESTION4 moderate. KEEP_IN_MIND operator count small. Confidence 0.53.",
+      "implementation": "quantile(ts_zscore(ts_covariance(ts_backfill(anl48_bpda,90), anl48_index_m21_dly_dvd_yqe, 60), 60))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "High Projected Yield with Increasing Announcement Frequency",
+      "description": "SUGGESTION1: combined projected yield ts_delta with rising bulk_dvd_hist_ibs to find names with increasing dividend activity. SUGGESTION3: backfilled 60/120d. KEEP_IN_MIND ok. Confidence 0.57.",
+      "implementation": "quantile(multiply(ts_delta(ts_backfill(anl48_bp12m_yld,60),30), ts_delta(ts_backfill(anl48_bulk_dvd_hist_ibs,120),30)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Dividend Forecast Stability vs Announcement Count",
+      "description": "SUGGESTION1: divided ts_std_dev of bpda forecasts by bulk history count to reward stable forecasts in active payers. SUGGESTION3: backfilled 90/120d. KEEP_IN_MIND minimal. Confidence 0.55.",
+      "implementation": "quantile(divide(ts_std_dev(ts_backfill(anl48_bpda,90),60), ts_backfill(anl48_bulk_dvd_hist_ibs,120)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Trailing Dividend Yield Reversion Opportunity",
+      "description": "SUGGESTION1: reverse high trailing yield (anl48_equity_m21_dly_dvd_yqe) cross-sectionally to target mean reversion. SUGGESTION3: backfilled 60d. SUGGESTION4: trailing yield has many users. KEEP_IN_MIND minimal. Confidence 0.63.",
+      "implementation": "quantile(reverse(ts_zscore(ts_backfill(anl48_equity_m21_dly_dvd_yqe,60), 90)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Dividend Health vs Bulk Projections Ratio",
+      "description": "SUGGESTION1: divided health score by bulk projection serials to find healthy names with modest bulk projections (stability). SUGGESTION3: backfilled 90/60d. KEEP_IN_MIND under operator limits. Confidence 0.5.",
+      "implementation": "quantile(divide(ts_backfill(anl48_bdvd_curr_dvd_health,90), ts_backfill(anl48_bulk_bdvd_all_projections_ibs,60)))",
+      "confidence_level": 0.5
+    }
+  ]
+}

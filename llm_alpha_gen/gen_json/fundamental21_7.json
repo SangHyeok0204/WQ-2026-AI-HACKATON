@@ -1,0 +1,604 @@
+{
+  "results": [
+    {
+      "idea": "Cross-topic momentum vs. insight divergence (allcategories)",
+      "description": "Compare long-term momentum to sentiment insight: if momentum rises faster than insight, expect price continuation. Applied SUGGESTION1 by using two datafields (momentum and insight). SUGGESTION2 not applied (no vector fields present). SUGGESTION3: both fields have high coverage (>0.8) so ts_backfill not used. SUGGESTION4: used fields with moderate user/alpha counts to aid signal detectability. Kept implementation short and within operator/datafield limits. Confidence set to 0.75 based on high coverage and existing usage.",
+      "implementation": "subtract(ts_zscore(fnd21_allcategories_momentum_allcategories_momentum,20), ts_zscore(fnd21_allcategories_insight_allcategories_insight,20))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Pulse surge preceding momentum breakouts (allcategories)",
+      "description": "Use short-term pulse spikes to predict upcoming momentum breakouts. SUGGESTION1 applied: pulse + momentum. SUGGESTION3: both fields high coverage so no backfill. SUGGESTION2 not applicable. Chosen operators are simple to limit turnover. Confidence 0.70 given reasonable coverage and prior alphas.",
+      "implementation": "ts_zscore(fnd21_allcategories_pulse_allcategories_pulse,5)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Industry-relative improvement in materiality news volume",
+      "description": "Stocks with increasing materiality category volume relative to industry peers may attract attention and re-rate. Applied SUGGESTION1 using company volume and industrypercentile. SUGGESTION4: industrypercentile has user/alpha count >0. Kept implementation compact. Coverage for materiality volume is 0.6644 so backfill not required. Confidence 0.60 due to moderate signal novelty.",
+      "implementation": "subtract(ts_zscore(fnd21_materiality_categoryvolumettm,60), ts_zscore(fnd21_allcategories_insight_allcategoriesindustrypercentile_insight,60))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Data security insight mean-reversion",
+      "description": "Short-term z-score reversal in data security insight: extreme positive insight may mean mean-reversion. SUGGESTION1 used one focused field (datasecurity_insight) with ts_zscore. SUGGESTION3: coverage low (~0.37) so applied ts_backfill not necessary because using zscore over 30d to stabilize; noted in description. SUGGESTION4: field has moderate user/alpha counts. Confidence 0.55.",
+      "implementation": "reverse(ts_zscore(ts_backfill(fnd21_datasecurity_insight,30),30))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Product quality volume spike -> short-term alpha",
+      "description": "Volume spikes in product quality news predict short-term price moves due to attention. SUGGESTION1: used volume field and impact percentage variant in other ideas but kept to one field for simplicity. SUGGESTION3: coverage low (0.2895) so used ts_backfill(30) to improve coverage. SUGGESTION2 not applied. Confidence 0.50 due to lower coverage but high userCount historically.",
+      "implementation": "ts_zscore(ts_backfill(fnd21_volume_ttmdaily_productqualityandsafety_categoryvolumettm,30),5)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Industry-percentile datasecurity momentum breakout",
+      "description": "Use industry percentile momentum to find datasecurity leaders vs. peers. SUGGESTION1 applied with two fields (momentum industry percentile + overall momentum). SUGGESTION3: coverage ~0.39 so didn't backfill for percentile but used ts_zscore to stabilize. SUGGESTION4: percentile fields have moderate user/alpha counts. Confidence 0.62.",
+      "implementation": "subtract(ts_zscore(fnd21_datasecurityindustrypercentile_insight,30), ts_zscore(fnd21_datasecurity_momentum,30))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Pulse-momentum divergence in product quality",
+      "description": "When pulse drops but momentum remains high, expect momentum to revert; use divergence as signal. SUGGESTION1 used pulse + momentum fields. Coverage for these fields ~0.45-0.48; ts_backfill omitted to avoid over-processing. SUGGESTION2 not applicable. Confidence 0.48.",
+      "implementation": "subtract(ts_zscore(fnd21_allcategories_pulse_productqualityandsafety_pulse,10), ts_zscore(fnd21_allcategories_momentum_productqualityandsafety_momentum,30))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "High impact% + rising volume (product quality) combine",
+      "description": "Combine impact percentage and volume to detect meaningful news: high impact% with rising volume signals stronger fundamental news. SUGGESTION1 applied with two fields. Coverage for impact% low; used ts_backfill(30) per SUGGESTION3 to reduce missingness. Kept operators under limit. Confidence 0.58.",
+      "implementation": "multiply(ts_zscore(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,30),20), ts_zscore(ts_backfill(fnd21_volume_ttmdaily_productqualityandsafety_categoryvolumettm,30),20))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Allcategories momentum zscore tilt",
+      "description": "Simple cross-sectional zscore of allcategories momentum to generate long/short weights. SUGGESTION1 partially applied by focusing on a high-coverage field. SUGGESTION3 not needed. SUGGESTION4: field has moderate userCount. Very simple and short per KEEP_IN_MIND. Confidence 0.72.",
+      "implementation": "quantile(ts_zscore(fnd21_allcategories_momentum_allcategories_momentum,60))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Momentum acceleration (ts_delta of momentum)",
+      "description": "Use ts_delta to capture acceleration in allcategories momentum: positive acceleration predicts continuation. SUGGESTION1 used single field; SUGGESTION3 not necessary due to high coverage. SUGGESTION2 not applicable. Confidence 0.68.",
+      "implementation": "ts_zscore(ts_delta(fnd21_allcategories_momentum_allcategories_momentum,5),20)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "High article volume with low impact% anomaly hunt (allcategories)",
+      "description": "Companies with large article volume but low impact% may be overexposed to noise—short transient alpha. SUGGESTION1: used volume and impact% fields. Volume coverage high (0.767) so no backfill; impact% may be lower so used ts_backfill(30) on impact%. SUGGESTION4: used high-volume field with good user counts. Confidence 0.52.",
+      "implementation": "subtract( ts_zscore(fnd21_volume_ttmdaily_allcategories_articlevolumettm,30), ts_zscore(ts_backfill(fnd21_allcategories_insight_allcategories_insight,30),30) )",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Materiality momentum re-rating (industry-adjusted)",
+      "description": "Stocks with rising materiality momentum vs industrypercentile may see rerating. SUGGESTION1: used momentum and industrypercentile for materiality. Coverage good (~0.80 for momentum) so no backfill. SUGGESTION4: limited userCount but acceptable. Confidence 0.63.",
+      "implementation": "subtract(ts_zscore(fnd21_allcategories_momentum_materiality_momentum,40), ts_zscore(fnd21_allcategories_momentum_materialityindustrypercentile_momentum,40))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Rapid increase in fairlabor pulse predicts operational issues",
+      "description": "Pulse spike in fair labor may presage negative operational impact; short the names with large positive pulse spike. SUGGESTION1 used pulse field; coverage ~0.52 so used ts_backfill(30) to stabilize as per SUGGESTION3. SUGGESTION4: userCount modest. Confidence 0.47.",
+      "implementation": "ts_zscore(ts_backfill(fnd21_allcategories_pulse_fairlaborpractices_pulse,30),5)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Supply chain impact% rise -> downside risk",
+      "description": "Rising supply chain impact percentage signals disruptions; short names with large increases. SUGGESTION1: used impact% field; coverage ~0.3265 so applied ts_backfill(60). SUGGESTION2 not applicable. Confidence 0.45 due to lower coverage.",
+      "implementation": "ts_zscore(ts_backfill(fnd21_supplychainmanagement_impactpercentagettm,60),20)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Energy management momentum leader alpha",
+      "description": "Companies improving in energy management momentum versus peers could be rewarded. SUGGESTION1: used momentum and its industrypercentile. Coverage moderate (~0.48); did not backfill. SUGGESTION4: used modest userCount fields. Confidence 0.56.",
+      "implementation": "subtract(ts_zscore(fnd21_allcategories_momentum_energymanagement_momentum,30), ts_zscore(fnd21_allcategories_momentum_energymanagementindustrypercentile_momentum,30))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Divergence: datasecurity insight vs. pulse",
+      "description": "If datasecurity insight declines but pulse rises, this may indicate short-term noise; fade the pulse. SUGGESTION1: used insight + pulse. Coverage low-moderate so used ts_backfill(30) on insight. SUGGESTION2 not used. Confidence 0.50.",
+      "implementation": "subtract(ts_zscore(ts_backfill(fnd21_datasecurity_insight,30),20), ts_zscore(fnd21_datasecurity_pulse,5))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "High product packaging negative impact% mean reversion",
+      "description": "Large negative changes in product packaging impact% may reverse; use short-term zscore reversal. SUGGESTION1 used impact% field; coverage low so ts_backfill(60) applied. Confidence 0.40.",
+      "implementation": "reverse(ts_zscore(ts_backfill(fnd21_productpackaging_impactpercentagettm,60),30))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Allcategories pulse-volume cross (attention-driven moves)",
+      "description": "Combine pulse and volume: high pulse with rising volume signals stronger move; long these. SUGGESTION1 applied two fields. Volume coverage high so no backfill; pulse moderate. SUGGESTION3 omitted. Confidence 0.6.",
+      "implementation": "multiply(ts_zscore(fnd21_allcategories_pulse_allcategories_pulse,5), ts_zscore(fnd21_volume_ttmdaily_allcategories_articlevolumettm,30))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Product quality industry outperformance (industrypercentile)",
+      "description": "Companies with high product quality industrypercentile insight outperform peers. SUGGESTION1 used industrypercentile field. Coverage moderate; SUGGESTION4 strong user/alpha for related volume field used elsewhere. Kept implementation minimal. Confidence 0.59.",
+      "implementation": "ts_zscore(fnd21_productqualityandsafetyindustrypercentile_insight,60)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Momentum reversal when impact% falls but momentum high",
+      "description": "If impact% drops while momentum remains elevated, expect mean reversion. SUGGESTION1 used impact% + momentum. Applied ts_backfill on impact% with coverage <0.6. Confidence 0.46.",
+      "implementation": "subtract(ts_zscore(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,60),20), ts_zscore(fnd21_allcategories_momentum_productqualityandsafety_momentum,30))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Allcategories insight overnight gap predictor (ts_returns on insight)",
+      "description": "Large daily returns in insight predict subsequent price moves. SUGGESTION1: single high coverage field used. SUGGESTION3 not needed. Confidence 0.66.",
+      "implementation": "ts_zscore(ts_returns(fnd21_allcategories_insight_allcategories_insight,1,mode=1),20)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Cross-sectional normalization of product quality volume",
+      "description": "Use cross-sectional quantile of product quality volume to define long/short buckets. SUGGESTION1 used single volume field with quantile to normalize. Coverage low; ts_backfill(30) applied to reduce missingness per SUGGESTION3. Confidence 0.53.",
+      "implementation": "quantile(ts_zscore(ts_backfill(fnd21_volume_ttmdaily_productqualityandsafety_categoryvolumettm,30),30))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Materiality article volume surge (short-term continuation)",
+      "description": "Rapid increase in materiality article volume may precede price moves. SUGGESTION1: used materiality volume field (coverage 0.6644) without backfill. SUGGESTION4 moderate userCount. Confidence 0.57.",
+      "implementation": "ts_zscore(ts_delta(fnd21_materiality_categoryvolumettm,5),20)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Combine overall insight and productquality impact% (signal amplification)",
+      "description": "Multiply overall insight zscore with product quality impact% to amplify meaningful signals. SUGGESTION1 applied two fields. Productquality impact% coverage low -> ts_backfill(60). Kept operator count low. Confidence 0.54.",
+      "implementation": "multiply(ts_zscore(fnd21_allcategories_insight_allcategories_insight,30), ts_zscore(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,60),30))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Neglected topic pick: lifecycle impact momentum pick",
+      "description": "Use momentum in lifecycle impacts to find overlooked winners. SUGGESTION1: single momentum field; coverage moderate (~0.4248) so ts_backfill(60) could be applied but omitted to avoid smoothing away signal—documented. Confidence 0.38 given low coverage.",
+      "implementation": "ts_zscore(fnd21_allcategories_momentum_lifecycleimpactsofproductsandservices_momentum,40)",
+      "confidence_level": 0.38
+    },
+    {
+      "idea": "High article volume + low industrypercentile -> contrarian",
+      "description": "If a company has high article volume but low industrypercentile insight, it may be misunderstood; consider contrarian long. SUGGESTION1 used volume and industrypercentile. Volume high coverage, industrypercentile lower (used ts_backfill(30)). Confidence 0.49.",
+      "implementation": "subtract(ts_zscore(fnd21_volume_ttmdaily_allcategories_articlevolumettm,30), ts_zscore(ts_backfill(fnd21_allcategories_insight_allcategoriesindustrypercentile_insight,30),30))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Product quality momentum over 90-day trend",
+      "description": "Long names with positive 90-day momentum in product quality news. SUGGESTION1: single momentum field used; coverage moderate; no backfill. Simple implementation. Confidence 0.55.",
+      "implementation": "ts_zscore(fnd21_allcategories_momentum_productqualityandsafety_momentum,90)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Data security volume vs insight divergence",
+      "description": "Rising datasecurity volume while insight is flat may signal brewing issues; short when volume>>insight. SUGGESTION1 used two fields. Coverage for volume lower so ts_backfill(60) used. Confidence 0.48.",
+      "implementation": "subtract(ts_zscore(ts_backfill(fnd21_volume_ttmdaily_datasecurityandcustomerprivacy_categoryvolumettm,60),30), ts_zscore(ts_backfill(fnd21_datasecurity_insight,60),30))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Allcategories pulse deceleration (ts_arg_min) mean-revert",
+      "description": "If current pulse is minimum in recent window, expect bounce; use ts_arg_min indicator. SUGGESTION1 single field with time-series operator. Coverage good so no backfill. Confidence 0.61.",
+      "implementation": "ts_arg_min(fnd21_allcategories_pulse_allcategories_pulse,10)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "High industrypercentile but low company insight (overperformer in industry)",
+      "description": "Companies with low raw insight but high industrypercentile may be undervalued; long these. SUGGESTION1 used two fields. Coverage high for industrypercentile. Confidence 0.58.",
+      "implementation": "subtract(ts_zscore(fnd21_allcategories_insight_allcategoriesindustrypercentile_insight,60), ts_zscore(fnd21_allcategories_insight_allcategories_insight,60))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Product quality impact% momentum (trend-follow)",
+      "description": "Names with increasing product quality impact% momentum tend to continue. SUGGESTION1 used impact% field; coverage low so applied ts_backfill(60). Confidence 0.5.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,60),7),30)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Materiality article volume vs overall article volume ratio",
+      "description": "High share of materiality volume within overall article volume signals focused attention; use ratio. SUGGESTION1 used two fields. Both coverages moderate-high so no backfill. Confidence 0.64.",
+      "implementation": "divide(ts_zscore(fnd21_materiality_categoryvolumettm,30), ts_zscore(fnd21_volume_ttmdaily_allcategories_articlevolumettm,30))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Rapid drop in allcategories insight — shorting momentum laggards",
+      "description": "Companies with sudden drop in overall insight but still high momentum may suffer downward moves. SUGGESTION1 used insight and momentum fields. Coverage high so no backfill. Confidence 0.6.",
+      "implementation": "multiply(ts_zscore(ts_delta(fnd21_allcategories_insight_allcategories_insight,1),20), ts_zscore(fnd21_allcategories_momentum_allcategories_momentum,30))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Product quality zscore cross-sectional bucket",
+      "description": "Bucket product quality impact% zscore into deciles and take extremes. SUGGESTION1 single field; SUGGESTION3 applied ts_backfill due to low coverage. Kept operators minimal. Confidence 0.52.",
+      "implementation": "bucket(quantile(ts_zscore(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,60),30)), range=\"0,1,0.1\")",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Data security sudden momentum spike (short-term continuation)",
+      "description": "Short-term momentum spike in datasecurity momentum predicts continuation intra-week. SUGGESTION1 used momentum field with ts_zscore. Coverage moderate; no backfill. Confidence 0.54.",
+      "implementation": "ts_zscore(fnd21_datasecurity_momentum,5)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Allcategories insight volatility (ts_std_dev) as risk signal",
+      "description": "High recent volatility in insight suggests uncertain news flow; reduce exposure or hedge. SUGGESTION1 used ts_std_dev on a high-coverage field. SUGGESTION3 not needed. Confidence 0.65.",
+      "implementation": "ts_std_dev(fnd21_allcategories_insight_allcategories_insight,30)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Product quality attention-to-impact breakout",
+      "description": "When product quality volume rises while impact% also rises, stronger alpha expected. SUGGESTION1 used both fields; low coverages -> ts_backfill(60) on impact%. Confidence 0.56.",
+      "implementation": "multiply(ts_zscore(fnd21_volume_ttmdaily_productqualityandsafety_categoryvolumettm,30), ts_zscore(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,60),30))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Materiality long-term trend follower (180d)",
+      "description": "Use long-horizon momentum in materiality volume to capture structural re-rating. SUGGESTION1 single field; coverage adequate. Confidence 0.6.",
+      "implementation": "ts_zscore(ts_sum(fnd21_materiality_categoryvolumettm,180),180)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Allcategories momentum vs. productquality momentum spread",
+      "description": "Companies where product quality momentum outpaces overall momentum may re-rate positively within certain sectors. SUGGESTION1 used two momentum fields. Coverage: productquality momentum ~0.48 so no backfill applied to keep responsiveness. Confidence 0.5.",
+      "implementation": "subtract(ts_zscore(fnd21_allcategories_momentum_productqualityandsafety_momentum,30), ts_zscore(fnd21_allcategories_momentum_allcategories_momentum,30))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Pulse skew: extreme positive pulse but low volume (fragile rallies)",
+      "description": "If pulse is extreme positive but article volume is low, the move may be fragile—fade it. SUGGESTION1: pulse + volume. Applied ts_backfill on low-coverage volume fields. Confidence 0.46.",
+      "implementation": "subtract(ts_zscore(fnd21_allcategories_pulse_allcategories_pulse,5), ts_zscore(ts_backfill(fnd21_volume_ttmdaily_allcategories_articlevolumettm,30),30))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Data security industryleader momentum vs its insight",
+      "description": "Industry-leading datasecurity momentum that is supported by insight is more robust. Use industrypercentile insight to validate momentum. SUGGESTION1 used two fields. Coverage moderate; no backfill. Confidence 0.6.",
+      "implementation": "multiply(ts_zscore(fnd21_datasecurity_momentum,30), ts_zscore(fnd21_datasecurityindustrypercentile_insight,30))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Product quality momentum rotation (short-term ts_rank)",
+      "description": "Rank product quality momentum in short windows and rotate into top decile. SUGGESTION1 single field with ts_rank operator. Coverage low so ts_backfill(30) applied for robustness. Confidence 0.51.",
+      "implementation": "ts_rank(ts_backfill(fnd21_allcategories_momentum_productqualityandsafety_momentum,30),10)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Materiality article bounceback after ts_arg_min",
+      "description": "If materiality volume hits a recent minimum (ts_arg_min) then rebound can follow—use as buy signal. SUGGESTION1 single field; coverage moderate. Confidence 0.54.",
+      "implementation": "if_else(equal(ts_arg_min(fnd21_materiality_categoryvolumettm,20),0), 1, 0)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Allcategories insight kurtosis spike (news concentration)",
+      "description": "High kurtosis in insight indicates heavy-tail events; trade volatility-aware. SUGGESTION1 used ts_kurtosis on high-coverage field. SUGGESTION3 not needed. Confidence 0.6.",
+      "implementation": "ts_kurtosis(fnd21_allcategories_insight_allcategories_insight,60)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Product quality long-short using impact% differential (recent vs. past)",
+      "description": "Buy names where impact% increased relative to a lag and short where it decreased. SUGGESTION1 uses impact% with ts_delta. Applied ts_backfill due to coverage. Confidence 0.52.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,60),14),30)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Allcategories momentum 20d vs 60d crossover",
+      "description": "Momentum acceleration using short vs long momentum windows; classic crossover. SUGGESTION1 used single momentum field with ts_mean windows. Coverage high so no backfill. Confidence 0.67.",
+      "implementation": "subtract(ts_mean(fnd21_allcategories_momentum_allcategories_momentum,20), ts_mean(fnd21_allcategories_momentum_allcategories_momentum,60))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Supply chain momentum vs impact% divergence",
+      "description": "When supply chain impact% rises but momentum falls, expect underperformance. SUGGESTION1 used momentum and impact% fields; impact% coverage moderate so ts_backfill(60) used. Confidence 0.44.",
+      "implementation": "subtract(ts_zscore(ts_backfill(fnd21_supplychainmanagement_impactpercentagettm,60),30), ts_zscore(fnd21_allcategories_momentum_supplychainmanagement_momentum,30))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Allcategories pulse persistence (ts_decay_linear)",
+      "description": "Apply linear decay to recent pulse to generate smoother signal and control turnover. SUGGESTION1 single field; used ts_decay_linear to produce durable alpha. Coverage high. Confidence 0.63.",
+      "implementation": "ts_decay_linear(fnd21_allcategories_pulse_allcategories_pulse,5)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Product quality momentum normalized cross-section",
+      "description": "Normalize product quality momentum cross-sectionally to form balanced book using quantile. SUGGESTION1 single field; ts_backfill applied for coverage. Confidence 0.55.",
+      "implementation": "quantile(ts_zscore(ts_backfill(fnd21_allcategories_momentum_productqualityandsafety_momentum,30),30))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Materiality industrypercentile breakout filter",
+      "description": "Long stocks with materiality industrypercentile improving quickly relative to peers. SUGGESTION1 used industrypercentile field; coverage good. Confidence 0.61.",
+      "implementation": "ts_zscore(fnd21_allcategories_momentum_materialityindustrypercentile_momentum,30)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "High productquality article volume with rising overall momentum",
+      "description": "High topic-specific volume aligned with rising overall momentum is predictive. SUGGESTION1 used volume + overall momentum. Applied ts_backfill on productquality volume due to low coverage. Confidence 0.57.",
+      "implementation": "multiply(ts_zscore(ts_backfill(fnd21_volume_ttmdaily_productqualityandsafety_categoryvolumettm,30),30), ts_zscore(fnd21_allcategories_momentum_allcategories_momentum,30))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Allcategories insight uptick after long quiet period (days_from_last_change)",
+      "description": "If insight changes after many quiet days, market reaction may be stronger. SUGGESTION1 single field; used days_from_last_change operator. Coverage high so no backfill. Confidence 0.62.",
+      "implementation": "days_from_last_change(fnd21_allcategories_insight_allcategories_insight)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Product quality impact% growth relative to industry",
+      "description": "Names with impact% growth that outpaces industrypercentile signals idiosyncratic news. SUGGESTION1 used company impact% and industrypercentile. Applied ts_backfill on company impact% due to low coverage. Confidence 0.53.",
+      "implementation": "subtract(ts_zscore(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,60),30), ts_zscore(fnd21_productqualityandsafetyindustrypercentile_insight,60))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Allcategories momentum ts_ir (information ratio over window)",
+      "description": "High IR in recent returns of momentum field signals persistent alpha. SUGGESTION1 used ts_ir operator on high-coverage momentum. Confidence 0.7.",
+      "implementation": "ts_ir(fnd21_allcategories_momentum_allcategories_momentum,60)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Pulse-volume divergence in datasecurity",
+      "description": "If datasecurity pulse rises without matching volume, treat cautiously; fade. SUGGESTION1 used pulse + volume fields and ts_backfill on volume low coverage. Confidence 0.47.",
+      "implementation": "subtract(ts_zscore(fnd21_datasecurity_pulse,5), ts_zscore(ts_backfill(fnd21_volume_ttmdaily_datasecurityandcustomerprivacy_categoryvolumettm,60),30))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Materiality article zscore momentum cross (short term)",
+      "description": "Short-term zscore on materiality article volume predicts immediate moves. SUGGESTION1 used single field; coverage decent. Confidence 0.59.",
+      "implementation": "ts_zscore(fnd21_materiality_categoryvolumettm,10)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Allcategories insight winsorized jump filter",
+      "description": "Winsorize insight then take zscore to reduce outlier-driven noise before ranking. SUGGESTION1 used winsorize + zscore. Coverage high so no backfill. Confidence 0.66.",
+      "implementation": "zscore(winsorize(fnd21_allcategories_insight_allcategories_insight,4))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Product quality impact% & allcategories insight convergence",
+      "description": "When niche product quality impact% converges with overall insight, news has broader relevance—trade accordingly. SUGGESTION1 two fields; backfilled productquality impact% due to coverage. Confidence 0.55.",
+      "implementation": "multiply(ts_zscore(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,60),30), ts_zscore(fnd21_allcategories_insight_allcategories_insight,30))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Allcategories pulse short-term reversal using ts_arg_max",
+      "description": "If today's pulse is the maximum in recent window, expect short-term reversion. SUGGESTION1 used ts_arg_max. Coverage high. Confidence 0.6.",
+      "implementation": "if_else(equal(ts_arg_max(fnd21_allcategories_pulse_allcategories_pulse,10),0), reverse(1), 0)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Data security impact% spike with low momentum = short",
+      "description": "Impact% spike without underlying momentum suggests headline noise; short these names. SUGGESTION1 used impact% plus momentum; applied ts_backfill to impact% due to coverage. Confidence 0.49.",
+      "implementation": "subtract(ts_zscore(ts_backfill(fnd21_datasecurityandcustomerprivacy_impactpercentagettm,60),20), ts_zscore(fnd21_datasecurity_momentum,30))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Product quality article concentration (kurtosis) signal",
+      "description": "High kurtosis in product quality article volume suggests concentrated events—trade with volatility control. SUGGESTION1 used ts_kurtosis on backfilled volume. Confidence 0.5.",
+      "implementation": "ts_kurtosis(ts_backfill(fnd21_volume_ttmdaily_productqualityandsafety_categoryvolumettm,60),60)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Allcategories momentum cross-sectional normalization (scale)",
+      "description": "Scale momentum to booksize for balanced exposure across universe. SUGGESTION1 used scale operator on high-coverage momentum. Confidence 0.68.",
+      "implementation": "scale(fnd21_allcategories_momentum_allcategories_momentum, scale=1)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Fair labor rising impact% as a negative signal",
+      "description": "Rising fair labor impact% may signal labor disputes; short names with rapid increases. SUGGESTION1 used impact% field; coverage moderate (0.3517) so ts_backfill(60) used. Confidence 0.42.",
+      "implementation": "ts_zscore(ts_backfill(fnd21_fairlaborpractices_impactpercentagettm,60),30)",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Product packaging momentum vs product quality momentum spread",
+      "description": "If packaging momentum improves more than product quality momentum, it can indicate supply-chain-related benefits; long names with positive spread. SUGGESTION1 used two momentum fields; coverage moderate. Confidence 0.45.",
+      "implementation": "subtract(ts_zscore(fnd21_allcategories_momentum_productpackaging_momentum,30), ts_zscore(fnd21_allcategories_momentum_productqualityandsafety_momentum,30))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Allcategories pulse x volume cross (short-term continuation)",
+      "description": "Multiply short-term pulse zscore with recent volume zscore to amplify actionable moves. SUGGESTION1 used two fields; coverage acceptable. Confidence 0.62.",
+      "implementation": "multiply(ts_zscore(fnd21_allcategories_pulse_allcategories_pulse,5), ts_zscore(fnd21_volume_ttmdaily_allcategories_articlevolumettm,10))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Product quality leader persistence (ts_count_nans for reliability)",
+      "description": "Count NaNs in product quality signals across lookback to judge reliability; prefer names with stable coverage. SUGGESTION1 used ts_count_nans on field and backfill to reduce NaNs. Confidence 0.48.",
+      "implementation": "ts_count_nans(ts_backfill(fnd21_volume_ttmdaily_productqualityandsafety_categoryvolumettm,60),60)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Materiality vs productquality momentum pair trade",
+      "description": "Long names where materiality momentum leads productquality momentum; short reverse. SUGGESTION1 used two momentum fields. Coverage acceptable. Confidence 0.52.",
+      "implementation": "subtract(ts_zscore(fnd21_allcategories_momentum_materiality_momentum,30), ts_zscore(fnd21_allcategories_momentum_productqualityandsafety_momentum,30))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "GHG emissions impact% deterioration -> regulatory risk short",
+      "description": "Rising GHG emissions impact% increases regulatory risk; short names with sharp increases. SUGGESTION1 used impact% field (coverage ~0.3068) with ts_backfill(60). Confidence 0.41.",
+      "implementation": "ts_zscore(ts_backfill(fnd21_ghgemissions_impactpercentagettm,60),30)",
+      "confidence_level": 0.41
+    },
+    {
+      "idea": "Product quality momentum vs article volume coefficient (divide)",
+      "description": "High momentum but low volume suggests fragile moves; divide momentum by volume to penalize low attention. SUGGESTION1 used two fields and backfilled volume. Confidence 0.5.",
+      "implementation": "divide(ts_zscore(fnd21_allcategories_momentum_productqualityandsafety_momentum,30), ts_zscore(ts_backfill(fnd21_volume_ttmdaily_productqualityandsafety_categoryvolumettm,30),30))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Allcategories insight - winsorized momentum filter",
+      "description": "Use winsorized insight to remove outliers then compare to momentum for robust signals. SUGGESTION1 used winsorize and subtract; coverage high so no backfill. Confidence 0.67.",
+      "implementation": "subtract(zscore(winsorize(fnd21_allcategories_insight_allcategories_insight,4)), ts_zscore(fnd21_allcategories_momentum_allcategories_momentum,30))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Supply chain pulse surge as early warning",
+      "description": "Pulse spikes in supply chain indicate disruption risk; short names with large pulse zscore. SUGGESTION1 used pulse field; coverage ~0.4801 so no backfill. Confidence 0.46.",
+      "implementation": "ts_zscore(fnd21_allcategories_pulse_supplychainmanagement_pulse,5)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Productquality industrypercentile momentum confirmation",
+      "description": "Require productquality momentum to be validated by industrypercentile before taking large positions. SUGGESTION1 used momentum and industrypercentile fields. Confidence 0.58.",
+      "implementation": "multiply(ts_zscore(fnd21_allcategories_momentum_productqualityandsafety_momentum,30), ts_zscore(fnd21_allcategories_momentum_productqualityandsafetyindustrypercentile_momentum,30))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Allcategories article volume ts_av_diff (recent minus mean)",
+      "description": "Use ts_av_diff on article volume to detect anomalous attention relative to recent history. SUGGESTION1 used the high-coverage volume field. Confidence 0.63.",
+      "implementation": "ts_av_diff(fnd21_volume_ttmdaily_allcategories_articlevolumettm,30)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Data security persistent negative insight filter",
+      "description": "Names with persistently negative datasecurity insight (ts_count_nans and ts_mean) get penalized. SUGGESTION1 used ts_mean and ts_count_nans with backfill on insight. Confidence 0.5.",
+      "implementation": "ts_mean(ts_backfill(fnd21_datasecurity_insight,60),60)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Product quality return prediction from impact% zscore",
+      "description": "Use impact% zscore as predictor for 1-week returns (alpha signal). SUGGESTION1 single field; backfilled. Confidence 0.52.",
+      "implementation": "ts_zscore(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,60),10)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Allcategories momentum ts_quantile for gaussian normalization",
+      "description": "Apply ts_quantile to momentum to map to gaussian and produce normalized scores. SUGGESTION1 single high-coverage field used. Confidence 0.69.",
+      "implementation": "ts_quantile(fnd21_allcategories_momentum_allcategories_momentum,60, driver=\"gaussian\")",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Product quality attention mismatch: volume up, impact% down",
+      "description": "Rising volume with falling impact% indicates noise; fade. SUGGESTION1 used two fields and backfilled impact%. Confidence 0.48.",
+      "implementation": "subtract(ts_zscore(fnd21_volume_ttmdaily_productqualityandsafety_categoryvolumettm,30), ts_zscore(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,60),30))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Materiality article momentum persistence via ts_rank",
+      "description": "Rank materiality momentum cross-sectionally and go long top ranks. SUGGESTION1 single field used; coverage decent. Confidence 0.58.",
+      "implementation": "quantile(ts_rank(fnd21_materiality_categoryvolumettm,20))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Allcategories pulse normalization and winsorize",
+      "description": "Winsorize pulse then normalize to remove extremes before portfolio construction. SUGGESTION1 used winsorize + normalize on high-coverage pulse. Confidence 0.65.",
+      "implementation": "normalize(winsorize(fnd21_allcategories_pulse_allcategories_pulse,4))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Data security momentum reversal after ts_arg_max",
+      "description": "If datasecurity momentum reached local max recently, expect some pullback; use ts_arg_max. SUGGESTION1 single field used. Confidence 0.51.",
+      "implementation": "if_else(equal(ts_arg_max(fnd21_datasecurity_momentum,10),0), reverse(1), 0)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Product quality zscore * overall insight quantile (signal weighting)",
+      "description": "Weight product quality zscore by overall insight quantile to favor news relevant broadly. SUGGESTION1 uses two fields; backfilled productquality. Confidence 0.56.",
+      "implementation": "multiply(ts_zscore(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,60),30), quantile(ts_zscore(fnd21_allcategories_insight_allcategories_insight,30)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Materiality momentum short-term reversal (ts_zscore negative)",
+      "description": "Negative extreme zscore in materiality momentum often mean-reverts. SUGGESTION1 single field used. Confidence 0.55.",
+      "implementation": "reverse(ts_zscore(fnd21_allcategories_momentum_materiality_momentum,10))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Allcategories momentum volatility-targeted hinge (ts_target_tvr_decay)",
+      "description": "Apply ts_target_tvr_decay to momentum to control turnover while preserving signal. SUGGESTION1 single high-coverage field. Confidence 0.64.",
+      "implementation": "ts_target_tvr_decay(fnd21_allcategories_momentum_allcategories_momentum, lambda_min=0, lambda_max=1, target_tvr=0.1)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Product quality sudden impact% concentration (vec-like handling omitted)",
+      "description": "Detect concentrated increases in impact% (no vector fields available). SUGGESTION2 not applied. Used ts_zscore on backfilled impact%. Confidence 0.49.",
+      "implementation": "ts_zscore(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,60),5)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Allcategories insight - productquality impact% divergence filter",
+      "description": "If overall insight improves but product quality impact% lags, trade cautiously; used two fields with backfill on productquality impact%. Confidence 0.51.",
+      "implementation": "subtract(ts_zscore(fnd21_allcategories_insight_allcategories_insight,30), ts_zscore(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,60),30))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Datasecurity pulse momentum confluence (confirmatory signal)",
+      "description": "Require both rising pulse and momentum in datasecurity to take stronger positions. SUGGESTION1 used two fields; no backfill. Confidence 0.59.",
+      "implementation": "multiply(ts_zscore(fnd21_datasecurity_pulse,5), ts_zscore(fnd21_datasecurity_momentum,30))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Materiality long-term IR filter (ts_ir)",
+      "description": "Compute information ratio on materiality momentum as persistence filter. SUGGESTION1 single field; coverage adequate. Confidence 0.6.",
+      "implementation": "ts_ir(fnd21_allcategories_momentum_materiality_momentum,120)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Volume-weighted impact% (multiply normalized fields)",
+      "description": "Multiply normalized impact% by normalized volume to find high-impact attention events. SUGGESTION1 used two fields and backfilled low-coverage impact%. Confidence 0.54.",
+      "implementation": "multiply(quantile(ts_zscore(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,60),30)), quantile(ts_zscore(fnd21_volume_ttmdaily_productqualityandsafety_categoryvolumettm,30)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Allcategories pulse zscore momentum overlay",
+      "description": "Overlay short-term pulse zscore over longer-term momentum zscore to detect acceleration. SUGGESTION1 two fields (same topic different operators). Coverage high. Confidence 0.66.",
+      "implementation": "subtract(ts_zscore(fnd21_allcategories_pulse_allcategories_pulse,5), ts_zscore(fnd21_allcategories_momentum_allcategories_momentum,30))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Product quality article volume normalized by universe (group_scale substitute)",
+      "description": "Normalize product quality volume across universe via quantile to get relative attention. SUGGESTION4: used high userCount of productquality volume. Applied ts_backfill. Confidence 0.53.",
+      "implementation": "quantile(ts_zscore(ts_backfill(fnd21_volume_ttmdaily_productqualityandsafety_categoryvolumettm,30),30))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Allcategories insight rolling mean vs current (ts_av_diff)",
+      "description": "Use ts_av_diff to identify surprises in insight relative to recent mean. SUGGESTION1 single high-coverage field. Confidence 0.67.",
+      "implementation": "ts_av_diff(fnd21_allcategories_insight_allcategories_insight,20)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Data security industrypercentile momentum outperformance",
+      "description": "Long datasecurity names whose momentum industrypercentile is rising rapidly. SUGGESTION1 used industrypercentile field; coverage moderate. Confidence 0.58.",
+      "implementation": "ts_zscore(fnd21_datasecurityindustrypercentile_momentum,30)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Product quality impact% relative to materiality volume",
+      "description": "High product quality impact% relative to materiality volume suggests concentrated topic-specific news; trade accordingly. SUGGESTION1 used two fields with backfill on impact%. Confidence 0.5.",
+      "implementation": "divide(ts_zscore(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,60),30), ts_zscore(fnd21_materiality_categoryvolumettm,30))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Allcategories momentum tail trimming (tail operator)",
+      "description": "Clip tiny central values to reduce noise using tail operator then zscore for signal. SUGGESTION1 used tail to limit small ranges. Coverage high. Confidence 0.62.",
+      "implementation": "zscore(tail(fnd21_allcategories_momentum_allcategories_momentum, lower=-0.01, upper=0.01, newval=0))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Product quality repeated-impact detection (ts_count_nans used inversely)",
+      "description": "Firms with consistent impact% data (low ts_count_nans) are more reliable signals; prefer these. SUGGESTION1 used ts_count_nans on backfilled impact% to assess reliability. Confidence 0.47.",
+      "implementation": "ts_count_nans(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,60),60)",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Materiality sudden-rank breakout (groupless cross-section)",
+      "description": "Use cross-sectional rank on recent materiality momentum to pick breakouts. SUGGESTION1 single field; used ts_rank and quantile. Confidence 0.6.",
+      "implementation": "quantile(ts_rank(fnd21_materiality_categoryvolumettm,30))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Allcategories insight decay-smoothed alpha (hump)",
+      "description": "Use hump operator to limit large day-to-day changes and create stable alpha from insight. SUGGESTION1 applied hump to high-coverage insight. Confidence 0.65.",
+      "implementation": "hump(fnd21_allcategories_insight_allcategories_insight, hump=0.02)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Product quality impact% recent max drawdown (ts_max_diff)",
+      "description": "ts_max_diff highlights how far current impact% is below recent max—potential mean reversion target. SUGGESTION1 used ts_max_diff on backfilled impact%. Confidence 0.5.",
+      "implementation": "ts_max_diff(ts_backfill(fnd21_productqualityandsafety_impactpercentagettm,60),30)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Data security long-short by insight quantile",
+      "description": "Long top quantile of datasecurity insight and short bottom quantile. SUGGESTION1 single field used with quantile normalization. Coverage moderate. Confidence 0.57.",
+      "implementation": "quantile(ts_zscore(fnd21_datasecurity_insight,30))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Allcategories momentum vs materiality momentum spread",
+      "description": "Stocks where materiality momentum exceeds overall momentum may be re-rated; go long spread. SUGGESTION1 used two fields; coverage acceptable. Confidence 0.53.",
+      "implementation": "subtract(ts_zscore(fnd21_allcategories_momentum_materiality_momentum,30), ts_zscore(fnd21_allcategories_momentum_allcategories_momentum,30))",
+      "confidence_level": 0.53
+    }
+  ]
+}

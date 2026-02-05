@@ -1,0 +1,640 @@
+{
+  "results": [
+    {
+      "idea": "Open-gap mean reversion",
+      "description": "Combines news_open_gap with short-term normalization to capture reversion after large open gaps. Applied SUGGESTION1 by using a price gap field; SUGGESTION2 not applicable (no vector field). SUGGESTION3 not needed (coverage 0.6247 > 0.6). SUGGESTION4 considered: news_open_gap has moderate user/alpha counts so signal plausibility is fair. Kept implementation short per KEEP_IN_MINDs. Confidence = 0.58 because gap reversion is common but noisy.",
+      "implementation": "reverse(ts_zscore(news_open_gap,5))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Post-news momentum (30min)",
+      "description": "Use short-term momentum after news: news_pct_30min z-scored and normalized cross-sectionally. SUGGESTION1: used one strong field (high coverage). SUGGESTION2 not applicable. SUGGESTION3 not needed (coverage 0.9717). SUGGESTION4: field has reasonable user/alpha counts. Kept operators minimal. Confidence = 0.72 due to persistent post-news momentum in many studies.",
+      "implementation": "quantile(ts_zscore(news_pct_30min,5))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Intraday volume surge continuation",
+      "description": "Long names with high current volume relative to 30-day moving average: news_curr_vol / news_mov_vol then zscore. SUGGESTION1 used two fields (volume + mov_vol). SUGGESTION3: both coverages >0.6 so no backfill. SUGGESTION4 used fields with decent userCounts. Kept under operator/data limits. Confidence = 0.66 reflecting moderate reliability.",
+      "implementation": "zscore(divide(news_curr_vol,news_mov_vol))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "High ATR breakout continuation",
+      "description": "Trade names with high news_atr14 relative to historical: ts_zscore(news_atr14,14) to capture volatility-driven continuation. SUGGESTION1 single field (volatility) intentionally to be simple. SUGGESTION3 not needed (coverage 0.8947). SUGGESTION4 satisfied. Confidence = 0.55 (volatility signals are mixed).",
+      "implementation": "ts_zscore(news_atr14,14)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Earnings surprise immediate drift",
+      "description": "Use news_eps_actual vs. expected proxy via recent ts_mean of result1: ts_delta(news_eps_actual,1) combined with news_pct_10min to capture immediate drift. SUGGESTION1 used two fields (eps + short pct). SUGGESTION3 not needed (coverage high). SUGGESTION4: eps field has high coverage and alphaCount. Kept operators minimal. Confidence = 0.74 due to documented earnings drift.",
+      "implementation": "add(ts_zscore(ts_delta(news_eps_actual,1),5),quantile(news_pct_10min))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Post-news high volatility mean reversion",
+      "description": "Mean-revert names that spike in range: use news_range_stddev zscore and reverse. SUGGESTION1 single volatility field applied. SUGGESTION3 not required (coverage 0.6172 slightly above threshold). SUGGESTION4 moderate counts. Confidence = 0.6 since range spikes often overshoot intraday.",
+      "implementation": "reverse(ts_zscore(news_range_stddev,10))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Pre/post VWAP fade",
+      "description": "Fade deviation between news_pre_vwap and news_post_vwap: subtract and zscore cross-sectionally. SUGGESTION1 used two VWAP fields. Coverage high so no backfill. SUGGESTION4 moderate counts. Kept concise. Confidence = 0.61 (mean reversion around VWAP common).",
+      "implementation": "zscore(subtract(news_pre_vwap,news_post_vwap))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Short-interest pressure continuation",
+      "description": "Names with high news_short_interest and high volstddev likely to have squeezes: multiply news_short_interest by news_vol_stddev then quantile. SUGGESTION1 used two complementary fields. SUGGESTION3 not needed (both coverage >0.6). SUGGESTION4: short_interest has lower userCount but high coverage so cautiously applied. Confidence = 0.53 (short-interest effects are episodic).",
+      "implementation": "quantile(multiply(news_short_interest,news_vol_stddev))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Large intraday tick count momentum",
+      "description": "Use news_tot_ticks (market activity) scaled by news_pct_10min momentum. SUGGESTION1 used ticks+short momentum. Both coverages high. SUGGESTION4: tot_ticks has strong userCount. Confidence = 0.59.",
+      "implementation": "zscore(multiply(news_tot_ticks,news_pct_10min))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Post-news gap continuation vs SPY",
+      "description": "Relative performance vs index: use news_indx_perf ts_zscore to capture out/under-performance after news. SUGGESTION1 single field focused on index-relative move. SUGGESTION3 not needed (coverage 0.9713). Confidence = 0.65.",
+      "implementation": "ts_zscore(news_indx_perf,5)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Weak PE value reversal",
+      "description": "Trade mean-reversion for very high P/E names: reverse(quantile(news_pe_ratio)). SUGGESTION1 single fundamental field. SUGGESTION4: pe_ratio has high userCount. Coverage high so no backfill. Confidence = 0.45 (PE alone weak but diversifies).",
+      "implementation": "reverse(quantile(news_pe_ratio))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "High cap momentum filter",
+      "description": "Favor momentum in large caps: multiply quantile(news_cap) with ts_zscore(news_pct_30min,5). SUGGESTION1 used cap+momentum to improve signal stability. Both coverages >0.6. SUGGESTION4: news_cap very widely used. Confidence = 0.62.",
+      "implementation": "multiply(quantile(news_cap),ts_zscore(news_pct_30min,5))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "After-hours pre-market jump continuation",
+      "description": "Use nws12_prez_1_minute (pre-market 1-minute pct) ts_zscore to capture premarket pop continuation into session. SUGGESTION1 single field chosen for timing edge. Coverage moderate; SUGGESTION3 avoided as coverage 0.4144 <0.6 — applied ts_backfill to be safe. SUGGESTION4 moderate userCount. Confidence = 0.5 due to noisier premarket data.",
+      "implementation": "ts_zscore(ts_backfill(nws12_prez_1_minute,3),5)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "First-minute reversal",
+      "description": "Short-term reversal of news_pct_1min: reverse(ts_zscore(news_pct_1min,5)). SUGGESTION1 single high-coverage field. SUGGESTION4 counts modest. Confidence = 0.68 (common microstructure reversal intraday).",
+      "implementation": "reverse(ts_zscore(news_pct_1min,5))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Slow drift continuation (120min)",
+      "description": "Capture sustained moves using news_pct_120min ts_zscore. SUGGESTION1 single field with strong coverage. Confidence = 0.6.",
+      "implementation": "ts_zscore(news_pct_120min,10)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Large after-news high deviation fade",
+      "description": "Names where EODHigh far above TONLast (news_high_exc_stddev) mean-revert: reverse(ts_zscore(news_high_exc_stddev,10)). SUGGESTION1 used one standardized deviation field (coverage high). Confidence = 0.63.",
+      "implementation": "reverse(ts_zscore(news_high_exc_stddev,10))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "After-news low deviation bounce",
+      "description": "If news_low_exc_stddev is large, expect bounce: reverse(ts_zscore(news_low_exc_stddev,10)) but direction based on sign. SUGGESTION1 single field. Confidence = 0.61.",
+      "implementation": "ts_zscore(news_low_exc_stddev,10)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Open-to-news gap continuation",
+      "description": "Compare news_open (session open) vs news_ton_last (price at news): ts_returns(news_ton_last,1) vs ts_returns(news_open,1) then difference and quantile. SUGGESTION1 used two price fields. Coverage both >0.7. Confidence = 0.54.",
+      "implementation": "quantile(subtract(ts_returns(news_ton_last,1),ts_returns(news_open,1)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Rapid minute move momentum (5min)",
+      "description": "Use news_pct_5_min ranking (zscore) to capture fast momentum. SUGGESTION1 single high-use field. Coverage 0.774. Confidence = 0.6.",
+      "implementation": "zscore(ts_zscore(news_pct_5_min,5))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Volume-adjusted price jump",
+      "description": "Scale short-term pct moves by curr_vol / mov_vol to prefer high conviction moves: multiply(news_pct_10min, divide(news_curr_vol,news_mov_vol)) then quantile. SUGGESTION1 used two complementary fields. Coverage OK. Confidence = 0.65.",
+      "implementation": "quantile(multiply(news_pct_10min,divide(news_curr_vol,news_mov_vol)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Post-news VWAP pull to VWAP",
+      "description": "Measure deviation from main VWAP: subtract(news_eod_vwap,news_ton_last) zscore and reverse to fade extreme deviations. SUGGESTION1 used two vwap/price fields. Coverage high. Confidence = 0.6.",
+      "implementation": "reverse(zscore(subtract(news_eod_vwap,news_ton_last)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High prev-day intraday reversal",
+      "description": "Names with large news_prev_day_ret (previous day's intraday change) often revert: reverse(ts_zscore(news_prev_day_ret,20)). SUGGESTION1 single field. Coverage 0.7311. Confidence = 0.52.",
+      "implementation": "reverse(ts_zscore(news_prev_day_ret,20))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Tick-acceleration momentum",
+      "description": "High recent increase in tot_ticks suggests accelerating interest: ts_delta(news_tot_ticks,3) zscored. SUGGESTION1 single field with strong userCount. Confidence = 0.57.",
+      "implementation": "ts_zscore(ts_delta(news_tot_ticks,3),5)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Price vs SPY divergence continuation",
+      "description": "Use news_result_vs_index quantile to favor names diverging from SPY direction. SUGGESTION1 used this relative-performance field (coverage high). Confidence = 0.6.",
+      "implementation": "quantile(news_result_vs_index)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Session-range breakout normalized",
+      "description": "Use news_session_range_pct scaled by atr ratio: multiply(news_session_range_pct,news_atr_ratio) then ts_zscore. SUGGESTION1 used range+volatility. news_session_range_pct coverage low (0.268) so applied ts_backfill. SUGGESTION4: atr_ratio high usage. Confidence = 0.48.",
+      "implementation": "ts_zscore(multiply(ts_backfill(news_session_range_pct,5),news_atr_ratio),5)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "EOD close continuation after strong early move",
+      "description": "If first-10min pct (news_pct_10min) strong and persists to 30min (news_pct_30min), take intersection: multiply quantile(news_pct_10min) and quantile(news_pct_30min). SUGGESTION1 used two momentum fields. Both coverages >0.7. Confidence = 0.64.",
+      "implementation": "multiply(quantile(news_pct_10min),quantile(news_pct_30min))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Absorption signal: large open_vol but weak move",
+      "description": "High news_open_vol with small news_pct_5_min suggests absorption: divide(news_open_vol,abs(news_pct_5_min)) then zscore; if NaN handle via filter. SUGGESTION1 used volume+momentum. news_open_vol coverage 0.4361 (<0.6) so ts_backfill applied. Confidence = 0.47.",
+      "implementation": "zscore(divide(ts_backfill(news_open_vol,5),abs(ts_backfill(news_pct_5_min,5))))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "After-news high-vol breakout (max_up_ret)",
+      "description": "Names with large news_max_up_ret often continue: ts_zscore(news_max_up_ret,10). SUGGESTION1 single field; coverage 0.8458. Confidence = 0.56.",
+      "implementation": "ts_zscore(news_max_up_ret,10)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "After-news max-drop recovery",
+      "description": "Large news_max_dn_ret indicates oversold after news; expect bounce: reverse(ts_zscore(news_max_dn_ret,10)). SUGGESTION1 applied accordingly. Confidence = 0.59.",
+      "implementation": "reverse(ts_zscore(news_max_dn_ret,10))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Short-term kurtosis anomaly",
+      "description": "High ts_kurtosis on news_pct_1min indicates fat tails; prefer mean reversion: reverse(ts_kurtosis(news_pct_1min,10)). SUGGESTION1 used time-series stat. Coverage for news_pct_1min is high. Confidence = 0.51.",
+      "implementation": "reverse(ts_kurtosis(news_pct_1min,10))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Volatility normalized momentum",
+      "description": "Normalize short-term pct move by 30-day volstddev: divide(news_pct_30min,news_vol_stddev) then quantile. SUGGESTION1 combined momentum and normalized volume. Coverage high. Confidence = 0.63.",
+      "implementation": "quantile(divide(news_pct_30min,news_vol_stddev))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Large-cap defensive fade",
+      "description": "For very large news_cap and big negative news_pct_10min, attempt fade scaled by cap: multiply(reverse(quantile(news_pct_10min)),quantile(news_cap)). SUGGESTION1 used cap+momentum. Confidence = 0.44.",
+      "implementation": "multiply(reverse(quantile(news_pct_10min)),quantile(news_cap))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Pre-VWAP opening drift",
+      "description": "If news_pre_vwap significantly different from news_ton_last, momentum to close the gap: ts_zscore(subtract(news_ton_last,news_pre_vwap),5). SUGGESTION1 used two fields. Coverage ok. Confidence = 0.58.",
+      "implementation": "ts_zscore(subtract(news_ton_last,news_pre_vwap),5)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Minute-to-minute decay (1min to 5min)",
+      "description": "If 1-min move strong but 5-min weaker, expect reversal: subtract(ts_zscore(news_pct_5_min,5),ts_zscore(news_pct_1min,3)) then zscore. SUGGESTION1 used both minute windows. Coverage high for both. Confidence = 0.6.",
+      "implementation": "zscore(subtract(ts_zscore(news_pct_5_min,5),ts_zscore(news_pct_1min,3)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High tick count with low move (liquidity absorption)",
+      "description": "High news_tot_ticks but small news_pct_30min: divide(news_tot_ticks,abs(news_pct_30min)+1e-6) then reverse zscore. SUGGESTION1 used ticks+momentum. Coverage high. Confidence = 0.49.",
+      "implementation": "reverse(zscore(divide(news_tot_ticks,add(abs(news_pct_30min),0.000001))))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Overbought on short interest release",
+      "description": "If short_interest spikes and immediate pct up high, consider fade: multiply(news_short_interest,news_pct_5_min) then reverse quantile. SUGGESTION1 used two fields. Coverage for short_interest is high. Confidence = 0.5.",
+      "implementation": "reverse(quantile(multiply(news_short_interest,news_pct_5_min)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Earnings surprise volatility scaling",
+      "description": "Scale news_eps_actual surprise by news_atr_ratio to prefer large-surprise high-vol names: multiply(ts_zscore(news_eps_actual,3),news_atr_ratio) then quantile. SUGGESTION1 used earnings+vol. Coverage both high. Confidence = 0.66.",
+      "implementation": "quantile(multiply(ts_zscore(news_eps_actual,3),news_atr_ratio))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Momentum normalized by market move",
+      "description": "Use news_pct_60min minus SPY move (news_spy_close - news_spy_last) to isolate idiosyncratic momentum: subtract(news_pct_60min,subtract(news_spy_close,news_spy_last)) then zscore. SUGGESTION1 used two fields. Coverage OK. Confidence = 0.62.",
+      "implementation": "zscore(subtract(news_pct_60min,subtract(news_spy_close,news_spy_last)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Rapid recovery indicator",
+      "description": "If news_mins_1_chg low (quick 1% moves) and positive, favor continuation: inverse of news_mins_1_chg quantiled. news_mins_1_chg coverage 0.9175 so reliable. SUGGESTION2 not applicable. Confidence = 0.54.",
+      "implementation": "quantile(inverse(news_mins_1_chg))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Large intra-session range breakout",
+      "description": "Use news_session_range (coverage 0.4236) but backfill then scale by atr: multiply(ts_backfill(news_session_range,5),news_atr_ratio) zscore. SUGGESTION3 applied because coverage <0.6. Confidence = 0.46.",
+      "implementation": "ts_zscore(multiply(ts_backfill(news_session_range,5),news_atr_ratio),5)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Pre-market gap strength filter",
+      "description": "Combine nws12_prez_opengap with nws12_prez_curr_vol (if coverage low backfill) and quantile. SUGGESTION3: nws12_prez_curr_vol coverage 0.7742 so ok; no backfill. SUGGESTION1 used two fields. Confidence = 0.53.",
+      "implementation": "quantile(multiply(nws12_prez_opengap,nws12_prez_curr_vol))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "High volatility small cap fade",
+      "description": "Small market cap (news_cap low quantile) with high volstddev often mean-revert: multiply(reverse(quantile(news_cap)),news_vol_stddev) then zscore. SUGGESTION1 used cap+vol. Confidence = 0.47.",
+      "implementation": "zscore(multiply(reverse(quantile(news_cap)),news_vol_stddev))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "EOD gap continuation",
+      "description": "Use news_eod_close vs news_ton_last returns: ts_returns(news_eod_close,1) - ts_returns(news_ton_last,1) quantile. SUGGESTION1 two price fields used. Coverage high. Confidence = 0.55.",
+      "implementation": "quantile(subtract(ts_returns(news_eod_close,1),ts_returns(news_ton_last,1)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Minute-level exhaustion signal (3min)",
+      "description": "Look at news_mins_3_chg (coverage 0.9174); shorter time to 3% move suggests momentum; inverse used for mean-revert. SUGGESTION1 single field. Confidence = 0.56.",
+      "implementation": "reverse(quantile(news_mins_3_chg))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Post-news volatility ramp trade",
+      "description": "If news_vol_stddev spiked and pct_30min positive, multiply and quantile to capture strong breakout: multiply(news_vol_stddev,news_pct_30min). SUGGESTION1 applied. Confidence = 0.62.",
+      "implementation": "quantile(multiply(news_vol_stddev,news_pct_30min))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Momentum scaled by market cap (small cap boost)",
+      "description": "Favor momentum stronger in small caps: multiply(ts_zscore(news_pct_60min,5),reverse(quantile(news_cap))). SUGGESTION1 used two fields. Confidence = 0.5.",
+      "implementation": "multiply(ts_zscore(news_pct_60min,5),reverse(quantile(news_cap)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Large pre/post VWAP divergence continuation",
+      "description": "If news_main_vwap far from news_post_vwap, expect continuation: ts_zscore(subtract(news_post_vwap,news_main_vwap),5). SUGGESTION1 used two vwap fields. Coverage high. Confidence = 0.59.",
+      "implementation": "ts_zscore(subtract(news_post_vwap,news_main_vwap),5)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Relative minute-interval momentum consistency",
+      "description": "Multiply quantiles of news_pct_1min and news_pct_5_min to prefer consistent movers. SUGGESTION1 used two momentum scales. Coverage high. Confidence = 0.63.",
+      "implementation": "multiply(quantile(news_pct_1min),quantile(news_pct_5_min))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "After-news low volatility continuation",
+      "description": "Low news_atr_ratio but positive pct_30min suggests stealth momentum: multiply(reverse(news_atr_ratio),news_pct_30min) quantile. SUGGESTION1 used vol+momentum. Confidence = 0.48.",
+      "implementation": "quantile(multiply(reverse(news_atr_ratio),news_pct_30min))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "High short-interest quick pop continuation",
+      "description": "Use nws12_mainz_1p (1-minute minimal up threshold) times nws12_mainz_short_interest then quantile. SUGGESTION1 used two fields with high coverage. Confidence = 0.52.",
+      "implementation": "quantile(multiply(nws12_mainz_1p,nws12_mainz_short_interest))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Open gap amplified by intraday range",
+      "description": "Multiply news_open_gap by news_session_range_pct (backfilled if low coverage) to find gaps within volatile sessions. SUGGESTION3: session_range_pct coverage low so ts_backfill applied. Confidence = 0.46.",
+      "implementation": "quantile(multiply(news_open_gap,ts_backfill(news_session_range_pct,5)))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Immediate overshoot on high ticks",
+      "description": "If news_tot_ticks high and news_pct_30sec extreme, expect reversal: reverse(multiply(news_tot_ticks,news_pct_30sec)). SUGGESTION1 used two fields. Both coverage high. Confidence = 0.57.",
+      "implementation": "reverse(quantile(multiply(news_tot_ticks,news_pct_30sec)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "High momentum with low previous-day move",
+      "description": "Filter for names with large news_pct_60min but small news_prev_day_ret: divide(news_pct_60min,add(abs(news_prev_day_ret),1e-6)) quantile. SUGGESTION1 used two fields. Coverage ok. Confidence = 0.55.",
+      "implementation": "quantile(divide(news_pct_60min,add(abs(news_prev_day_ret),0.000001)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Earnings shock normalized continuation",
+      "description": "Combine news_eps_actual with news_pe_ratio: divide(ts_zscore(news_eps_actual,3),add(news_pe_ratio,1)) then quantile to favor high surprise cheap names. SUGGESTION1 used two fields. Coverage high. Confidence = 0.6.",
+      "implementation": "quantile(divide(ts_zscore(news_eps_actual,3),add(news_pe_ratio,1)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Late-session squeeze detector",
+      "description": "Large news_pct_90min and high short_interest multiplied to detect squeezes: multiply(news_pct_90min,news_short_interest) then quantile. SUGGESTION1 applied. Coverage for fields high. Confidence = 0.58.",
+      "implementation": "quantile(multiply(news_pct_90min,news_short_interest))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Fast reversal after extreme 30sec move",
+      "description": "If news_pct_30sec extreme, expect mean reversion: reverse(ts_zscore(news_pct_30sec,5)). SUGGESTION1 single field. Confidence = 0.66.",
+      "implementation": "reverse(ts_zscore(news_pct_30sec,5))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "High-volume continuation into close",
+      "description": "If news_curr_vol > mov_vol and pct_120min positive, continue: multiply(divide(news_curr_vol,news_mov_vol),news_pct_120min) quantile. SUGGESTION1 used two fields. Confidence = 0.6.",
+      "implementation": "quantile(multiply(divide(news_curr_vol,news_mov_vol),news_pct_120min))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Pre-market persistent movers",
+      "description": "Use nws12_prez_30_seconds and nws12_prez_10_min combined via multiply then quantile; if coverage low backfill shorter field. SUGGESTION3: nws12_prez_30_seconds coverage 0.3712 <0.6 so ts_backfill applied. Confidence = 0.49.",
+      "implementation": "quantile(multiply(ts_backfill(nws12_prez_30_seconds,3),nws12_prez_10_min))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Post-news normalization by 30-day range",
+      "description": "Divide news_pct_30min by nws12_mainz_rangestddev (30d normalized range) to emphasize moves relative to typical range. SUGGESTION1 used two fields; coverage high. Confidence = 0.57.",
+      "implementation": "quantile(divide(news_pct_30min,nws12_mainz_rangestddev))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Late bounce after large intraday drop",
+      "description": "If news_max_dn_ret large negative, expect bounce into post session: reverse(ts_zscore(news_max_dn_ret,20)). SUGGESTION1 single field with high coverage. Confidence = 0.6.",
+      "implementation": "reverse(ts_zscore(news_max_dn_ret,20))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "First-minute acceleration filter",
+      "description": "Compare news_pct_1min vs news_pct_30sec; if 1min >> 30sec, momentum building: subtract(ts_zscore(news_pct_1min,3),ts_zscore(news_pct_30sec,3)) quantile. SUGGESTION1 used two fields. Confidence = 0.61.",
+      "implementation": "quantile(subtract(ts_zscore(news_pct_1min,3),ts_zscore(news_pct_30sec,3)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Open-to-close fade after big open move",
+      "description": "If news_open_gap big and news_eod_close shows reversion, use reverse of ts_zscore(news_open_gap,5) scaled by news_eod_vwap distance. SUGGESTION1 used two fields. Confidence = 0.5.",
+      "implementation": "multiply(reverse(ts_zscore(news_open_gap,5)),ts_zscore(subtract(news_eod_close,news_eod_vwap),5))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Immediate continuation when minutes to threshold long",
+      "description": "If news_mins_10_pct_up large (many minutes to reach 10% up) but current pct positive, possible slow build — multiply(news_mins_10_pct_up,news_pct_10min) quantile. SUGGESTION1 used two fields. news_mins_10_pct_up coverage 0.0428 very low so ts_backfill applied. Confidence = 0.4.",
+      "implementation": "quantile(multiply(ts_backfill(news_mins_10_pct_up,5),news_pct_10min))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "30-min zscore + ATR filter",
+      "description": "Long names with high news_pct_30min zscore and high atr_ratio: multiply(ts_zscore(news_pct_30min,5),news_atr_ratio). SUGGESTION1 used both. Coverage high. Confidence = 0.63.",
+      "implementation": "multiply(ts_zscore(news_pct_30min,5),news_atr_ratio)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Range breakout adjusted by recent volatility",
+      "description": "Use ts_max_diff(news_ton_last,5) divided by news_vol_stddev to prefer real breakouts: divide(ts_max_diff(news_ton_last,5),news_vol_stddev) quantile. SUGGESTION1 used two fields; ts_max_diff available operator used. Confidence = 0.58.",
+      "implementation": "quantile(divide(ts_max_diff(news_ton_last,5),news_vol_stddev))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Earnings surprise cheapness filter",
+      "description": "Prefer positive eps actual with low pe: multiply(ts_zscore(news_eps_actual,3),reverse(quantile(news_pe_ratio))). SUGGESTION1 applied. Confidence = 0.61.",
+      "implementation": "multiply(ts_zscore(news_eps_actual,3),reverse(quantile(news_pe_ratio)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "High-open volume weak move fade",
+      "description": "If open_vol large and early move small (abs news_pct_10min small), suspect absorption: reverse(divide(ts_backfill(news_open_vol,5),add(abs(news_pct_10min),1e-6))). SUGGESTION3 applied for open_vol low coverage. Confidence = 0.45.",
+      "implementation": "reverse(divide(ts_backfill(news_open_vol,5),add(abs(news_pct_10min),0.000001)))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "SPY-relative reversal",
+      "description": "If name outperforms SPY significantly intraday (news_indx_perf), reverse ts_zscore to fade extremes. SUGGESTION1 single relative field. Confidence = 0.56.",
+      "implementation": "reverse(ts_zscore(news_indx_perf,10))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum persistence with low prev-day vol",
+      "description": "Multiply news_pct_60min by inverse of news_prev_vol (prev_vol coverage 0.0374 low — backfilled) to highlight names with low prior volume but big current move. SUGGESTION3 applied. Confidence = 0.42.",
+      "implementation": "quantile(multiply(news_pct_60min,divide(1,add(ts_backfill(news_prev_vol,5),0.000001))))",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "High-volume-priced breakout filter",
+      "description": "Combine news_curr_vol/mov_vol ratio with eod high deviation: multiply(divide(news_curr_vol,news_mov_vol),news_high_exc_stddev) quantile. SUGGESTION1 used vol+price dev. Confidence = 0.64.",
+      "implementation": "quantile(multiply(divide(news_curr_vol,news_mov_vol),news_high_exc_stddev))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Minute-acceleration pair (1min vs 3min)",
+      "description": "If 1-min move strong but 3-min weak, expect reversal: subtract(ts_zscore(news_mins_1_chg,3),ts_zscore(news_mins_3_chg,3)) then reverse quantile. SUGGESTION1 used two minute fields. Confidence = 0.55.",
+      "implementation": "reverse(quantile(subtract(ts_zscore(news_mins_1_chg,3),ts_zscore(news_mins_3_chg,3))))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "High pre/post VWAP divergence scaled by ticks",
+      "description": "Multiply difference between main_vwap and eod_vwap by tot_ticks to emphasize strong conviction moves: multiply(subtract(news_main_vwap,news_eod_vwap),news_tot_ticks) quantile. SUGGESTION1 used two fields. Confidence = 0.59.",
+      "implementation": "quantile(multiply(subtract(news_main_vwap,news_eod_vwap),news_tot_ticks))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Earnings drift vs market",
+      "description": "Use news_result_vs_index ts_zscore to capture idiosyncratic post-earnings drift. SUGGESTION1 single field; coverage high. Confidence = 0.67.",
+      "implementation": "ts_zscore(nws12_mainz_result_vs_index,10)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Short-term IR filter (stability)",
+      "description": "Use ts_ir(news_pct_30min,10) to favor names with high information ratio (consistent moves). SUGGESTION1 single operator over momentum field. Confidence = 0.6.",
+      "implementation": "ts_ir(news_pct_30min,10)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Pre-market momentum scaled by market cap",
+      "description": "Multiply nws12_prez_10_min by reverse(news_cap) to favor small-cap premarket movers. SUGGESTION1 two fields. nws12_prez_10_min coverage 0.5054 so ts_backfill used. Confidence = 0.46.",
+      "implementation": "quantile(multiply(ts_backfill(nws12_prez_10_min,3),reverse(quantile(news_cap))))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Fast exhaustion then reversal (30sec->5min)",
+      "description": "If 30sec move extreme but 5min weaker, reverse: subtract(ts_zscore(news_pct_30sec,3),ts_zscore(news_pct_5_min,3)) then reverse quantile. SUGGESTION1 applied. Confidence = 0.62.",
+      "implementation": "reverse(quantile(subtract(ts_zscore(news_pct_30sec,3),ts_zscore(news_pct_5_min,3))))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "High open gap + high ATR continuation",
+      "description": "Multiply news_open_gap by news_atr_ratio and take quantile to find strong breakouts. SUGGESTION1 used gap+vol. Coverage ok. Confidence = 0.58.",
+      "implementation": "quantile(multiply(news_open_gap,news_atr_ratio))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "VWAP reversion after max up",
+      "description": "If news_max_up_amt large relative to main_vwap, expect reversion: divide(news_max_up_amt,news_main_vwap) then reverse zscore. SUGGESTION1 used two fields. Confidence = 0.54.",
+      "implementation": "reverse(ts_zscore(divide(news_max_up_amt,news_main_vwap),5))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Minute-count momentum persistence",
+      "description": "Combine news_mins_5_chg with news_mins_10_chg via multiply to prefer persistent intraminute trends. SUGGESTION1 used two minute change fields. Coverage both >0.7. Confidence = 0.6.",
+      "implementation": "quantile(multiply(news_mins_5_chg,news_mins_10_chg))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Low vol high momentum",
+      "description": "Favor names with high pct_30min but low atr_ratio: multiply(news_pct_30min,reverse(news_atr_ratio)) quantile. SUGGESTION1 applied. Confidence = 0.5.",
+      "implementation": "quantile(multiply(news_pct_30min,reverse(news_atr_ratio)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Volume spike then direction confirmation",
+      "description": "If curr_vol/mov_vol > threshold and pct_10min aligns direction, multiply ratio by sign(ts_zscore(news_pct_10min,3)). SUGGESTION1 used two fields and simple sign. Confidence = 0.61.",
+      "implementation": "multiply(sign(ts_zscore(news_pct_10min,3)),divide(news_curr_vol,news_mov_vol))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Earnings vs sector-relative move",
+      "description": "Use news_result_vs_index together with news_eps_actual: multiply(quantile(news_result_vs_index),ts_zscore(news_eps_actual,3)). SUGGESTION1 combined performance+eps. Confidence = 0.64.",
+      "implementation": "multiply(quantile(news_result_vs_index),ts_zscore(news_eps_actual,3))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Short-term reversal after extreme range stddev",
+      "description": "If news_range_stddev extreme, expect fade: reverse(ts_zscore(news_range_stddev,7)). SUGGESTION1 single stddev field used. Coverage borderline but >0.6. Confidence = 0.58.",
+      "implementation": "reverse(ts_zscore(news_range_stddev,7))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Tick-normalized breakout",
+      "description": "Normalize news_max_up_ret by tot_ticks: divide(news_max_up_ret,add(news_tot_ticks,1)) then quantile to prefer efficient moves. SUGGESTION1 used two fields. Confidence = 0.56.",
+      "implementation": "quantile(divide(news_max_up_ret,add(news_tot_ticks,1)))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Momentum scaled by 30-day avg vol",
+      "description": "Multiply news_pct_60min by inverse of news_mov_vol to favor moves on low average volume: multiply(news_pct_60min,divide(1,add(news_mov_vol,1e-6))). SUGGESTION1 used two fields. Confidence = 0.52.",
+      "implementation": "multiply(news_pct_60min,divide(1,add(news_mov_vol,0.000001)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "High open gap + low ticks fade",
+      "description": "If open gap big but tot_ticks low, likely lack of conviction — reverse: reverse(multiply(news_open_gap,divide(1,add(news_tot_ticks,1)))). SUGGESTION1 applied. Confidence = 0.45.",
+      "implementation": "reverse(quantile(multiply(news_open_gap,divide(1,add(news_tot_ticks,1)))))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "30-min zscore with winsorization",
+      "description": "Winsorize news_pct_30min then zscore to reduce outlier effect: zscore(winsorize(news_pct_30min,4)). SUGGESTION1 single field; winsorize used to reduce outliers per KEEP_IN_MIND. Confidence = 0.6.",
+      "implementation": "zscore(winsorize(news_pct_30min,4))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings drift filtered by liquidity",
+      "description": "Multiply ts_zscore(news_eps_actual,3) by news_mov_vol to favor liquid names where drift is tradable. SUGGESTION1 used two fields. Confidence = 0.59.",
+      "implementation": "multiply(ts_zscore(news_eps_actual,3),news_mov_vol)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Fast down move bounce indicator",
+      "description": "If news_pct_1min strongly negative but volstddev high, expect bounce: multiply(reverse(ts_zscore(news_pct_1min,3)),news_vol_stddev) quantile. SUGGESTION1 used two fields. Confidence = 0.57.",
+      "implementation": "quantile(multiply(reverse(ts_zscore(news_pct_1min,3)),news_vol_stddev))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Consistent micro-momentum (30s->1min->5min)",
+      "description": "Multiply quantiles of news_pct_30sec, news_pct_1min, news_pct_5_min (use only two fields limit -> pick 1min and 5min) to capture persistence. SUGGESTION1 used two fields to respect operator/data limits. Confidence = 0.65.",
+      "implementation": "multiply(quantile(news_pct_1min),quantile(news_pct_5_min))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "High 10min move with low 120min follow-through fade",
+      "description": "If 10min strong but 120min weak, reverse: subtract(ts_zscore(news_pct_10min,3),ts_zscore(news_pct_120min,5)) reverse quantile. SUGGESTION1 used two fields. Confidence = 0.53.",
+      "implementation": "reverse(quantile(subtract(ts_zscore(news_pct_10min,3),ts_zscore(news_pct_120min,5))))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Intraday momentum scaled by PE",
+      "description": "Multiply ts_zscore(news_pct_30min,5) by reverse(quantile(news_pe_ratio)) to prefer momentum in cheaper names. SUGGESTION1 used two fields. Confidence = 0.49.",
+      "implementation": "multiply(ts_zscore(news_pct_30min,5),reverse(quantile(news_pe_ratio)))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "High 60-min momentum with low prevclose movement",
+      "description": "Divide news_pct_60min by add(abs(news_prev_close),1e-6) where prev_close field has low coverage (0.1728) so ts_backfill used. SUGGESTION3 applied. Confidence = 0.43.",
+      "implementation": "quantile(divide(news_pct_60min,add(ts_backfill(news_prev_close,5),0.000001)))",
+      "confidence_level": 0.43
+    },
+    {
+      "idea": "After-news microstructure: 30sec momentum scaled by ticks",
+      "description": "Multiply news_pct_30sec by news_tot_ticks to prefer moves with many ticks. SUGGESTION1 used two fields. Confidence = 0.6.",
+      "implementation": "quantile(multiply(news_pct_30sec,news_tot_ticks))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Large move with low 30-day avg vol — stronger signal",
+      "description": "Divide news_pct_120min by news_mov_vol then quantile. SUGGESTION1 used momentum+avg vol. Both coverages adequate. Confidence = 0.58.",
+      "implementation": "quantile(divide(news_pct_120min,add(news_mov_vol,0.000001)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "High-minute pct persistence vs ESR (EOD reversion)",
+      "description": "If news_pct_30min aligns with news_result1 (EOD result) use multiply to prefer consistent moves. SUGGESTION1 used two fields. Coverage high. Confidence = 0.62.",
+      "implementation": "multiply(quantile(news_pct_30min),nws12_mainz_result1)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Pre-session provider anomaly",
+      "description": "Use nws12_mainz_provider index to bucket providers (treated as numeric) multiplied by news_pct_1min to detect provider-specific patterns. SUGGESTION4 considered provider has many users. No group operator used since provider is numeric index. Confidence = 0.4.",
+      "implementation": "quantile(multiply(nws12_mainz_provider,news_pct_1min))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Momentum vs tick ratio",
+      "description": "Divide news_pct_10min by news_tot_ticks to favor strong moves on fewer ticks (less noise). SUGGESTION1 used two fields. Confidence = 0.5.",
+      "implementation": "quantile(divide(news_pct_10min,add(news_tot_ticks,1)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Rapid minute gap continuation (2min)",
+      "description": "ts_zscore(news_pct_2min,5) used to capture quick 2-minute momentum. news_mins_2_pct_up coverage low (0.2845) so choose news_pct_2min if available; apply backfill if needed. SUGGESTION3 applied conservatively: ts_backfill(news_mins_2_chg,3) avoided by picking news_pct_? field not present; use nws12_mainz_2p instead (coverage 0.9741). Confidence = 0.55.",
+      "implementation": "ts_zscore(nws12_mainz_2p,5)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Volatility breakout normalized by ticks",
+      "description": "Divide news_atr_ratio by news_tot_ticks to emphasize true volatility per trade count then quantile. SUGGESTION1 used two fields. Confidence = 0.53.",
+      "implementation": "quantile(divide(news_atr_ratio,add(news_tot_ticks,1)))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "High pre/post spike follow-through",
+      "description": "Multiply news_pct_30min by nws12_mainz_30_seconds to capture quick post-news surges that persist. If short field low coverage backfill; here coverage high. SUGGESTION1 used two complementary fields. Confidence = 0.6.",
+      "implementation": "quantile(multiply(news_pct_30min,nws12_mainz_30_seconds))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Minute-interval consistency normalized",
+      "description": "Divide ts_zscore(news_pct_5_min,5) by ts_std_dev(news_pct_1min,5) (use ts_std_dev on same field) to prefer consistent momentum. SUGGESTION1 single datafield used for both operators. Confidence = 0.57.",
+      "implementation": "divide(ts_zscore(news_pct_5_min,5),ts_std_dev(news_pct_1min,5))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Post-news large-vwap gap continuation",
+      "description": "If news_post_vwap far above ton_last, momentum: subtract(news_post_vwap,news_ton_last) quantile. SUGGESTION1 two price fields. Coverage high. Confidence = 0.59.",
+      "implementation": "quantile(subtract(news_post_vwap,news_ton_last))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Slow build then breakout (10->120min)",
+      "description": "If news_pct_10min positive and pct_120min also positive, multiply quantiles to reinforce persistent builds. SUGGESTION1 used two fields. Confidence = 0.62.",
+      "implementation": "multiply(quantile(news_pct_10min),quantile(news_pct_120min))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Low historical range but large current move",
+      "description": "Divide news_pct_30min by nws12_mainz_rangestddev (backfill if needed) to find unusual moves relative to 30d range. SUGGESTION3: ensure backfill when coverage borderline. Confidence = 0.54.",
+      "implementation": "quantile(divide(news_pct_30min,add(nws12_mainz_rangestddev,0.000001)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Earnings move filtered by ticks",
+      "description": "Multiply ts_zscore(news_eps_actual,3) by news_tot_ticks to select tradable earnings moves. SUGGESTION1 used two fields. Confidence = 0.6.",
+      "implementation": "multiply(ts_zscore(news_eps_actual,3),news_tot_ticks)",
+      "confidence_level": 0.6
+    }
+  ]
+}

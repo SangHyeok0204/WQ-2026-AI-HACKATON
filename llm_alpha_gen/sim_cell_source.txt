@@ -1,0 +1,225 @@
+# ============================================================
+# 시뮬레이션 돌리기 (Resume 지원 버전)
+# - 이미 생성된 gen_json은 스킵하고 부족한 배치만 생성
+# - 중간에 끊겨도 다시 실행하면 이어서 진행
+# ============================================================
+# 🔧 NEW: Top N datafields 설정 - 각 dataset에서 alphaCount 상위 N개만 LLM에 전달
+# This restricts the LLM to use only the top N datafields (by alphaCount) within each dataset
+TOP_N_DATAFIELDS = 3
+# ============================================================
+
+import os
+import json
+import re
+
+# ------------------------------------------------------------
+# Resume 지원 함수들
+# ------------------------------------------------------------
+
+def get_existing_json_count(dataset, gen_dir="./gen_json"):
+    """
+    gen_dir에서 {dataset}_*.json 패턴 파일 개수를 반환
+    """
+    if not os.path.exists(gen_dir):
+        os.makedirs(gen_dir, exist_ok=True)
+        return 0
+    
+    pattern = re.compile(rf"^{re.escape(dataset)}_(\d+)\.json$")
+    count = 0
+    for filename in os.listdir(gen_dir):
+        if pattern.match(filename):
+            count += 1
+    return count
+
+
+def get_next_json_index(dataset, gen_dir="./gen_json"):
+    """
+    gen_dir에서 {dataset}_*.json 패턴 파일을 찾고
+    가장 큰 k를 계산한 다음 max_k + 1 반환
+    파일이 없으면 0 반환
+    """
+    if not os.path.exists(gen_dir):
+        os.makedirs(gen_dir, exist_ok=True)
+        return 0
+    
+    pattern = re.compile(rf"^{re.escape(dataset)}_(\d+)\.json$")
+    max_k = -1
+    
+    for filename in os.listdir(gen_dir):
+        match = pattern.match(filename)
+        if match:
+            k = int(match.group(1))
+            if k > max_k:
+                max_k = k
+    
+    return max_k + 1
+
+
+def save_json_safe(data, filepath):
+    """
+    저장 직전에 파일 존재 여부 체크 (레이스 방지)
+    이미 존재하면 저장하지 않고 False 반환
+    """
+    if os.path.exists(filepath):
+        print(f"[WARN] File already exists, skipping: {filepath}")
+        return False
+    
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    return True
+
+
+# ------------------------------------------------------------
+# 메인 루프 (Resume 지원)
+# ------------------------------------------------------------
+
+GEN_DIR = "./gen_json"
+os.makedirs(GEN_DIR, exist_ok=True)
+print(datasets_list)
+print(f"[CONFIG] Using top {TOP_N_DATAFIELDS} datafields per dataset (by alphaCount)")
+
+for dataset in datasets_list:
+    
+    # 목표 생성 횟수
+    target_simnum = datset_to_simnum(dataset)
+    
+    # 현재 존재하는 파일 개수
+    existing_count = get_existing_json_count(dataset, GEN_DIR)
+    
+    # 남은 생성 횟수
+    remaining = target_simnum - existing_count
+    
+    # 다음 저장할 인덱스
+    start_index = get_next_json_index(dataset, GEN_DIR)
+    
+    # 로그 출력
+    print(f"\n{'='*60}")
+    print(f"[DATASET] {dataset}")
+    print(f"  existing={existing_count}  target={target_simnum}  remaining={remaining}  start_index={start_index}")
+    print(f"{'='*60}")
+    
+    # 이미 완료된 경우 스킵
+    if remaining <= 0:
+        print(f"[SKIP] dataset={dataset} already complete ({existing_count}/{target_simnum})")
+        continue
+    
+    dataset_category = datasets_dict[dataset]['category_id']
+    batch_name = f"{region}_{universe}_{dataset_category}"
+    
+    # remaining 만큼만 생성
+    for i in range(remaining):
+        
+        current_index = start_index + i
+        save_path = f"{GEN_DIR}/{dataset}_{current_index}.json"
+        
+        # 저장 전 파일 존재 여부 재확인 (레이스 방지)
+        if os.path.exists(save_path):
+            print(f"[SKIP] {save_path} already exists, skipping this batch")
+            continue
+        
+        print(f"\n--- [{dataset}] Batch {i+1}/{remaining} (index={current_index}) ---")
+        print("--- Generating alphas with LLM ---")
+        
+        try:
+            # 🔧 MODIFIED: top_n_datafields 파라미터 추가
+            # LLM은 각 dataset에서 alphaCount 상위 N개 datafield만 사용
+            response = llm.generate_expressions_from_dataset(
+                s, region, universe, dataset, 
+                model='gpt-5-mini-2025-08-07', 
+                datafields_num_cap=500,
+                top_n_datafields=TOP_N_DATAFIELDS  # 🔧 NEW: 상위 N개 datafield만 전달
+            )
+        except Exception as e:
+            print(f"[ERROR] LLM generation failed: {e}")
+            continue
+        
+        print("--- Received response ---")
+        
+        try:
+            json_response = llm.cut_first_to_last_brace(response)
+            alphas = json.loads(json_response)
+            print(f"--- Alpha generated successfully ---")
+        except Exception as e:
+            print(f"[ERROR] JSON parsing failed: {e}")
+            continue
+        
+        # JSON 저장 (안전하게)
+        if not save_json_safe(alphas, save_path):
+            print(f"[WARN] Could not save {save_path}, skipping simulation")
+            continue
+        
+        print(f"[SAVED] {save_path}")
+        
+        # ------------------------------------------------------------
+        # 시뮬레이션 실행
+        # ------------------------------------------------------------
+        
+        # Sanity check로 유효한 알파만 필터링
+        alpha_expressions = [
+            x for x in alphas.get("results", []) 
+            if sanity_checker(x.get('implementation', ''), _debug=False)
+        ]
+        
+        if len(alpha_expressions) == 0:
+            print(f"[WARN] No valid alphas after sanity check")
+            continue
+        
+        alpha_list = [
+            ace.generate_alpha(
+                regular=x['implementation'], 
+                region=region, 
+                universe=universe, 
+                neutralization="INDUSTRY"
+            ) 
+            for x in alpha_expressions
+        ]
+        
+        len_alpha_list = len(alpha_list)
+        print(f"[INFO] eligible_alpha_count: {len_alpha_list}")
+        
+        tags_list = [
+            ['llm_test', f"confidence_{x.get('confidence_level', 0)}"] 
+            for x in alpha_expressions
+        ]
+        descs_list = [x.get('description', '') for x in alpha_expressions]
+        
+        # 8개씩 배치로 시뮬레이션
+        for rep in range(0, len_alpha_list, 8):
+            
+            # 세션 타임아웃 체크
+            if ace.check_session_timeout(s) < 500:
+                print("[INFO] Session timeout approaching, refreshing...")
+                s = ace.start_session()
+            
+            batch_end = min(rep + 8, len_alpha_list)
+            
+            try:
+                print(f"--- Simulating alpha batch {rep} to {batch_end} ---")
+                
+                sim_results = list(
+                    ace.multi_simulate_alphas_map(
+                        s,
+                        alpha_list[rep:batch_end],
+                        tags_list[rep:batch_end],
+                        descs_list[rep:batch_end],
+                        batch_end - rep
+                    )
+                )
+                
+                df = pd.DataFrame([
+                    ace.flatten_dict(x) 
+                    for x in sim_results 
+                    if 'id' in x.keys()
+                ])
+                
+                if len(df) > 0:
+                    append_and_save_csv(f"./results/{batch_name}.csv", df)
+                    print(f"[SAVED] {len(df)} results to ./results/{batch_name}.csv")
+                    
+            except Exception as e:
+                print(f"[ERROR] Simulation failed: {e}")
+                continue
+
+print("\n" + "="*60)
+print("[DONE] All datasets processed")
+print("="*60)

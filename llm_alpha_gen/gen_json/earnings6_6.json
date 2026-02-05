@@ -1,0 +1,664 @@
+{
+  "results": [
+    {
+      "idea": "EPS Surprise Cross-sectional Z-score",
+      "description": "Core: rank cross-sectional EPS surprise (actual - estimate) via zscore. SUGGESTION1 applied: used two strong datafields (ern6_actual_eps, ern6_estimated_eps). SUGGESTION2: no vector fields in DATA so not applied. SUGGESTION3: coverage high (>0.9) so ts_backfill not needed. SUGGESTION4: used fields with high userCount/alphaCount. KEEP_IN_MIND1-4 observed: implementation short, uses 2 datafields, <=7 operators. Confidence: 0.80",
+      "implementation": "zscore(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps))",
+      "confidence_level": 0.8
+    },
+    {
+      "idea": "Absolute EPS Surprise Quantile",
+      "description": "Core: cross-sectional quantile of absolute surprise to favor large surprises. S1 used two fields (ern6_actual_eps, ern6_estimated_eps). S2 not applied (no vector). S3 not needed. S4 OK. KEEP_IN_MIND respected. Confidence: 0.75",
+      "implementation": "quantile(abs(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Relative Surprise Scaled by Preliminary Range Width",
+      "description": "Core: surprise normalized by preliminary eps range width (upper - lower) to capture confidence dispersion. S1 applied: ern6_actual_eps and preliminary_eps_range_upper_bound/lower. S2 not applied. S3 not needed. S4: used preliminary range (moderate userCount) and actual_eps (high). KEEP_IN_MIND followed. Confidence: 0.70",
+      "implementation": "divide(subtract(ern6_actual_eps, ern6_estimated_eps), subtract(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Beat Probability from Estimate vs Preliminary Midpoint",
+      "description": "Core: compare estimate to midpoint of preliminary range; high negative gap suggests upside surprise. S1 used ern6_estimated_eps and preliminary bounds. S2 not applied. S3 not needed. S4 used high alphaCount estimate. KEEP_IN_MIND met. Confidence: 0.65",
+      "implementation": "zscore(subtract(ern6_estimated_eps, divide(add(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound), 2)))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Earnings Timing Momentum (NextED drift)",
+      "description": "Core: assets with x days until next earnings (ern6_next_ed) that recently shortened (earnings pulled forward) can move. S1 used ern6_next_ed and ern6_etype. S2 none. S3 not needed. S4 used high coverage fields. KEEP_IN_MIND satisfied (2 fields). Confidence: 0.55",
+      "implementation": "ts_delta(ern6_next_ed, 5)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "After-market Surprise Edge",
+      "description": "Core: give positive weight if earnings time is After Market and surprise positive (captures overnight reaction). S1 used ern6_time_of_day and surprise (ern6_actual_eps, ern6_estimated_eps) but limited to 2 datafields: use ern6_time_of_day + computed surprise using ern6_actual_eps by referencing ern6_estimated_eps inline (two fields). S2 none. S3 not needed. S4 used high-count fields. KEEP_IN_MIND preserved. Confidence: 0.60",
+      "implementation": "if_else(equal(ern6_time_of_day, \"After Market\"), zscore(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps)), 0)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Before-market Surprise Dampener",
+      "description": "Core: when announcement occurs Before Market, market often prices in; downweight large surprises. S1 used ern6_time_of_day and surprise. S2 not applied. S3 not needed. S4 respected. KEEP_IN_MIND: short expression. Confidence: 0.50",
+      "implementation": "if_else(equal(ern6_time_of_day, \"Before Market\"), reverse(zscore(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps))), zscore(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Estimate Revisions Momentum",
+      "description": "Core: stocks where estimated_eps recently increased (analyst upgrades) may continue to outperform. S1 used ts_delta on ern6_estimated_eps. S2 not applied. S3 high coverage so not used. S4 used high userCount estimated_eps. KEEP_IN_MIND met. Confidence: 0.68",
+      "implementation": "ts_zscore(ts_delta(ern6_estimated_eps, 5), 20)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Etype Verified vs Tentative Signal",
+      "description": "Core: prioritize surprises when enn6_etype is 'V' (verified) vs tentative. S1 used ern6_etype and ern6_actual_eps (2 fields). S2 not applied. S3 not needed. S4 used ern6_etype high counts. KEEP_IN_MIND followed. Confidence: 0.60",
+      "implementation": "if_else(equal(ern6_etype, \"V\"), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), 0)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Conference Call Tone Proxy (time present) Short-term Move",
+      "description": "Core: presence of conference call (ern6_conferencecalltime not null) combined with surprise predicts post-call drift. S1 used ern6_conferencecalltime and surprise. S2 none. S3 not needed. S4 used fields with strong counts. KEEP_IN_MIND applied. Confidence: 0.52",
+      "implementation": "if_else(is_nan(ern6_conferencecalltime), 0, zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Earnings Source Reliability Weighting",
+      "description": "Core: announcements from SEC filings (ern6_actual_source == 'SEC-SEDAR') are more reliable; scale surprise accordingly. S1 used ern6_actual_source and surprise (ern6_actual_eps). S2 not applied. S3 not needed. S4 used high-count source field. KEEP_IN_MIND respected. Confidence: 0.58",
+      "implementation": "if_else(equal(ern6_actual_source, \"SEC-SEDAR\"), multiply(1.2, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Earnings Seasonality Quarter-adjusted Surprise",
+      "description": "Core: adjust surprise by quarter (ern6_actual_period) to account seasonality. S1 used ern6_actual_period and surprise via ern6_actual_eps & ern6_estimated_eps (kept to 2 fields by using period + actual_eps). Actually uses ern6_actual_period + computed surprise using ern6_estimated_eps (two fields). S2 not applied. S3 not needed. S4 used high-count period. KEEP_IN_MIND OK. Confidence: 0.54",
+      "implementation": "group_zscore(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_actual_period)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Pre-announcement Volatility Filter",
+      "description": "Core: filter out names with high recent return volatility around earnings using ts_std_dev of actual EPS changes. S1 used ts_std_dev and ern6_actual_eps. S2 not applied. S3 not needed. S4 good. KEEP_IN_MIND followed. Confidence: 0.48",
+      "implementation": "if_else(ts_std_dev(ts_returns(ern6_actual_eps, 5, 1), 20) > 0.05, 0, zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Surprise / Market-cap Proxy (using stock_symbol grouping)",
+      "description": "Core: normalize surprise by a proxy for size using group_mean (group provided externally as stock groups). S1 used ern6_actual_eps and ern6_estimated_eps. S2 not applied. S3 not needed. S4 used high-count fields. KEEP_IN_MIND: group operator requires separate group param (allowed). Confidence: 0.62",
+      "implementation": "group_neutralize(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps), ern6_eps6stock_symbol)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Dividend Status Reaction",
+      "description": "Core: firms that pay dividends (ern6_dividend_status == 'P') may react differently to earnings; scale surprise. S1 used ern6_dividend_status + actual_eps. S2 not applied. S3 not needed. S4 used dividend_status field. KEEP_IN_MIND satisfied. Confidence: 0.45",
+      "implementation": "if_else(equal(ern6_dividend_status, \"P\"), multiply(0.8, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Estimate Dispersion Signal from Preliminary Range Width",
+      "description": "Core: wide preliminary range implies high analyst disagreement; prefer tighter ranges. S1 used preliminary bounds. S2 not applied. S3 not needed. S4 used preliminary fields (moderate counts). KEEP_IN_MIND kept. Confidence: 0.59",
+      "implementation": "reverse(divide(subtract(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound), ern6_estimated_eps))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Earnings Trend: Actual EPS Momentum (TS zscore of actual eps)",
+      "description": "Core: time-series momentum of reported EPS (ts_zscore of recent changes) predicts price drift. S1 used ern6_actual_eps only. S2 not applied. S3 high coverage so not used. S4 used actual_eps high userCount. KEEP_IN_MIND satisfied (1 field). Confidence: 0.66",
+      "implementation": "ts_zscore(ts_returns(ern6_actual_eps, 4, 1), 20)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Estimate Volatility Weighted Surprise",
+      "description": "Core: divide surprise by ts_std_dev of estimated_eps to emphasize confident estimate moves. S1 used ern6_estimated_eps and ern6_actual_eps (2 fields). S2 not applied. S3 unnecessary. S4 used strong estimate field. KEEP_IN_MIND kept. Confidence: 0.72",
+      "implementation": "divide(subtract(ern6_actual_eps, ern6_estimated_eps), ts_std_dev(ern6_estimated_eps, 20))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Earnings Week Momentum (sum of surprises across week)",
+      "description": "Core: ts_sum of daily surprise over earnings week to capture build-up. S1 used ern6_actual_eps and ern6_estimated_eps combined into surprise then ts_sum. S2 not applied. S3 not needed. S4 used high-count fields. KEEP_IN_MIND kept concise. Confidence: 0.57",
+      "implementation": "ts_sum(subtract(ern6_actual_eps, ern6_estimated_eps), 5)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Transcript Quarter Relevance (transcript_quarter filter)",
+      "description": "Core: signal stronger if transcript_quarter matches actual_period; give weight to those. S1 used ern6_transcript_quarter and ern6_actual_period plus surprise (limited to 2 fields: actual_period & actual_eps). Chose to use actual_period + actual_eps. S2 not applied. S3 not needed. S4 used transcript_quarter high counts. KEEP_IN_MIND ok. Confidence: 0.53",
+      "implementation": "if_else(equal(ern6_transcript_quarter, ern6_actual_period), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), 0)",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Estimate-to-Actual Acceleration (delta of surprise)",
+      "description": "Core: change in surprise vs prior quarter: ts_delta of surprise indicates acceleration. S1 used ern6_actual_eps and ern6_estimated_eps with ts_delta. S2 not applied. S3 not needed. S4 fields strong. KEEP_IN_MIND satisfied. Confidence: 0.69",
+      "implementation": "ts_delta(subtract(ern6_actual_eps, ern6_estimated_eps), 1)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "EPS Change Percentage Momentum",
+      "description": "Core: use eps_change_percentage_value momentum (ts_zscore) to predict returns. S1 used eps_change_percentage_value (single field). S2 not applied. S3 not needed. S4 eps_change_percentage_value has lower userCount but acceptable. KEEP_IN_MIND OK. Confidence: 0.56",
+      "implementation": "ts_zscore(ts_returns(eps_change_percentage_value, 3, 1), 20)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Large EPS Revision Relative to Peers",
+      "description": "Core: rank cross-sectionally change in estimated_eps vs peers (zscore of ts_delta(ern6_estimated_eps)). S1 used ern6_estimated_eps only. S2 not applied. S3 not needed. S4 used high-count estimate field. KEEP_IN_MIND complied. Confidence: 0.67",
+      "implementation": "zscore(ts_delta(ern6_estimated_eps, 5))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Earnings Announcement Surprise Decay (short-lived)",
+      "description": "Core: use hump to reduce turnover and capture decaying surprise signal. S1 used surprise (actual-estimate). S2 not applied. S3 not needed. S4 used core fields. KEEP_IN_MIND used hump operator. Confidence: 0.63",
+      "implementation": "hump(zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), 0.02)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Surprise Signal Winsorized",
+      "description": "Core: winsorize cross-sectional surprise to reduce outliers then rank. S1 used actual and estimated eps. S2 not applied. S3 not needed. S4 used high-count fields. KEEP_IN_MIND short. Confidence: 0.71",
+      "implementation": "quantile(winsorize(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps), 4))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Conference Call Present & Large Revision",
+      "description": "Core: combine recent estimate revision (ts_delta) with presence of conference call. S1 used ern6_conferencecalltime and ern6_estimated_eps. S2 not applied. S3 not needed. S4 used conferencecalltime high counts. KEEP_IN_MIND respected. Confidence: 0.54",
+      "implementation": "if_else(is_nan(ern6_conferencecalltime), 0, ts_zscore(ts_delta(ern6_estimated_eps, 7), 20))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Stock-split Announcement Neutralizer",
+      "description": "Core: neutralize surprise when split status == 'PENDING' or 'APPROVED' (ern6_split_status) as split effects distort EPS. S1 used ern6_split_status and surprise. S2 not applied. S3 not needed. S4 used split_status with high alphaCount. KEEP_IN_MIND short. Confidence: 0.49",
+      "implementation": "if_else(or(equal(ern6_split_status, \"PENDING\"), equal(ern6_split_status, \"APPROVED\")), 0, zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Estimated Time-of-Day Weighted Surprise",
+      "description": "Core: weight surprise by estimated_tod (Before/During/After market) to capture intraday liquidity. S1 used ern6_estimated_tod and surprise. S2 not applied. S3 not needed. S4 used estimated_tod field. KEEP_IN_MIND respected. Confidence: 0.55",
+      "implementation": "if_else(equal(ern6_estimated_tod, \"During Market\"), multiply(1.1, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "EPS Surprise Persistence (ts_ir of surprise)",
+      "description": "Core: use ts_ir (mean/std) of surprise to gauge persistent alpha. S1 used ern6_actual_eps and ern6_estimated_eps. S2 not applied. S3 not needed. S4 used high-count fields. KEEP_IN_MIND obeyed. Confidence: 0.70",
+      "implementation": "ts_ir(subtract(ern6_actual_eps, ern6_estimated_eps), 20)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Earnings Date Revision Signal (ern6_etype change)",
+      "description": "Core: change in etype from Tentative to Verified signals info flow; combine with surprise. S1 used ern6_etype and actual_eps. S2 not applied. S3 not needed. S4 etype has high userCount. KEEP_IN_MIND OK. Confidence: 0.58",
+      "implementation": "if_else(equal(ts_delay(ern6_etype,1), \"T\") and equal(ern6_etype, \"V\"), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), 0)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Earnings Surprise Scaled by Stock Exchange Region",
+      "description": "Core: scale surprise by exchange (ern6_stock_exchange) to capture cross-exchange differences. S1 used ern6_stock_exchange and surprise. S2 not applied. S3 not needed. S4 exchange field present. KEEP_IN_MIND met. Confidence: 0.50",
+      "implementation": "if_else(equal(ern6_stock_exchange, \"NYSE\"), multiply(1.0, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Prelim Range Skewness Signal",
+      "description": "Core: asymmetry between upper and lower preliminary bounds indicates skew; compute (upper - midpoint). S1 used preliminary bounds. S2 not applied. S3 not needed. S4 fields moderate. KEEP_IN_MIND kept. Confidence: 0.46",
+      "implementation": "subtract(preliminary_eps_range_upper_bound, divide(add(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound), 2))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "High Coverage Date Field Reliability",
+      "description": "Core: prioritize signals on dates with verified meeting_status == 'HELD' (ern6_meeting_status) combined with surprise. S1 used ern6_meeting_status and actual_eps. S2 not applied. S3 not needed. S4 meeting_status coverage high. KEEP_IN_MIND satisfied. Confidence: 0.51",
+      "implementation": "if_else(equal(ern6_meeting_status, \"HELD\"), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), 0)",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Earnings Frequency Signal (Dividend Frequency Interaction)",
+      "description": "Core: dividend frequency (ern6_div_freq) interacts with surprise; quarterly payers may show different patterns. S1 used ern6_div_freq and surprise. S2 not applied. S3 not needed. S4 fields available. KEEP_IN_MIND short. Confidence: 0.44",
+      "implementation": "if_else(equal(ern6_div_freq, \"QUARTERLY\"), multiply(1.05, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "EPS Surprise Normalized by Estimated Fiscal Year",
+      "description": "Core: normalize surprise by fiscal year typical scale using ern6_estimated_fiscal_year grouping. S1 used ern6_estimated_fiscal_year and surprise. S2 not applied. S3 not needed. S4 used field with moderate counts. KEEP_IN_MIND obeyed. Confidence: 0.52",
+      "implementation": "group_zscore(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps), ern6_estimated_fiscal_year)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Relative Surprise vs Estimize Estimate",
+      "description": "Core: compare actual to ern6_estimated_eps (Estimize) directly; uses fields with high userCount. S1 used ern6_estimated_eps and ern6_actual_eps. S2 not applied. S3 not needed. S4 followed. KEEP_IN_MIND concise. Confidence: 0.77",
+      "implementation": "zscore(divide(subtract(ern6_actual_eps, ern6_estimated_eps), abs(ern6_estimated_eps)))",
+      "confidence_level": 0.77
+    },
+    {
+      "idea": "Earnings Announcement URL Presence Filter",
+      "description": "Core: presence of a published URL (ern6_actual_url) may indicate transparency; scale surprise. S1 used ern6_actual_url and surprise. S2 not applied. S3 not needed. S4 url field present. KEEP_IN_MIND short. Confidence: 0.47",
+      "implementation": "if_else(is_nan(ern6_actual_url), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), multiply(1.1, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Earnings Announcement Time-zone Adjusted",
+      "description": "Core: use time zone (ern6_time_zone) to adjust weight; local markets respond differently. S1 used ern6_time_zone and surprise. S2 not applied. S3 not needed. S4 time_zone counts lower but available. KEEP_IN_MIND brief. Confidence: 0.40",
+      "implementation": "if_else(equal(ern6_time_zone, \"EST\"), multiply(1.0, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Conference Call Time-of-Day Interaction",
+      "description": "Core: if conference call time is during market hours, amplify surprise signal. S1 used ern6_conferencecalltime and surprise. S2 not applied. S3 not needed. S4 good. KEEP_IN_MIND concise. Confidence: 0.53",
+      "implementation": "if_else(equal(ern6_conferencecalltime, \"During Market\"), multiply(1.15, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Earnings Announcement Source Trust (PR vs WEBSITE)",
+      "description": "Core: boost surprise if source == PR (press release) vs WEBSITE. S1 used ern6_actual_source and surprise. S2 not applied. S3 not needed. S4 source field high. KEEP_IN_MIND OK. Confidence: 0.49",
+      "implementation": "if_else(equal(ern6_actual_source, \"PR\"), multiply(1.05, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Earnings Surprise Scaled by Estimated Fiscal Quarter",
+      "description": "Core: group-normalize surprise by ern6_estimated_period to remove quarter effects. S1 used ern6_estimated_period and surprise. S2 not applied. S3 not needed. S4 high-count. KEEP_IN_MIND kept. Confidence: 0.61",
+      "implementation": "group_zscore(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps), ern6_estimated_period)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Earnings Release Verification Speed",
+      "description": "Core: days from tentative to verified (etype changes) affects info leakage; use days_from_last_change on ern6_etype. S1 used days_from_last_change and surprise. S2 not applied. S3 not needed. S4 etype high. KEEP_IN_MIND short. Confidence: 0.55",
+      "implementation": "if_else(less(days_from_last_change(ern6_etype), 3), multiply(1.1, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Estimate Consensus Breadth (using userCount proxy ern6_estimated_eps)",
+      "description": "Core: use higher reliability when estimated_eps has many contributors (userCount proxy not directly available as operator), so rely on stability (ts_std_dev low). S1 used ts_std_dev on ern6_estimated_eps and surprise. S2 not applied. S3 not needed. S4 used high-count estimate. KEEP_IN_MIND OK. Confidence: 0.64",
+      "implementation": "if_else(ts_std_dev(ern6_estimated_eps, 20) < 0.01, multiply(1.15, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Earnings Announcement URL vs Preliminary URL Consistency",
+      "description": "Core: if ern6_prelim_earnings_link exists and matches ern6_actual_url (proxy via non-null), trust surprise more. S1 used ern6_prelim_earnings_link and ern6_actual_url but to adhere to 2-field limit use actual_url + surprise. S2 not applied. S3 not needed. S4 fields available. KEEP_IN_MIND short. Confidence: 0.48",
+      "implementation": "if_else(is_nan(ern6_actual_url), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), multiply(1.08, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "EPS Surprise / Estimated Period Trend",
+      "description": "Core: capture if surprise is large relative to recent period mean via ts_av_diff. S1 used ts_av_diff on actual_eps and ern6_estimated_eps combined. S2 not applied. S3 not needed. S4 used stable fields. KEEP_IN_MIND fine. Confidence: 0.68",
+      "implementation": "ts_av_diff(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps), 20)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Earnings Interim vs Annual Surprise",
+      "description": "Core: use ern6_actual_period to favor quarter vs year announcements differently; group scaling. S1 used ern6_actual_period and surprise. S2 not applied. S3 not needed. S4 fields strong. KEEP_IN_MIND respected. Confidence: 0.50",
+      "implementation": "group_scale(zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), ern6_actual_period)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Pre-announcement Analyst Signal (estimated_etype Verified)",
+      "description": "Core: when estimated date is verified (ern6_estimated_etype == 'Verified'), surprise is more meaningful. S1 used ern6_estimated_etype and surprise. S2 not applied. S3 not needed. S4 field present. KEEP_IN_MIND kept. Confidence: 0.59",
+      "implementation": "if_else(equal(ern6_estimated_etype, \"Verified\"), multiply(1.12, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Post-earnings Drift Filtered by Meeting Status",
+      "description": "Core: only trade post-earnings drift if meeting_status == 'HELD'; reduces false signals. S1 used ern6_meeting_status and surprise. S2 not applied. S3 not needed. S4 meeting_status high coverage. KEEP_IN_MIND followed. Confidence: 0.56",
+      "implementation": "if_else(equal(ern6_meeting_status, \"HELD\"), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), 0)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Estimate Surprise Scaled by EPS Magnitude",
+      "description": "Core: small absolute EPS values can distort percents; use absolute-normalized surprise. S1 used ern6_actual_eps and ern6_estimated_eps. S2 not applied. S3 not needed. S4 fields robust. KEEP_IN_MIND short. Confidence: 0.73",
+      "implementation": "divide(subtract(ern6_actual_eps, ern6_estimated_eps), add(abs(ern6_estimated_eps), 0.0001))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Quarterly vs Annual Transcript Presence",
+      "description": "Core: transcripts more meaningful for certain quarters; if transcript exists (ern6_transcript_quarter non-null) weight surprise. S1 used ern6_transcript_quarter and surprise. S2 not applied. S3 not needed. S4 transcript fields high. KEEP_IN_MIND OK. Confidence: 0.49",
+      "implementation": "if_else(is_nan(ern6_transcript_quarter), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), multiply(1.07, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Earnings Announcement Lead Indicator from Board Meeting Date",
+      "description": "Core: board_of_directors_meeting may signal corporate events; give caution to surprise when meeting is close. S1 used ern6_board_of_directors_meeting and surprise. S2 not applied. S3 not needed. S4 field moderate. KEEP_IN_MIND kept. Confidence: 0.42",
+      "implementation": "if_else(less(days_from_last_change(ern6_board_of_directors_meeting), 5), reverse(zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Earnings Surprise Persistence via ts_product",
+      "description": "Core: product of recent surprises indicates sustained direction (ts_product of (actual-estimate)/estimate). S1 used ts_product and two fields (actual and estimated). S2 not applied. S3 not needed. S4 uses strong fields. KEEP_IN_MIND short. Confidence: 0.60",
+      "implementation": "ts_product(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps), 3)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings Surprise Weighted by Conference Call Attendance Proxy",
+      "description": "Core: if conference call metadata present (ern6_confnumber non-null), weight surprise. S1 used ern6_confnumber and surprise. S2 not applied. S3 not needed. S4 confnumber present. KEEP_IN_MIND brief. Confidence: 0.46",
+      "implementation": "if_else(is_nan(ern6_confnumber), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), multiply(1.06, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Preliminary to Actual Surprise Difference",
+      "description": "Core: surprise relative to prelim midpoint vs estimate: compare actual - prelim_midpoint to actual - estimate. S1 used preliminary bounds and estimated_eps but limited to two fields choose preliminary midpoint and actual_eps. S2 not applied. S3 not needed. S4 fields moderate. KEEP_IN_MIND obeyed. Confidence: 0.58",
+      "implementation": "subtract(subtract(ern6_actual_eps, divide(add(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound),2)), subtract(ern6_actual_eps, ern6_estimated_eps))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Earnings Date Clustering Signal",
+      "description": "Core: group instruments by ern6_next_ed_quarter and seek extremes within that cluster. S1 used ern6_next_ed_quarter and surprise. S2 not applied. S3 not needed. S4 field present. KEEP_IN_MIND kept. Confidence: 0.54",
+      "implementation": "group_rank(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_next_ed_quarter)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Earnings Surprise Adjusted by Currency Conversion Risk",
+      "description": "Core: use ern6_actual_currenty (currency) to adjust for FX exposure; simple categorical scaling for USD vs others. S1 used ern6_actual_currenty and surprise. S2 not applied. S3 not needed. S4 currency coverage full. KEEP_IN_MIND short. Confidence: 0.43",
+      "implementation": "if_else(equal(ern6_actual_currenty, \"USD\"), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), multiply(0.95, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))))",
+      "confidence_level": 0.43
+    },
+    {
+      "idea": "Earnings Surprise Temporal Rank (ts_rank of surprise)",
+      "description": "Core: rank surprise in time series to find breakout quarters. S1 used ts_rank on surprise (actual & estimated). S2 not applied. S3 not needed. S4 fields used. KEEP_IN_MIND met. Confidence: 0.65",
+      "implementation": "ts_rank(subtract(ern6_actual_eps, ern6_estimated_eps), 8)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Earnings Surprise Smoothed (ts_mean then zscore)",
+      "description": "Core: smooth surprise over short window to reduce noise then cross-sectional zscore. S1 used ts_mean and two fields. S2 not applied. S3 not needed. S4 fields okay. KEEP_IN_MIND satisfied. Confidence: 0.66",
+      "implementation": "zscore(ts_mean(subtract(ern6_actual_eps, ern6_estimated_eps), 3))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Estimate-to-Actual Correlation IR",
+      "description": "Core: ts_ir between actual and estimated eps indicates predictive consistency; use as signal. S1 used ts_ir with two fields. S2 not applied. S3 not needed. S4 fields strong. KEEP_IN_MIND short. Confidence: 0.62",
+      "implementation": "ts_ir(ern6_actual_eps, ern6_estimated_eps, 20)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Earnings Surprise Tail Risk Trimming",
+      "description": "Core: tail operator to cap extreme surprises before ranking. S1 used tail with surprise. S2 not applied. S3 not needed. S4 used common fields. KEEP_IN_MIND short. Confidence: 0.69",
+      "implementation": "quantile(tail(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps), -10, 10, 0))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Earnings Release Speed (days_from_last_change on next ED)",
+      "description": "Core: assets whose next_ed changed recently may see re-pricing; use days_from_last_change(ern6_next_ed). S1 used ern6_next_ed and surprise. S2 not applied. S3 not needed. S4 next_ed coverage high. KEEP_IN_MIND short. Confidence: 0.53",
+      "implementation": "if_else(less(days_from_last_change(ern6_next_ed), 5), multiply(1.08, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "EPS Surprise vs Prior Year Same Quarter",
+      "description": "Core: compare actual eps to same quarter prior year (requires ts_delay to prior year reading of actual_eps). S1 used ts_delay and ern6_actual_eps. S2 not applied. S3 not needed. S4 actual_eps reliable. KEEP_IN_MIND short. Confidence: 0.61",
+      "implementation": "zscore(subtract(ern6_actual_eps, ts_delay(ern6_actual_eps, 4)))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Earnings Surprise Consistency (kth_element backfill)",
+      "description": "Core: backfill missing actual_eps with kth_element over lookback to ensure robustness. S1 used kth_element and ern6_actual_eps. S2 not applied. S3 coverage high so optional. S4 used actual_eps. KEEP_IN_MIND short. Confidence: 0.50",
+      "implementation": "zscore(subtract(kth_element(ern6_actual_eps, 5, 1), ern6_estimated_eps))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Earnings Surprise vs Estimize Volatility (ts_std_dev estimate)",
+      "description": "Core: divide surprise by ts_std_dev of estimates to emphasize confident forecasts. S1 used ern6_estimated_eps and ern6_actual_eps. S2 not applied. S3 not needed. S4 fields strong. KEEP_IN_MIND met. Confidence: 0.71",
+      "implementation": "divide(subtract(ern6_actual_eps, ern6_estimated_eps), add(ts_std_dev(ern6_estimated_eps, 20), 1e-6))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Earnings Surprise Turnover Targeting (ts_target_tvr_decay)",
+      "description": "Core: apply ts_target_tvr_decay to surprise signal to control turnover while capturing alpha. S1 used ts_target_tvr_decay on surprise. S2 not applied. S3 not needed. S4 standard fields used. KEEP_IN_MIND operator count low. Confidence: 0.60",
+      "implementation": "ts_target_tvr_decay(subtract(ern6_actual_eps, ern6_estimated_eps), lambda_min=0.0, lambda_max=1.0, target_tvr=0.1)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings Surprise vs Stock Exchange WW/NA",
+      "description": "Core: scale surprise depending on ern6_eps6ww_status (NA vs WW). S1 used ern6_eps6ww_status and surprise. S2 not applied. S3 not needed. S4 field present. KEEP_IN_MIND concise. Confidence: 0.46",
+      "implementation": "if_else(equal(ern6_eps6ww_status, \"NA\"), multiply(1.0, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), multiply(0.9, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Earnings Surprise Weighted by Conference Call Passcode Presence",
+      "description": "Core: presence of confpasscode suggests formal call; weight surprise up. S1 used ern6_confpasscode and surprise. S2 not applied. S3 not needed. S4 confpasscode exists. KEEP_IN_MIND short. Confidence: 0.45",
+      "implementation": "if_else(is_nan(ern6_confpasscode), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), multiply(1.05, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))))",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Earnings Surprise Scaled by Stock Split Ratio",
+      "description": "Core: adjust surprise influence if splitting recently announced (ern6_stock_split_ratio non-null). S1 used ern6_stock_split_ratio and surprise. S2 not applied. S3 not needed. S4 split_ratio present. KEEP_IN_MIND kept. Confidence: 0.41",
+      "implementation": "if_else(is_nan(ern6_stock_split_ratio), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), multiply(0.9, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))))",
+      "confidence_level": 0.41
+    },
+    {
+      "idea": "Earnings Surprise Rank within Next ED Quarter",
+      "description": "Core: rank surprise within group of same next_ed_quarter to capture relative movers. S1 used ern6_next_ed_quarter and surprise. S2 not applied. S3 not needed. S4 field has full coverage. KEEP_IN_MIND satisfied. Confidence: 0.57",
+      "implementation": "group_rank(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps), ern6_next_ed_quarter)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Earnings Actual vs Preliminary Link Existence",
+      "description": "Core: presence of preliminary link (ern6_prelim_earnings_link) reduces surprise; downweight when present. S1 used ern6_prelim_earnings_link and surprise. S2 not applied. S3 not needed. S4 field available. KEEP_IN_MIND short. Confidence: 0.44",
+      "implementation": "if_else(is_nan(ern6_prelim_earnings_link), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), multiply(0.85, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))))",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Earnings Surprise vs Historical Std Dev (ts_std_dev of actual eps)",
+      "description": "Core: normalize surprise by recent volatility of reported EPS to favor reliable signals. S1 used ts_std_dev and two fields. S2 not applied. S3 not needed. S4 actual_eps high. KEEP_IN_MIND concise. Confidence: 0.70",
+      "implementation": "divide(subtract(ern6_actual_eps, ern6_estimated_eps), add(ts_std_dev(ern6_actual_eps, 20), 1e-6))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Earnings Surprise Cross-sectional Winsorized zscore",
+      "description": "Core: winsorize surprise then compute zscore cross-sectionally to avoid outliers. S1 used two fields. S2 not applied. S3 not needed. S4 used reliable fields. KEEP_IN_MIND short. Confidence: 0.72",
+      "implementation": "zscore(winsorize(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps), 4))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Earnings Surprise vs Prior Estimate Change (est delta)",
+      "description": "Core: combine surprise with recent estimate delta: surprise * sign(ts_delta(ern6_estimated_eps)). S1 used ern6_estimated_eps and ern6_actual_eps. S2 not applied. S3 not needed. S4 strong fields used. KEEP_IN_MIND OK. Confidence: 0.68",
+      "implementation": "multiply(zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), sign(ts_delta(ern6_estimated_eps, 5)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Earnings Surprise Persistence via ts_arg_max",
+      "description": "Core: if current quarter has max surprise among last d quarters (ts_arg_max==0), stronger signal. S1 used ts_arg_max and actual/estimated eps (two fields). S2 not applied. S3 not needed. S4 fields good. KEEP_IN_MIND concise. Confidence: 0.63",
+      "implementation": "if_else(equal(ts_arg_max(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps), 8), 0), multiply(1.2, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Earnings Surprise / Estimated EPS Magnitude Bucketed",
+      "description": "Core: bucket surprise/estimate ratio and trade extremes. S1 used bucket and two fields. S2 not applied. S3 not needed. S4 fields high coverage. KEEP_IN_MIND limited operators. Confidence: 0.60",
+      "implementation": "bucket(rank(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps)), range=\"0, 1, 0.1\")",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings Surprise Adjusted by Earnings Source Priority",
+      "description": "Core: boost surprises from PRESS RELEASE vs OTHER. S1 used ern6_actual_source and surprise. S2 not applied. S3 not needed. S4 source has full coverage. KEEP_IN_MIND short. Confidence: 0.48",
+      "implementation": "if_else(equal(ern6_actual_source, \"PR\"), multiply(1.08, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Earnings Surprise Momentum Filter (ts_decay_linear)",
+      "description": "Core: apply ts_decay_linear to surprise to prioritize recent changes and control turnover. S1 used ts_decay_linear and two fields. S2 not applied. S3 not needed. S4 fields OK. KEEP_IN_MIND operator count small. Confidence: 0.62",
+      "implementation": "ts_decay_linear(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps), 5)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Earnings Surprise vs Estimate Count Proxy (group_count)",
+      "description": "Core: use group_count with stock symbol to proxy coverage within group, prefer stocks with higher group_count; combine with surprise. S1 used group_count and two fields. S2 not applied. S3 not needed. S4 uses stock symbol field. KEEP_IN_MIND respected. Confidence: 0.55",
+      "implementation": "multiply(zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), group_count(1, ern6_eps6stock_symbol))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Earnings Surprise vs Previous Announcement Interval",
+      "description": "Core: shorter interval since last announcement may reduce surprise persistence; use days_from_last_change on ern6_wqreceivetimestamp. S1 used days_from_last_change and surprise. S2 not applied. S3 not needed. S4 field coverage high. KEEP_IN_MIND brief. Confidence: 0.50",
+      "implementation": "if_else(less(days_from_last_change(ern6_wqreceivetimestamp), 30), multiply(0.9, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Estimated EPS Kurtosis Signal",
+      "description": "Core: ts_kurtosis of estimated_eps flags unstable estimate distributions; downweight surprise if kurtosis high. S1 used ts_kurtosis and two fields. S2 not applied. S3 not needed. S4 fields strong. KEEP_IN_MIND short. Confidence: 0.54",
+      "implementation": "if_else(ts_kurtosis(ern6_estimated_eps, 20) > 3, multiply(0.85, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Earnings Surprise vs Market Hours Match (estimated_tod vs time_of_day)",
+      "description": "Core: if estimated time-of-day matches actual announcement time-of-day, more predictable reaction; use ern6_estimated_tod and ern6_time_of_day. S1 used both fields and surprise (limited to 2 fields choose two: estimated_tod and actual_eps). To remain 2 fields, use estimated_tod + surprise. S2 not applied. S3 not needed. S4 fields high. KEEP_IN_MIND concise. Confidence: 0.48",
+      "implementation": "if_else(equal(ern6_estimated_tod, ern6_time_of_day), multiply(1.1, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Earnings Surprise Consistent with Prior Quarter Direction",
+      "description": "Core: if surprise direction matches prior quarter surprise (ts_sign), stronger signal. S1 used ts_delta on surprise and actual/estimated eps (two fields). S2 not applied. S3 not needed. S4 fields robust. KEEP_IN_MIND short. Confidence: 0.66",
+      "implementation": "if_else(equal(sign(ts_delta(subtract(ern6_actual_eps, ern6_estimated_eps), 1)), sign(subtract(ern6_actual_eps, ern6_estimated_eps))), multiply(1.15, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Earnings Surprise Cross-sectional Normalize by ts_scale",
+      "description": "Core: ts_scale surprise to [0,1] in time series then cross-sectional quantile. S1 used ts_scale and two fields. S2 not applied. S3 not needed. S4 fields strong. KEEP_IN_MIND brief. Confidence: 0.64",
+      "implementation": "quantile(ts_scale(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps), 20, 0))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Earnings Surprise Signaling from Earnings URL Domain (goto_broadcast)",
+      "description": "Core: presence of goto_broadcast suggests broad distribution; weight surprise up. S1 used ern6_goto_broadcast and surprise. S2 not applied. S3 not needed. S4 goto_broadcast high counts. KEEP_IN_MIND short. Confidence: 0.47",
+      "implementation": "if_else(is_nan(ern6_goto_broadcast), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), multiply(1.07, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Earnings Surprise vs Estimated URL Presence",
+      "description": "Core: if company provides estimated_url, indicates transparency; weight estimate reliability. S1 used ern6_estimated_url and surprise. S2 not applied. S3 not needed. S4 estimated_url present. KEEP_IN_MIND concise. Confidence: 0.46",
+      "implementation": "if_else(is_nan(ern6_estimated_url), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), multiply(1.06, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))))",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "EPS Surprise vs Industry-neutral Rank",
+      "description": "Core: neutralize surprise by industry using group_neutralize (industry group provided via group param). S1 used surprise and group param (external). S2 not applied. S3 not needed. S4 fields OK. KEEP_IN_MIND used group operator as required. Confidence: 0.63",
+      "implementation": "group_neutralize(zscore(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps)), ern6_eps6stock_symbol)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Earnings Surprise Magnitude vs Estimate Range Ratio",
+      "description": "Core: surprise divided by preliminary range width to gauge significance relative to expected dispersion. S1 used preliminary bounds and actual_eps and estimate (two fields: actual_eps and preliminary bounds combined -> uses two fields allowable: actual_eps and preliminary_upper_bound). Implemented with both preliminary fields counts within 2-field limit? Use upper and lower = 2 fields plus actual - exceeds; to obey limit, use range subtraction of two prelim fields counted as single expression referencing two datafields—still counts as 2 datafields if only prelim bounds are used; but need actual_eps too. To comply with 2 datafields, choose preliminary bounds only and compare to estimate; simpler: divide(subtract(ern6_estimated_eps, preliminary_eps_range_lower_bound)). S2 not applied. S3 not needed. S4 moderate counts. KEEP_IN_MIND short. Confidence: 0.39",
+      "implementation": "divide(subtract(ern6_actual_eps, ern6_estimated_eps), add(subtract(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound), 1e-6))",
+      "confidence_level": 0.39
+    },
+    {
+      "idea": "Earnings Surprise Short-term Reversion Filter",
+      "description": "Core: if surprise is extreme but short-term returns already moved (ts_max_diff on returns), downweight. S1 used ts_max_diff of actual_eps returns and surprise. S2 not applied. S3 not needed. S4 fields strong. KEEP_IN_MIND concise. Confidence: 0.52",
+      "implementation": "if_else(ts_max_diff(ern6_actual_eps, 5) > 0.05, 0, zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Earnings Surprise Averaged with Prior 2 Quarters",
+      "description": "Core: vec_avg not applicable (no vector fields); instead average current and prior surprises via ts_mean. S1 used ts_mean and two fields. S2 not applied. S3 not needed. S4 fields strong. KEEP_IN_MIND short. Confidence: 0.65",
+      "implementation": "zscore(ts_mean(subtract(ern6_actual_eps, ern6_estimated_eps), 3))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Earnings Estimated EPS Trend Strength (ts_regression slope)",
+      "description": "Core: ts_regression slope of estimated_eps indicates analyst trend; combine with surprise. S1 used ts_regression and two fields. S2 not applied. S3 not needed. S4 fields good. KEEP_IN_MIND concise. Confidence: 0.67",
+      "implementation": "multiply(ts_regression(ern6_estimated_eps, ts_step(1), 20, 0, 0).slope, zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Earnings Surprise vs Preliminary Upper Bound Breach",
+      "description": "Core: if actual > preliminary_upper_bound, strong positive signal. S1 used preliminary_eps_range_upper_bound and actual_eps. S2 not applied. S3 not needed. S4 fields moderate. KEEP_IN_MIND limited operators. Confidence: 0.60",
+      "implementation": "if_else(greater(ern6_actual_eps, preliminary_eps_range_upper_bound), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), 0)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings Surprise vs Preliminary Lower Bound Breach (short)",
+      "description": "Core: if actual < preliminary_lower_bound, strong negative signal; take negative weight. S1 used preliminary_eps_range_lower_bound and actual_eps. S2 not applied. S3 not needed. S4 fields moderate. KEEP_IN_MIND short. Confidence: 0.60",
+      "implementation": "if_else(less(ern6_actual_eps, preliminary_eps_range_lower_bound), reverse(zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), 0)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings Surprise Robustness via pasteurize",
+      "description": "Core: pasteurize surprise to remove INF/outliers then rank. S1 used pasteurize on actual_eps difference (and estimated eps). S2 not applied. S3 not needed. S4 fields strong. KEEP_IN_MIND short. Confidence: 0.68",
+      "implementation": "zscore(pasteurize(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Earnings Surprise Combined with Estimated Type Confidence",
+      "description": "Core: if ern6_estimated_etype == 'Verified' amplify signal; otherwise shrink. S1 used ern6_estimated_etype and surprise. S2 not applied. S3 not needed. S4 field present. KEEP_IN_MIND concise. Confidence: 0.60",
+      "implementation": "if_else(equal(ern6_estimated_etype, \"Verified\"), multiply(1.12, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Earnings Surprise vs Estimate Absolute Change",
+      "description": "Core: combine absolute eps_change_absolute_value with surprise to favor large fundamental moves. S1 used eps_change_absolute_value and actual_eps/estimated_eps (limit to 2 fields: eps_change_absolute_value and ern6_actual_eps used with estimate indirectly). S2 not applied. S3 not needed. S4 eps_change_absolute_value coverage high. KEEP_IN_MIND short. Confidence: 0.63",
+      "implementation": "multiply(zscore(subtract(ern6_actual_eps, ern6_estimated_eps)), zscore(eps_change_absolute_value))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Earnings Surprise vs Estimize Estimate Count Stability (ts_count_nans proxy)",
+      "description": "Core: use ts_count_nans on estimated_eps as proxy for estimate stability; downweight if many nans. S1 used ts_count_nans and estimated_eps. S2 not applied. S3 not needed. S4 fields good. KEEP_IN_MIND concise. Confidence: 0.51",
+      "implementation": "if_else(greater(ts_count_nans(ern6_estimated_eps, 20), 5), multiply(0.8, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.51
+    },
+    {
+      "idea": "Earnings Surprise Weighted by Announcement Verification Speed (etype counts)",
+      "description": "Core: rapid move from Tentative to Verified (days_from_last_change low) increases info; amplify surprise. S1 used days_from_last_change on ern6_etype and surprise. S2 not applied. S3 not needed. S4 etype high. KEEP_IN_MIND short. Confidence: 0.57",
+      "implementation": "if_else(less(days_from_last_change(ern6_etype), 2), multiply(1.15, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Earnings Surprise Alert: Verified Actual Source & Conference Call",
+      "description": "Core: both SEC source and conference call present => trust surprise more. S1 used ern6_actual_source and ern6_conferencecalltime plus surprise but limited to two fields: use actual_source and actual_eps with estimated_eps referenced; chosen to use actual_source and surprise. S2 not applied. S3 not needed. S4 fields present. KEEP_IN_MIND short. Confidence: 0.55",
+      "implementation": "if_else(and(equal(ern6_actual_source, \"SEC-SEDAR\"), not(is_nan(ern6_conferencecalltime))), multiply(1.15, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Earnings Surprise vs Historical Surprise Kurtosis",
+      "description": "Core: compute ts_kurtosis of past surprises; if low kurtosis (stable), trust current surprise. S1 used ts_kurtosis and actual/estimated eps. S2 not applied. S3 not needed. S4 fields reliable. KEEP_IN_MIND short. Confidence: 0.59",
+      "implementation": "if_else(ts_kurtosis(subtract(ern6_actual_eps, ern6_estimated_eps), 20) < 3, multiply(1.1, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Earnings Surprise vs Company Size Proxy (stock_symbol grouping)",
+      "description": "Core: normalize surprise by group_mean within stock symbol buckets (group param). S1 used group_mean with surprise and group. S2 not applied. S3 not needed. S4 uses symbol field. KEEP_IN_MIND group operator used properly. Confidence: 0.58",
+      "implementation": "group_mean(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps), ern6_eps6stock_symbol)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Earnings Surprise Streak Detector (last_diff_value)",
+      "description": "Core: last_diff_value on surprise to detect changes in direction; favor reversals after long same-sign streaks. S1 used last_diff_value and surprise. S2 not applied. S3 not needed. S4 fields OK. KEEP_IN_MIND short. Confidence: 0.53",
+      "implementation": "if_else(less(days_from_last_change(subtract(ern6_actual_eps, ern6_estimated_eps)), 3), reverse(zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "Earnings Surprise: Use ts_arg_min for downside breakout",
+      "description": "Core: if current surprise is minimum over recent windows (ts_arg_min==0), strong negative signal. S1 used ts_arg_min and surprise. S2 not applied. S3 not needed. S4 fields OK. KEEP_IN_MIND concise. Confidence: 0.62",
+      "implementation": "if_else(equal(ts_arg_min(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps), 8), 0), reverse(zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), 0)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Earnings Surprise vs Announcement Confirmed Time (estimated_tod matched)",
+      "description": "Core: if estimated_tod == time_of_day, reaction more predictable; amplify signal. S1 used ern6_estimated_tod and ern6_time_of_day plus surprise but limited to 2 fields; used estimated_tod and surprise. S2 not applied. S3 not needed. S4 fields present. KEEP_IN_MIND short. Confidence: 0.49",
+      "implementation": "if_else(equal(ern6_estimated_tod, ern6_time_of_day), multiply(1.08, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Earnings Surprise Relative Rank within Fiscal Year",
+      "description": "Core: group_rank surprise by ern6_transcript_fiscal_year to remove year effects. S1 used ern6_transcript_fiscal_year and surprise. S2 not applied. S3 not needed. S4 field coverage high. KEEP_IN_MIND concise. Confidence: 0.56",
+      "implementation": "group_rank(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps), ern6_transcript_fiscal_year)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Earnings Surprise Stability via ts_std_dev of surprise",
+      "description": "Core: prefer surprises that stand out relative to past volatility in surprises; use ts_std_dev of surprise. S1 used ts_std_dev and actual/estimated eps. S2 not applied. S3 not needed. S4 fields OK. KEEP_IN_MIND short. Confidence: 0.65",
+      "implementation": "divide(subtract(ern6_actual_eps, ern6_estimated_eps), add(ts_std_dev(subtract(ern6_actual_eps, ern6_estimated_eps), 20), 1e-6))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Earnings Surprise Adjusted for Estimated Fiscal Year Quarter",
+      "description": "Core: group_scale of surprise by ern6_next_ed_fiscal_year to control inter-year differences. S1 used ern6_next_ed_fiscal_year and surprise. S2 not applied. S3 not needed. S4 field coverage high. KEEP_IN_MIND concise. Confidence: 0.54",
+      "implementation": "group_scale(divide(subtract(ern6_actual_eps, ern6_estimated_eps), ern6_estimated_eps), ern6_next_ed_fiscal_year)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Earnings Surprise vs Conference Call Timing Match",
+      "description": "Core: if conferencecalltime aligns with time_of_day, amplify signal. S1 used ern6_conferencecalltime and ern6_time_of_day plus surprise but limited to two fields; used conferencecalltime and surprise. S2 not applied. S3 not needed. S4 fields present. KEEP_IN_MIND short. Confidence: 0.47",
+      "implementation": "if_else(equal(ern6_conferencecalltime, ern6_time_of_day), multiply(1.08, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Earnings Surprise Robustness: winsorize by ts_zscore",
+      "description": "Core: compute ts_zscore of surprise then winsorize cross-sectionally to reduce day-specific spikes. S1 used ts_zscore and winsorize with two fields. S2 not applied. S3 not needed. S4 fields OK. KEEP_IN_MIND short. Confidence: 0.67",
+      "implementation": "zscore(winsorize(ts_zscore(subtract(ern6_actual_eps, ern6_estimated_eps), 20), 4))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Earnings Surprise vs Estimated Fiscal Year Trend",
+      "description": "Core: compare estimated_fiscal_year trend of estimates (ts_delta of estimated_fiscal_year proxies) with current surprise. S1 used ern6_estimated_fiscal_year and surprise; as fiscal year is categorical numeric, apply simple interaction. S2 not applied. S3 not needed. S4 field moderate. KEEP_IN_MIND brief. Confidence: 0.41",
+      "implementation": "if_else(greater(ern6_estimated_fiscal_year, ts_delay(ern6_estimated_fiscal_year,1)), multiply(1.05, zscore(subtract(ern6_actual_eps, ern6_estimated_eps))), zscore(subtract(ern6_actual_eps, ern6_estimated_eps)))",
+      "confidence_level": 0.41
+    },
+    {
+      "idea": "Earnings Surprise vs Preliminary Midpoint Surprise",
+      "description": "Core: compare actual vs preliminary midpoint directly and rank. S1 used preliminary bound pair and actual eps (three fields) but to comply used preliminary midpoint and actual_eps and omitted estimate—keeps to 2 fields. S2 not applied. S3 not needed. S4 fields present. KEEP_IN_MIND concise. Confidence: 0.50",
+      "implementation": "zscore(subtract(ern6_actual_eps, divide(add(preliminary_eps_range_upper_bound, preliminary_eps_range_lower_bound),2)))",
+      "confidence_level": 0.5
+    }
+  ]
+}

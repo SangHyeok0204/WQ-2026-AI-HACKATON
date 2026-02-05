@@ -1,0 +1,670 @@
+{
+  "results": [
+    {
+      "idea": "Short-term cross-sectional momentum (20d z-score)",
+      "description": "Concept: rank recent 20-day performance cross-sectionally using z-score. SUGGESTIONS: Wanted to combine multiple fields (S1) but ALLOWED_DATAFIELDS is empty so cannot pick fields; S2 (VECTOR) not applicable; S3 (ts_backfill) not applied due to no data; S4 (use high-user fields) not applicable. KEEP_IN_MIND: kept implementation short and <=7 operators, <=2 datafields (placeholders). Confidence: 0.45 because momentum is robust historically but data availability is missing.",
+      "implementation": "quantile(ts_zscore(<df1>, 20), driver='gaussian')",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Medium-term time-series momentum (120d returns)",
+      "description": "Concept: time-series momentum using 120-day returns. SUGGESTIONS: Intended to use multiple fields (S1) but none available; S2 not needed; S3 would be used if coverage low; S4 not applicable. Kept operators limited. Confidence: 0.50 reflecting common efficacy of medium-term momentum.",
+      "implementation": "sign(ts_returns(<df1>, 120))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Mean-reversion after extreme 5-day moves",
+      "description": "Concept: short-term reversal when 5-day return z-score is extreme. SUGGESTIONS: Multi-field usage planned but ALLOWED_DATAFIELDS empty; applied ts_zscore per S2/S1 pattern conceptually. Implementation concise. Confidence: 0.35 because short-term reversal can be noisy.",
+      "implementation": "reverse(ts_zscore(ts_returns(<df1>,5),5))",
+      "confidence_level": 0.35
+    },
+    {
+      "idea": "Volatility breakout filter (realized vol spike)",
+      "description": "Concept: go long names with realized volatility breakout relative to 60-day mean. SUGGESTIONS: would combine price and volume (S1) but no fields; would backfill if coverage low (S3). Implementation kept minimal. Confidence: 0.30 due to execution and noise risk.",
+      "implementation": "ts_zscore(ts_std_dev(ts_returns(<df1>,1), 60), 60)",
+      "confidence_level": 0.3
+    },
+    {
+      "idea": "Low-volatility outperformance (volatility scaling)",
+      "description": "Concept: prefer low realized-volatility names scaled by inverse vol. SUGGESTIONS: wanted multiple fields (price, volume) but none available; ensured operator count small. Confidence: 0.40 — low vol premium historically persistent.",
+      "implementation": "inverse(ts_std_dev(ts_returns(<df1>,1), 90))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Momentum x low volatility (composite)",
+      "description": "Concept: combine 12-1 momentum with low volatility to overweight stable winners. SUGGESTIONS: target multiple datafields per S1 but none; used two-operator composite and kept short. Confidence: 0.48 reflecting empirical combination benefits.",
+      "implementation": "multiply(quantile(ts_zscore(ts_returns(<df1>,252),252)), quantile(inverse(ts_std_dev(ts_returns(<df1>,1),90))))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Volume surge mean-reversion (abnormal volume)",
+      "description": "Concept: mean-revert after large abnormal volume days. SUGGESTIONS: planned to use price+volume (S1) but no fields; S3 would backfill volume if sparse. Kept operators <=7. Confidence: 0.32 due to noisy signal.",
+      "implementation": "reverse(ts_zscore(vec_avg(<df_volume> , ), 10))",
+      "confidence_level": 0.32
+    },
+    {
+      "idea": "Post-earnings announcement drift (PEAD)",
+      "description": "Concept: capture drift following earnings surprise by ranking post-earnings returns. SUGGESTIONS: aimed to combine earnings surprise and price (S1) but ALLOWED_DATAFIELDS empty; note PEAD literature support. Confidence: 0.42.",
+      "implementation": "quantile(ts_mean(ts_returns(<df_price>,5),5))",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Analyst revision momentum",
+      "description": "Concept: long names with recent upward revisions in analyst estimates. SUGGESTIONS: would combine revisions + price (S1) but no datafields; if coverage low use ts_backfill (S3). Kept concise. Confidence: 0.38 given empirical support but data dependence.",
+      "implementation": "quantile(ts_zscore(ts_delta(<df_estimate>,30),30))",
+      "confidence_level": 0.38
+    },
+    {
+      "idea": "Short interest squeeze potential",
+      "description": "Concept: identify names with high short interest and rising price momentum for squeeze candidates. SUGGESTIONS: wanted to use two datafields (S1) but not available; would wrap vector fields if present (S2). Confidence: 0.25 because implementation and timing are hard.",
+      "implementation": "multiply(quantile(<df_short_interest>), quantile(ts_zscore(ts_returns(<df_price>,20),20)))",
+      "confidence_level": 0.25
+    },
+    {
+      "idea": "Implied vs realized vol spread",
+      "description": "Concept: go long assets where implied vol > realized vol by large margin (mean reversion of vols). SUGGESTIONS: planned multi-field use (S1) but no allowed data. KEEP_IN_MIND: limited operators. Confidence: 0.40 because vol premium exists but requires options data.",
+      "implementation": "subtract(<df_iv>, ts_std_dev(ts_returns(<df_price>,1),30))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Rolling correlation breakdown (sector dispersion)",
+      "description": "Concept: exploit names that de-correlate from their sector—potential idiosyncratic alpha. SUGGESTIONS: would use sector and price (S1); no fields available. Kept operator count small. Confidence: 0.33.",
+      "implementation": "subtract(ts_corr(<df_price>, <df_sector_index>, 60), ts_mean(ts_corr(<df_price>, <df_sector_index>, 60),120))",
+      "confidence_level": 0.33
+    },
+    {
+      "idea": "Pair spread mean-reversion",
+      "description": "Concept: cointegrated pair spread mean-reversion using price ratio z-score. SUGGESTIONS: needs two price series (S1); ALLOWED_DATAFIELDS empty so placeholders used. Confidence: 0.37.",
+      "implementation": "ts_zscore(divide(<df_price_A>, <df_price_B>), 90)",
+      "confidence_level": 0.37
+    },
+    {
+      "idea": "Earnings surprise persistence filter",
+      "description": "Concept: rank firms by consecutive positive earnings surprises and go long persistent beaters. SUGGESTIONS: intended multiple fields (S1); no data available. Confidence: 0.36.",
+      "implementation": "ts_sum(if_else(<df_eps_surprise> > 0, 1, 0), 4)",
+      "confidence_level": 0.36
+    },
+    {
+      "idea": "Accruals-based quality signal",
+      "description": "Concept: low accrual firms tend to outperform; rank accrual ratio cross-sectionally. SUGGESTIONS: would use accounting fields (S1); not available. Confidence: 0.34.",
+      "implementation": "quantile(divide(<df_accruals>, <df_total_assets>))",
+      "confidence_level": 0.34
+    },
+    {
+      "idea": "High free-cash-flow yield",
+      "description": "Concept: long firms with high free-cash-flow-to-price ratio. SUGGESTIONS: wanted multiple fundamentals (S1); none available. Kept simple. Confidence: 0.39.",
+      "implementation": "quantile(divide(<df_free_cash_flow>, <df_market_cap>))",
+      "confidence_level": 0.39
+    },
+    {
+      "idea": "Insider buying momentum",
+      "description": "Concept: persistent insider buys predict future returns. SUGGESTIONS: would combine insider flow and price (S1); no data. Kept operators minimal. Confidence: 0.28.",
+      "implementation": "ts_sum(<df_insider_buy_volume>, 60)",
+      "confidence_level": 0.28
+    },
+    {
+      "idea": "Dividend increase surprise",
+      "description": "Concept: capture positive re-rating after unexpected dividend increases. SUGGESTIONS: planned dual-field usage (S1); ALLOWED_DATAFIELDS empty so not applied. Confidence: 0.31.",
+      "implementation": "if_else(<df_dividend_change> > 0, ts_returns(<df_price>,30), 0)",
+      "confidence_level": 0.31
+    },
+    {
+      "idea": "Buyback announcement reaction",
+      "description": "Concept: buy firms that announce buybacks but underreact in price short-term. SUGGESTIONS: intended to use event and price fields (S1); none available. Confidence: 0.29.",
+      "implementation": "if_else(<df_buyback_flag> == 1, ts_returns(<df_price>,30), 0)",
+      "confidence_level": 0.29
+    },
+    {
+      "idea": "Seasonal month-of-year effect",
+      "description": "Concept: exploit historical monthly seasonality patterns (e.g., December effect). SUGGESTIONS: multi-field not needed; datafields missing. Confidence: 0.22 because seasonality small.",
+      "implementation": "if_else(ts_step(1) % 12 == <month_index>, ts_returns(<df_price>,20), 0)",
+      "confidence_level": 0.22
+    },
+    {
+      "idea": "Day-of-week pattern trading",
+      "description": "Concept: capture systematic day-of-week returns (e.g., Monday effect). SUGGESTIONS: simple; no datafields available to implement. Confidence: 0.18.",
+      "implementation": "if_else(ts_step(1) % 7 == <dow_index>, ts_returns(<df_price>,1), 0)",
+      "confidence_level": 0.18
+    },
+    {
+      "idea": "Gap-fill strategy (open-to-close reversal)",
+      "description": "Concept: mean-reversion from overnight gaps at open, filled during day. SUGGESTIONS: needs intraday fields (S1); unavailable. Confidence: 0.26.",
+      "implementation": "reverse(ts_returns(<df_open>,1) - ts_returns(<df_close>,1))",
+      "confidence_level": 0.26
+    },
+    {
+      "idea": "Spread tightening after liquidity shock",
+      "description": "Concept: long names that tighten bid-ask spreads after temporary liquidity dry-up. SUGGESTIONS: requires spread & volume fields (S1); none. Confidence: 0.23.",
+      "implementation": "reverse(ts_zscore(<df_bid_ask_spread>,30))",
+      "confidence_level": 0.23
+    },
+    {
+      "idea": "Cross-sectional earnings revision momentum",
+      "description": "Concept: long stocks with largest upward EPS revisions relative to peers. SUGGESTIONS: planned multi-field use (S1); data missing. Confidence: 0.35.",
+      "implementation": "quantile(ts_delta(<df_eps_estimate>,30))",
+      "confidence_level": 0.35
+    },
+    {
+      "idea": "High analyst coverage growth",
+      "description": "Concept: firms attracting analyst attention often see price appreciation. SUGGESTIONS: would combine analyst count changes + price (S1); unavailable. Confidence: 0.21.",
+      "implementation": "ts_delta(<df_analyst_count>, 90)",
+      "confidence_level": 0.21
+    },
+    {
+      "idea": "Inventory reduction quality signal",
+      "description": "Concept: falling inventories (relative to sales) as quality indicator. SUGGESTIONS: needs fundamentals (S1); none available. Confidence: 0.30.",
+      "implementation": "divide(ts_delta(<df_inventory>, 180), <df_sales>)",
+      "confidence_level": 0.3
+    },
+    {
+      "idea": "Cash-flow surprise momentum",
+      "description": "Concept: companies with positive cash-flow surprises continue to outperform. SUGGESTIONS: planned combination of cash-flow & price fields (S1); data missing. Confidence: 0.33.",
+      "implementation": "quantile(ts_delta(<df_operating_cash_flow>, 90))",
+      "confidence_level": 0.33
+    },
+    {
+      "idea": "Return-to-earnings growth (PEG style)",
+      "description": "Concept: combine momentum with favorable PEG-like metric. SUGGESTIONS: multi-field required (S1); not available. Kept short. Confidence: 0.34.",
+      "implementation": "divide(ts_returns(<df_price>,252), divide(<df_pe>, ts_delta(<df_eps>, 252)))",
+      "confidence_level": 0.34
+    },
+    {
+      "idea": "High gross margin improvement",
+      "description": "Concept: firms with rising gross margins signal improving economics and outperformance. SUGGESTIONS: needs fundamentals (S1); not available. Confidence: 0.32.",
+      "implementation": "ts_delta(<df_gross_margin>, 180)",
+      "confidence_level": 0.32
+    },
+    {
+      "idea": "Momentum after analyst upgrades",
+      "description": "Concept: price momentum following analyst upgrades. SUGGESTIONS: requires upgrade events + price (S1); none available. Confidence: 0.29.",
+      "implementation": "if_else(<df_upgrade_flag> == 1, ts_returns(<df_price>,30), 0)",
+      "confidence_level": 0.29
+    },
+    {
+      "idea": "Cross-sectional dividend yield selection",
+      "description": "Concept: long high dividend yield names after controlling for payout sustainability. SUGGESTIONS: combine yield and coverage fields (S1); not available. Confidence: 0.36.",
+      "implementation": "quantile(divide(<df_dividend>, <df_price>))",
+      "confidence_level": 0.36
+    },
+    {
+      "idea": "Earnings quality (cash vs accruals)",
+      "description": "Concept: prefer firms with cash-based earnings vs accruals. SUGGESTIONS: planned multi-field fundamentals (S1); unavailable. Confidence: 0.31.",
+      "implementation": "subtract(divide(<df_operating_cash_flow>, <df_revenue>), divide(<df_accruals>, <df_revenue>))",
+      "confidence_level": 0.31
+    },
+    {
+      "idea": "Short-term reversal after volume-weighted spike",
+      "description": "Concept: reversal following large VWAP-relative spikes. SUGGESTIONS: would use vector intraday fields (S2) and volume (S1); ALLOWED_DATAFIELDS empty so not applied. Confidence: 0.27.",
+      "implementation": "reverse(divide(ts_returns(<df_price>,1), ts_mean(<df_vwap>,5)))",
+      "confidence_level": 0.27
+    },
+    {
+      "idea": "High idiosyncratic volatility pick",
+      "description": "Concept: long stocks with rising idiosyncratic vol after market calm. SUGGESTIONS: intended multi-field (S1); none available. Confidence: 0.24.",
+      "implementation": "ts_zscore(subtract(ts_std_dev(ts_returns(<df_price>,1),60), ts_std_dev(ts_returns(<df_market>,1),60)), 60)",
+      "confidence_level": 0.24
+    },
+    {
+      "idea": "Momentum after positive guidance",
+      "description": "Concept: buy names issuing positive forward guidance that underreact. SUGGESTIONS: planned event + price use (S1); not available. Confidence: 0.30.",
+      "implementation": "if_else(<df_guidance_flag> == 1, ts_returns(<df_price>,60), 0)",
+      "confidence_level": 0.3
+    },
+    {
+      "idea": "Value rotation: low EV/EBITDA",
+      "description": "Concept: long names with low EV/EBITDA relative to peers. SUGGESTIONS: would combine EV and EBITDA fields (S1); none available. Confidence: 0.33.",
+      "implementation": "quantile(divide(<df_enterprise_value>, <df_ebitda>))",
+      "confidence_level": 0.33
+    },
+    {
+      "idea": "Gross inflow momentum (fund flow proxy)",
+      "description": "Concept: firms with large recent inflows (fund flow proxy) show momentum. SUGGESTIONS: planned multi-field (S1); missing. Confidence: 0.26.",
+      "implementation": "ts_sum(<df_estimated_fund_inflow>, 30)",
+      "confidence_level": 0.26
+    },
+    {
+      "idea": "High analyst target price upgrade gap",
+      "description": "Concept: names where target price upgrades exceed price move—expect catch-up. SUGGESTIONS: needs target and price fields (S1); unavailable. Confidence: 0.28.",
+      "implementation": "subtract(<df_target_price_change>, ts_returns(<df_price>,30))",
+      "confidence_level": 0.28
+    },
+    {
+      "idea": "Cross-sectional skewness signal",
+      "description": "Concept: stocks with high return skewness as speculative opportunities. SUGGESTIONS: vector/time usage considered (S2/S1); no fields. Confidence: 0.2 due to high risk.",
+      "implementation": "ts_kurtosis(ts_returns(<df_price>,1), 60)",
+      "confidence_level": 0.2
+    },
+    {
+      "idea": "Liquidity provision: wide-to-narrow spread reversion",
+      "description": "Concept: buy names whose spreads compress after temporary widening. SUGGESTIONS: needs spread & volume (S1); not available. Confidence: 0.24.",
+      "implementation": "reverse(ts_zscore(<df_bid_ask_spread>, 30))",
+      "confidence_level": 0.24
+    },
+    {
+      "idea": "Cross-sectional momentum with group-neutralization",
+      "description": "Concept: standard momentum but neutralized by industry group to avoid sector bets. SUGGESTIONS: wanted to use group operator but no group field available (KEEP_IN_MIND4). Confidence: 0.46 acknowledging neutralization benefit.",
+      "implementation": "group_neutralize(quantile(ts_zscore(ts_returns(<df_price>,252),252)), <group_placeholder>)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Post-merger announcement drift",
+      "description": "Concept: capture delayed reactions to announced M&A deals. SUGGESTIONS: event+price combo intended (S1); ALLOWED_DATAFIELDS empty. Confidence: 0.28.",
+      "implementation": "if_else(<df_mna_announcement> == 1, ts_returns(<df_price>,60), 0)",
+      "confidence_level": 0.28
+    },
+    {
+      "idea": "Supply-chain disruption alpha",
+      "description": "Concept: firms showing supplier distress signals may suffer; short those stocks. SUGGESTIONS: would use alternative supply-chain data (S1); none available. Confidence: 0.23.",
+      "implementation": "quantile(<df_supply_chain_risk_index>)",
+      "confidence_level": 0.23
+    },
+    {
+      "idea": "Patent filing positive signal",
+      "description": "Concept: firms with new patent filings outperform over medium-term. SUGGESTIONS: would combine patent events + price (S1); not available. Confidence: 0.27.",
+      "implementation": "if_else(<df_patent_filing_flag> == 1, ts_returns(<df_price>,180), 0)",
+      "confidence_level": 0.27
+    },
+    {
+      "idea": "High buy-side revision (institutional buying)",
+      "description": "Concept: detect heavy institutional buying and ride momentum. SUGGESTIONS: planned multi-field (S1); ALLOWED_DATAFIELDS empty. Confidence: 0.29.",
+      "implementation": "ts_sum(<df_institutional_net_buy>, 30)",
+      "confidence_level": 0.29
+    },
+    {
+      "idea": "Realized-implied vol term-structure slope",
+      "description": "Concept: trade on slope between short- and long-term implied vols (carry). SUGGESTIONS: implied vol data needed (S1); none available. Confidence: 0.34.",
+      "implementation": "subtract(<df_iv_short>, <df_iv_long>)",
+      "confidence_level": 0.34
+    },
+    {
+      "idea": "High accrual deceleration short",
+      "description": "Concept: short firms with accelerating accruals as earnings quality deteriorates. SUGGESTIONS: needed fundamentals (S1); absent. Confidence: 0.25.",
+      "implementation": "ts_zscore(divide(<df_accruals>, <df_total_assets>), 180)",
+      "confidence_level": 0.25
+    },
+    {
+      "idea": "Momentum in analyst forecast dispersion",
+      "description": "Concept: rising dispersion among analysts often precedes volatility and dispersion trades. SUGGESTIONS: would combine dispersion and price (S1); not available. Confidence: 0.22.",
+      "implementation": "ts_zscore(<df_eps_dispersion>, 90)",
+      "confidence_level": 0.22
+    },
+    {
+      "idea": "High tangible book-to-market value",
+      "description": "Concept: value anomaly via tangible book-to-market. SUGGESTIONS: intended to use fundamentals (S1); none available. Confidence: 0.33.",
+      "implementation": "quantile(divide(<df_tangible_book>, <df_market_cap>))",
+      "confidence_level": 0.33
+    },
+    {
+      "idea": "Momentum after buy-side upgrades (insurer/large funds)",
+      "description": "Concept: buy stocks upgraded by large institutions. SUGGESTIONS: needs upgrade flag and size metric (S1); not available. Confidence: 0.28.",
+      "implementation": "if_else(<df_large_fund_upgrade> == 1, ts_returns(<df_price>,60), 0)",
+      "confidence_level": 0.28
+    },
+    {
+      "idea": "Low correlation diversification alpha",
+      "description": "Concept: prefer stocks with low historical correlation to the portfolio for diversification alpha. SUGGESTIONS: would use correlation matrix (S1); none available. Confidence: 0.26.",
+      "implementation": "subtract(1, ts_corr(<df_price>, <df_portfolio>, 90))",
+      "confidence_level": 0.26
+    },
+    {
+      "idea": "High short-term momentum after liquidity shock",
+      "description": "Concept: after a liquidity shock, stocks that recover quickly may continue to drift. SUGGESTIONS: requires volume+price fields (S1); not available. Confidence: 0.23.",
+      "implementation": "multiply(ts_sum(<df_net_volume>, 5), ts_zscore(ts_returns(<df_price>,20),20))",
+      "confidence_level": 0.23
+    },
+    {
+      "idea": "Seasonal earnings momentum (quarter boundaries)",
+      "description": "Concept: exploit recurring patterns around quarter-ends. SUGGESTIONS: simple temporal operator use; no datafields to implement. Confidence: 0.2.",
+      "implementation": "if_else(ts_step(1) % 63 == 0, ts_returns(<df_price>,21), 0)",
+      "confidence_level": 0.2
+    },
+    {
+      "idea": "High ROIC improvement signal",
+      "description": "Concept: firms with improving Return on Invested Capital show quality growth. SUGGESTIONS: needs ROIC time series (S1); none available. Confidence: 0.34.",
+      "implementation": "ts_delta(<df_roic>, 180)",
+      "confidence_level": 0.34
+    },
+    {
+      "idea": "Cross-sectional beta-neutral momentum",
+      "description": "Concept: momentum portfolio constructed but neutralized to market beta. SUGGESTIONS: would use beta estimate + price (S1); data missing. Confidence: 0.44 acknowledging beta-neutral benefit.",
+      "implementation": "group_neutralize(quantile(ts_zscore(ts_returns(<df_price>,252),252)), <market_beta_group>)",
+      "confidence_level": 0.44
+    },
+    {
+      "idea": "Earnings-season volatility fade",
+      "description": "Concept: implied vol spikes around earnings then mean-reverts; sell temporary vol if priced high. SUGGESTIONS: needs options iv + realized vol (S1); absent. Confidence: 0.31.",
+      "implementation": "subtract(<df_iv>, ts_std_dev(ts_returns(<df_price>,1),30))",
+      "confidence_level": 0.31
+    },
+    {
+      "idea": "Cross-sectional liquidity premium",
+      "description": "Concept: capture higher returns for less liquid names after adjusting for risk. SUGGESTIONS: planned use of turnover and size (S1); none available. Confidence: 0.29.",
+      "implementation": "quantile(divide(<df_traded_volume>, <df_market_cap>))",
+      "confidence_level": 0.29
+    },
+    {
+      "idea": "Event-driven rumor alpha (M&A rumor)",
+      "description": "Concept: trade on media/rumor spikes before confirmation. SUGGESTIONS: requires alternative sentiment data (S1); absent. Confidence: 0.2 due to event risk.",
+      "implementation": "if_else(ts_zscore(<df_media_mentions>, 5) > 2, ts_returns(<df_price>,30), 0)",
+      "confidence_level": 0.2
+    },
+    {
+      "idea": "Momentum conditioned on improving margins",
+      "description": "Concept: momentum filtered by improving gross margins for quality momentum. SUGGESTIONS: intended multi-field filter (S1); none available. Confidence: 0.4.",
+      "implementation": "multiply(quantile(ts_zscore(ts_returns(<df_price>,252),252)), quantile(ts_delta(<df_gross_margin>,180)))",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "Earnings guidance cut short-signal",
+      "description": "Concept: short firms that cut forward guidance unexpectedly. SUGGESTIONS: needs guidance event data (S1); not available. Confidence: 0.28.",
+      "implementation": "if_else(<df_guidance_cut> == 1, reverse(ts_returns(<df_price>,30)), 0)",
+      "confidence_level": 0.28
+    },
+    {
+      "idea": "High tangible ROA momentum",
+      "description": "Concept: outperformers among firms with rising tangible return on assets. SUGGESTIONS: requires ROA series (S1); absent. Confidence: 0.33.",
+      "implementation": "ts_delta(<df_roa>, 180)",
+      "confidence_level": 0.33
+    },
+    {
+      "idea": "Cross-sectional earnings yield selection",
+      "description": "Concept: rank earnings yield (EPS/price) cross-sectionally to find cheap earnings. SUGGESTIONS: intended multi-field but no fields; kept template short. Confidence: 0.34.",
+      "implementation": "quantile(divide(<df_eps>, <df_price>))",
+      "confidence_level": 0.34
+    },
+    {
+      "idea": "Momentum after positive insider accumulation",
+      "description": "Concept: combine insider accumulation with price momentum. SUGGESTIONS: would use insider + price (S1); none available. Confidence: 0.3.",
+      "implementation": "multiply(ts_sum(<df_insider_buy>,60), ts_zscore(ts_returns(<df_price>,90),90))",
+      "confidence_level": 0.3
+    },
+    {
+      "idea": "Short when earnings quality deteriorates",
+      "description": "Concept: short names with declining cash conversion and rising accruals. SUGGESTIONS: needs multiple fundamentals (S1); not available. Confidence: 0.26.",
+      "implementation": "and(ts_delta(<df_cash_conversion>, 180) < 0, ts_delta(<df_accruals>, 180) > 0)",
+      "confidence_level": 0.26
+    },
+    {
+      "idea": "High implied skew exploitation",
+      "description": "Concept: trade relative value across implied skew (options). SUGGESTIONS: requires options skew fields (S1); none available. Confidence: 0.23.",
+      "implementation": "subtract(<df_implied_skew>, ts_zscore(ts_kurtosis(ts_returns(<df_price>,1),60),60))",
+      "confidence_level": 0.23
+    },
+    {
+      "idea": "Momentum persistence filter using ts_ir",
+      "description": "Concept: prefer momentum signals with high time-series IR (ts_ir) over a window. SUGGESTIONS: planned multi-field use (S1); ALLOWED_DATAFIELDS empty. Confidence: 0.41.",
+      "implementation": "ts_ir(ts_returns(<df_price>,20), 60)",
+      "confidence_level": 0.41
+    },
+    {
+      "idea": "Short-term liquidity-provided reversal",
+      "description": "Concept: provide liquidity by buying after ephemeral sell-offs with high turnover. SUGGESTIONS: needs turnover & price (S1); none available. Confidence: 0.25.",
+      "implementation": "if_else(ts_zscore(<df_turnover>,5) > 2, reverse(ts_returns(<df_price>,5)), 0)",
+      "confidence_level": 0.25
+    },
+    {
+      "idea": "Cross-sectional low beta premium",
+      "description": "Concept: long low-beta names that historically outperform on risk-adjusted basis. SUGGESTIONS: would compute beta + rank (S1); absent. Confidence: 0.37.",
+      "implementation": "quantile(inverse(ts_corr(<df_price>, <df_market>, 252)))",
+      "confidence_level": 0.37
+    },
+    {
+      "idea": "Shrink-to-mean after extreme analyst sentiment",
+      "description": "Concept: mean-reversion after extreme analyst sentiment spikes. SUGGESTIONS: needs sentiment + price (S1); not available. Confidence: 0.24.",
+      "implementation": "reverse(ts_zscore(<df_analyst_sentiment>, 30))",
+      "confidence_level": 0.24
+    },
+    {
+      "idea": "Growth-momentum hybrid (revenue growth + price momentum)",
+      "description": "Concept: combine revenue growth acceleration with price momentum. SUGGESTIONS: planned two-field use (S1); none available. Confidence: 0.36.",
+      "implementation": "multiply(quantile(ts_delta(<df_revenue>, 180)), quantile(ts_zscore(ts_returns(<df_price>,252),252)))",
+      "confidence_level": 0.36
+    },
+    {
+      "idea": "Cross-sectional return dispersion pickup",
+      "description": "Concept: long names contributing to rising cross-sectional dispersion expecting idiosyncratic returns. SUGGESTIONS: dispersion needs cross-section data (S1); none available. Confidence: 0.22.",
+      "implementation": "ts_std_dev(ts_returns(<df_price>,1), 30)",
+      "confidence_level": 0.22
+    },
+    {
+      "idea": "High-quality growth composite",
+      "description": "Concept: composite of ROIC improvement, margin expansion and momentum. SUGGESTIONS: wanted multiple fields (S1) and vector wrap (S2) if needed; not available. Confidence: 0.39.",
+      "implementation": "add(ts_delta(<df_roic>,180), ts_delta(<df_gross_margin>,180), ts_zscore(ts_returns(<df_price>,252),252))",
+      "confidence_level": 0.39
+    },
+    {
+      "idea": "Short-term reversal by ts_rank",
+      "description": "Concept: short names with extreme negative ts_rank of recent returns expecting bounce. SUGGESTIONS: simple ts_rank usage; no fields available. Confidence: 0.3.",
+      "implementation": "reverse(ts_rank(ts_returns(<df_price>,5), 5))",
+      "confidence_level": 0.3
+    },
+    {
+      "idea": "Momentum conditioned on decreasing leverage",
+      "description": "Concept: favor momentum among firms reducing leverage. SUGGESTIONS: requires leverage series + price (S1); not available. Confidence: 0.33.",
+      "implementation": "multiply(quantile(ts_delta(<df_debt_to_equity>,180)), quantile(ts_zscore(ts_returns(<df_price>,252),252)))",
+      "confidence_level": 0.33
+    },
+    {
+      "idea": "Option-implied skew mean reversion",
+      "description": "Concept: sell short-term skew when unusually steep vs historical. SUGGESTIONS: needs options data (S1); none available. Confidence: 0.25.",
+      "implementation": "subtract(<df_skew_short>, ts_mean(<df_skew_short>,180))",
+      "confidence_level": 0.25
+    },
+    {
+      "idea": "High net-buyback to market-cap signal",
+      "description": "Concept: firms executing large buybacks relative to market-cap often re-rate upward. SUGGESTIONS: buyback + price fields needed (S1); absent. Confidence: 0.31.",
+      "implementation": "divide(ts_sum(<df_buyback_amount>, 180), <df_market_cap>)",
+      "confidence_level": 0.31
+    },
+    {
+      "idea": "Price momentum after dividend surprise",
+      "description": "Concept: momentum following unexpected dividend hikes. SUGGESTIONS: event + price intended (S1); no data. Confidence: 0.28.",
+      "implementation": "if_else(<df_dividend_surprise> > 0, ts_returns(<df_price>,60), 0)",
+      "confidence_level": 0.28
+    },
+    {
+      "idea": "Momentum filtered by improving margins and cash flows",
+      "description": "Concept: require both margin improvement and cash-flow growth before taking momentum bets. SUGGESTIONS: multi-field composite desired (S1); not available. Confidence: 0.4.",
+      "implementation": "and(ts_delta(<df_gross_margin>,180) > 0, ts_delta(<df_operating_cash_flow>,180) > 0)",
+      "confidence_level": 0.4
+    },
+    {
+      "idea": "High free float change momentum",
+      "description": "Concept: stocks with sudden increases in free float often underperform (supply shock). SUGGESTIONS: needs share float data (S1); absent. Confidence: 0.2.",
+      "implementation": "ts_delta(<df_free_float>, 90)",
+      "confidence_level": 0.2
+    },
+    {
+      "idea": "Momentum with tails winsorized",
+      "description": "Concept: standard momentum but winsorize extreme values to reduce tail risk. SUGGESTIONS: S1 multi-fields planned but none available; applied winsorize in template to keep robustness. Confidence: 0.43.",
+      "implementation": "winsorize(quantile(ts_zscore(ts_returns(<df_price>,252),252), driver='gaussian'), std=4)",
+      "confidence_level": 0.43
+    },
+    {
+      "idea": "Intraday mean-reversion at close",
+      "description": "Concept: exploit patterns of close-time reversals using intraday data. SUGGESTIONS: intraday fields needed (S1,S2); ALLOWED_DATAFIELDS empty. Confidence: 0.22.",
+      "implementation": "reverse(ts_returns(<df_close>,1) - ts_returns(<df_open>,1))",
+      "confidence_level": 0.22
+    },
+    {
+      "idea": "Cross-sectional earnings momentum controlling for size",
+      "description": "Concept: rank earnings momentum within size buckets to avoid size bias. SUGGESTIONS: would use group operator and two fields (S1,S4); no allowed fields. Confidence: 0.38.",
+      "implementation": "group_rank(quantile(ts_delta(<df_eps>, 180)), <group_size_bucket>)",
+      "confidence_level": 0.38
+    },
+    {
+      "idea": "Momentum after large insider buys with backfill",
+      "description": "Concept: use ts_backfill if insider reporting sparse and then momentum. SUGGESTIONS: S3 acknowledged but no datafields to apply. Confidence: 0.29.",
+      "implementation": "quantile(ts_zscore(ts_returns(ts_backfill(<df_insider_buy>, 90), 90), 90))",
+      "confidence_level": 0.29
+    },
+    {
+      "idea": "Cross-sectional volatility targeting",
+      "description": "Concept: scale positions inversely to cross-sectional volatility estimate. SUGGESTIONS: multi-field planned (S1) but none available. Confidence: 0.35.",
+      "implementation": "inverse(ts_std_dev(ts_returns(<df_price>,1), 60))",
+      "confidence_level": 0.35
+    },
+    {
+      "idea": "Momentum filtered by decreasing leverage and rising cash",
+      "description": "Concept: combine momentum with improving balance-sheet metrics. SUGGESTIONS: multi-field required (S1); not available. Confidence: 0.36.",
+      "implementation": "and(ts_delta(<df_debt_to_equity>,180) < 0, ts_delta(<df_cash>,180) > 0)",
+      "confidence_level": 0.36
+    },
+    {
+      "idea": "High buy-side flow momentum conditioned on low supply",
+      "description": "Concept: momentum strengthened when buy flow is large and free float low. SUGGESTIONS: needs two fields (S1); none available. Confidence: 0.27.",
+      "implementation": "multiply(ts_sum(<df_buy_flow>,30), inverse(<df_free_float>))",
+      "confidence_level": 0.27
+    },
+    {
+      "idea": "Post-split momentum",
+      "description": "Concept: stocks often rally after share splits; capture post-split momentum. SUGGESTIONS: event+price needed (S1); not available. Confidence: 0.24.",
+      "implementation": "if_else(<df_share_split_flag> == 1, ts_returns(<df_price>,90), 0)",
+      "confidence_level": 0.24
+    },
+    {
+      "idea": "Momentum on improving inventory turnover",
+      "description": "Concept: combine momentum with rising inventory turnover as operational improvement. SUGGESTIONS: multi-field (S1) intended; ALLOWED_DATAFIELDS empty. Confidence: 0.31.",
+      "implementation": "multiply(quantile(ts_zscore(ts_returns(<df_price>,252),252)), quantile(ts_delta(<df_inventory_turnover>,180)))",
+      "confidence_level": 0.31
+    },
+    {
+      "idea": "Short when accruals spike relative to peers",
+      "description": "Concept: cross-sectional short of firms with abnormal accrual spikes. SUGGESTIONS: use group normalization if possible (S1,S4); not available. Confidence: 0.26.",
+      "implementation": "quantile(divide(<df_accruals>, <df_total_assets>))",
+      "confidence_level": 0.26
+    },
+    {
+      "idea": "High momentum among small caps with improving fundamentals",
+      "description": "Concept: combine small-cap momentum with improving fundamentals to avoid value traps. SUGGESTIONS: intended to use size+fundamentals (S1); none available. Confidence: 0.33.",
+      "implementation": "and(quantile(ts_zscore(ts_returns(<df_price>,252),252)) > 0.9, ts_delta(<df_revenue>,180) > 0)",
+      "confidence_level": 0.33
+    },
+    {
+      "idea": "Cross-sectional cheap volatility (IV/Realized)",
+      "description": "Concept: long names where implied vol is cheap relative to realized vol cross-sectionally. SUGGESTIONS: needs two vol fields (S1); absent. Confidence: 0.34.",
+      "implementation": "quantile(divide(<df_implied_vol>, ts_std_dev(ts_returns(<df_price>,1),30)))",
+      "confidence_level": 0.34
+    },
+    {
+      "idea": "Momentum after positive ESG rating change",
+      "description": "Concept: price reaction to ESG upgrades that underreact in short-term. SUGGESTIONS: combine ESG & price (S1); none available. Confidence: 0.22.",
+      "implementation": "if_else(ts_delta(<df_esg_score>, 90) > 0, ts_returns(<df_price>,60), 0)",
+      "confidence_level": 0.22
+    },
+    {
+      "idea": "Cross-sectional earnings quality rank",
+      "description": "Concept: rank firms by composite earnings quality (cash conversion, accruals, conservative accounting) and long top. SUGGESTIONS: multi-field composite intended (S1); not available. Confidence: 0.35.",
+      "implementation": "add(quantile(ts_delta(<df_operating_cash_flow>,180)), reverse(quantile(divide(<df_accruals>, <df_total_assets>))))",
+      "confidence_level": 0.35
+    },
+    {
+      "idea": "Time-series mean-reversion using ts_av_diff",
+      "description": "Concept: for each stock, go long when price is below its recent mean (ts_av_diff negative). SUGGESTIONS: simple TS operator use; no allowed data. Confidence: 0.34.",
+      "implementation": "reverse(ts_av_diff(<df_price>, 60))",
+      "confidence_level": 0.34
+    },
+    {
+      "idea": "High buyback yield combined with momentum",
+      "description": "Concept: overweight names with strong buybacks and positive momentum. SUGGESTIONS: intended S1 multi-field; absent. Confidence: 0.32.",
+      "implementation": "multiply(quantile(divide(ts_sum(<df_buyback_amount>,180), <df_market_cap>)), quantile(ts_zscore(ts_returns(<df_price>,252),252)))",
+      "confidence_level": 0.32
+    },
+    {
+      "idea": "Cross-sectional growth surprise",
+      "description": "Concept: rank firms by recent positive revenue surprises and go long. SUGGESTIONS: event+fundamental use (S1); not available. Confidence: 0.3.",
+      "implementation": "quantile(ts_delta(<df_revenue_surprise>, 90))",
+      "confidence_level": 0.3
+    },
+    {
+      "idea": "Momentum with turnover filter",
+      "description": "Concept: require momentum only when turnover is sufficient to ensure execution. SUGGESTIONS: would use turnover + price (S1); none available. Confidence: 0.34.",
+      "implementation": "and(ts_zscore(ts_returns(<df_price>,252),252) > 0.9, ts_mean(<df_turnover>,30) > <min_turnover>)",
+      "confidence_level": 0.34
+    },
+    {
+      "idea": "Cross-sectional re-rating after positive ROE surprise",
+      "description": "Concept: long firms with upward ROE revisions. SUGGESTIONS: fundamentals + price planned (S1); no fields present. Confidence: 0.31.",
+      "implementation": "ts_delta(<df_roe>, 180)",
+      "confidence_level": 0.31
+    },
+    {
+      "idea": "High momentum among low analyst coverage",
+      "description": "Concept: momentum in less-covered names can persist longer due to slower information diffusion. SUGGESTIONS: needs coverage + price fields (S1); absent. Confidence: 0.29.",
+      "implementation": "and(quantile(ts_zscore(ts_returns(<df_price>,252),252)) > 0.9, <df_analyst_count> < <low_threshold>)",
+      "confidence_level": 0.29
+    },
+    {
+      "idea": "Momentum with winsorized returns",
+      "description": "Concept: standard momentum but winsorize extreme returns to reduce outlier impact. SUGGESTIONS: applied winsorize to template to adhere to KEEP_IN_MIND1. Confidence: 0.42.",
+      "implementation": "quantile(winsorize(ts_zscore(ts_returns(<df_price>,252),252), std=4), driver='gaussian')",
+      "confidence_level": 0.42
+    },
+    {
+      "idea": "Mean-reversion after extreme option-flow",
+      "description": "Concept: extreme directional option flow can reverse intraday/short-term. SUGGESTIONS: needs option flow data (S1); none available. Confidence: 0.2.",
+      "implementation": "reverse(ts_zscore(<df_option_flow>, 5))",
+      "confidence_level": 0.2
+    },
+    {
+      "idea": "Momentum after positive patent citations",
+      "description": "Concept: firms with increasing citation counts signal valuable IP and momentum. SUGGESTIONS: alt-data + price needed (S1); unavailable. Confidence: 0.26.",
+      "implementation": "ts_delta(<df_patent_citations>, 180)",
+      "confidence_level": 0.26
+    },
+    {
+      "idea": "Cross-sectional cheapness in EV to sales",
+      "description": "Concept: long names with low EV/Sales relative to peers. SUGGESTIONS: straightforward fundamental pair (S1); not available. Confidence: 0.33.",
+      "implementation": "quantile(divide(<df_enterprise_value>, <df_revenue>))",
+      "confidence_level": 0.33
+    },
+    {
+      "idea": "Momentum in improving gross margin vs peers",
+      "description": "Concept: firms whose margin improvement outperforms peers show sustained returns. SUGGESTIONS: wanted group comparison (S1,S4) but no group field. Confidence: 0.34.",
+      "implementation": "subtract(ts_delta(<df_gross_margin>,180), ts_mean(ts_delta(<df_gross_margin>,180), 180))",
+      "confidence_level": 0.34
+    },
+    {
+      "idea": "Short-term reversal after heavy selling pressure",
+      "description": "Concept: buy after days with extreme negative returns accompanied by high volume. SUGGESTIONS: needs volume+price (S1); not available. Confidence: 0.28.",
+      "implementation": "if_else(ts_zscore(ts_returns(<df_price>,1),5) < -2 and ts_zscore(<df_volume>,5) > 2, reverse(ts_returns(<df_price>,5)), 0)",
+      "confidence_level": 0.28
+    },
+    {
+      "idea": "Cross-sectional dividend growth momentum",
+      "description": "Concept: favor firms with rising dividends and positive price momentum. SUGGESTIONS: needs dividend + price (S1); none available. Confidence: 0.31.",
+      "implementation": "multiply(ts_delta(<df_dividend>, 180), ts_zscore(ts_returns(<df_price>,252),252))",
+      "confidence_level": 0.31
+    },
+    {
+      "idea": "Momentum among names with decreasing share issuance",
+      "description": "Concept: momentum intensified when share issuance declines (less supply). SUGGESTIONS: requires shares outstanding changes (S1); absent. Confidence: 0.27.",
+      "implementation": "and(ts_delta(<df_shares_outstanding>,180) < 0, ts_zscore(ts_returns(<df_price>,252),252) > 0.9)",
+      "confidence_level": 0.27
+    },
+    {
+      "idea": "Cross-sectional quality-weighted momentum",
+      "description": "Concept: weight momentum by a quality score (ROE, accruals). SUGGESTIONS: multi-field composite planned (S1); not available. Confidence: 0.39.",
+      "implementation": "multiply(quantile(ts_zscore(ts_returns(<df_price>,252),252)), quantile(add(ts_delta(<df_roic>,180), reverse(divide(<df_accruals>, <df_total_assets>)))))",
+      "confidence_level": 0.39
+    },
+    {
+      "idea": "High momentum where analyst target-price gap large",
+      "description": "Concept: trade stocks where analyst target increases exceed price move—expect catch-up. SUGGESTIONS: needs target + price (S1); none available. Confidence: 0.28.",
+      "implementation": "subtract(<df_target_price_change>, ts_returns(<df_price>,30))",
+      "confidence_level": 0.28
+    },
+    {
+      "idea": "Mean-reversion after transient correlation spikes",
+      "description": "Concept: when a stock suddenly correlates with market and then decouples, exploit reversion. SUGGESTIONS: requires ts_corr (operator allowed) and prices (S1); no fields. Confidence: 0.25.",
+      "implementation": "reverse(ts_arg_max(ts_corr(<df_price>, <df_market>, 60), 60))",
+      "confidence_level": 0.25
+    },
+    {
+      "idea": "Momentum conditioned on margin of safety (low leverage)",
+      "description": "Concept: prefer momentum positions in low-leverage firms to reduce tail risk. SUGGESTIONS: multi-field needed (S1); absent. Confidence: 0.34.",
+      "implementation": "and(ts_zscore(ts_returns(<df_price>,252),252) > 0.9, <df_debt_to_equity> < <threshold>)",
+      "confidence_level": 0.34
+    }
+  ]
+}

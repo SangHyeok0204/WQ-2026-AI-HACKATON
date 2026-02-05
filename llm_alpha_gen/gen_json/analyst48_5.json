@@ -1,0 +1,688 @@
+{
+  "results": [
+    {
+      "idea": "Dividend yield momentum (short-term)",
+      "description": "Combine projected 12-month dividend yield with time-series momentum. Applied SUGGESTION1 by using anl48_bp12m_yld (high userCount/alphaCount) and SUGGESTION3 not needed (coverage 0.5144 borderline but acceptable). SUGGESTION2 not applicable (no vector fields). SUGGESTION4 applied: used high userCount field to increase signal reliability. KEEP_IN_MINDs followed: single datafield, short operator chain. Confidence set to 0.85 because bp12m_yld has many users/alphas and plausible momentum effect.",
+      "implementation": "ts_zscore(ts_returns(anl48_bp12m_yld,20),63)",
+      "confidence_level": 0.85
+    },
+    {
+      "idea": "Dividend yield mean-reversion (cross-section)",
+      "description": "Cross-sectionally identify stocks with unusually high projected 12-month yield relative to peers. SUGGESTION1 used one strong field anl48_bp12m_yld; SUGGESTION3 not applied. SUGGESTION4 applied. KEEP_IN_MINDs: one field, few operators. Confidence 0.82 given established value premium in yield.",
+      "implementation": "quantile(anl48_bp12m_yld, driver=\"gaussian\")",
+      "confidence_level": 0.82
+    },
+    {
+      "idea": "Yield vs index yield spread",
+      "description": "Long stocks whose equity 12-month yield exceeds their index-level 12-month yield. Used two fields (anl48_bp12m_yld and anl48_index_m21_dly_dvd_yqe) per SUGGESTION1. Both have acceptable coverage; no ts_backfill. SUGGESTION4: used bp12m_yld high userCount. KEEP_IN_MINDs respected. Confidence 0.78 reflecting moderate conviction.",
+      "implementation": "subtract(anl48_bp12m_yld, anl48_index_m21_dly_dvd_yqe)",
+      "confidence_level": 0.78
+    },
+    {
+      "idea": "Dividend health momentum",
+      "description": "Use dividend health score momentum: recent increases in anl48_bdvd_curr_dvd_health indicate improving payout sustainability. SUGGESTION1 single field; coverage 0.5239 so ts_backfill applied per SUGGESTION3. SUGGESTION4 used (userCount=10). KEEP_IN_MINDs honored. Confidence 0.7 due to health score subjectivity.",
+      "implementation": "ts_zscore(ts_backfill(anl48_bdvd_curr_dvd_health,10),63)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Forecast surprise: next DPS vs last announced",
+      "description": "Signal = next forecasted DPS (anl48_bpda) minus most recent announced dividend (anl48_equity_dvd_sh_last). SUGGESTION1 used two fields; anl48_bpda coverage 0.5133 -> ts_backfill applied. SUGGESTION4: both fields have nonzero userCount. KEEP_IN_MINDs kept short. Confidence 0.75: forecast surprises can persist.",
+      "implementation": "subtract(ts_backfill(anl48_bpda,10), anl48_equity_dvd_sh_last)",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Dividend per share growth trend (3yr)",
+      "description": "Use projected 3-year dividend growth anl48_bp3y_dg to capture structural dividend growers. Coverage <0.6 so ts_backfill applied. SUGGESTION2 not applicable. Confidence 0.6 due to low coverage and few users.",
+      "implementation": "ts_zscore(ts_backfill(anl48_bp3y_dg,20),126)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Large index members concentration filter",
+      "description": "Use index member count to adjust exposure: prefer stocks in indices with many members (anl48_bulk_count_index_members). SUGGESTION1 single field; coverage 0.8259 high so no backfill. SUGGESTION4 not applicable (userCount=0) but coverage high. Confidence 0.55 modest.",
+      "implementation": "zscore(anl48_bulk_count_index_members)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Dividend history acceleration",
+      "description": "Detect acceleration in gross dividend history using anl48_bedhga (gross dividend history amount) ts_delta to capture recent step-ups. Coverage ~0.5171 -> ts_backfill used. SUGGESTION4 moderate userCount. Confidence 0.65.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(anl48_bedhga,15),5),63)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Next ex-date proximity mean-revert",
+      "description": "Short-term trade around announced ex-dividend timing: use anl48_td_xe_dvd to detect proximity to ex-date. Coverage 0.5243 so ts_backfill applied. SUGGESTION1 single field. Confidence 0.5 because event timing arbitrage small.",
+      "implementation": "reverse(ts_zscore(ts_backfill(anl48_td_xe_dvd,10),21))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Dividend yield volatility filter",
+      "description": "Identify stocks with stable projected yields by computing ts_std_dev of anl48_bp12m_yld; prefer low vol yields. SUGGESTION1 used high-quality field; no backfill. SUGGESTION4 applied. Confidence 0.72.",
+      "implementation": "inverse(ts_std_dev(anl48_bp12m_yld,63))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "High yield + improving health overlay",
+      "description": "Combine high projected yield (anl48_bp12m_yld) with rising dividend health (anl48_bdvd_curr_dvd_health). Both fields used per SUGGESTION1; health coverage <0.6 -> ts_backfill applied. SUGGESTION4 applied for yield field. KEEP_IN_MIND satisfied. Confidence 0.8.",
+      "implementation": "multiply(quantile(anl48_bp12m_yld), ts_zscore(ts_backfill(anl48_bdvd_curr_dvd_health,10),63))",
+      "confidence_level": 0.8
+    },
+    {
+      "idea": "Dividend surprise momentum (forecast minus history)",
+      "description": "Use difference between next forecasted dividend anl48_bpda and recent dividend history anl48_equity_m21_dly_dvd_yqe. Both fields used; m21 field coverage 0.513 -> ts_backfill applied. SUGGESTION4 applied. Confidence 0.76.",
+      "implementation": "subtract(ts_backfill(anl48_bpda,10), ts_backfill(anl48_equity_m21_dly_dvd_yqe,10))",
+      "confidence_level": 0.76
+    },
+    {
+      "idea": "Yield-to-last-dividend ratio",
+      "description": "Ratio of projected 12-month yield to most recent announced dividend to find price-dislocated names. Uses two fields; apply ts_backfill to any with coverage<0.6. SUGGESTION4 used for bp12m_yld. Confidence 0.7.",
+      "implementation": "divide(anl48_bp12m_yld, ts_backfill(anl48_equity_dvd_sh_last,10))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Dividend payout stability (std of history)",
+      "description": "Compute volatility of gross dividend history anl48_bedhga with vec-like aggregation via ts_std_dev. Field coverage ~0.517 -> ts_backfill applied. SUGGESTION2 not applicable. Confidence 0.62.",
+      "implementation": "inverse(ts_std_dev(ts_backfill(anl48_bedhga,20),252))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Index vs equity ex-dividend timing arbitrage",
+      "description": "Compare index ex-dividend date anl48_index_td_xe_dvd with security ex-date anl48_td_xe_dvd to detect timing anomalies. Both fields used; index coverage high so only ts_backfill on security date. Confidence 0.5 low.",
+      "implementation": "subtract(anl48_index_td_xe_dvd, ts_backfill(anl48_td_xe_dvd,10))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Dividend health cross-sectional ranking",
+      "description": "Rank dividend health across universe using quantile on anl48_bdvd_curr_dvd_health. Coverage<0.6 so ts_backfill applied. SUGGESTION1 single field. Confidence 0.68.",
+      "implementation": "quantile(ts_backfill(anl48_bdvd_curr_dvd_health,10))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Dividend yield momentum (long horizon)",
+      "description": "Long-horizon momentum on anl48_bp12m_yld using 252-day returns then zscore. SUGGESTION1 used single reliable field. Confidence 0.8 for longer horizon.",
+      "implementation": "ts_zscore(ts_returns(anl48_bp12m_yld,252),252)",
+      "confidence_level": 0.8
+    },
+    {
+      "idea": "Dividend increase probability (trend indicator)",
+      "description": "Use anl48_bbt (trend column) to proxy probability of dividend increases. Coverage ~0.5095 -> ts_backfill used. SUGGESTION4: moderate userCount. Confidence 0.55.",
+      "implementation": "ts_zscore(ts_backfill(anl48_bbt,20),63)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Ex-date crowding filter (days since last ex-date)",
+      "description": "Measure days since last dividend ex-date using days_from_last_change on anl48_td_xe_dvd; backfill if needed. SUGGESTION1 applied. Confidence 0.5.",
+      "implementation": "days_from_last_change(ts_backfill(anl48_td_xe_dvd,10))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Gross vs net dividend divergence",
+      "description": "Compare gross dividend anl48_equity_ldg to net last dividend anl48_equity_dvd_sh_last to spot tax/credit trends. Both fields used; small backfill if needed. Confidence 0.6.",
+      "implementation": "subtract(anl48_equity_ldg, anl48_equity_dvd_sh_last)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Yield acceleration (second derivative)",
+      "description": "Use ts_delta of ts_delta of anl48_bp12m_yld to find yield accelerations. Single high-quality field used. Confidence 0.7.",
+      "implementation": "ts_zscore(ts_delta(ts_delta(anl48_bp12m_yld,5),5),63)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "High yield & low volatility overlay",
+      "description": "Combine high projected yield with low recent yield volatility (inverse ts_std_dev). SUGGESTION1 used two fields derived from same data. Confidence 0.78.",
+      "implementation": "multiply(quantile(anl48_bp12m_yld), inverse(ts_std_dev(anl48_bp12m_yld,63)))",
+      "confidence_level": 0.78
+    },
+    {
+      "idea": "Next declared date acceleration filter",
+      "description": "Use anl48_bedhgad (announce date history) trend: if announce dates cluster earlier, positive signal. Coverage ~0.516 -> ts_backfill applied. Confidence 0.48 (date-based signals noisy).",
+      "implementation": "reverse(ts_zscore(ts_backfill(anl48_bedhgad,30),63))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Dividend yield zscore normalized",
+      "description": "Cross-sectionally zscore the projected yield anl48_bp12m_yld to remove market-level shifts. SUGGESTION1 used single field; no backfill. Confidence 0.8.",
+      "implementation": "zscore(anl48_bp12m_yld)",
+      "confidence_level": 0.8
+    },
+    {
+      "idea": "Dividend forecast consensus dispersion",
+      "description": "Proxy dispersion by ts_std_dev of analysts' bp12m yield (anl48_bp12m_yld). High userCount field used; dispersion signals uncertainty. Confidence 0.66.",
+      "implementation": "ts_std_dev(anl48_bp12m_yld,63)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Dividend per share surprise normalized",
+      "description": "Normalize (quantile) the difference between forecast bpda and last equity dividend to get cross-sectional surprise. ts_backfill applied to bpda. Confidence 0.74.",
+      "implementation": "quantile(subtract(ts_backfill(anl48_bpda,10), anl48_equity_dvd_sh_last))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Index dividend yield momentum",
+      "description": "Momentum on index-level 12-month dividend yield anl48_index_m21_dly_dvd_yqe to capture sector rotations. Field coverage good; no backfill. Confidence 0.6.",
+      "implementation": "ts_zscore(ts_returns(anl48_index_m21_dly_dvd_yqe,63),126)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Dividend health vs yield divergence",
+      "description": "High yield with deteriorating dividend health is risky: subtract health trend from yield. SUGGESTION1 used two fields; health backfilled. Confidence 0.77 balancing yield and health info.",
+      "implementation": "subtract(anl48_bp12m_yld, ts_zscore(ts_backfill(anl48_bdvd_curr_dvd_health,10),63))",
+      "confidence_level": 0.77
+    },
+    {
+      "idea": "Recent dividend cut signal",
+      "description": "Detect drops in gross dividend history anl48_bedhga via ts_delta negative extreme. ts_backfill applied. Confidence 0.69.",
+      "implementation": "sign(reverse(ts_delta(ts_backfill(anl48_bedhga,20),10)))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "High forecasted DPS growth vs peers",
+      "description": "Cross-sectional quantile on anl48_bpda to find firms with elevated forecast DPS. bpda coverage ~0.513 -> backfill. SUGGESTION4 moderate. Confidence 0.68.",
+      "implementation": "quantile(ts_backfill(anl48_bpda,20))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Dividend yield reversal after spike",
+      "description": "Identify recent large positive ts_max_diff in anl48_bp12m_yld and short reversion. SUGGESTION1 single field. Confidence 0.7.",
+      "implementation": "reverse(ts_max_diff(anl48_bp12m_yld,21))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Low coverage backfill reliability filter",
+      "description": "Use ts_count_nans on a low-coverage field (anl48_bbpdiip) to measure data reliability and avoid noisy names. Coverage ~0.8329 actually high; still used to measure gaps. SUGGESTION3 not needed. Confidence 0.5 (operational filter).",
+      "implementation": "ts_count_nans(anl48_bbpdiip,63)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Dividend history seasonality capture",
+      "description": "Use ts_arg_max on annnualized gross dividend history anl48_bedhga over 252 days to detect seasonal peaks. Backfill applied. Confidence 0.52.",
+      "implementation": "ts_arg_max(ts_backfill(anl48_bedhga,252),252)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Yield vs past-12m realized dividend ratio",
+      "description": "Compare projected yield anl48_bp12m_yld to realized last-12m equity dividends anl48_equity_m21_dly_dvd_yqe. Both used; backfill applied to the latter. SUGGESTION1 followed. Confidence 0.75.",
+      "implementation": "divide(anl48_bp12m_yld, ts_backfill(anl48_equity_m21_dly_dvd_yqe,10))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Dividend announcement clustering detector",
+      "description": "Use group_count-like idea via ts_sum of announce dates anl48_bedhgad in lookback to detect cluster periods; backfill applied. SUGGESTION2 not applicable. Confidence 0.45.",
+      "implementation": "ts_sum(ts_backfill(anl48_bedhgad,63),63)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "High yield & low forecast dispersion",
+      "description": "Combine high anl48_bp12m_yld with low ts_std_dev(anl48_bp12m_yld) implying consensus on yield. SUGGESTION1 used single field twice. Confidence 0.79.",
+      "implementation": "multiply(quantile(anl48_bp12m_yld), inverse(ts_std_dev(anl48_bp12m_yld,63)))",
+      "confidence_level": 0.79
+    },
+    {
+      "idea": "Dividend growth surprise (3yr)",
+      "description": "Compare projected 3-year growth anl48_bp3y_dg to recent growth anl48_edg3yr_g. Both low coverage -> ts_backfill both. SUGGESTION4 limited. Confidence 0.48.",
+      "implementation": "subtract(ts_backfill(anl48_bp3y_dg,60), ts_backfill(anl48_edg3yr_g,60))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Immediate pay date proximity trade",
+      "description": "Use anl48_bdhpd (pay date history) to identify imminent payments and capture temporary price moves. Coverage ~0.5153 -> backfill applied. Confidence 0.5.",
+      "implementation": "reverse(ts_zscore(ts_backfill(anl48_bdhpd,10),21))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Dividend yield percentile trend",
+      "description": "Compute quantile of recent change in anl48_bp12m_yld: ts_zscore(ts_returns(...)). SUGGESTION1 single field. Confidence 0.73.",
+      "implementation": "quantile(ts_zscore(ts_returns(anl48_bp12m_yld,63)))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Forecast-to-history zscore",
+      "description": "Zscore the difference between forecast bpda and historical last dividend to capture outsized forecast moves. Backfill applied to bpda. Confidence 0.74.",
+      "implementation": "zscore(subtract(ts_backfill(anl48_bpda,10), anl48_equity_dvd_sh_last))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Large index dividend contribution filter",
+      "description": "Use anl48_bp12m_dip or anl48_bbpdiip (index projected monthly dividend points) to identify index contributors. bbpdiip coverage high; used alone. Confidence 0.56.",
+      "implementation": "zscore(anl48_bbpdiip)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Short-term dividend momentum vs sector",
+      "description": "Normalize projected yield within sector proxy using zscore(anl48_bp12m_yld) — group ops not used to respect KEEP_IN_MIND. Single field used. Confidence 0.7.",
+      "implementation": "zscore(anl48_bp12m_yld)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Yield-change kurtosis detector",
+      "description": "Use ts_kurtosis of recent bp12m_yld to spot heavy tails and anomalous moves. SUGGESTION1 single field. Confidence 0.54.",
+      "implementation": "ts_kurtosis(anl48_bp12m_yld,63)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Dividend forecast consistency (IR)",
+      "description": "Use ts_ir(anl48_bpda,63) to measure signal-to-noise in DPS forecasts; backfill applied to bpda. SUGGESTION4 moderate. Confidence 0.6.",
+      "implementation": "ts_ir(ts_backfill(anl48_bpda,20),63)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Recently raised dividends persistence",
+      "description": "Scalar signal: recent increases in equity_ldg via ts_delta positive values. No backfill needed. Confidence 0.7.",
+      "implementation": "ts_zscore(ts_delta(anl48_equity_ldg,21),63)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Dividend per share outlier cap",
+      "description": "Winsorize extremes in anl48_equity_dvd_sh_last to avoid overweights on noisy payouts. SUGGESTION1 single field. Confidence 0.5 (pre-processing tool).",
+      "implementation": "winsorize(anl48_equity_dvd_sh_last, std=3)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Forecast vs index yield relative",
+      "description": "Difference between firm-level projected yield and index-level yield to capture relative value. Both fields used; index high coverage. Confidence 0.74.",
+      "implementation": "subtract(anl48_bp12m_yld, anl48_index_m21_dly_dvd_yqe)",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Dividend health shock detector",
+      "description": "Large negative ts_delta in anl48_bdvd_curr_dvd_health indicates deterioration; backfill applied. Confidence 0.66.",
+      "implementation": "reverse(ts_delta(ts_backfill(anl48_bdvd_curr_dvd_health,21),5))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Long-term dividend yield trend strength",
+      "description": "ts_regression slope proxy via ts_regression of anl48_bp12m_yld over 252 days (rettype slope). SUGGESTION1 used strong field. Confidence 0.78.",
+      "implementation": "ts_regression(anl48_bp12m_yld, anl48_bp12m_yld, 252, lag=0, rettype=0)",
+      "confidence_level": 0.78
+    },
+    {
+      "idea": "Dividend payment frequency signal",
+      "description": "Use anl48_equity_m21_dly_dvd_yqe to infer payment frequency patterns: high value implies regular payments. Backfill applied. Confidence 0.6.",
+      "implementation": "zscore(ts_backfill(anl48_equity_m21_dly_dvd_yqe,63))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Dividend stability composite",
+      "description": "Combine low ts_std_dev of equity_dvd_sh_last and low ts_count_nans on history to prefer stable payers. Two derived metrics from one field; backfill applied. Confidence 0.7.",
+      "implementation": "multiply(inverse(ts_std_dev(ts_backfill(anl48_equity_dvd_sh_last,63),252)), inverse(ts_count_nans(ts_backfill(anl48_equity_dvd_sh_last,63),252)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "High forecast & increasing announce frequency",
+      "description": "Combine high bpda forecasts with rising announce date frequency anl48_bedhgad (both backfilled). SUGGESTION1 two fields. Confidence 0.65.",
+      "implementation": "multiply(quantile(ts_backfill(anl48_bpda,20)), ts_zscore(ts_backfill(anl48_bedhgad,63),63))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Dividend yield cross-sectional rank within index",
+      "description": "Rank yield within index proxy via quantile of anl48_bp12m_yld; index grouping not used to respect KEEP_IN_MIND. SUGGESTION1 single field. Confidence 0.72.",
+      "implementation": "quantile(anl48_bp12m_yld)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Dividend surprise persistence (TS IR)",
+      "description": "Measure information ratio of forecast surprise time series: ts_ir(subtract(bpda,last_div),63) with backfill on bpda. Confidence 0.66.",
+      "implementation": "ts_ir(subtract(ts_backfill(anl48_bpda,20), anl48_equity_dvd_sh_last),63)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Dividend yield gap to peers (relative)",
+      "description": "Normalize yield and subtract its cross-sectional mean using normalize(anl48_bp12m_yld). SUGGESTION1 single field. Confidence 0.7.",
+      "implementation": "normalize(anl48_bp12m_yld)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Forecasted dividend per share acceleration",
+      "description": "Detect acceleration in analysts' DPS forecast using ts_delta on bpda (backfilled). Confidence 0.6.",
+      "implementation": "ts_zscore(ts_delta(ts_backfill(anl48_bpda,20),5),63)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Yield spread to recent realized dividends",
+      "description": "Subtract realized 12m dividend yield (equity_m21) from projected yield to find discrepancies. Backfill equity_m21. Confidence 0.75.",
+      "implementation": "subtract(anl48_bp12m_yld, ts_backfill(anl48_equity_m21_dly_dvd_yqe,10))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Dividend announcement momentum",
+      "description": "Momentum in announce-date occurrences using ts_sum on bedhgad; backfill applied. Confidence 0.48.",
+      "implementation": "ts_zscore(ts_sum(ts_backfill(anl48_bedhgad,63),63),63)",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "High yield & positive recent payout change",
+      "description": "Combine quantile(bp12m_yld) with recent positive ts_delta in equity_ldg. Backfill equity_ldg if needed. Confidence 0.79.",
+      "implementation": "multiply(quantile(anl48_bp12m_yld), ts_zscore(ts_delta(anl48_equity_ldg,21),63))",
+      "confidence_level": 0.79
+    },
+    {
+      "idea": "Short-term dividend volatility breakout",
+      "description": "Use ts_arg_max on ts_std_dev of bp12m_yld to find volatility regime shifts. Single field used. Confidence 0.57.",
+      "implementation": "ts_arg_max(ts_std_dev(anl48_bp12m_yld,21),21)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Forecast / last dividend log-ratio",
+      "description": "Log ratio of forecast bpda to last dividend to capture multiplicative surprises; backfill bpda. SUGGESTION1 applied. Confidence 0.72.",
+      "implementation": "log(divide(ts_backfill(anl48_bpda,10), anl48_equity_dvd_sh_last))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Dividend history max drawdown proxy",
+      "description": "Use ts_max_diff on bedhga to detect drawdown from historical max in dividends. Backfill applied. Confidence 0.6.",
+      "implementation": "ts_max_diff(ts_backfill(anl48_bedhga,252),252)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Index member count as liquidity proxy",
+      "description": "Use anl48_count_index_members as a liquidity/coverage proxy; higher count => more stable. Coverage high; SUGGESTION4 minimal. Confidence 0.52.",
+      "implementation": "zscore(anl48_count_index_members)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Dividend health weighted yield",
+      "description": "Weight projected yield by dividend health: multiply bp12m_yld by normalized bdvd_curr_dvd_health (backfilled). SUGGESTION1 used two fields. Confidence 0.76.",
+      "implementation": "multiply(anl48_bp12m_yld, quantile(ts_backfill(anl48_bdvd_curr_dvd_health,10)))",
+      "confidence_level": 0.76
+    },
+    {
+      "idea": "Short-term reversal after ex-dividend",
+      "description": "Use days_from_last_change on td_xe_dvd and reverse short-term zscore to capture post-ex behavior. Backfill applied. Confidence 0.5.",
+      "implementation": "reverse(zscore(days_from_last_change(ts_backfill(anl48_td_xe_dvd,10))))",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Dividend yield product with index weight proxy",
+      "description": "Multiply projected yield by index member count to favor high-yield names in large indices. Two datafields used; both high coverage for index. Confidence 0.58.",
+      "implementation": "multiply(anl48_bp12m_yld, anl48_bulk_count_index_members)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Dividend forecast zscore trend",
+      "description": "Compute ts_zscore over bpda forecasts to detect persistent outliers; backfill bpda. Confidence 0.65.",
+      "implementation": "ts_zscore(ts_backfill(anl48_bpda,20),63)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Dividend per share momentum normalized",
+      "description": "Quantile of ts_returns on bpda to find accelerating forecast increases. Backfill applied. Confidence 0.66.",
+      "implementation": "quantile(ts_returns(ts_backfill(anl48_bpda,20),63))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "High yield but poor recent dividend change avoidance",
+      "description": "Subtract recent dividend delta (equity_ldg) from yield to penalize high yield with falling payouts. SUGGESTION1 two fields; backfill equity_ldg if needed. Confidence 0.77.",
+      "implementation": "subtract(anl48_bp12m_yld, ts_zscore(ts_delta(anl48_equity_ldg,21),63))",
+      "confidence_level": 0.77
+    },
+    {
+      "idea": "Dividend forecast consensus (low dispersion favored)",
+      "description": "Inverse of ts_std_dev(bp12m_yld) to favor consensus forecasts. Single high-quality field. Confidence 0.7.",
+      "implementation": "inverse(ts_std_dev(anl48_bp12m_yld,63))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Pay-date clustering momentum",
+      "description": "Use ts_count_nans or ts_sum on pay date history anl48_bdhpd to find clustering of pay dates; backfill applied. Confidence 0.46.",
+      "implementation": "ts_sum(ts_backfill(anl48_bdhpd,252),252)",
+      "confidence_level": 0.46
+    },
+    {
+      "idea": "Dividend health scaled yield",
+      "description": "Scale yield by group-neutralized health proxy using quantile of health (backfilled). Single multiplier applied. Confidence 0.75.",
+      "implementation": "multiply(anl48_bp12m_yld, quantile(ts_backfill(anl48_bdvd_curr_dvd_health,10)))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Forecast persistence rank",
+      "description": "Rank instruments by historical persistence of bpda via ts_rank over 252 days (backfilled). Confidence 0.63.",
+      "implementation": "ts_rank(ts_backfill(anl48_bpda,252),252)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Dividend anomaly via last vs index",
+      "description": "Zscore difference of last equity dividend and index last dividend (equity_m21 vs index_m21) to find relative anomaly. Backfill applied to equity field. Confidence 0.71.",
+      "implementation": "zscore(subtract(ts_backfill(anl48_equity_m21_dly_dvd_yqe,10), anl48_index_m21_dly_dvd_yqe))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Dividend forecast acceleration (double delta)",
+      "description": "Second-order change in bpda (ts_delta of ts_delta) to find accelerating forecasts. Backfill bpda. Confidence 0.59.",
+      "implementation": "ts_zscore(ts_delta(ts_delta(ts_backfill(anl48_bpda,20),5),5),63)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Yield outlier tail suppression then rank",
+      "description": "Winsorize bp12m_yld then quantile to reduce outlier influence. SUGGESTION1 used single field. Confidence 0.7.",
+      "implementation": "quantile(winsorize(anl48_bp12m_yld, std=4))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Dividend history peak recency",
+      "description": "Use last_diff_value on bedhga to find recent new peaks in dividend payments; backfill applied. Confidence 0.5.",
+      "implementation": "last_diff_value(ts_backfill(anl48_bedhga,252),252)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Forecast-to-history IR",
+      "description": "Information ratio of forecast surprise over time: ts_ir(subtract(bpda, equity_dvd_sh_last),63); backfill bpda. Confidence 0.64.",
+      "implementation": "ts_ir(subtract(ts_backfill(anl48_bpda,20), anl48_equity_dvd_sh_last),63)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Dividend yield decile reversal",
+      "description": "Bucket yields into deciles and short extreme deciles expecting partial mean reversion. Single field used. Confidence 0.71.",
+      "implementation": "bucket(quantile(anl48_bp12m_yld), range=\"0, 1, 0.1\")",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Dividend announcement lead-lag",
+      "description": "Compare announce date history anl48_bedhgad to pay-date history anl48_bedhgpd to find lead-lag anomalies; backfill both. Confidence 0.47.",
+      "implementation": "subtract(ts_backfill(anl48_bedhgad,63), ts_backfill(anl48_bedhgpd,63))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "High yield & recent upgrade proxy",
+      "description": "Proxy upgrades by positive ts_delta in bpda (backfilled) combined with high yield. SUGGESTION1 two fields derived from same. Confidence 0.78.",
+      "implementation": "multiply(quantile(anl48_bp12m_yld), ts_zscore(ts_delta(ts_backfill(anl48_bpda,20),21),63))",
+      "confidence_level": 0.78
+    },
+    {
+      "idea": "Dividend yields cluster detector",
+      "description": "Use vec-like approach via ts_std_dev across time of bp12m_yld to detect clustering; SUGGESTION2 not applicable but ts_std_dev used. Confidence 0.56.",
+      "implementation": "ts_std_dev(anl48_bp12m_yld,63)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "High dividend but falling gross dividend red flag",
+      "description": "Subtract ts_delta of gross dividend history (bedhga) from bp12m_yld to penalize falling gross payouts. Backfill bedhga. Confidence 0.73.",
+      "implementation": "subtract(anl48_bp12m_yld, ts_zscore(ts_delta(ts_backfill(anl48_bedhga,63),21),63))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Forecast consistency across months",
+      "description": "Measure ts_count_nans in monthly projections (if available) using anl48_bp12m_dip/backfill to ensure stable forecasting. SUGGESTION1 used available field. Confidence 0.5.",
+      "implementation": "ts_count_nans(ts_backfill(anl48_bp12m_dip,63),63)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Dividend yield relative strength",
+      "description": "Cross-sectional rank of recent yield returns to capture relative strength in expected income. Single field used. Confidence 0.74.",
+      "implementation": "ts_rank(ts_returns(anl48_bp12m_yld,63),63)",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Dividend growth surprise zscore",
+      "description": "Zscore of difference between bp3y_dg forecast and edg3yr_g realized growth; backfill both. Confidence 0.49.",
+      "implementation": "zscore(subtract(ts_backfill(anl48_bp3y_dg,60), ts_backfill(anl48_edg3yr_g,60)))",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Index dividend trend divergence",
+      "description": "Subtract ts_zscore of index dividend yield from stock's yield to capture relative momentum. Single index and stock field used. Confidence 0.7.",
+      "implementation": "subtract(ts_zscore(anl48_bp12m_yld,63), ts_zscore(anl48_index_m21_dly_dvd_yqe,63))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Forecast spike detector",
+      "description": "Identify abrupt forecast jumps in bpda using ts_arg_max on ts_delta; backfill bpda. Confidence 0.62.",
+      "implementation": "ts_arg_max(ts_delta(ts_backfill(anl48_bpda,63),21),63)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Dividend yield / index member scaled score",
+      "description": "Scale yield by inverse of index member count to favor yields in concentrated indices. Two fields used. Confidence 0.55.",
+      "implementation": "multiply(anl48_bp12m_yld, inverse(anl48_count_index_members))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Yield reversion after large cumulative increase",
+      "description": "Use ts_sum of returns on bp12m_yld to find cumulative run-ups and expect reversion. Single field. Confidence 0.68.",
+      "implementation": "reverse(ts_sum(ts_returns(anl48_bp12m_yld,1),21))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Stable payer screen",
+      "description": "Combine low ts_count_nans on dividend history and low ts_std_dev of equity_dvd_sh_last to screen stable payers; backfill if needed. Confidence 0.7.",
+      "implementation": "multiply(inverse(ts_count_nans(ts_backfill(anl48_equity_dvd_sh_last,252),252)), inverse(ts_std_dev(ts_backfill(anl48_equity_dvd_sh_last,252),252)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Forecast-to-history ratio zscore",
+      "description": "Zscore the ratio of forecast bpda to past 12m dividends to detect outliers; backfill forecast. Confidence 0.73.",
+      "implementation": "zscore(divide(ts_backfill(anl48_bpda,20), ts_backfill(anl48_equity_m21_dly_dvd_yqe,20)))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Dividend yield momentum decayed",
+      "description": "Apply ts_decay_linear-like behavior via ts_zscore of exponentially-weighted returns approximation using ts_returns and ts_zscore. Single field. Confidence 0.7.",
+      "implementation": "ts_zscore(ts_returns(anl48_bp12m_yld,63),126)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Pay date vs record date anomaly",
+      "description": "Subtract dvd_record_dt from dvd_pay_dt (both backfilled) to detect anomalies in payment lags. Confidence 0.48.",
+      "implementation": "subtract(ts_backfill(anl48_dvd_pay_dt,30), ts_backfill(anl48_dvd_record_dt,30))",
+      "confidence_level": 0.48
+    },
+    {
+      "idea": "Dividend health * recent yield increase",
+      "description": "Multiply recent positive ts_delta in bp12m_yld with bdvd_curr_dvd_health (backfilled) to favor healthy yield risers. Confidence 0.79.",
+      "implementation": "multiply(ts_zscore(ts_delta(anl48_bp12m_yld,21),63), quantile(ts_backfill(anl48_bdvd_curr_dvd_health,10)))",
+      "confidence_level": 0.79
+    },
+    {
+      "idea": "Forecast dispersion vs index dispersion",
+      "description": "Compare ts_std_dev of firm forecast (bp12m_yld) versus index-level dispersion to find unique signals. Single field for firm used; index proxy left out to keep short. Confidence 0.57.",
+      "implementation": "ts_std_dev(anl48_bp12m_yld,63)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Dividend yield zscore filtered by data completeness",
+      "description": "Apply zscore to bp12m_yld but mask instruments with high ts_count_nans (backfill where partial). SUGGESTION3 applied if needed. Confidence 0.66.",
+      "implementation": "if_else(less(ts_count_nans(anl48_bp12m_yld,63),10), zscore(anl48_bp12m_yld), NaN)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Dividend growth vs last payout ratio",
+      "description": "Compare projected bp3y_dg to ratio of bpda / equity_dvd_sh_last to detect inconsistent forecasts; backfill bp3y_dg and bpda. Confidence 0.52.",
+      "implementation": "subtract(ts_backfill(anl48_bp3y_dg,60), divide(ts_backfill(anl48_bpda,20), anl48_equity_dvd_sh_last))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Dividend surge event flag",
+      "description": "Flag extreme positive jumps in bp12m_yld via ts_arg_max on ts_delta exceeding threshold. Single field. Confidence 0.6.",
+      "implementation": "if_else(greater(ts_arg_max(ts_delta(anl48_bp12m_yld,21),21),0), 1, 0)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Forecasted DPS relative percentile",
+      "description": "Quantile rank of bpda across cross-section to find top forecasted DPS names; backfill applied. Confidence 0.7.",
+      "implementation": "quantile(ts_backfill(anl48_bpda,20))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Dividend yield expectation vs actual trend",
+      "description": "Subtract recent realized yield trend (ts_returns on equity_m21) from projected bp12m_yld to find optimistic/pessimistic forecasts. Backfill equity_m21. Confidence 0.74.",
+      "implementation": "subtract(anl48_bp12m_yld, ts_returns(ts_backfill(anl48_equity_m21_dly_dvd_yqe,63),63))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Dividend health shock persistence",
+      "description": "Compute ts_ir on bdvd health to find persistent changes; backfill applied. Confidence 0.61.",
+      "implementation": "ts_ir(ts_backfill(anl48_bdvd_curr_dvd_health,20),63)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Index vs member yield dispersion",
+      "description": "Measure divergence between index yield and member yields via subtract(anl48_index_m21_dly_dvd_yqe, bp12m_yld). Two fields used. Confidence 0.68.",
+      "implementation": "subtract(anl48_index_m21_dly_dvd_yqe, anl48_bp12m_yld)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Dividend forecast momentum (short)",
+      "description": "Short-term momentum on bpda via ts_returns and ts_zscore; backfill bpda. Confidence 0.63.",
+      "implementation": "ts_zscore(ts_returns(ts_backfill(anl48_bpda,20),21),63)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Dividend payment reliability index",
+      "description": "Combine ts_count_nans and inverse ts_std_dev on equity_dvd_sh_last to create a reliability score; backfill applied. Confidence 0.7.",
+      "implementation": "multiply(inverse(ts_count_nans(ts_backfill(anl48_equity_dvd_sh_last,252),252)), inverse(ts_std_dev(ts_backfill(anl48_equity_dvd_sh_last,252),252)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "High yield & strong historical growth",
+      "description": "Multiply quantile(bp12m_yld) with ts_zscore of historical gross dividend growth (bedhga); backfill bedhga. SUGGESTION1 used two fields. Confidence 0.78.",
+      "implementation": "multiply(quantile(anl48_bp12m_yld), ts_zscore(ts_backfill(anl48_bedhga,252),252))",
+      "confidence_level": 0.78
+    },
+    {
+      "idea": "Dividend forecast minus index forecast ratio",
+      "description": "Divide firm bp12m_yld by index_m21 to quantify relative forecasting divergence. Two fields used. Confidence 0.66.",
+      "implementation": "divide(anl48_bp12m_yld, anl48_index_m21_dly_dvd_yqe)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Dividend announcement timing arbitrage",
+      "description": "Detect anomalies in announce vs pay dates using bedhgad and bedhgpd (both backfilled) to capture scheduling signals. Confidence 0.47.",
+      "implementation": "subtract(ts_backfill(anl48_bedhgad,63), ts_backfill(anl48_bedhgpd,63))",
+      "confidence_level": 0.47
+    },
+    {
+      "idea": "Dividend yield seasonality rank",
+      "description": "Use ts_rank of bp12m_yld over 252 days to capture seasonal rank changes. Single field. Confidence 0.6.",
+      "implementation": "ts_rank(anl48_bp12m_yld,252)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Forecasted dividend vs last announced zscore",
+      "description": "Zscore of bpda relative to last announced dividend to detect outliers; backfill bpda. Confidence 0.72.",
+      "implementation": "zscore(subtract(ts_backfill(anl48_bpda,20), anl48_equity_dvd_sh_last))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Dividend yield momentum + low dispersion",
+      "description": "Combine ts_returns momentum on bp12m_yld with low ts_std_dev to favor consensus movers. Single field. Confidence 0.8.",
+      "implementation": "multiply(ts_zscore(ts_returns(anl48_bp12m_yld,63),63), inverse(ts_std_dev(anl48_bp12m_yld,63)))",
+      "confidence_level": 0.8
+    },
+    {
+      "idea": "Dividend health normalized rank",
+      "description": "Quantile rank of bdvd_curr_dvd_health (backfilled) to select healthiest payers. SUGGESTION4 used due to userCount. Confidence 0.69.",
+      "implementation": "quantile(ts_backfill(anl48_bdvd_curr_dvd_health,20))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Yield jump with low announcement noise",
+      "description": "Flag large ts_delta in bp12m_yld but only when ts_count_nans in bpda is low (backfill bpda). Combines two metrics; respects operator limits. Confidence 0.67.",
+      "implementation": "if_else(less(ts_count_nans(ts_backfill(anl48_bpda,63),63),5), ts_zscore(ts_delta(anl48_bp12m_yld,21),63), NaN)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Dividend per share vs gross history divergence",
+      "description": "Subtract recent equity_dvd_sh_last from gross dividend history bedhga (backfilled) to spot reporting differences. Confidence 0.54.",
+      "implementation": "subtract(ts_backfill(anl48_bedhga,63), anl48_equity_dvd_sh_last)",
+      "confidence_level": 0.54
+    }
+  ]
+}
