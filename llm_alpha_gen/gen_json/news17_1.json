@@ -1,0 +1,580 @@
+{
+  "results": [
+    {
+      "idea": "Cross-sectional positive news strength: rank stories by combined sentiment (SSC) averaged across vector elements",
+      "description": "Used SUGGESTION1 by relying on nws17_comp_d1_ssc. SUGGESTION2 applied: vec_avg() wraps VECTOR. SUGGESTION3 not needed (coverage 0.8038 > 0.6). SUGGESTION4 partially considered (userCount=10, alphaCount=32 moderate). KEEP_IN_MINDs enforced: single datafield, short operator chain. Rationale: SSC is granular sentiment; cross-sectional ranking should capture positive news momentum. confidence: 0.72",
+      "implementation": "quantile(vec_avg(nws17_comp_d1_ssc))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "High-relevance news volume: average relevance per story as a momentum signal",
+      "description": "SUGGESTION1: used nws17_multiple_comp_d1_relevance. SUGGESTION2: vec_avg() used. SUGGESTION3 not needed (coverage 0.9789). SUGGESTION4: userCount low but coverage high; accepted. KEEP_IN_MIND: single datafield, simple ops. Rationale: Highly relevant mentions often move price; ranking by relevance finds movers. confidence: 0.68",
+      "implementation": "quantile(vec_avg(nws17_multiple_comp_d1_relevance))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Combined sentiment and relevance filter: prefer positive SSC when relevance high",
+      "description": "SUGGESTION1: combined nws17_comp_d1_ssc and nws17_multiple_comp_d1_relevance. Both are VECTOR so SUGGESTION2 applied (vec_avg). Coverage fine for SSC and relevance. SUGGESTION4 considered. KEEP_IN_MIND: two datafields, short chain. Rationale: multiply positive sentiment by prominence magnifies actionable stories. confidence: 0.75",
+      "implementation": "multiply(vec_avg(nws17_comp_d1_ssc), vec_avg(nws17_multiple_comp_d1_relevance))",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "Event-driven surprise: zscore of recent SSC relative to 5-day history",
+      "description": "SUGGESTION1 used SSC only. SUGGESTION2 vec_avg applied. Used ts_zscore to measure surprise (ts_zscore(vec_avg(ssc),5)). SUGGESTION3 not needed. KEEP_IN_MIND: single field, <=7 operators. Rationale: large positive surprise may predict short-term outperformance. confidence: 0.70",
+      "implementation": "ts_zscore(ts_mean(vec_avg(nws17_comp_d1_ssc),1),5)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Relevance momentum: 3-day mean relevance normalized cross-sectionally",
+      "description": "Used nws17_multiple_comp_d1_relevance (SUGGESTION1). vec_avg() applied (SUGGESTION2). ts_mean with window=3 used; then quantile/normalize. SUGGESTION3 not needed. KEEP_IN_MIND followed. Rationale: increasing prominence over days signals news flow. confidence: 0.66",
+      "implementation": "quantile(ts_mean(vec_avg(nws17_multiple_comp_d1_relevance),3))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Event text presence weight: count of non-empty event_text averaged (proxy for story richness)",
+      "description": "Used nws17_multiple_comp_d1_event_text (SUGGESTION1). VECTOR so vec_avg() wraps the field; since it's text, vec_avg acts as proxy presence metric. Coverage high so SUGGESTION3 skipped. KEEP_IN_MIND respected. Rationale: richer summaries indicate substantive events. confidence: 0.60",
+      "implementation": "quantile(vec_avg(nws17_multiple_comp_d1_event_text))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Sentiment-weighted relevance: SSC * relevance, then cross-sectional zscore",
+      "description": "Combined nws17_comp_d1_ssc and nws17_multiple_comp_d1_relevance (SUGGESTION1). Applied vec_avg() to both (SUGGESTION2). Then zscore() to remove cross-sectional mean. SUGGESTION3 not needed. Rationale: weights sentiment by prominence. confidence: 0.76",
+      "implementation": "zscore(multiply(vec_avg(nws17_comp_d1_ssc), vec_avg(nws17_multiple_comp_d1_relevance)))",
+      "confidence_level": 0.76
+    },
+    {
+      "idea": "Conservative news filter: only use high relevance (>75) stories by bucketed relevance",
+      "description": "Used nws17_multiple_comp_d1_relevance. vec_avg() applied (SUGGESTION2). bucket(rank(...)) used to isolate top relevance bucket. SUGGESTION3 not needed. KEEP_IN_MIND: single field and short ops. Rationale: focus on highly relevant mentions reduces noise. confidence: 0.65",
+      "implementation": "bucket(rank(vec_avg(nws17_multiple_comp_d1_relevance)), buckets=\"75,100\")",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Negative-sentiment contrarian: short names with strongly negative SSC (cross-sectional quantile)",
+      "description": "Used nws17_comp_d1_ssc (SUGGESTION1). vec_avg enforced (SUGGESTION2). quantile applied to identify bottom tail. SUGGESTION3 not required. KEEP_IN_MIND respected. Rationale: negative earnings-related sentiment often precedes underperformance. confidence: 0.71",
+      "implementation": "quantile(reverse(vec_avg(nws17_comp_d1_ssc)))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Relevance-sentiment divergence: cases where relevance increases while SSC drops",
+      "description": "Combined relevance and SSC (SUGGESTION1) using vec_avg. Used ts_delta to capture recent change in relevance and multiplied by negative SSC to find divergence. SUGGESTION3 not needed. KEEP_IN_MIND: two fields only. Rationale: rising prominence with worsening sentiment may predict further downside. confidence: 0.67",
+      "implementation": "multiply(ts_delta(vec_avg(nws17_multiple_comp_d1_relevance),1), reverse(vec_avg(nws17_comp_d1_ssc)))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "BEE earnings classifier extreme signal (backfilled): target extreme BEE sentiment",
+      "description": "Used nws17_comp_d1_bee which has low coverage so SUGGESTION3 applied: ts_backfill(vec_avg(...),5). SUGGESTION2 vec_avg used. SUGGESTION1 single-field. KEEP_IN_MIND maintained. Rationale: BEE specializes in earnings eval; backfill recovers sporadic coverage. confidence: 0.58",
+      "implementation": "quantile(ts_backfill(vec_avg(nws17_comp_d1_bee),5))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "ACB BER earnings sentiment extreme (backfilled) scaled by relevance",
+      "description": "Used nws17_comp_d1_acb (coverage <0.6) with ts_backfill as per SUGGESTION3 and vec_avg per SUGGESTION2, combined with relevance vec_avg. SUGGESTION1 used two fields. KEEP_IN_MIND: two fields, short chain. Rationale: BER classifier (ACB) multiplied by prominence gives focused earnings signal. confidence: 0.63",
+      "implementation": "multiply(ts_backfill(vec_avg(nws17_comp_d1_acb),5), vec_avg(nws17_multiple_comp_d1_relevance))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Event-text sentiment proxy: use SSC but only when event_text non-empty (trade_when)",
+      "description": "SUGGESTION1 used SSC and event_text. vec_avg applied to both (SUGGESTION2). trade_when used to keep SSC only when event_text indicates presence. SUGGESTION3 not needed. KEEP_IN_MIND: two fields, small operator count. Rationale: ensures sentiment is tied to explicit event. confidence: 0.69",
+      "implementation": "trade_when(vec_avg(nws17_comp_d1_ssc), not(is_nan(vec_avg(nws17_multiple_comp_d1_event_text))), NaN)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Short-term sentiment momentum: ts_returns on daily averaged SSC",
+      "description": "Used SSC (vec_avg). Applied ts_returns with d=1 to capture day-over-day sentiment change. SUGGESTION3 skipped. KEEP_IN_MIND kept simple. Rationale: sudden sentiment jumps often precede price moves. confidence: 0.64",
+      "implementation": "ts_returns(vec_avg(nws17_comp_d1_ssc),1)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Sustained relevance streak: days-from-last-change on relevance to find recently increased attention",
+      "description": "Used relevance (vec_avg). days_from_last_change applied to detect fresh relevance spikes. SUGGESTION3 not needed. KEEP_IN_MIND respected. Rationale: new attention often leads to flows. confidence: 0.62",
+      "implementation": "reverse(days_from_last_change(vec_avg(nws17_multiple_comp_d1_relevance)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Event-richness times sentiment magnitude: vec_sum(event_text_presence) * abs(SSC)",
+      "description": "Used event_text and SSC (SUGGESTION1). vec_avg on SSC and vec_avg on event_text to proxy richness (SUGGESTION2). Took absolute sentiment to capture strong reactions both ways. KEEP_IN_MIND satisfied. Rationale: frequent rich text combined with strong sentiment indicates impactful news. confidence: 0.66",
+      "implementation": "multiply(vec_avg(nws17_multiple_comp_d1_event_text), abs(vec_avg(nws17_comp_d1_ssc)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Relevance zscore trend: ts_zscore of 7-day mean relevance",
+      "description": "Used relevance (vec_avg). Applied ts_mean window 7 then ts_zscore to capture sustained abnormal relevance. SUGGESTION3 not needed. KEEP_IN_MIND: single field. Rationale: prolonged above-average relevance often drives moves. confidence: 0.67",
+      "implementation": "ts_zscore(ts_mean(vec_avg(nws17_multiple_comp_d1_relevance),7),7)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Sentiment reversals: ts_arg_min on SSC to find local minima over short window",
+      "description": "Used SSC (vec_avg). Applied ts_arg_min(vec_avg(ssc),5) to find recent local sentiment troughs. SUGGESTION3 not required. KEEP_IN_MIND small. Rationale: positions taken after sentiment bottom may capture rebounds. confidence: 0.59",
+      "implementation": "ts_arg_min(vec_avg(nws17_comp_d1_ssc),5)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "High-relevance sudden spike: ts_max_diff on relevance to detect new highs",
+      "description": "Used relevance (vec_avg). ts_max_diff(vec_avg(relevance),5) to detect current > past max. SUGGESTION2 applied. KEEP_IN_MIND observed. Rationale: new highs in relevance indicate breaking attention. confidence: 0.65",
+      "implementation": "ts_max_diff(vec_avg(nws17_multiple_comp_d1_relevance),5)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Cross-sectionally neutralized sentiment: group-neutralize SSC by sector (using group param placeholder)",
+      "description": "Applied SSC vec_avg then group_neutralize(vec_avg(ssc), group). KEEP_IN_MIND4: group must be provided externally; noted in description. SUGGESTION2 applied. SUGGESTION3 not needed. Rationale: isolate idiosyncratic news alpha. confidence: 0.70",
+      "implementation": "group_neutralize(vec_avg(nws17_comp_d1_ssc), group)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Event-text recurrence: vec_count of event_text vector to prefer repeatedly described entities",
+      "description": "Used event_text vec_avg as proxy; applied vec_sum/vec_count conceptualized as vec_avg since field is VECTOR. SUGGESTION2 used. Coverage high, SUGGESTION3 skipped. KEEP_IN_MIND short. Rationale: entities with multiple mentions in vector likely more newsworthy. confidence: 0.61",
+      "implementation": "vec_avg(nws17_multiple_comp_d1_event_text)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Relevance decay-adjusted score: ts_decay_linear on relevance (3-day linear decay)",
+      "description": "Used relevance vec_avg and ts_decay_linear(...,3). SUGGESTION2 applied. SUGGESTION3 not needed. KEEP_IN_MIND satisfied. Rationale: emphasize recent relevance while dampening older mentions. confidence: 0.64",
+      "implementation": "ts_decay_linear(vec_avg(nws17_multiple_comp_d1_relevance),3)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Sentiment consistency: vec_stddev of vector sentiment (SSC) to find consistent-sign stories",
+      "description": "Used SSC (SUGGESTION1). VECTOR so vec_stddev applied (SUGGESTION2). Low variability with high mean implies consistent sentiment. SUGGESTION3 not necessary. KEEP_IN_MIND adhered. Rationale: consistent positive sentiment more predictive. confidence: 0.62",
+      "implementation": "vec_stddev(nws17_comp_d1_ssc)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Relevance-weighted event presence: relevance * event_text presence average",
+      "description": "Combined relevance and event_text (SUGGESTION1) both wrapped via vec_avg (SUGGESTION2). Short operator chain ensures KEEP_IN_MIND. Rationale: high prominence and explicit event text signal important news. confidence: 0.68",
+      "implementation": "multiply(vec_avg(nws17_multiple_comp_d1_relevance), vec_avg(nws17_multiple_comp_d1_event_text))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Earnings-specific positive filter: BER (ACB) backfilled positive indicator above 0 multiplied by relevance",
+      "description": "Used nws17_comp_d1_acb (coverage <0.6) with ts_backfill per SUGGESTION3 and vec_avg (SUGGESTION2). Multiplied by relevance vec_avg. KEEP_IN_MIND satisfied (2 fields). Rationale: positive BER in relevant stories is actionable. confidence: 0.64",
+      "implementation": "multiply(ts_backfill(vec_avg(nws17_comp_d1_acb),5), vec_avg(nws17_multiple_comp_d1_relevance))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Event-text corroboration: prefer SSC when event_text length (proxy) large",
+      "description": "Used SSC and event_text, vec_avg both. If event_text presence high then keep SSC via trade_when. KEEP_IN_MIND observed. Rationale: sentiment rooted in substantive event text is more reliable. confidence: 0.67",
+      "implementation": "trade_when(vec_avg(nws17_comp_d1_ssc), greater(vec_avg(nws17_multiple_comp_d1_event_text),0), NaN)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Cross-sectional sign persistence: sign of average SSC (long positive, short negative)",
+      "description": "Used SSC vec_avg then sign() to capture direction. SUGGESTION3 skipped. KEEP_IN_MIND short. Rationale: simple directional stance based on news sentiment. confidence: 0.63",
+      "implementation": "sign(vec_avg(nws17_comp_d1_ssc))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Sentiment volatility filter: low vec_stddev(SSC) and high mean combined",
+      "description": "Used SSC vec_avg and vec_stddev. Applied if_else to prefer names with low stddev and high mean. SUGGESTION2 applied. KEEP_IN_MIND: two fields derived from same datafield. Rationale: stable positive sentiment signals reliable moves. confidence: 0.60",
+      "implementation": "if_else(less(vec_stddev(nws17_comp_d1_ssc),0.2), vec_avg(nws17_comp_d1_ssc), NaN)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Relevance-sentiment covariance: ts_covariance of SSC and relevance to find coordinated moves",
+      "description": "Used two fields SSC and relevance with vec_avg wrappers (SUGGESTION2). Applied ts_covariance(...,5). SUGGESTION3 not needed. KEEP_IN_MIND respected. Rationale: positive covariance suggests sentiment rises with prominence — stronger alpha. confidence: 0.66",
+      "implementation": "ts_covariance(vec_avg(nws17_comp_d1_ssc), vec_avg(nws17_multiple_comp_d1_relevance),5)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Event-text + relevance cross-product ranked",
+      "description": "Combined event_text presence and relevance (SUGGESTION1) via vec_avg and multiply then quantile. SUGGESTION3 not needed. KEEP_IN_MIND: two fields only. Rationale: highest product identifies most important, substantive mentions. confidence: 0.67",
+      "implementation": "quantile(multiply(vec_avg(nws17_multiple_comp_d1_event_text), vec_avg(nws17_multiple_comp_d1_relevance)))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Short-term reversal after extreme negative BEE (backfill) sentiment",
+      "description": "Used nws17_comp_d1_bee (low coverage) with ts_backfill and vec_avg per SUGGESTION3/2. reverse() + quantile to find extreme negatives for contrarian longs. KEEP_IN_MIND satisfied. Rationale: extreme negative BEE could be overreaction. confidence: 0.55",
+      "implementation": "quantile(reverse(ts_backfill(vec_avg(nws17_comp_d1_bee),5)))",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Relevance acceleration: ts_delta of 3-day mean relevance",
+      "description": "Used relevance vec_avg then ts_mean(3) followed by ts_delta(...,1) to get acceleration. SUGGESTION3 not needed. KEEP_IN_MIND maintained. Rationale: accelerating attention predicts short-term moves. confidence: 0.65",
+      "implementation": "ts_delta(ts_mean(vec_avg(nws17_multiple_comp_d1_relevance),3),1)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Event_text frequency vs sentiment: ratio of event_text presence to abs(SSC)",
+      "description": "Used event_text and SSC vec_avg; compute divide(vec_avg(event_text), abs(vec_avg(ssc))). SUGGESTION2 applied. KEEP_IN_MIND: two fields only. Rationale: many mentions but muted sentiment may suggest brewing developments worth watching. confidence: 0.58",
+      "implementation": "divide(vec_avg(nws17_multiple_comp_d1_event_text), abs(vec_avg(nws17_comp_d1_ssc)))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Relevance-based winsorized signal: winsorize mean relevance to reduce outliers then zscore",
+      "description": "Used relevance vec_avg with winsorize then zscore to control outliers (SUGGESTION2). SUGGESTION3 not needed. KEEP_IN_MIND short. Rationale: robust prominence metric. confidence: 0.66",
+      "implementation": "zscore(winsorize(vec_avg(nws17_multiple_comp_d1_relevance), std=4))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Persistent positive SSC: ts_count_nans on SSC vector presence to favor frequently reported positives",
+      "description": "Used SSC vec_avg; applied ts_count_nans to measure reporting frequency; combined with mean. SUGGESTION2 applied. KEEP_IN_MIND respected. Rationale: frequent positive coverage likely sustainable. confidence: 0.60",
+      "implementation": "subtract(vec_avg(nws17_comp_d1_ssc), ts_count_nans(vec_avg(nws17_comp_d1_ssc),7))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Cross-field correlation drop: low ts_corr between SSC and relevance indicates sentiment decoupling",
+      "description": "Used SSC and relevance with vec_avg wrappers; ts_corr(...,7) applied. SUGGESTION3 not needed. KEEP_IN_MIND met. Rationale: decoupling may signal unique idiosyncratic stories. confidence: 0.55",
+      "implementation": "ts_corr(vec_avg(nws17_comp_d1_ssc), vec_avg(nws17_multiple_comp_d1_relevance),7)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "Prominence-adjusted sentiment zscore: zscore(SSC * relevance)",
+      "description": "Multiplicative signal of SSC and relevance then zscore for cross-sectional comparability. SUGGESTION2 used. KEEP_IN_MIND kept short. Rationale: combined measure normalizes both magnitude and prominence. confidence: 0.74",
+      "implementation": "zscore(multiply(vec_avg(nws17_comp_d1_ssc), vec_avg(nws17_multiple_comp_d1_relevance)))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Event_text novelty: ts_arg_max on vec_avg(event_text) to find latest large summaries",
+      "description": "Used event_text vec_avg and ts_arg_max(...,7) to find when summary peaked. SUGGESTION3 not needed. KEEP_IN_MIND short. Rationale: newly detailed summaries often presage moves. confidence: 0.61",
+      "implementation": "ts_arg_max(vec_avg(nws17_multiple_comp_d1_event_text),7)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "SSC sign-change detector: last_diff_value(vec_avg(SSC),5) to spot recent flips",
+      "description": "Used SSC vec_avg and last_diff_value(...,5). SUGGESTION3 skipped. KEEP_IN_MIND satisfied. Rationale: sign flips often precede trend reversals. confidence: 0.62",
+      "implementation": "last_diff_value(vec_avg(nws17_comp_d1_ssc),5)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Relevance decay IR: ts_ir on relevance 7-day to get stable prominence over noise",
+      "description": "Used relevance vec_avg and ts_ir(...,7) to compute mean/std. SUGGESTION2 applied. KEEP_IN_MIND short. Rationale: high IR indicates consistent attention relative to variability. confidence: 0.66",
+      "implementation": "ts_ir(vec_avg(nws17_multiple_comp_d1_relevance),7)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Event-text weighted sentiment average: (event_text presence * SSC) aggregated",
+      "description": "Combined event_text and SSC via vec_avg and multiply, then quantile. SUGGESTION1/2 applied. KEEP_IN_MIND ok. Rationale: sentiment anchored to explicit event_text signals. confidence: 0.70",
+      "implementation": "quantile(multiply(vec_avg(nws17_multiple_comp_d1_event_text), vec_avg(nws17_comp_d1_ssc)))",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Relevance relative rank within 30 days: ts_rank of relevance(30)",
+      "description": "Used relevance vec_avg and ts_rank(...,30) then quantile to capture relative position in monthly window. SUGGESTION3 not required. KEEP_IN_MIND followed. Rationale: names at top of 30-day relevance often continue to move. confidence: 0.65",
+      "implementation": "quantile(ts_rank(vec_avg(nws17_multiple_comp_d1_relevance),30))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Backfilled BER positive streak length: days_from_last_change on backfilled ACB",
+      "description": "Used ACB with ts_backfill per SUGGESTION3 and vec_avg. days_from_last_change applied. KEEP_IN_MIND maintained. Rationale: recent sustained positive ACB is meaningful despite sparse coverage. confidence: 0.59",
+      "implementation": "reverse(days_from_last_change(ts_backfill(vec_avg(nws17_comp_d1_acb),5)))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "BEE prominence interplay: ts_corr(backfilled BEE, relevance,5)",
+      "description": "Used BEE (low coverage) with ts_backfill and relevance per SUGGESTION3/1. vec_avg applied. Measured ts_corr over 5 days. KEEP_IN_MIND two fields only. Rationale: when BEE aligns with rising prominence the earnings signal is stronger. confidence: 0.60",
+      "implementation": "ts_corr(ts_backfill(vec_avg(nws17_comp_d1_bee),5), vec_avg(nws17_multiple_comp_d1_relevance),5)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Event_text + relevance 7-day product zscore",
+      "description": "Combined event_text and relevance via vec_avg, ts_sum/ts_mean (7) then zscore. SUGGESTION2 applied. KEEP_IN_MIND: two fields. Rationale: sustained co-occurrence of text depth and prominence is predictive. confidence: 0.68",
+      "implementation": "zscore(ts_mean(multiply(vec_avg(nws17_multiple_comp_d1_event_text), vec_avg(nws17_multiple_comp_d1_relevance)),7))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Relevance jump captured by ts_arg_max on 5-day window",
+      "description": "Relevance vec_avg and ts_arg_max(...,5) to find fresh peaks. SUGGESTION3 not needed. KEEP_IN_MIND compact. Rationale: immediate peaks attract flows. confidence: 0.63",
+      "implementation": "ts_arg_max(vec_avg(nws17_multiple_comp_d1_relevance),5)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Relevance weighted sign of SSC: sign(SSC) * relevance as directional size",
+      "description": "Used SSC and relevance multiplied after vec_avg wrappers. SUGGESTION1/2 applied. KEEP_IN_MIND two fields. Rationale: prominence scales directional bets. confidence: 0.72",
+      "implementation": "multiply(sign(vec_avg(nws17_comp_d1_ssc)), vec_avg(nws17_multiple_comp_d1_relevance))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Event-text sudden appearance: is_nan backfill then trade_when to hold only new events",
+      "description": "Used event_text vec_avg and ts_backfill only if coverage gap present (coverage high so skipped). trade_when condition used to capture new non-NaN. SUGGESTION2 applied. KEEP_IN_MIND minimal. Rationale: newly appearing event_text often drives moves. confidence: 0.60",
+      "implementation": "trade_when(vec_avg(nws17_multiple_comp_d1_event_text), not(is_nan(vec_avg(nws17_multiple_comp_d1_event_text))), NaN)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Prominence-normalized SSC: divide SSC by mean relevance to down-weight noisy mentions",
+      "description": "Combined SSC and relevance vec_avg and divide. SUGGESTION2 applied. KEEP_IN_MIND enforced. Rationale: normalizing by prominence reduces spurious sentiment. confidence: 0.69",
+      "implementation": "divide(vec_avg(nws17_comp_d1_ssc), add(vec_avg(nws17_multiple_comp_d1_relevance), 1e-6))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Event_text concordance: multiply event_text and backfilled ACB to focus earnings-related narrative",
+      "description": "Used event_text and ACB (ACB low coverage -> ts_backfill applied) with vec_avg wrappers. KEEP_IN_MIND two datafields. Rationale: earnings classifier aligned with descriptive event text is strong signal. confidence: 0.62",
+      "implementation": "multiply(vec_avg(nws17_multiple_comp_d1_event_text), ts_backfill(vec_avg(nws17_comp_d1_acb),5))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "SSC-tail hedged signal: winsorize SSC then reverse outliers for robust ranking",
+      "description": "Used SSC vec_avg and winsorize then quantile for ranking. SUGGESTION3 not needed. KEEP_IN_MIND: single field, short chain. Rationale: reduces influence of noisy extreme signals. confidence: 0.65",
+      "implementation": "quantile(winsorize(vec_avg(nws17_comp_d1_ssc), std=4))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Two-day SSC mean vs seven-day mean divergence: ts_av_diff(vec_avg(SSC),7)",
+      "description": "Used SSC vec_avg and ts_av_diff(...,7) to capture short-vs-medium divergence. SUGGESTION3 not required. KEEP_IN_MIND minimal. Rationale: short-term jump above medium-term mean suggests momentum. confidence: 0.66",
+      "implementation": "ts_av_diff(vec_avg(nws17_comp_d1_ssc),7)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Relevance tail bucket long-only: bucket rank of relevance selecting top bucket",
+      "description": "Relevance vec_avg and bucket(rank(...)) used to isolate top deciles. SUGGESTION3 skipped. KEEP_IN_MIND satisfied. Rationale: focus capital on most prominent stories. confidence: 0.63",
+      "implementation": "bucket(rank(vec_avg(nws17_multiple_comp_d1_relevance)), range=\"0,1,0.1\")",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Aggregate news strength: average SSC + backfilled BEE to capture multi-classifier agreement",
+      "description": "Combined SSC and BEE; BEE backfilled per SUGGESTION3; vec_avg on both; add operator to aggregate. KEEP_IN_MIND two datafields limit respected. Rationale: agreement among classifiers is stronger signal. confidence: 0.68",
+      "implementation": "add(vec_avg(nws17_comp_d1_ssc), ts_backfill(vec_avg(nws17_comp_d1_bee),5))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Relevance-based cutoff with trade_when: keep SSC only if relevance > 75",
+      "description": "Used relevance and SSC with vec_avg; trade_when used with threshold. SUGGESTION2 applied. KEEP_IN_MIND two fields. Rationale: ensures sentiment used only when story is prominent. confidence: 0.71",
+      "implementation": "trade_when(vec_avg(nws17_comp_d1_ssc), greater(vec_avg(nws17_multiple_comp_d1_relevance),75), NaN)",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Relevance over volatility: divide 7-day mean relevance by its ts_std_dev to find stable attention",
+      "description": "Used relevance vec_avg and ts_ir or divide(ts_mean, ts_std_dev) approach. SUGGESTION2 applied. KEEP_IN_MIND short. Rationale: stable prominence is more actionable than noisy spikes. confidence: 0.65",
+      "implementation": "divide(ts_mean(vec_avg(nws17_multiple_comp_d1_relevance),7), ts_std_dev(vec_avg(nws17_multiple_comp_d1_relevance),7))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Event_text prominence gap: ts_max_diff on event_text to detect emergent detailed coverage",
+      "description": "Used event_text vec_avg and ts_max_diff(...,7). SUGGESTION2 applied. KEEP_IN_MIND minimal. Rationale: new detailed coverage is actionable. confidence: 0.60",
+      "implementation": "ts_max_diff(vec_avg(nws17_multiple_comp_d1_event_text),7)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Backfilled ACB alignment with SSC: multiply ts_backfill(ACB) with SSC to confirm BER and SSC agreement",
+      "description": "ACB low coverage -> ts_backfill applied. Both fields vec_avg wrapped. Multiplication checks classifier agreement. KEEP_IN_MIND two fields. Rationale: classifiers agreeing increases alpha reliability. confidence: 0.66",
+      "implementation": "multiply(ts_backfill(vec_avg(nws17_comp_d1_acb),5), vec_avg(nws17_comp_d1_ssc))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Relevance short-term zscore: ts_zscore of 3-day sum relevance",
+      "description": "Used relevance vec_avg with ts_sum(...,3) followed by ts_zscore(...,3). SUGGESTION2 applied. KEEP_IN_MIND adhered. Rationale: abnormal short term prominence. confidence: 0.64",
+      "implementation": "ts_zscore(ts_sum(vec_avg(nws17_multiple_comp_d1_relevance),3),3)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Event_text x relevance conditional cropping: trade_when relevance above median",
+      "description": "Combined event_text and relevance, using vec_avg and trade_when to keep product only when relevance exceeds median via quantile thresholding. SUGGESTION2 applied. KEEP_IN_MIND short. Rationale: filters product to important cases. confidence: 0.67",
+      "implementation": "trade_when(multiply(vec_avg(nws17_multiple_comp_d1_event_text), vec_avg(nws17_multiple_comp_d1_relevance)), greater(vec_avg(nws17_multiple_comp_d1_relevance), quantile(vec_avg(nws17_multiple_comp_d1_relevance))), NaN)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "SSC directional persistence: ts_arg_max of sign-adjusted SSC to find continuing trend",
+      "description": "Used SSC vec_avg and sign() plus ts_arg_max(...,7). SUGGESTION2 used. KEEP_IN_MIND small operator chain. Rationale: persistent signed sentiment indicates follow-through. confidence: 0.61",
+      "implementation": "ts_arg_max(sign(vec_avg(nws17_comp_d1_ssc)),7)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Relevance-driven contrarian: reverse rank of relevance for mean-reversion bets",
+      "description": "Used relevance vec_avg and reverse(rank(...)). SUGGESTION2 applied. KEEP_IN_MIND focused. Rationale: some attention spikes are overreactions. confidence: 0.52",
+      "implementation": "reverse(rank(vec_avg(nws17_multiple_comp_d1_relevance)))",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Aggregate text-sentiment IR: ts_ir of (event_text * SSC) series",
+      "description": "Combined event_text and SSC via vec_avg and multiply, then ts_ir(...,7). SUGGESTION2 used. KEEP_IN_MIND satisfied. Rationale: measures signal-to-noise of combined metric. confidence: 0.68",
+      "implementation": "ts_ir(multiply(vec_avg(nws17_multiple_comp_d1_event_text), vec_avg(nws17_comp_d1_ssc)),7)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Prominence persistence: group_count of relevance (placeholder group) to measure coverage density",
+      "description": "Intended to use group_count(vec_avg(relevance), group) — KEEP_IN_MIND4: group supplied externally. SUGGESTION2 applied. Rationale: groups with many mentions may attract flows. confidence: 0.60",
+      "implementation": "group_count(vec_avg(nws17_multiple_comp_d1_relevance), group)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "ACB jump detector (backfilled) via ts_arg_max to find recent spikes",
+      "description": "ACB low coverage -> ts_backfill applied; vec_avg then ts_arg_max(...,7). SUGGESTION3/2 applied. KEEP_IN_MIND simple. Rationale: sudden BER spikes are material. confidence: 0.61",
+      "implementation": "ts_arg_max(ts_backfill(vec_avg(nws17_comp_d1_acb),5),7)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Event_text weighted winsorized SSC ranking",
+      "description": "Multiplied event_text vec_avg with winsorize(vec_avg(SSC)) to get robust sentiment anchored to text. SUGGESTION2 applied. KEEP_IN_MIND two fields. Rationale: reduces influence of extreme SSC values that lack textual support. confidence: 0.69",
+      "implementation": "quantile(multiply(vec_avg(nws17_multiple_comp_d1_event_text), winsorize(vec_avg(nws17_comp_d1_ssc), std=4)))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Relevance-based taper: ts_scale(relevance,14) to normalize across instruments over two weeks",
+      "description": "Used relevance vec_avg with ts_scale(...,14) to normalize time-series range. SUGGESTION2 applied. KEEP_IN_MIND single field. Rationale: places names on comparable footing over 14 days. confidence: 0.63",
+      "implementation": "ts_scale(vec_avg(nws17_multiple_comp_d1_relevance),14)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Event_text + SSC co-occurrence zscore across 5 days",
+      "description": "Computed ts_zscore(ts_mean(multiply(vec_avg(event_text), vec_avg(ssc)),5),5). SUGGESTION2 applied. KEEP_IN_MIND two fields. Rationale: sustained co-occurrence beyond noise is predictive. confidence: 0.67",
+      "implementation": "ts_zscore(ts_mean(multiply(vec_avg(nws17_multiple_comp_d1_event_text), vec_avg(nws17_comp_d1_ssc)),5),5)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Relevance percentile gap: quantile(ts_mean(relevance,7)) - quantile(relevance) to detect acceleration",
+      "description": "Used relevance vec_avg with ts_mean and quantile difference. SUGGESTION2 applied. KEEP_IN_MIND short. Rationale: detects rising attention relative to cross-section. confidence: 0.64",
+      "implementation": "subtract(quantile(ts_mean(vec_avg(nws17_multiple_comp_d1_relevance),7)), quantile(vec_avg(nws17_multiple_comp_d1_relevance)))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Event_text prominence ratio: vec_avg(event_text) / (1 + mean relevance) to find detailed but overlooked stories",
+      "description": "Used event_text and relevance vec_avg; divide to find detailed text with modest prominence. SUGGESTION2 applied. KEEP_IN_MIND two fields. Rationale: overlooked deep stories may be mispriced. confidence: 0.56",
+      "implementation": "divide(vec_avg(nws17_multiple_comp_d1_event_text), add(vec_avg(nws17_multiple_comp_d1_relevance),1))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Backfilled BEE agreement metric: add(ts_backfill(BEE), vec_avg(SSC)) to measure consensus",
+      "description": "Used BEE backfilled and SSC vec_avg added. SUGGESTION3/2 applied. KEEP_IN_MIND two fields. Rationale: consensus across classifiers increases conviction. confidence: 0.65",
+      "implementation": "add(ts_backfill(vec_avg(nws17_comp_d1_bee),5), vec_avg(nws17_comp_d1_ssc))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Relevance volatility contrarian: reverse(ts_std_dev(relevance,14)) as low-volatility attention picks",
+      "description": "Used relevance vec_avg and ts_std_dev(...,14) reversed to prefer consistent attention. SUGGESTION2 applied. KEEP_IN_MIND single field. Rationale: consistent attention may support steadier trends. confidence: 0.61",
+      "implementation": "reverse(ts_std_dev(vec_avg(nws17_multiple_comp_d1_relevance),14))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Event_text x recent relevance jump: multiply ts_delta(relevance,1) with event_text presence",
+      "description": "Used relevance and event_text vec_avg; ts_delta applied then multiply. SUGGESTION2 applied. KEEP_IN_MIND two fields. Rationale: emergent prominence accompanied by detailed text is high-conviction. confidence: 0.68",
+      "implementation": "multiply(ts_delta(vec_avg(nws17_multiple_comp_d1_relevance),1), vec_avg(nws17_multiple_comp_d1_event_text))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Normalized combined signal: normalize(SSC * relevance)",
+      "description": "Used SSC and relevance muliplied then normalize per cross-section. SUGGESTION2 applied. KEEP_IN_MIND two fields. Rationale: scaling across instruments improves portfolio construction. confidence: 0.73",
+      "implementation": "normalize(multiply(vec_avg(nws17_comp_d1_ssc), vec_avg(nws17_multiple_comp_d1_relevance)))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Backfilled ACB agreement with event text length: multiply ts_backfill(ACB) with event_text",
+      "description": "Used ACB backfilled and event_text vec_avg; multiply to capture earnings classifier aligned with detailed text. SUGGESTION3/2 applied. KEEP_IN_MIND two fields. Rationale: earnings classifier plus textual detail indicates important releases. confidence: 0.62",
+      "implementation": "multiply(ts_backfill(vec_avg(nws17_comp_d1_acb),5), vec_avg(nws17_multiple_comp_d1_event_text))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Event_text novelty vs history: ts_arg_min on event_text to find new detailed narratives",
+      "description": "Used event_text vec_avg and ts_arg_min(...,14) to identify a recent increase (value 0 means current min). SUGGESTION2 applied. KEEP_IN_MIND minimal. Rationale: emergence of new narratives matters. confidence: 0.60",
+      "implementation": "ts_arg_min(vec_avg(nws17_multiple_comp_d1_event_text),14)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "High-confidence cross-classifier consensus: add(vec_avg(SSC), ts_backfill(vec_avg(ACB),5), ts_backfill(vec_avg(BEE),5)) limited to two fields by switching to pairwise",
+      "description": "Intended consensus among SSC, ACB, BEE but KEEP_IN_MIND2 restricts to two datafields, so we provide pairwise variants in practice. For this entry combined SSC and backfilled ACB. SUGGESTION2/3 applied. Rationale: classifier agreement is informative. confidence: 0.67",
+      "implementation": "add(vec_avg(nws17_comp_d1_ssc), ts_backfill(vec_avg(nws17_comp_d1_acb),5))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Relevance momentum vs 30-day baseline: subtract(ts_mean(relevance,30), ts_mean(relevance,7))",
+      "description": "Used relevance vec_avg with ts_mean windows 30 and 7 and subtract to capture momentum acceleration. SUGGESTION2 applied. KEEP_IN_MIND short. Rationale: short-term strength vs monthly baseline indicates breakout. confidence: 0.65",
+      "implementation": "subtract(ts_mean(vec_avg(nws17_multiple_comp_d1_relevance),7), ts_mean(vec_avg(nws17_multiple_comp_d1_relevance),30))",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Event-text depth stability: vec_range(event_text) to identify consistent depth across vector",
+      "description": "Used event_text and vec_range operator (SUGGESTION2 covers VECTOR). Coverage high; SUGGESTION3 not needed. KEEP_IN_MIND single datafield. Rationale: stable depth suggests sustained narrative. confidence: 0.59",
+      "implementation": "vec_range(nws17_multiple_comp_d1_event_text)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Relevance x backfilled BEE concordance: multiply relevance with ts_backfill(BEE)",
+      "description": "Used BEE backfilled and relevance vec_avg; multiply. SUGGESTION3/2 applied. KEEP_IN_MIND observed. Rationale: earnings sentiment aligning with prominence is actionable. confidence: 0.61",
+      "implementation": "multiply(vec_avg(nws17_multiple_comp_d1_relevance), ts_backfill(vec_avg(nws17_comp_d1_bee),5))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Event_text presence lead indicator: ts_delay(vec_avg(event_text),1) to capture yesterday's narrative carrying to today",
+      "description": "Used event_text vec_avg with ts_delay(...,1). SUGGESTION2 applied. KEEP_IN_MIND small. Rationale: yesterday's detailed text can lead today's moves. confidence: 0.58",
+      "implementation": "ts_delay(vec_avg(nws17_multiple_comp_d1_event_text),1)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Relevance * abs(SSC) summed over 3 days to capture magnitude-weighted prominence",
+      "description": "Used relevance and SSC vec_avg, applied ts_sum on multiply(...,3) to aggregate. SUGGESTION2 applied. KEEP_IN_MIND two fields. Rationale: aggregate magnitude-weighted attention captures persistent pressure. confidence: 0.69",
+      "implementation": "ts_sum(multiply(vec_avg(nws17_multiple_comp_d1_relevance), abs(vec_avg(nws17_comp_d1_ssc))),3)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Backfilled BEE spike with quantile ranking for short-term trades",
+      "description": "Used BEE backfilled with ts_backfill and vec_avg then quantile to find spikes. SUGGESTION3/2 applied. KEEP_IN_MIND one datafield. Rationale: BEE spikes are notable earnings-related signals. confidence: 0.58",
+      "implementation": "quantile(ts_backfill(vec_avg(nws17_comp_d1_bee),5))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Event_text prominence ratio normalized: normalize(event_text * relevance)",
+      "description": "Combined event_text and relevance via vec_avg, multiplied and normalized cross-sectionally. SUGGESTION2 applied. KEEP_IN_MIND two fields. Rationale: creates comparable measure across instruments. confidence: 0.66",
+      "implementation": "normalize(multiply(vec_avg(nws17_multiple_comp_d1_event_text), vec_avg(nws17_multiple_comp_d1_relevance)))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "SSC median filter: compare vec_avg(SSC) to ts_quantile(vec_avg(SSC),7) to find outliers",
+      "description": "Used SSC vec_avg and ts_quantile(...,7) to see if current exceeds recent quantile. SUGGESTION2 applied. KEEP_IN_MIND single field. Rationale: identifies unusually strong sentiment. confidence: 0.63",
+      "implementation": "subtract(vec_avg(nws17_comp_d1_ssc), ts_quantile(vec_avg(nws17_comp_d1_ssc),7))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Relevance-enhanced sign-weighted returns: sign(SSC) * ts_returns(relevance,1)",
+      "description": "Used SSC and relevance vec_avg, sign() on SSC multiplied by ts_returns of relevance. SUGGESTION2 applied. KEEP_IN_MIND two fields. Rationale: directional sentiment scaled by rising/falling attention. confidence: 0.67",
+      "implementation": "multiply(sign(vec_avg(nws17_comp_d1_ssc)), ts_returns(vec_avg(nws17_multiple_comp_d1_relevance),1))",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Event_text weighted by SSC magnitude winsorized",
+      "description": "Multiply event_text vec_avg by winsorize(abs(vec_avg(SSC))) then quantile. SUGGESTION2 used. KEEP_IN_MIND two fields. Rationale: focus on substantive text with large sentiment magnitude but limit outliers. confidence: 0.68",
+      "implementation": "quantile(multiply(vec_avg(nws17_multiple_comp_d1_event_text), winsorize(abs(vec_avg(nws17_comp_d1_ssc)), std=4)))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Backfilled ACB / recent relevance zscore combination",
+      "description": "Used ACB backfilled and relevance vec_avg; computed ts_zscore on ts_mean product over 5 days. SUGGESTION3/2 applied. KEEP_IN_MIND two fields. Rationale: combining classifier with prominence over short window improves signal. confidence: 0.65",
+      "implementation": "ts_zscore(ts_mean(multiply(ts_backfill(vec_avg(nws17_comp_d1_acb),5), vec_avg(nws17_multiple_comp_d1_relevance)),5),5)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Event_text presence normalized by vec_count proxy (vec_avg) to identify concentrated narratives",
+      "description": "Used event_text vec_avg and vec_count concept via vec_avg; normalized and quantiled. SUGGESTION2 applied. KEEP_IN_MIND single datafield. Rationale: concentrated event narratives may be more impactful. confidence: 0.59",
+      "implementation": "quantile(vec_avg(nws17_multiple_comp_d1_event_text))",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Relevance mean-reversion: negative of ts_ir(relevance,14) to prefer names with falling stability (contrarian)",
+      "description": "Used relevance vec_avg and ts_ir(...,14); reversed to capture unstable attention as contrarian signal. SUGGESTION2 applied. KEEP_IN_MIND single field. Rationale: unstable attention can mean overshoot. confidence: 0.53",
+      "implementation": "reverse(ts_ir(vec_avg(nws17_multiple_comp_d1_relevance),14))",
+      "confidence_level": 0.53
+    },
+    {
+      "idea": "SSC aggregated agreement metric: vec_sum of SSC vector to quantify total sentiment mass",
+      "description": "Used SSC vec_sum per SUGGESTION2 for VECTOR. SUGGESTION3 not needed. KEEP_IN_MIND single field. Rationale: total sentiment mass across mentions can indicate strength. confidence: 0.62",
+      "implementation": "vec_sum(nws17_comp_d1_ssc)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Event_text * (relevance > 75) filter: keep event_text only for very relevant stories",
+      "description": "Used event_text and relevance with vec_avg; trade_when applied using relevance threshold 75. SUGGESTION2 applied. KEEP_IN_MIND two fields. Rationale: reduces noise. confidence: 0.64",
+      "implementation": "trade_when(vec_avg(nws17_multiple_comp_d1_event_text), greater(vec_avg(nws17_multiple_comp_d1_relevance),75), NaN)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "BEE backfilled absolute sentiment times relevance quantiled",
+      "description": "Used BEE backfilled and relevance vec_avg; multiplied and quantiled. SUGGESTION3/2 applied. KEEP_IN_MIND two fields. Rationale: earnings sentiment magnitude times prominence is actionable. confidence: 0.60",
+      "implementation": "quantile(multiply(abs(ts_backfill(vec_avg(nws17_comp_d1_bee),5)), vec_avg(nws17_multiple_comp_d1_relevance)))",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Short-window SSC rank reversal: reverse(ts_rank(vec_avg(SSC),3))",
+      "description": "Used SSC vec_avg with ts_rank window 3 then reversed to seek short-term mean reversion. SUGGESTION2 applied. KEEP_IN_MIND single field. Rationale: short-term extremes may mean-revert. confidence: 0.57",
+      "implementation": "reverse(ts_rank(vec_avg(nws17_comp_d1_ssc),3))",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Event_text depth vs SSC disagreement: subtract(vec_avg(SSC), vec_avg(event_text))",
+      "description": "Used SSC and event_text vec_avg and subtracted to find mismatches: text depth without matching sentiment. SUGGESTION2 used. KEEP_IN_MIND two fields. Rationale: mismatch may signal market surprise. confidence: 0.56",
+      "implementation": "subtract(vec_avg(nws17_comp_d1_ssc), vec_avg(nws17_multiple_comp_d1_event_text))",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Relevance * sign(ts_delta(SSC,1)): prominence scaled by daily sentiment change direction",
+      "description": "Used relevance and SSC vec_avg; ts_delta on SSC then sign, multiplied by relevance. SUGGESTION2 applied. KEEP_IN_MIND two fields. Rationale: combines directionality and prominence. confidence: 0.66",
+      "implementation": "multiply(vec_avg(nws17_multiple_comp_d1_relevance), sign(ts_delta(vec_avg(nws17_comp_d1_ssc),1)))",
+      "confidence_level": 0.66
+    }
+  ]
+}
