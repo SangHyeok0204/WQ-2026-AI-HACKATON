@@ -83,7 +83,7 @@ def generate_expressions_from_dataset(s, alpha_region, alpha_universe, dataset_i
     # If needed get operators or other data
     operators = ace.get_operators(s)
     operators_list = [row.to_dict() for row in operators[operators['scope']=='REGULAR'].iloc]
-    operator_exclude = ['rank']
+    operator_exclude = []
     operators_list = [x for x in operators_list if x['name'] not in operator_exclude]
 
     answer_form = '''{
@@ -117,8 +117,8 @@ def generate_expressions_from_dataset(s, alpha_region, alpha_universe, dataset_i
     </SUGGESTIONS>
 
     <KEEP_IN_MIND>
-    KEEP_IN_MIND1: Final implementation MUST NOT be too long.
-    KEEP_IN_MIND2: Final implementation MUST NOT contain over 7 operators and over 2 datafields.
+    KEEP_IN_MIND1: Final implementation MUST be simple. recommend to use operator "ts_backfill" , "ts_zscore" more often
+    KEEP_IN_MIND2: Final implementation MUST NOT contain over 4 operators and over 2 datafields.
     KEEP_IN_MIND3: You MUST ONLY use datafield IDs from ALLOWED_DATAFIELDS. Using any datafield outside this list is INVALID.
     KEEP_IN_MIND4: You CANNOT use type=GROUP field by itself. You need to use it as "group" parameter in Group operator.
     KEEP_IN_MIND5: If a datafield has type=VECTOR, it MUST be wrapped with vec_avg() or vec_sum() operator.
