@@ -17,13 +17,13 @@
 이 파이프라인은 LLM(Large Language Model)을 활용하여 WorldQuant Brain 플랫폼에서 사용할 수 있는 알파(Alpha) 아이디어를 대량으로 생성하고, 검증하여 제출 가능한 후보를 선별하는 자동화 시스템입니다.
 
 **세 가지 주요 파이프라인:**
-| 파이프라인 | 노트북 | 목적 | 특징 |
+| 파이프라인 | 노트북 | 목적 | 특징 (2026-02) |
 |-----------|--------|------|------|
 | **Seed Generation** | `llm_alpha_guide.ipynb` | 단순 seed-alpha 대량 탐색 | 70-80% 패턴 + 20-30% 자유 조합, 구조 필터링, .txt 출력 |
-| **Combination** | `combine_and_simulate.ipynb` | 다중 데이터셋 seed 조합 | 0-fail seed만 사용, GPT로 cross-dataset 조합, Anti-PowerPool |
+| **Combinatorial** | `combine_and_simulate.ipynb` | 다중 데이터셋 seed 전수 조합 | **전수 조합(Cartesian Product)**, operators_list.json 전체 사용, Sanity Check 통합 |
 | **Refinement** | `refine.ipynb` | 기존 알파 개선 | 진화 알고리즘, 토너먼트 선택 |
 
-### 전체 흐름도 (Seed → Combine → Refine)
+### 전체 흐름도 (Seed → Combine → Refine) [2026-02]
 
 ```
 [Pipeline A: Seed Generation]
@@ -32,10 +32,11 @@
   → {dataset}.txt (per-dataset 결과)
           │
           ▼
-[Pipeline G: Combination]
-  combine_and_simulate.ipynb
-  0-fail seed들을 cross-dataset 조합
-  → combined_alpha.txt + good_alpha_list.json
+[Pipeline G: Combinatorial] ★ 2026-02 업데이트
+  combine_and_simulate.ipynb + combinatorial_alpha_pipeline.py
+  0-fail seed들을 Cartesian Product로 전수 조합
+  → {dataset1}_{dataset2}_{dataset3}_comb.txt + .json
+  (operators_list.json 전체 사용, Sanity Check 통합)
           │
           ▼
 [Pipeline F: Refinement]
@@ -60,17 +61,18 @@ gen_json/{dataset}_{idx}.json     operators ≤ 3?             → write_dataset
                                   signal datafield 1개?       → {dataset}.txt
 ```
 
-### Combination Pipeline 상세 흐름
+### Combination Pipeline 상세 흐름 (2026-02)
 
 ```
-[Step 1: 로드]        [Step 2: GPT 조합]      [Step 3: 검증]     [Step 4: 저장]     [Step 5: 시뮬]
-{dataset}.txt      → create_combination   → validate_       → combined_       → Brain API
-0-fail 알파 추출      _prompt()              combination()     alpha.txt          simulate
-(parse_dataset_     call_gpt_for_          detect_datasets   save_combined_     simulate_
- file)              combinations_           _used()           alphas_to_txt()    combinations()
-                    _streaming()                                                → good_alpha_
-                                                                                 list.json
+[Step 1: 로드]         [Step 2: 전수조합]      [Step 3: Variant]     [Step 4: Sanity]   [Step 5: 시뮬 & 저장]
+{dataset}.txt       → Cartesian Product  → generate_          → sanity_        → {datasets}_comb.txt
+0-fail 알파 추출       (30×25×5 예시)        combination_         checker()        {datasets}_comb.json
+parse_zero_fail_     generate_all_        variants()           (parser.py       simulate_alpha_
+alphas_from_file()   combinations()       operators_list.       기반)             list_multi()
+                     → 3,750 조합          json 기반                             (선택적)
 ```
+
+**GPT 제외**: Variant 생성은 `operators_list.json`에서 직접 샘플링하므로 GPT API를 사용하지 않음
 
 ### Refinement Pipeline 상세 흐름
 
@@ -678,16 +680,24 @@ def tournament_select(pool):
 
 ---
 
-## G. Cross-Dataset Alpha Combination (combine_and_simulate.ipynb)
+## G. Combinatorial Alpha Pipeline (combine_and_simulate.ipynb)
 
-### G.0 개요
+### G.0 개요 (2026-02 업데이트)
 
 `combine_and_simulate.ipynb`는 Seed Generation 파이프라인에서 생성된 **0-fail seed 알파**들을
-서로 다른 데이터셋 간에 GPT를 통해 조합하여 복합 알파를 만들고, Brain API로 시뮬레이션합니다.
+**전수 조합(Cartesian Product)** 방식으로 결합하여 복합 알파를 만들고, Brain API로 시뮬레이션합니다.
+
+**핵심 변경사항 (2026-02):**
+1. **Operator 제한 제거**: ~~add/subtract/min/max/group_zscore만 허용~~ → `operators_list.json`의 모든 operator 사용 가능
+2. **전수 조합 생성**: 지정된 dataset들의 0-fail seed 전부를 Cartesian product로 조합
+3. **Sanity Check 통합**: `my_research.py`의 sanity checker를 통해 invalid expression 자동 제거
+4. **성능 제어 옵션**: `max_combinations`, `max_variants_per_combo`, `concurrency` 파라미터
+5. **결과 저장 형식**: `{dataset1}_{dataset2}_{dataset3}_comb.txt` 규칙
 
 **핵심 아이디어:**
 - 단일 dataset의 seed 알파는 단순하지만, 서로 다른 dataset의 seed를 결합하면 다양한 신호를 합성
-- Anti-PowerPool 구조를 갖도록 농도 분산(concentration mitigation) 레이어 필수
+- Operator 선택은 `operators_list.json`에서 자동으로 샘플링 (GPT 제외)
+- Sanity check로 타입 mismatch, parsing error 제거
 - 조합 후에도 원본 seed expression 내부는 수정하지 않음 (외부에서만 결합)
 
 ### G.1 노트북 셀별 실행 흐름
@@ -724,95 +734,108 @@ DATASET_FILES = {
 - 정규식으로 ID, Sharpe, Fitness, Turnover, Expression 추출
 - 각 dataset별 최대 10개의 alpha를 GPT 프롬프트에 포함
 
-### G.3 GPT 조합 프롬프트 구조
+### G.3 전수 조합 (Cartesian Product) 생성
 
-`create_combination_prompt()`가 생성하는 프롬프트의 핵심 구조:
+`generate_all_combinations()`가 Cartesian product로 모든 seed 조합을 생성합니다:
 
+**예시: 3개 dataset 조합**
+```python
+DATASETS_TO_COMBINE = ['mdl25', 'mdl30', 'mdl138']
+
+# 각 dataset의 0-fail seed 개수
+mdl25: 33 seeds
+mdl30: 25 seeds
+mdl138: 29 seeds
+
+# Cartesian Product
+total_combinations = 33 × 25 × 29 = 23,925 combinations
 ```
-[역할] Quantitative alpha researcher (Non-PowerPool 알파 생성)
 
-[데이터셋별 0-fail 알파 목록]
-=== MDL25 Dataset ===
-  1. quantile(mdl25_smartestimate_f12m_eps)  (Sharpe: 1.83, Fitness: 1.14)
-  2. ...
-=== MDL30 Dataset ===
-  1. quantile(mdl30_new_psprise_pct_fy1_eps) (Sharpe: 1.71, Fitness: 1.11)
-  2. ...
+**Sampling 옵션**:
+```python
+MAX_COMBINATIONS = 10000  # 23,925개 중 10,000개만 랜덤 샘플링
+# 또는
+MAX_COMBINATIONS = None   # 전수 조합 (23,925개 전부 생성)
+```
 
-[MANDATORY STRUCTURAL GUARDRAILS]
-최종 Expression 형태:
-  [ Normalization ] → [ Random Combination ] → [ Concentration Mitigation ]
-
-A) 원본 alpha는 이미 rank()/zscore()/quantile() 정규화 포함
-B) 최종 expression에 concentration-mitigation 레이어 필수:
-   group_zscore(), winsorize(), tail() 등
-C) 안정성: 앙상블 스타일 조합 선호 (add, min/max gating)
-
-[COMBINATION RULES]
-1. 허용 Operator: add, subtract, min, max, group_rank, group_zscore
-2. 각 dataset에서 정확히 1개의 alpha expression 선택
-3. Operator 자유 중첩 가능: add(alpha1, subtract(alpha2, alpha3))
-4. 원본 alpha 내부 구조 수정 금지 (그대로 사용)
-5. 유효한 FASTEXPR 문법
-6. PowerPool / Pure PowerPool 금지
-
-[ANTI-FAIL HEURISTICS]
-- 극단 tail 및 랭킹 집중 감소
-- 소수 종목 집중 방지
-- IS ladder 안정성 향상을 위한 다중 신호 결합
-- 부드럽고 분산된 expression 선호
-
-[OUTPUT FORMAT]
+**조합 데이터 구조**:
+```python
 {
-  "combinations": [
-    {
-      "expression": "FINAL_FASTEXPR_EXPRESSION",
-      "datasets_used": ["mdl25", "mdl30", "mdl138"],
-      "idea": "조합 직관",
-      "rationale_data": "데이터셋 보완 이유",
-      "rationale_operators": "Operator 선택 이유"
+    'datasets': ['mdl25', 'mdl30', 'mdl138'],
+    'seeds': [alpha1_dict, alpha2_dict, alpha3_dict],
+    'expressions': [
+        'quantile(mdl25_smartestimate_f12m_eps)',
+        'quantile(mdl30_new_psprise_pct_fy1_eps)',
+        'zscore(mdl138_ai_analyst_accuracy)'
+    ],
+    'metadata': {
+        'seed_ids': ['A1B2C3', 'D4E5F6', 'G7H8I9'],
+        'sharpes': [1.83, 1.71, 1.65],
+        'fitnesses': [1.14, 1.11, 1.09]
     }
-  ]
 }
 ```
 
-### G.4 GPT 호출 방식
+### G.4 Variant 생성 (`operators_list.json` 기반)
 
+각 seed 조합에 대해 `generate_combination_variants()`가 여러 variant를 생성합니다:
+
+**Operator 카테고리 (from `operators_list.json`)**:
 ```python
-def call_gpt_for_combinations_streaming(prompt, model="gpt-4o-mini"):
-    # OpenAI API 스트리밍 호출
-    # temperature=0.7 (다양성)
-    # max_tokens=8000
-    # ```json ... ``` 블록 자동 처리
-    # 결과: List[Dict] (combinations)
+COMBINATION_OPERATORS = {
+    'arithmetic': ['add', 'subtract', 'multiply', 'divide', 'min', 'max'],
+    'normalization': ['rank', 'zscore', 'quantile', 'normalize', 'scale'],
+    'group': ['group_zscore', 'group_rank', 'group_neutralize', 'group_scale'],
+    'tail_handling': ['winsorize', 'tail', 'pasteurize'],
+}
 ```
 
-**Seed Pipeline과의 차이점:**
-| 항목 | Seed (llm_functions.py) | Combination (combine_and_simulate) |
-|------|------------------------|-------------------------------------|
-| API | `call_llm_stream()` | `call_gpt_for_combinations_streaming()` |
-| System prompt | JSON 전용 | 역할 + JSON 전용 |
-| temperature | 기본값 | 0.7 |
-| max_tokens | 기본값 | 8000 |
-| JSON 파싱 | `cut_first_to_last_brace()` | `re.search` + `json.loads` |
+**Variant 유형 (max_variants_per_combo = 5)**:
+1. **simple_add**: `add(seed1, seed2, seed3)`
+2. **add_with_group**: `group_zscore(add(seed1, seed2, seed3), subindustry)`
+3. **normalized_weighted_sum**: `scale(zscore(seed1) + zscore(seed2) + zscore(seed3))`
+4. **min_max_ensemble**: `add(min(seed1, seed2, seed3), max(seed1, seed2, seed3))`
+5. **tail_clipped**: `winsorize(rank(add(seed1, seed2, seed3)))`
 
-### G.5 조합 검증
+**GPT 제외**: Variant 생성은 programmatic 샘플링이므로 GPT API 호출 없음
 
+### G.5 Sanity Check (Type Validation)
+
+`sanity_checker()`가 expression을 tree parsing하여 타입 검증을 수행합니다:
+
+**검증 로직 (from `my_research.py`)**:
 ```python
-def validate_combination(combination):
-    """모든 조합 허용 (현재 permissive)"""
-    expression = combination.get('expression', '')
-    datasets_used = detect_datasets_used(expression)
-    operator_count = count_operators(expression)
-    return True, f"Uses {len(datasets_used)} datasets, {operator_count} operators"
+def sanity_checker(exp, operators, datafields):
+    try:
+        exp_tree = tree_node(exp)  # parser.py의 tree 파싱
 
-def detect_datasets_used(expression):
-    """expression에서 사용된 dataset prefix 감지"""
-    # mdl25, mdl30, mdl138, nws17, star_eps 등 패턴 매칭
+        # 각 operator node의 input/output 타입 검증
+        for node in exp_tree.collect_all_nodes():
+            if node.node_type == "operator":
+                operator_inputs = eval(operators[node.value]['input'])
+                children_types = [return_type(child, operators, datafields)
+                                  for child in node.children]
+
+                if not check_input(operator_inputs, children_types):
+                    return False, f"Type mismatch in {node.value}"
+
+        # 최종 output type이 MATRIX인지 확인
+        if return_type(exp_tree, operators, datafields) != "MATRIX":
+            return False, "Final output type is not MATRIX"
+
+        return True, None
+
+    except Exception as e:
+        return False, f"Parsing error: {str(e)}"
 ```
 
-> **참고**: 현재 `validate_combination()`은 항상 True를 반환합니다 (모든 조합 허용).
-> 필요 시 최소 2개 dataset 사용, operator 수 제한 등의 필터를 추가할 수 있습니다.
+**Sanity Check 실패 예시**:
+- Unknown operator
+- Type mismatch (e.g., `ts_sum(industry)` - ts_sum expects MATRIX, got NUMBER)
+- Parsing error (괄호 불일치, 문법 오류)
+- Final output != MATRIX
+
+**통과율**: 일반적으로 60-80%의 variant가 sanity check를 통과합니다.
 
 ### G.6 시뮬레이션 방식
 
@@ -849,171 +872,256 @@ def simulate_combinations(session, combinations):
 }
 ```
 
-### G.7 출력 파일
+### G.7 출력 파일 (2026-02)
 
-#### combined_alpha.txt
+#### {dataset1}_{dataset2}_{dataset3}_comb.txt
+
+파일명 규칙: dataset 이름을 알파벳 순으로 정렬하여 연결
 
 ```
 ================================================================================
-COMBINED ALPHAS (Cross-Dataset, Non-PowerPool)
-Generated: 2026-02-07 15:30:00
-Total: 50 combinations
+COMBINATORIAL ALPHAS: mdl138 x mdl25 x mdl30
+Generated: 2026-02-08 10:30:00
+Total variants: 5,824
 ================================================================================
 
---- #1 | VALID | Datasets: 3, Operators: 5 ---
-Expression: group_zscore(add(quantile(mdl25_...), quantile(mdl30_...)), industry)
-Datasets Used: mdl25, mdl30, mdl138
-Validation: Uses 3 datasets (mdl30, mdl138, mdl25), 5 operators
-Idea: Diversified earnings quality signal with industry normalization
-Data Rationale: mdl25 provides quality, mdl30 adds momentum, mdl138 adds AI factors
-Operator Rationale: group_zscore reduces concentration across industries
+--- #1 | simple_add ---
+Expression: add(quantile(mdl25_smartestimate_f12m_eps), quantile(mdl30_new_psprise_pct_fy1_eps), zscore(mdl138_ai_analyst_accuracy))
+Operators Used: add
+Source Datasets: mdl25, mdl30, mdl138
+Seed IDs: A1B2C3, D4E5F6, G7H8I9
+Source Sharpes: 1.83, 1.71, 1.65
+Source Fitnesses: 1.14, 1.11, 1.09
+
+--- #2 | add_with_group_zscore ---
+Expression: group_zscore(add(quantile(mdl25_...), quantile(mdl30_...), zscore(mdl138_...)), subindustry)
+Operators Used: add, group_zscore
+Source Datasets: mdl25, mdl30, mdl138
+Seed IDs: A1B2C3, D4E5F6, G7H8I9
+Source Sharpes: 1.83, 1.71, 1.65
+Source Fitnesses: 1.14, 1.11, 1.09
 
 ================================================================================
-Summary: 49/50 valid combinations
+Total: 5,824 expression variants
 ================================================================================
 ```
 
-#### good_alpha_list.json
-
-시뮬레이션 결과가 `good_alpha_list.json`에 append됩니다:
+#### {dataset1}_{dataset2}_{dataset3}_comb.json
 
 ```json
-[
-  {
-    "timestamp": "2026-02-07T15:45:00",
-    "alpha_id": "AbCdEfGh",
-    "expression": "group_zscore(add(quantile(mdl25_...), quantile(mdl30_...)), industry)",
-    "is_sharpe": 1.85,
-    "is_fitness": 1.12,
-    "is_turnover": 0.15,
-    "settings": { "region": "EUR", "universe": "TOP2500", ... },
-    "checks": [
-      { "name": "LOW_SHARPE", "result": "PASS" },
-      { "name": "CONCENTRATED_WEIGHT", "result": "WARNING" }
-    ],
-    "combination_info": {
-      "expression": "...",
-      "datasets_used": ["mdl25", "mdl30"],
-      "idea": "...",
-      "rationale_data": "...",
-      "rationale_operators": "...",
-      "description": "Idea: ... \nRationale for data used: ..."
-    },
-    "source": "combine_and_simulate"
-  }
-]
+{
+  "timestamp": "2026-02-08T10:30:00",
+  "datasets": ["mdl25", "mdl30", "mdl138"],
+  "total_seed_combinations": 23925,
+  "total_variants": 5824,
+  "variants": [
+    {
+      "expression": "add(quantile(mdl25_...), quantile(mdl30_...), zscore(mdl138_...))",
+      "variant_type": "simple_add",
+      "combination_info": {
+        "datasets": ["mdl25", "mdl30", "mdl138"],
+        "seeds": [...],
+        "expressions": [...],
+        "metadata": {
+          "seed_ids": ["A1B2C3", "D4E5F6", "G7H8I9"],
+          "sharpes": [1.83, 1.71, 1.65],
+          "fitnesses": [1.14, 1.11, 1.09]
+        }
+      },
+      "operators_used": ["add"]
+    }
+  ]
+}
 ```
 
-### G.8 메인 파이프라인 5-Step
+#### (선택) {dataset1}_{dataset2}_{dataset3}_simulation_results.json
+
+Brain API 시뮬레이션 실행 시 별도 저장 (good_alpha_list.json 제외)
+
+### G.8 메인 파이프라인 (2026-02)
 
 ```python
-# Step 1: 데이터셋 로드
-all_alphas = load_all_zero_fail_alphas()
-# → {'mdl25': [33 alphas], 'mdl30': [20 alphas], 'mdl138': [29 alphas]}
+from combinatorial_alpha_pipeline import run_combinatorial_pipeline
 
-# Step 2: GPT로 조합 생성
-combinations = generate_combined_alphas(all_alphas, NUM_COMBINATIONS, GPT_MODEL)
-# → 100개 조합 생성
-
-# Step 3: 조합 검증
-for combo in combinations:
-    is_valid, reason = validate_combination(combo)
-# → valid / invalid 분류
-
-# Step 4: txt 파일로 저장
-save_combined_alphas_to_txt(combinations, OUTPUT_FILE)
-# → combined_alpha.txt
-
-# Step 5: Brain API 시뮬레이션
-session = ace.start_session()
-simulation_results = simulate_combinations(session, combinations)
-saved_entries = save_simulation_results(simulation_results, GOOD_ALPHA_FILE)
-# → good_alpha_list.json
+# 파이프라인 실행 (한 번에 모든 단계)
+summary = run_combinatorial_pipeline(
+    dataset_files=DATASET_FILES,
+    dataset_names=['mdl25', 'mdl30', 'mdl138'],
+    operators_file=Path('operators_list.json'),
+    datafields_file=Path(f'datafield/1/{REGION}/{UNIVERSE}/1_{REGION}_{UNIVERSE}_total.json'),
+    output_dir=Path('results/combinatorial'),
+    max_combinations=None,  # None = 전수 조합
+    max_variants_per_combo=5,
+    concurrency=3,
+    random_seed=42,
+    check_sanity=True
+)
 ```
 
-### G.9 CONFIG 파라미터
+**단계별 흐름**:
+```python
+# Step 1: 0-fail seed 로드
+all_alphas = load_zero_fail_alphas(DATASET_FILES)
+# → {'mdl25': [33 alphas], 'mdl30': [25 alphas], 'mdl138': [29 alphas]}
+
+# Step 2: Cartesian product 생성
+seed_combinations = generate_all_combinations(
+    all_alphas,
+    ['mdl25', 'mdl30', 'mdl138'],
+    max_combinations=None  # 33 × 25 × 29 = 23,925 조합
+)
+
+# Step 3: Variant 생성 (operators_list.json 기반)
+all_variants = []
+for seed_combo in seed_combinations:
+    variants = generate_combination_variants(
+        seed_combo,
+        operators,
+        max_variants_per_combo=5  # 각 조합당 5개 variant
+    )
+    all_variants.extend(variants)
+# → 23,925 × 5 = 119,625 variants
+
+# Step 4: Sanity check
+valid_variants = []
+for variant in all_variants:
+    is_valid, error_msg = sanity_checker(
+        variant['expression'],
+        operators,
+        datafields
+    )
+    if is_valid:
+        valid_variants.append(variant)
+# → 통과율 60-80% (약 70,000~90,000 variants)
+
+# Step 5: 결과 저장
+save_variants_to_txt(valid_variants, 'mdl138_mdl25_mdl30_comb.txt')
+# + JSON 파일 저장
+
+# Step 6: (선택) Brain API 시뮬레이션
+# RUN_SIMULATION = True 설정 시 실행
+```
+
+### G.9 CONFIG 파라미터 (2026-02)
 
 ```python
-# 경로 설정
-OUTPUT_FILE = SCRIPT_DIR / "combined_alpha.txt"
-GOOD_ALPHA_FILE = SCRIPT_DIR / "good_alpha_list.json"
+# ========== 경로 설정 ==========
+SCRIPT_DIR = Path('.').resolve()
+OUTPUT_DIR = SCRIPT_DIR / "results" / "combinatorial"
 
-# 데이터셋 파일 (런타임 추가 가능)
+# 데이터셋 파일 (확장 가능)
 DATASET_FILES = {
     'mdl25': SCRIPT_DIR / 'mdl25.txt',
     'mdl30': SCRIPT_DIR / 'mdl30.txt',
     'mdl138': SCRIPT_DIR / 'mdl138.txt',
+    # 'nws17': SCRIPT_DIR / 'nws17.txt',  # 추가 가능
 }
 
-# 시뮬레이션 설정
+# Resource 파일
+OPERATORS_FILE = SCRIPT_DIR / 'operators_list.json'
 REGION = "EUR"
 UNIVERSE = "TOP2500"
 DELAY = 1
+DATAFIELDS_FILE = SCRIPT_DIR / f'datafield/{DELAY}/{REGION}/{UNIVERSE}/{DELAY}_{REGION}_{UNIVERSE}_total.json'
 
-# 파이프라인 파라미터
-NUM_COMBINATIONS = 100       # 생성할 조합 개수
-GPT_MODEL = "gpt-4o-mini"   # GPT 모델
-RUN_SIMULATION = True        # Brain API 시뮬레이션 실행 여부
+# ========== 조합할 데이터셋 선택 ==========
+DATASETS_TO_COMBINE = ['mdl25', 'mdl30', 'mdl138']  # 2~N개 선택
+
+# ========== 성능 제어 옵션 ==========
+MAX_COMBINATIONS = None       # None = 전수 조합, 숫자 = 샘플링 개수 (예: 10000)
+MAX_VARIANTS_PER_COMBO = 5    # 각 seed 조합당 생성할 variant 개수
+RANDOM_SEED = 42              # 재현성을 위한 시드
+CONCURRENCY = 3               # Brain API 동시 시뮬레이션 수
+CHECK_SANITY = True           # Sanity check 활성화 여부
+
+# ========== Brain 시뮬레이션 설정 ==========
+RUN_SIMULATION = False        # True로 설정 시 Brain API 시뮬레이션 실행
 ```
 
-### G.10 런타임 데이터셋 추가
+**성능 제어 가이드**:
+| Seed 개수 | MAX_COMBINATIONS | MAX_VARIANTS_PER_COMBO | 예상 variant 수 |
+|-----------|------------------|------------------------|-----------------|
+| 30×25×5 = 3,750 | None | 5 | 18,750 |
+| 30×25×5 = 3,750 | 1,000 | 5 | 5,000 |
+| 33×25×29 = 23,925 | None | 5 | 119,625 |
+| 33×25×29 = 23,925 | 10,000 | 5 | 50,000 |
 
-```python
-# 새 dataset.txt 추가
-add_dataset_file('risk60', './risk60.txt')
-add_dataset_file('nws17', './nws17.txt')
+### G.10 핵심 변경사항 요약 (2026-02 vs 구버전)
 
-# 현재 등록된 파일 확인
-list_dataset_files()
+| 항목 | 구버전 (GPT 기반) | 2026-02 (Combinatorial) |
+|------|-------------------|------------------------|
+| **Operator 제한** | add/subtract/min/max/group_zscore만 허용 | `operators_list.json` 전체 사용 가능 |
+| **조합 방식** | GPT가 랜덤 조합 생성 (NUM_COMBINATIONS개) | Cartesian product 전수 조합 |
+| **Variant 생성** | GPT 프롬프트 기반 | Programmatic 샘플링 (operators_list.json) |
+| **Sanity Check** | 없음 (GPT 신뢰) | 엄격한 type validation (parser.py) |
+| **출력 파일명** | `combined_alpha.txt` (고정) | `{dataset1}_{dataset2}_{dataset3}_comb.txt` |
+| **성능 제어** | NUM_COMBINATIONS 하나만 | max_combinations, max_variants_per_combo, concurrency |
+| **재현성** | GPT temperature로 제어 | random_seed 파라미터 |
+| **모듈화** | 노트북 내부 함수 | `combinatorial_alpha_pipeline.py` 별도 모듈 |
+
+### G.11 Seed Pipeline → Combination Pipeline 연결 (2026-02)
+
+```
+[Seed Pipeline Output]                [Combination Pipeline Input]
+{dataset}.txt                      →  DATASET_FILES dict에 등록
+  ├── mdl25.txt (33 PASS)         →  'mdl25': Path('mdl25.txt')
+  ├── mdl30.txt (25 PASS)         →  'mdl30': Path('mdl30.txt')
+  └── mdl138.txt (29 PASS)        →  'mdl138': Path('mdl138.txt')
+
+parse_zero_fail_alphas_from_file() 가 0-fail 블록만 추출
+→ Cartesian product 생성 (33 × 25 × 29 = 23,925 조합)
+→ 각 조합당 5개 variant 생성 (→ 119,625 variants)
+→ Sanity check (통과율 60-80%)
+→ {mdl138_mdl25_mdl30}_comb.txt 저장
 ```
 
-### G.11 Seed Pipeline → Combination Pipeline 연결
-
-```
-[Seed Pipeline Output]              [Combination Pipeline Input]
-{dataset}.txt                    →   DATASET_FILES dict에 등록
-  ├── mdl25.txt (33 PASS)       →   'mdl25': Path('mdl25.txt')
-  ├── mdl30.txt (20 PASS)       →   'mdl30': Path('mdl30.txt')
-  └── mdl138.txt (29 PASS)      →   'mdl138': Path('mdl138.txt')
-
-parse_dataset_file() 가 0-fail 블록만 추출
-→ GPT에 각 dataset별 최대 10개 알파 전달
-→ cross-dataset 조합 생성 + 시뮬레이션
-```
+**완료 기준 (Acceptance Criteria)**:
+1. ✅ Operator 제한(4개 강제)이 코드/프롬프트 어디에도 남아있지 않다
+2. ✅ `operators_list.json`을 operator 후보 풀로 사용한다
+3. ✅ 지정 dataset들의 0-fail seed 개수대로 Cartesian product 조합 수가 계산/로그에 표시된다
+4. ✅ Sanity check 탈락은 simulate 대상에서 제외된다
+5. ✅ 시뮬레이션 결과가 `{dataset1}_{dataset2}_{dataset3}_comb.txt`로 저장된다
+6. ✅ 예시(30,25,5) 같은 경우 조합 수(=3,750) 계산이 맞게 출력된다
 
 ---
 
-## 부록: 파일 구조 요약
+## 부록: 파일 구조 요약 (2026-02)
 
 ```
 llm_alpha_gen/
-├── llm_functions.py         # LLM 호출, seed-alpha 프롬프트, JSON 파싱
-├── parser.py                # Expression → Tree 변환, 타입 체크
-├── ace_lib.py               # Brain API 연동, 시뮬레이션
-├── AAF.py                   # 데이터필드 초기화 (whitelist 관리)
-├── llm_alpha_guide.ipynb    # [Pipeline A] Seed-alpha 생성
-├── combine_and_simulate.ipynb # [Pipeline G] Cross-dataset 조합
-├── refine.ipynb             # [Pipeline F] 진화 알고리즘 (알파 개선)
-├── PIPELINE_GUIDE.md        # 이 문서
+├── llm_functions.py                # LLM 호출, seed-alpha 프롬프트, JSON 파싱
+├── parser.py                       # Expression → Tree 변환, 타입 체크
+├── ace_lib.py                      # Brain API 연동, 시뮬레이션
+├── AAF.py                          # 데이터필드 초기화 (whitelist 관리)
+├── my_research.py                  # Sanity checker 구현 (return_type, check_input)
+├── combinatorial_alpha_pipeline.py # [NEW] 전수 조합 파이프라인 핵심 로직
 │
-├── datafield/               # 데이터필드 메타정보 캐시
+├── llm_alpha_guide.ipynb           # [Pipeline A] Seed-alpha 생성
+├── combine_and_simulate.ipynb      # [Pipeline G] Combinatorial 파이프라인 (2026-02 업데이트)
+├── refine.ipynb                    # [Pipeline F] 진화 알고리즘 (알파 개선)
+├── PIPELINE_GUIDE.md               # 이 문서
+│
+├── datafield/                      # 데이터필드 메타정보 캐시
 │   └── 1/{REGION}/{UNIVERSE}/
 │       ├── 1_{REGION}_{UNIVERSE}_{dataset}.json
 │       └── 1_{REGION}_{UNIVERSE}_total.json   # sanity_checker용
 │
-├── gen_json/                # LLM 생성 raw JSON (Seed Pipeline resume용)
+├── gen_json/                       # LLM 생성 raw JSON (Seed Pipeline resume용)
 │   ├── risk60_0.json
 │   └── model25_1.json
 │
-├── {dataset}.txt            # Seed-alpha 시뮬 결과 (per-dataset, 정렬)
-│   ├── risk60.txt           #   → Combination Pipeline 입력
+├── {dataset}.txt                   # Seed-alpha 시뮬 결과 (per-dataset, 정렬)
+│   ├── risk60.txt                  #   → Combination Pipeline 입력
 │   ├── mdl25.txt
 │   ├── mdl30.txt
 │   └── mdl138.txt
 │
-├── combined_alpha.txt       # Combination Pipeline 조합 결과 (txt)
-├── good_alpha_list.json     # Combination Pipeline 시뮬 결과 (json)
+├── results/                        # [NEW] 파이프라인 출력 디렉토리
+│   └── combinatorial/
+│       ├── mdl138_mdl25_mdl30_comb.txt           # Variant 목록 (human-readable)
+│       ├── mdl138_mdl25_mdl30_comb.json          # Variant 목록 (machine-readable)
+│       └── mdl138_mdl25_mdl30_simulation_results.json  # 시뮬레이션 결과 (선택)
 │
-├── operators_list.json      # operator I/O 타입 정의 (FREE_PATTERN용으로도 사용)
-└── operator_inputs.json     # 추가 operator 타입 정보
+├── operators_list.json             # Operator I/O 타입 정의 (variant 생성용)
+└── operator_inputs.json            # 추가 operator 타입 정보
 ```
