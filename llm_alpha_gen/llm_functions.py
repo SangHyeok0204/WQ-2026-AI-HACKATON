@@ -61,18 +61,19 @@ def call_llm_stream(prompt, json_schema,
 
 
 ## 데이터셋을 가져와서 프롬프트로 만들어주고 LLM까지 넣어주는 함수
-## 🔧 MODIFIED: top_n_datafields 파라미터 추가 - 각 dataset에서 alphaCount 상위 N개만 사용
+## Seed-alpha 전용 프롬프트로 LLM 호출
+## 70-80% 4가지 패턴 + 20-30% 자유 operator 조합
 def generate_expressions_from_dataset(s, alpha_region, alpha_universe, dataset_id, model = 'gpt-5-mini-2025-08-07', datafields_num_cap = 500, alpha_num = 100, top_n_datafields = 3):
 
     # 데이터셋에서 데이터필드 불러오기
     data_fields = ace.get_datafields(s, region=alpha_region, universe=alpha_universe, dataset_id=dataset_id, data_type='ALL')
     data_fields = data_fields[data_fields['type'] != "GROUP"]
 
-    # 🔧 NEW: alphaCount 기준 상위 N개 datafield만 선택
+    # alphaCount 기준 상위 N개 datafield만 선택
     top_fields_df = data_fields.nlargest(top_n_datafields, "alphaCount")
 
-    # 🔧 NEW: LLM 입력용 compact datafield spec 생성
-    spec_keys = ['id', 'description', 'subcategory', 'coverage', 'userCount', 'alphaCount', 'type']
+    # LLM 입력용 compact datafield spec
+    spec_keys = ['id', 'description', 'coverage', 'userCount', 'alphaCount', 'type']
     available_keys = [k for k in spec_keys if k in top_fields_df.columns]
     selected_datafields_spec = top_fields_df[available_keys].to_dict("records")
 
@@ -80,11 +81,15 @@ def generate_expressions_from_dataset(s, alpha_region, alpha_universe, dataset_i
     for df_spec in selected_datafields_spec:
         print(f"  - {df_spec.get('id', 'N/A')} (alphaCount: {df_spec.get('alphaCount', 'N/A')}, type: {df_spec.get('type', 'N/A')})")
 
-    # If needed get operators or other data
-    operators = ace.get_operators(s)
-    operators_list = [row.to_dict() for row in operators[operators['scope']=='REGULAR'].iloc]
-    operator_exclude = []
-    operators_list = [x for x in operators_list if x['name'] not in operator_exclude]
+    # Load operators list for FREE_PATTERN section
+    operators_dict = import_json('operators_list.json')
+    ops_by_category = {}
+    for op_name, op_info in operators_dict.items():
+        cat = op_info.get('category', 'Other')
+        if cat not in ops_by_category:
+            ops_by_category[cat] = []
+        ops_by_category[cat].append(op_info.get('definition', op_name))
+    operators_compact = "\n".join(f"[{cat}] " + " | ".join(defs) for cat, defs in ops_by_category.items())
 
     answer_form = '''{
 "results":[
@@ -96,51 +101,99 @@ def generate_expressions_from_dataset(s, alpha_region, alpha_universe, dataset_i
     }
 ]
 }'''
-    # 🔧 MODIFIED: 프롬프트에 ALLOWED_DATAFIELDS 섹션 추가 및 KEEP_IN_MIND 업데이트
+
     prompt = f"""
-    <MISSION>
-    Based on the OPERATORS and ALLOWED_DATAFIELDS below,
-    1. SUGGEST {alpha_num} SEPARATED and DIVERSIFIED Alpha ideas which can create excess return in the market
-    2. Divide your idea into 4 parts, "idea", "description", "implementation", and "target".
-    3. "idea" must contain the core idea of the alpha.
-    4. "description" must include how you considered SUGGESTIONS and KEEP_IN_MINDs, and how much you set the confidence of this alpha. Consider SUGGESTIONS and write the reason you applied or didn't apply each of the SUGGESTIONS.
-    5. "implementation" must contain implementation of the variation, including specific template (in OPERATOR(MATRIX) form) or exact name of datafield.
-    6. "confidence_level" should be numerical value set in description, in 0-1 scale. Bigger value means higher confidence of this alpha idea.
-    Very new user can understand the idea and how to implement this idea.
-    </MISSION>
+<MISSION>
+Based on the ALLOWED_PATTERNS, FREE_PATTERN, and ALLOWED_DATAFIELDS below,
+generate {alpha_num} SEPARATED and DIVERSIFIED simple seed-alpha expressions.
 
-    <SUGGESTIONS>
-    SUGGESTION1: Actively use MULTIPLE datafields from ALLOWED_DATAFIELDS. Your main mission is finding great combinations of the allowed datafields.
-    SUGGESTION2: If a datafield has type=VECTOR, wrap it with vec_avg() or vec_sum() operator.
-    SUGGESTION3: If the datafield's coverage is lower than 0.6, try using ts_backfill() to preprocess the data.
-    SUGGESTION4: datafields' userCount and alphaCount are the count of users and alphas submitted. Try to use high user and alphaCount so that you can catch the signal easily.
-    </SUGGESTIONS>
+Each result must have 4 parts:
+- "idea": core idea of the alpha
+- "description": which pattern you used, which datafield, which window parameter, and why
+- "implementation": the FASTEXPR expression
+- "confidence_level": 0-1 scale, higher = more confident
+</MISSION>
 
-    <KEEP_IN_MIND>
-    KEEP_IN_MIND1: Final implementation MUST be simple. recommend to use operator "ts_backfill" , "ts_zscore" more often
-    KEEP_IN_MIND2: Final implementation MUST NOT contain over 4 operators and over 2 datafields.
-    KEEP_IN_MIND3: You MUST ONLY use datafield IDs from ALLOWED_DATAFIELDS. Using any datafield outside this list is INVALID.
-    KEEP_IN_MIND4: You CANNOT use type=GROUP field by itself. You need to use it as "group" parameter in Group operator.
-    KEEP_IN_MIND5: If a datafield has type=VECTOR, it MUST be wrapped with vec_avg() or vec_sum() operator.
-    </KEEP_IN_MIND>
+<GENERATION_RATIO>
+- About 70-80% of generated alphas MUST follow one of the 4 ALLOWED_PATTERNS exactly.
+- About 20-30% of generated alphas may use FREE_PATTERN: creative combinations of operators from OPERATORS_LIST.
+</GENERATION_RATIO>
 
-    <OPERATORS>
-    You can use those operators: {operators_list}
-    </OPERATORS>
+<ALLOWED_PATTERNS>
+These 4 patterns are the primary building blocks (use for ~70-80% of alphas):
 
-    <ALLOWED_DATAFIELDS>
-    Available datafields = {selected_datafields_spec}
-    </ALLOWED_DATAFIELDS>
+Pattern 1 - Backfill: ts_backfill(DATA, window)
+  Example: ts_backfill(rsk60_offer, 252)
+  Use when: coverage < 0.6, to fill missing data
 
-    <ANSWER_FORMAT>
-    You must answer in this form
-    {answer_form}
-    </ANSWER_FORMAT>
-    """.strip()
+Pattern 2 - Time-series Z-score: ts_zscore(DATA, window)
+  Example: ts_zscore(mdl138_4idpc, 252)
+  If DATA is VECTOR type, wrap with vec_avg(): ts_zscore(vec_avg(rsk60_offer), 252)
+  Use when: normalize signal over time
 
-    #description = await call_llm(prompt)
+Pattern 3 - Ratio Z-score: ts_zscore(divide(DATA, cap), window)
+  Example: ts_zscore(divide(fnd6_revenue, cap), 252)
+  Use when: fundamental data should be scaled by market cap
 
-    result_json = call_llm_stream(prompt,answer_form, model)
+Pattern 4 - Group Z-score with rank: group_zscore(rank(DATA), industry)
+  Or with ratio: group_zscore(rank(divide(DATA, cap)), industry)
+  Use when: cross-sectional normalization within industry groups
+</ALLOWED_PATTERNS>
+
+<FREE_PATTERN>
+For about 20-30% of generated alphas, you may create expressions using any combination
+of operators from OPERATORS_LIST below. Be creative and explore different operator combos.
+
+These free-form expressions must still follow STRUCTURAL LIMITS:
+- Maximum 3 operators per expression
+- Only 1 signal datafield (cap, industry, sector, subindustry are helpers only)
+- VECTOR type fields must use vec_* operators (vec_avg, vec_sum, vec_max, etc.)
+- Time-series window parameters: use values between 5 and 252
+
+Examples of free patterns:
+- ts_rank(DATA, 63)
+- quantile(ts_delta(DATA, 21))
+- ts_decay_linear(DATA, 126)
+- zscore(ts_mean(DATA, 63))
+- group_neutralize(rank(DATA), industry)
+- ts_ir(DATA, 126)
+- winsorize(ts_zscore(DATA, 63))
+- rank(ts_kurtosis(DATA, 126))
+- group_rank(ts_av_diff(DATA, 63), industry)
+</FREE_PATTERN>
+
+<OPERATORS_LIST>
+{operators_compact}
+</OPERATORS_LIST>
+
+<STRICT_RULES>
+RULE1: You MUST ONLY use datafield IDs from ALLOWED_DATAFIELDS. No other datafields.
+RULE2: Each expression must use exactly ONE signal datafield (cap, industry, sector, subindustry are allowed as helpers only).
+RULE3: If a datafield has type=VECTOR, you MUST wrap it with vec_avg() or other vec_* operators before using.
+RULE4: Window parameters should be diverse: use various values between 5 and 252.
+RULE5: Maximum 3 operators per expression. Keep it simple.
+RULE6: You CANNOT use type=GROUP field by itself. Use it only as group parameter (e.g., industry in group_zscore).
+</STRICT_RULES>
+
+<DIVERSITY_GUIDANCE>
+- Use ALL available datafields, not just the top one
+- Vary window parameters (5, 10, 21, 42, 63, 126, 189, 252, etc.)
+- Mix ALLOWED_PATTERNS and FREE_PATTERN
+- For VECTOR fields, always wrap with vec_* operators
+- For low-coverage fields (coverage < 0.6), prefer Pattern 1 (ts_backfill)
+</DIVERSITY_GUIDANCE>
+
+<ALLOWED_DATAFIELDS>
+{selected_datafields_spec}
+</ALLOWED_DATAFIELDS>
+
+<ANSWER_FORMAT>
+You must answer in this form:
+{answer_form}
+</ANSWER_FORMAT>
+""".strip()
+
+    result_json = call_llm_stream(prompt, answer_form, model)
     return result_json
 
 def save_json(json_dict, path):
