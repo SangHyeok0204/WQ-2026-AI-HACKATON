@@ -9,6 +9,7 @@
 6. [E. 사람이 눈으로 확인하는 포인트](#e-사람이-눈으로-확인하는-포인트)
 7. [F. 진화 알고리즘 기반 알파 개선 (refine.ipynb)](#f-진화-알고리즘-기반-알파-개선-refineipynb)
 8. [G. Cross-Dataset Alpha Combination (combine_and_simulate.ipynb)](#g-cross-dataset-alpha-combination-combine_and_simulateipynb)
+9. [H. LLM-Based Combinatorial Pipeline (combine_and_simulate_v2.ipynb)](#h-llm-based-combinatorial-pipeline-combine_and_simulate_v2ipynb)
 
 ---
 
@@ -16,14 +17,15 @@
 
 이 파이프라인은 LLM(Large Language Model)을 활용하여 WorldQuant Brain 플랫폼에서 사용할 수 있는 알파(Alpha) 아이디어를 대량으로 생성하고, 검증하여 제출 가능한 후보를 선별하는 자동화 시스템입니다.
 
-**세 가지 주요 파이프라인:**
+**네 가지 주요 파이프라인:**
 | 파이프라인 | 노트북 | 목적 | 특징 (2026-02) |
 |-----------|--------|------|------|
 | **Seed Generation** | `llm_alpha_guide.ipynb` | 단순 seed-alpha 대량 탐색 | 70-80% 패턴 + 20-30% 자유 조합, 구조 필터링, .txt 출력 |
-| **Combinatorial** | `combine_and_simulate.ipynb` | 다중 데이터셋 seed 전수 조합 | **전수 조합(Cartesian Product)**, operators_list.json 전체 사용, Sanity Check 통합 |
+| **Combinatorial v1** | `combine_and_simulate.ipynb` | 다중 데이터셋 seed 전수 조합 | **전수 조합(Cartesian Product)**, operators_list.json 전체 사용, Sanity Check 통합 |
+| **Combinatorial v2** | `combine_and_simulate_v2.ipynb` | LLM 기반 seed 조합 | **LLM이 2~4개 seed 자유 조합**, 10 batch × 100개, PASS만 저장 |
 | **Refinement** | `refine.ipynb` | 기존 알파 개선 | 진화 알고리즘, 토너먼트 선택 |
 
-### 전체 흐름도 (Seed → Combine → Refine) [2026-02]
+### 전체 흐름도 (Seed → Combine → Refine) [2026-02-09]
 
 ```
 [Pipeline A: Seed Generation]
@@ -31,14 +33,16 @@
   데이터셋별 단순 seed-alpha 대량 생성
   → {dataset}.txt (per-dataset 결과)
           │
-          ▼
-[Pipeline G: Combinatorial] ★ 2026-02 업데이트
-  combine_and_simulate.ipynb + combinatorial_alpha_pipeline.py
-  0-fail seed들을 Cartesian Product로 전수 조합
-  → {dataset1}_{dataset2}_{dataset3}_comb.txt + .json
-  (operators_list.json 전체 사용, Sanity Check 통합)
-          │
-          ▼
+          ├─────────────────────────────────────────┐
+          ▼                                         ▼
+[Pipeline G: Combinatorial v1]           [Pipeline H: Combinatorial v2] ★ NEW
+  combine_and_simulate.ipynb               combine_and_simulate_v2.ipynb
+  Cartesian Product 전수 조합              LLM 기반 자유 조합
+  → {ds1}_{ds2}_{ds3}_comb.txt             → results/combinatorial/combined_alphas.txt
+                                           (10 batch × 100개, PASS만 저장)
+          │                                         │
+          └─────────────────┬───────────────────────┘
+                            ▼
 [Pipeline F: Refinement]
   refine.ipynb
   유망 알파를 진화 알고리즘으로 개선
@@ -1085,7 +1089,174 @@ parse_zero_fail_alphas_from_file() 가 0-fail 블록만 추출
 
 ---
 
-## 부록: 파일 구조 요약 (2026-02)
+## H. LLM-Based Combinatorial Pipeline (combine_and_simulate_v2.ipynb)
+
+### H.0 개요 (2026-02-09)
+
+`combine_and_simulate_v2.ipynb`는 `llm_alpha_guide.ipynb`의 구조를 차용하여 LLM 기반으로
+여러 dataset의 0-fail seed 알파를 조합하는 파이프라인입니다.
+
+**기존 `combine_and_simulate.ipynb` (Cartesian Product)와의 차이:**
+
+| 항목 | v1 (Cartesian Product) | v2 (LLM-Based) |
+|------|------------------------|----------------|
+| **조합 방식** | 전수 조합 (N×M×K) | LLM이 자유롭게 2~4개 seed 조합 |
+| **Dataset 선택** | 모든 dataset 전수 | 랜덤 2개 선택 (batch당) |
+| **Seed 추출** | 전체 0-fail seed 사용 | 랜덤 10개씩 (batch당 20개) |
+| **조합 생성** | Programmatic variant | GPT-4o가 100개 조합 생성 |
+| **Batch 수** | 1회 실행 | 10 batches |
+| **저장 조건** | 전체 저장 | PASS (0-fail)만 저장 |
+
+### H.1 파이프라인 흐름
+
+```
+10번의 Dataset_combine Batch
+    │
+    ▼
+[1. Dataset 선택] 4개 중 랜덤 2개 선택
+    │
+    ▼
+[2. Seed 추출] 각 dataset에서 0-fail 알파 랜덤 10개 (총 20개)
+    │
+    ▼
+[3. LLM 생성] GPT-4o가 20개 seed → 100개 조합 생성 (2~4개 seed 자유 조합)
+    │
+    ▼
+[4. Sanity Check] parser.py 기반 타입 검증
+    │
+    ▼
+[5. Simulation] 10개씩 배치 시뮬레이션 (1-10, 11-20, ..., 91-100)
+    │
+    ▼
+[6. Save] PASS (0-fail)만 누적 저장 (warning 포함)
+```
+
+### H.2 핵심 파라미터
+
+```python
+# Configuration
+NUM_BATCHES = 10                    # 총 batch 수
+SEEDS_PER_DATASET = 10              # 각 dataset에서 추출할 seed 개수
+COMBINATIONS_PER_BATCH = 100        # LLM이 생성할 조합 수
+SIMULATION_BATCH_SIZE = 10          # 한 번에 시뮬레이션할 알파 수
+RANDOM_SEED = 42                    # 재현성을 위한 시드
+CONCURRENCY = 3                     # Brain API 동시 시뮬레이션 수
+GPT_MODEL = 'gpt-4o'                # LLM 모델
+
+# Dataset 파일
+DATASET_FILES = {
+    'model25': 'model25.txt',
+    'model30': 'model30.txt',
+    'model138': 'model138.txt',
+    'analyst39': 'analyst39.txt',
+}
+```
+
+### H.3 LLM 프롬프트 개선 사항
+
+v2에서는 sanity check 통과율을 높이기 위해 프롬프트를 크게 개선했습니다:
+
+#### 1. 전체 Operator 시그니처 제공
+
+```
+[Arithmetic]
+  - add(x, y, filter = false), x + y
+  - abs(x)
+  - log(x)
+  - subtract(x, y, filter=false), x - y
+  ...
+```
+
+#### 2. SYNTAX_RULES 섹션
+
+```
+1. Binary operators (EXACTLY 2 args): subtract(a, b), divide(a, b), min(a, b), max(a, b)
+2. Unary operators (EXACTLY 1 arg): rank(x), zscore(x), abs(x), log(x), sign(x)
+3. Variadic operators (2+ args): add(a, b, ...) can take multiple inputs
+4. Time-series (2 args): ts_mean(x, days), ts_std(x, days), ts_delta(x, days)
+5. group_zscore(x, group) - EXACTLY 2 args: expression and grouping
+```
+
+#### 3. COMMON MISTAKES 섹션
+
+```
+- rank(a, b) is WRONG - rank takes only 1 argument
+- zscore(a, b) is WRONG - zscore takes only 1 argument
+- subtract(a, b, c) is WRONG - subtract takes exactly 2 arguments
+- winsorize(x, lower, upper) needs 3 args, not 1
+```
+
+### H.4 결과 매칭 로직
+
+v2는 시뮬레이션 결과를 expression으로 매칭합니다 (인덱스 매칭 대신):
+
+```python
+# Build expression → combo mapping
+expr_to_combo = {combo['expression']: combo for combo in sim_batch}
+
+# Match results by original expression from simulate_data
+for result in results:
+    original_expr = result.get('simulate_data', {}).get('regular', '')
+    combo = expr_to_combo.get(original_expr)
+```
+
+**이유**: `ace.simulate_alpha_list_multi`가 `imap_unordered`를 사용하여 결과 순서가 입력 순서와 다를 수 있음.
+
+### H.5 디버그 로깅
+
+각 시뮬레이션 배치마다 상세 로그 출력:
+
+```
+[DEBUG] Results: 10 total, 7 valid
+[DEBUG] abc123: PASS=5, FAIL=2 ['LOW_SHARPE', 'LOW_FITNESS']
+[DEBUG] def456: PASS=7, FAIL=0 []
+[PASS] #1 Sharpe=2.15 Fitness=1.52
+```
+
+### H.6 Resume 지원
+
+- `gen_json/combinatorial_batch_{idx}.json`: 각 batch의 LLM 생성 결과 저장
+- 재실행 시 이미 완료된 batch는 자동 스킵
+
+### H.7 출력 파일
+
+#### results/combinatorial/combined_alphas.txt
+
+PASS (0-fail) 알파만 누적 저장:
+
+```
+--- #1 | FAIL: 0 (PASS) ---
+ID: abc123xyz
+Region: EUR, Universe: TOP2500
+Sharpe: 2.15, Fitness: 1.52, Turnover: 0.1234
+Expression: rank(add(ts_zscore(mdl25_field1, 63), quantile(mdl138_field2)))
+Source Datasets: model25, model138
+Batch: 3
+Status: PASS
+```
+
+### H.8 알려진 이슈 및 해결책
+
+| 이슈 | 원인 | 해결책 |
+|------|------|--------|
+| Sanity check 실패율 높음 | LLM이 잘못된 operator 시그니처 사용 | SYNTAX_RULES, COMMON MISTAKES 프롬프트 추가 |
+| 0개 PASS 알파 저장 | is_checks 대신 is_tests 사용해야 함 | `result.get('is_tests', ...)` 사용 |
+| 결과-표현식 불일치 | 인덱스 매칭 오류 | `expr_to_combo` 딕셔너리로 expression 매칭 |
+| operators_list.json input이 `[]` | 타입 정보 누락 | Brain API에서 최신 operator 정보 sync 필요 |
+
+### H.9 v1 vs v2 선택 가이드
+
+| 상황 | 권장 파이프라인 |
+|------|---------------|
+| 소수 dataset (2~3개)의 전수 조합 필요 | v1 (Cartesian Product) |
+| 대량 dataset에서 다양한 조합 탐색 | v2 (LLM-Based) |
+| API 비용 절감 (GPT 호출 없음) | v1 |
+| 창의적인 조합 패턴 필요 | v2 |
+| 재현성이 중요한 경우 | v1 (deterministic) |
+
+---
+
+## 부록: 파일 구조 요약 (2026-02-09)
 
 ```
 llm_alpha_gen/
@@ -1094,34 +1265,36 @@ llm_alpha_gen/
 ├── ace_lib.py                      # Brain API 연동, 시뮬레이션
 ├── AAF.py                          # 데이터필드 초기화 (whitelist 관리)
 ├── my_research.py                  # Sanity checker 구현 (return_type, check_input)
-├── combinatorial_alpha_pipeline.py # [NEW] 전수 조합 파이프라인 핵심 로직
+├── combinatorial_alpha_pipeline.py # 전수 조합 파이프라인 핵심 로직 (v1용)
 │
 ├── llm_alpha_guide.ipynb           # [Pipeline A] Seed-alpha 생성
-├── combine_and_simulate.ipynb      # [Pipeline G] Combinatorial 파이프라인 (2026-02 업데이트)
+├── combine_and_simulate.ipynb      # [Pipeline G] Combinatorial v1 (Cartesian Product)
+├── combine_and_simulate_v2.ipynb   # [Pipeline H] Combinatorial v2 (LLM-Based) ★ NEW
 ├── refine.ipynb                    # [Pipeline F] 진화 알고리즘 (알파 개선)
-├── PIPELINE_GUIDE.md               # 이 문서
+├── .claude/PIPELINE_GUIDE.md       # 이 문서
 │
 ├── datafield/                      # 데이터필드 메타정보 캐시
 │   └── 1/{REGION}/{UNIVERSE}/
 │       ├── 1_{REGION}_{UNIVERSE}_{dataset}.json
 │       └── 1_{REGION}_{UNIVERSE}_total.json   # sanity_checker용
 │
-├── gen_json/                       # LLM 생성 raw JSON (Seed Pipeline resume용)
-│   ├── risk60_0.json
-│   └── model25_1.json
+├── gen_json/                       # LLM 생성 raw JSON (resume용)
+│   ├── risk60_0.json               # Seed Pipeline resume
+│   ├── model25_1.json
+│   └── combinatorial_batch_{idx}.json  # v2 Pipeline resume ★ NEW
 │
 ├── {dataset}.txt                   # Seed-alpha 시뮬 결과 (per-dataset, 정렬)
-│   ├── risk60.txt                  #   → Combination Pipeline 입력
-│   ├── mdl25.txt
-│   ├── mdl30.txt
-│   └── mdl138.txt
+│   ├── model25.txt                 #   → Combination Pipeline 입력
+│   ├── model30.txt
+│   ├── model138.txt
+│   └── analyst39.txt
 │
-├── results/                        # [NEW] 파이프라인 출력 디렉토리
+├── results/                        # 파이프라인 출력 디렉토리
 │   └── combinatorial/
-│       ├── mdl138_mdl25_mdl30_comb.txt           # Variant 목록 (human-readable)
-│       ├── mdl138_mdl25_mdl30_comb.json          # Variant 목록 (machine-readable)
-│       └── mdl138_mdl25_mdl30_simulation_results.json  # 시뮬레이션 결과 (선택)
+│       ├── mdl138_mdl25_mdl30_comb.txt           # v1: Variant 목록
+│       ├── mdl138_mdl25_mdl30_comb.json          # v1: Variant 목록 (JSON)
+│       └── combined_alphas.txt                   # v2: PASS 알파 누적 ★ NEW
 │
-├── operators_list.json             # Operator I/O 타입 정의 (variant 생성용)
+├── operators_list.json             # Operator I/O 타입 정의
 └── operator_inputs.json            # 추가 operator 타입 정보
 ```
