@@ -1,98 +1,173 @@
-# Brain Alpha – Weight Concentration / Power Pool 완화 가이드
+# Brain Alpha Development Guide  
+## Typical Structures of Submitted Alphas and a Methodology for Developing New Alphas
 
-이 문서는 Brain 플랫폼에서  
-**`Weight is too strongly concentrated or too few instruments are assigned weight`**  
-에러를 해결하기 위해 실제로 검증된 아이디어와 패턴을 정리한 문서이다.
-
----
-
-## 1. 문제 정의
-
-Brain에서 해당 에러는 다음 두 경우 중 하나(또는 둘 다)일 때 발생한다.
-
-### 1.1 too few instruments
-- 대부분의 종목이 **0 또는 상수값**
-- 실제로 weight가 배정되는 종목 수가 너무 적음
-
-### 1.2 too strongly concentrated
-- 종목 수는 충분하지만
-- **상위 소수 종목에 weight가 과도하게 집중**
+This document summarizes the **structural commonalities** observed in alphas that are actually submitted to and pass on the Brain platform.  
+Based on these observations, it presents a **general way of thinking and a practical methodology** for designing new alphas.
 
 ---
 
-## 2. 주요 원인 분류
+## 1. Typical Structural Pattern of Brain Alphas
 
-### A. 단면 분포가 이산(discrete)해질 때
-- `quantile`, `rank`, `group_rank`가 **최종단**에 위치
-- 동점(tie)이 대량 발생
+Alphas that pass on Brain tend to follow the same **conceptual flow**, regardless of the specific operators used.
 
-### B. 종목을 죽이는 구조
-- `tail(..., newval=0)`
-- `max(x, 0)`, `min(x, 0)`
-- 조건 필터(`trade_when`, hard if)
+Source of information  
+→ Extraction of change and context  
+→ Relative comparison  
+→ Bias removal and stabilization  
 
-### C. 극단값 증폭
-- `signed_power(x, >1)`
-- 분모가 작은 비율식
-- 캡이 너무 타이트(±1)
-
-### D. 같은 테마 중첩
-- EPS × EPS × Rank
-- Value × Value × Momentum
+This flow appears consistently across almost all successful alphas.
 
 ---
 
-## 3. Brain에서 가장 자주 쓰이는 해결 아이디어 TOP 10
+### 1.1 Source of Information (What)
+An alpha typically draws from one or more of the following information sources:
 
-### ① 최종 출력은 반드시 연속형으로
-```text
-zscore(alpha)
-zscore(quantile(x))   // 랭크 성질 유지 절충안
+- Corporate fundamentals  
+- Price movements in the market  
+- Investor positioning and flow data  
+- Changes in analyst expectations  
+- Style factors (e.g., value, momentum)
 
-② quantile / rank는 중간 feature로만 사용
-feature = quantile(x)
-alpha   = zscore(feature)
+The key point is that the focus is **not on absolute levels**,  
+but on **how these quantities are changing**.
 
-③ tail / 필터에서 newval=0 금지
-tail(x, newval=0.2 ~ 0.4)   // OK
-tail(x, newval=0)           // 거의 확정 탈락
+---
 
-④ min / max는 “조합”이 아니라 “캡” 용도
-max(min(zscore(x), 2), -2)
+### 1.2 Extraction of Change and Context (When & How)
+Raw information is rarely used directly.  
+Instead, it is **reinterpreted within a temporal context**.
 
+Common guiding questions include:
 
-❌ max(alpha1, alpha2) 직접 결합
+- How different is the current value from its usual level?
+- Is the change occurring rapidly or gradually?
+- Should recent information matter more than older observations?
 
+As a result, most alphas encode not the level itself, but the **direction, speed, and abnormality of change**.
 
-⑤ signed_power는 1보다 작게
-signed_power(alpha, 0.6 ~ 0.9)
+---
 
+### 1.3 Relative Comparison (Compared to What)
+Brain alphas emphasize **relative positioning across securities** rather than absolute magnitude.
 
-1 : 극단 확대 → concentration 증가
+This approach is preferred because it:
+- Removes scale differences across assets  
+- Is more robust to missing data and noise  
+- Adapts better to changing market environments  
 
+Ultimately, an alpha answers the question:  
+*“Where does this asset stand relative to others?”*
 
-⑥ 캡은 ±1보다 넓게
-±1      → 동점 과다
-±2 ~ 3  → 분포 유지 + 안정성↑
+---
 
+### 1.4 Bias Removal and Stabilization (Risk Control)
+The final stage focuses on controlling **concentration and instability** in the signal.
 
-⑦ 반드시 그룹 중립화
-group_rank(alpha, industry)
-group_scale(alpha, subindustry)
+Typical issues addressed at this stage include:
+- Concentration in specific industries, countries, or themes  
+- Excessive weight assigned to a small number of securities  
+- Unstable performance driven by extreme values  
 
-⑧ 레짐 선택(min/max)은 연속화 후 사용
-zscore(max(min(x,2),-2))
+To mitigate these risks, alphas are typically designed to:
+- Restrict comparisons within well-defined groups, and/or  
+- Compress extreme values in a smooth and controlled manner  
 
-⑨ Analyst / Short 데이터는 느리게 변환
-zscore(ts_decay_linear(ts_backfill(analyst_x, 60), 20))
+---
 
+## 2. Common Thought Patterns in Successful Alphas
 
-이벤트성 → 연속형 신호
+Regardless of implementation details, alphas that pass on Brain tend to share the following **conceptual principles**:
 
-⑩ 최종 점검 체크리스트
+1. They focus on **changes**, not levels  
+2. They rely on **relative positioning** rather than absolute values  
+3. They combine information with **different economic interpretations**  
+4. They incorporate stability and diversification from the outset  
+5. They avoid betting on a small number of securities  
 
-값이 0인 종목 비율 > 30% ❌
+---
 
-같은 값(동점) 비율 > 40% ❌
+## 3. A General Methodology for Developing New Alphas
 
-±cap에 붙은 종목이 과도하게 많음 ❌
+### STEP 1. Start with a Question
+Every alpha begins with a hypothesis-driven question, such as:
+
+- Which changes tend to precede future performance?
+- Where does the market systematically overreact or underreact?
+- Under what conditions do two signals reinforce each other?
+
+The starting point is **a hypothesis, not a formula**.
+
+---
+
+### STEP 2. Interpret the Information
+Rather than using raw inputs directly, define the **conditions under which the information becomes meaningful**.
+
+This often involves thinking in terms of:
+- Magnitude of change  
+- Speed of change  
+- Abnormality relative to history  
+- Interaction with other information sources  
+
+---
+
+### STEP 3. Ensure Comparability
+An alpha must always be able to answer the question,  
+*“Which asset is stronger relative to others?”*
+
+This requires a structure that supports comparison:
+- Across securities  
+- Across time  
+- Across different market regimes  
+
+Relative comparison should therefore be a core design principle.
+
+---
+
+### STEP 4. Actively Remove Bias
+Continuously check whether the alpha is inadvertently capturing:
+- Industry-specific effects  
+- Country or regional exposures  
+- Style-specific bets  
+- Dominance by a small set of extreme observations  
+
+Bias control should be **an explicit design choice**, not a post-hoc adjustment.
+
+---
+
+### STEP 5. Create Variants, Not Single Alphas
+Alpha development is not about producing a single final expression,  
+but about creating a **family of related variants**.
+
+Typical variations include:
+- Different observation windows  
+- Different comparison groups  
+- Different signal strengths or sensitivities  
+
+This process is essential for improving robustness, managing correlation, and ensuring long-term stability.
+
+---
+
+## 4. Key Principles to Keep in Mind During Alpha Development
+
+### Recommended
+- Change-focused thinking  
+- Relative comparison frameworks  
+- Emphasis on diversification and stability  
+- Combination of heterogeneous information sources  
+
+### To Avoid
+- Direct use of raw values  
+- All-in bets on a single factor  
+- Structures that concentrate on a few securities  
+- Stabilization applied only as an afterthought  
+
+---
+
+## 5. Summary
+
+**Successful alphas on Brain are not defined by clever use of specific operators,  
+but by a way of thinking that interprets change, compares assets relatively,  
+and is designed from the outset to avoid concentration and instability.**
+
+Developing new alphas is the process of repeatedly applying this thinking  
+to new data, new hypotheses, and new market contexts.
