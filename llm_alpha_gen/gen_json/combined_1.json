@@ -1,0 +1,484 @@
+{
+  "results": [
+    {
+      "idea": "A - Weighted blend of EPS surprise delta and PSR",
+      "description": "inspired by [6] and [7]; blended with weights to diversify between short eps surprise momentum and psr level",
+      "implementation": "add(multiply(quantile(ts_delta(star_eps_surprise_prediction_fy1, 3)), 0.6), multiply(quantile(mdl30_new_psprise_pct_fy1_eps), 0.4))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "A - Volatility-normalized VRV blend",
+      "description": "inspired by [1] and [27]; combine long-run vrv zscore with multi-horizon vrv zscores (10 & 120) as a weighted average",
+      "implementation": "add(multiply(ts_zscore(mdl25_vrv421_81v, 252), 0.6), multiply(add(ts_zscore(mdl25_vrv421_71v, 10), ts_zscore(mdl25_vrv421_71v, 120)), 0.4))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "A - Analyst/model average plus short-term returns",
+      "description": "inspired by [43] and [87]; blend analyst/smartestimate average with short-term returns to mix fundamental and momentum",
+      "implementation": "add(multiply(divide(add(quantile(star_eps_surprise_prediction_fy1), quantile(mdl30_new_smartestimate_f12m_eps)), 2), 0.7), multiply(quantile(ts_returns(mdl25_vrv421_71v, 20)), 0.3))",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "A - Fundamentals average with short-term vol signal",
+      "description": "inspired by [39] and [119]; combine sector-average fundamentals with short-term ts_delta of liquidity proxy mdl25_21v",
+      "implementation": "add(multiply(add(vec_avg(mdl138_4idpc), vec_avg(mdl138_5idpqc)), 0.6), multiply(ts_delta(mdl25_21v, 5), 0.4))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "A - Normalize returns by std and sign-adjust",
+      "description": "inspired by [52] and [56]; blend a volatility-normalized delta with a sign-adjusted zscore momentum",
+      "implementation": "add(multiply(divide(ts_delta(mdl25_vrv421_71v, 10), ts_std_dev(mdl25_vrv421_71v, 60)), 0.5), multiply(multiply(ts_zscore(mdl25_vrv421_71v, 30), sign(ts_zscore(mdl25_01v, 30))), 0.5))",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "A - EPS-to-estimate ratio with PSR tilt",
+      "description": "inspired by [71] and [76]; combine EPS/estimate ratio with psr percentile to capture surprise scaled by price sensitivity",
+      "implementation": "add(multiply(quantile(divide(star_eps_surprise_prediction_fy1, add(mdl30_new_smartestimate_f12m_eps, 0.000001))), 0.6), multiply(quantile(mdl30_new_psprise_pct_fy1_eps), 0.4))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "A - Cross-sectional momentum blend",
+      "description": "inspired by [35], [36] and [10]; blend zscored fundamentals backfills across horizons with cross-sectional rank momentum",
+      "implementation": "add(multiply(ts_zscore(ts_backfill(vec_avg(mdl138_4idpc), 20), 40), 0.5), multiply(ts_zscore(ts_backfill(vec_avg(mdl138_5idpqc), 20), 60), 0.3), multiply(zscore(add(multiply(reverse(ts_rank(mdl25_01v, 20)), 0.6), multiply(quantile(mdl25_vrv421_71v), 0.4))), 0.2))",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "A - Rank-return hybrid",
+      "description": "inspired by [10] and [11]; mix rank of recent ts_rank with quantile of vrv71 to get hybrid cross/time signal",
+      "implementation": "zscore(add(multiply(rank(ts_rank(mdl25_vrv421_71v, 20)), 0.6), multiply(quantile(mdl25_vrv421_71v), 0.4)))",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "B - Template A conservative combining EPS surprise and news sentiment",
+      "description": "inspired by [65],[6] and ALPHA_IDEAS Template A; use ts_decay_linear of model-news spread and momentum ratio with industry rank, group_rank + signed_power(0.8)",
+      "implementation": "signed_power(group_rank(min(ts_decay_linear(rank(subtract(mdl30_numnly_fq2_eps, nws17_comp_d1_event_sentiment_score)), 40), add(divide(rank(ts_rank(global_value_momentum_rank_float, 60)), add(rank(industry_value_momentum_rank), 1)), rank(short_term_price_momentum_score_2))), industry), 0.8)",
+      "confidence_level": 0.78
+    },
+    {
+      "idea": "B - Template B aggressive with risk and model field",
+      "description": "inspired by [2],[22] and Template B; max of news-driven delta times regional value momentum vs model rank ratio, group_rank subindustry and signed_power(0.5)",
+      "implementation": "signed_power(group_rank(max(multiply(rank(ts_delta(nws17_comp_d1_event_sentiment_score, 15)), rank(region_value_momentum_rank)), divide(rank(mdl25_21v), add(rank(global_price_momentum_percentile_2), 1))), subindustry), 0.5)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "B - Template C weighted combination of fundamentals and risk momentum",
+      "description": "inspired by [39],[24] and Template C; weighted add of vec_avg fundamentals and analyst surprise then min with risk-momentum product, group_scale subindustry",
+      "implementation": "group_scale(min(add(multiply(rank(vec_avg(mdl138_4idpc), 1), 0.4), multiply(rank(star_eps_surprise_prediction_fy2, 1), 0.6)), multiply(rank(ts_delta(default_risk_global_percentile_d1, 10)), rank(industry_value_momentum_rank))), subindustry)",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "B - Industry-normalized hybrid of ts_decay and momentum ratio",
+      "description": "inspired by [12],[14]; combine ts_decay_linear of normalized price component with momentum rank ratio, group_rank industry and signed_power(0.7)",
+      "implementation": "signed_power(group_rank(min(ts_decay_linear(add(normalize(mdl25_21v), zscore(ts_rank(mdl25_vrv421_71v, 21))), 21), add(divide(rank(ts_rank(mdl25_vrv421_81v, 60)), add(rank(industry_value_momentum_rank), 1)), rank(global_value_momentum_rank_float))), industry), 0.7)",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "B - Subindustry max of model delta times industry momentum vs model-to-price rank",
+      "description": "inspired by [28],[31]; use max of ts_delta product with industry momentum and a ratio of ts_ir to price zscore, group_rank subindustry signed_power 0.5",
+      "implementation": "signed_power(group_rank(max(multiply(ts_delta(mdl25_vrv421_71v, 126), rank(industry_value_momentum_rank)), divide(rank(ts_ir(mdl25_vrv421_81v, 126)), add(rank(zscore(mdl25_vrv421_71v)), 1))), subindustry), 0.5)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "B - Conservative min of fundamentals trend and momentum-weighted analyst rank",
+      "description": "inspired by [29],[3]; take min of dual vec_avg deltas and weighted analyst rank vs price momentum, group_rank industry signed_power 0.8",
+      "implementation": "signed_power(group_rank(min(max(ts_delta(ts_backfill(vec_avg(mdl138_4idpqc), 20), 5), ts_delta(ts_backfill(vec_avg(mdl138_5idpqc), 20), 5)), add(multiply(rank(vec_avg(mdl138_ofc_5idp), 1), 0.4), multiply(rank(star_new_eps_surprise_prediction_12m, 1), 0.6))), industry), 0.8)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "B - Ratio of model prediction to momentum with group scale",
+      "description": "inspired by [172],[173]; divide model vrv71 by liquidity mdl25_21v with smoothing and group_scale subindustry",
+      "implementation": "group_scale(divide(rank(mdl25_vrv421_71v), add(rank(ts_zscore(mdl25_21v, 21)), 1)), subindustry)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "B - Momentum-product vs industry volatility gate",
+      "description": "inspired by [40] and [159]; multiply recent returns zscore with long returns zscore and gate by low stddev condition inside group_rank industry",
+      "implementation": "signed_power(group_rank(min(multiply(ts_zscore(ts_returns(mdl25_vrv421_71v, 60), 60), ts_zscore(ts_returns(mdl25_vrv421_81v, 63), 63)), divide(rank(ts_mean(mdl25_vrv421_71v, 10)), add(rank(ts_std_dev(mdl25_vrv421_91v, 90)), 1))), industry), 0.6)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "B - News contrarian with model-strength ratio",
+      "description": "inspired by ALPHA_IDEAS data combos and [63]; contrarian news via negative sentiment combined with model to price ratio, group_rank subindustry signed_power 0.7",
+      "implementation": "signed_power(group_rank(min(ts_decay_linear(rank(subtract(mdl30_numnly_fq2_eps, nws17_comp_d1_event_sentiment_score)), 30), divide(rank(mdl25_21v), add(rank(mdl25_vrv421_71v), 1))), subindustry), 0.7)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "B - Weighted add of vec_avg fundamentals and psr percentile",
+      "description": "inspired by [95],[76] and Template C; weighted combination of averaged fundamentals and psr then group_scale subindustry",
+      "implementation": "group_scale(add(multiply(rank(vec_avg(mdl138_4idpc), 1), 0.4), multiply(rank(quantile(mdl30_new_psprise_pct_fy1_eps, driver=\"gaussian\"), 1), 0.6)), subindustry)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "B - Max of model delta*industry momentum vs price momentum ratio",
+      "description": "inspired by [2],[41]; use max of ts_delta of vrv91 times industry momentum and ratio of rank to short-term price momentum, group_rank subindustry signed_power 0.55",
+      "implementation": "signed_power(group_rank(max(multiply(rank(ts_delta(mdl25_vrv421_91v, 10)), rank(industry_value_momentum_rank)), divide(rank(mdl25_21v), add(rank(short_term_price_momentum_score_2), 1))), subindustry), 0.55)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "B - Conservative min of earnings surprise and volatility-adjusted psr",
+      "description": "inspired by [4],[79]; winsorize and quantile the eps surprise and combine with volatility-normalized psr then group_rank industry and signed_power 0.8",
+      "implementation": "signed_power(group_rank(min(quantile(winsorize(star_eps_surprise_prediction_fy1, std=3)), quantile(multiply(mdl30_new_psprise_pct_fy1_eps, inverse(ts_std_dev(mdl30_new_psprise_pct_fy1_eps, 10))))), industry), 0.8)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "B - Rank-layered ts_decay of returns and analyst surprise",
+      "description": "inspired by [9],[63]; ts_decay_linear over combined ts_zscore returns and zscored analyst psr then group_rank industry signed_power 0.6",
+      "implementation": "signed_power(group_rank(ts_decay_linear(add(quantile(ts_zscore(ts_returns(mdl25_vrv421_91v, 21), 63)), zscore(divide(add(quantile(mdl25_vrv421_71v), quantile(mdl25_vrv421_81v)), 2))), 21), industry), 0.6)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "B - Subindustry max combining normalized fundamentals and momentum delta",
+      "description": "inspired by [13],[29]; combine normalized multi-horizon vrv71 with dual vec_avg deltas, group_rank subindustry signed_power 0.6",
+      "implementation": "signed_power(group_rank(max(add(multiply(reverse(ts_rank(mdl25_01v, 20)), 0.6), multiply(add(zscore(mdl25_vrv421_71v), zscore(mdl25_21v)), 0.4)), add(ts_delta(ts_backfill(vec_avg(mdl138_4idpc), 5), 10), ts_delta(ts_backfill(vec_avg(mdl138_5idpqc), 20), 5))), subindustry), 0.6)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "B - Momentum/risk ratio with group normalization",
+      "description": "inspired by [26] and ALPHA_IDEAS ratio pattern; combine inverse stddev of price proxy with its delta, then group_rank industry signed_power 0.7",
+      "implementation": "signed_power(group_rank(add(inverse(ts_std_dev(mdl25_21v, 126)), ts_delta(mdl25_21v, 126)), industry), 0.7)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "B - News-weighted analyst/model blend",
+      "description": "inspired by [8],[1]; combine winsorized vec_avg fundamentals zscore with psr and long vrv zscore plus tail-filter, group_rank industry signed_power 0.65",
+      "implementation": "signed_power(group_rank(add(zscore(winsorize(ts_backfill(vec_avg(mdl138_4idpc), 60), std=4)), add(quantile(mdl30_new_psprise_pct_fy1_eps), add(ts_zscore(mdl25_vrv421_81v, 252), tail(quantile(mdl25_vrv421_91v), lower=-1, upper=1, newval=0)))) , industry), 0.65)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "B - Weighted momentum ratio with industry gate",
+      "description": "inspired by [50],[100]; average of returns zscore and mean returns then divide and group_scale subindustry",
+      "implementation": "group_scale(divide(add(ts_zscore(ts_returns(mdl25_vrv421_71v, 20), 20), ts_zscore(ts_mean(mdl25_vrv421_71v, 30), 30)), 2), subindustry)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "B - Combined ts_ir and zscore momentum with group_rank",
+      "description": "inspired by [31],[158]; add ts_ir of vrv81 and zscore of vrv71 then group_rank industry and signed_power 0.7",
+      "implementation": "signed_power(group_rank(add(ts_ir(mdl25_vrv421_81v, 126), zscore(mdl25_vrv421_71v)), industry), 0.7)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "B - Ratio of psr delta to estimate with group scaling",
+      "description": "inspired by [74],[70]; quantile of ts_delta(psr,10) divided by smartestimate scaled then group_scale subindustry",
+      "implementation": "group_scale(quantile(divide(ts_delta(mdl30_new_psprise_pct_fy1_eps, 10), add(mdl30_new_smartestimate_f12m_eps, 0.000001))), subindustry)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "B - Weighted min of vec_avg pair vs price momentum product",
+      "description": "inspired by [35],[37] and Template C; min of weighted vec_avg ranks and product of ts_delta risk with industry momentum, group_scale subindustry",
+      "implementation": "group_scale(min(add(multiply(rank(vec_avg(mdl138_4idpc), 1), 0.4), multiply(rank(star_eps_surprise_prediction_fy2, 1), 0.6)), multiply(rank(ts_delta(default_risk_industry_percentile_d1, 10)), rank(industry_value_momentum_rank))), subindustry)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "B - Max of analyst surprise and volatility adjusted returns",
+      "description": "inspired by [63],[79]; choose max between quantile of summed zscores of surprises and volatility-normalized returns, group_rank industry signed_power 0.6",
+      "implementation": "signed_power(group_rank(max(quantile(add(zscore(star_eps_surprise_prediction_fy1), zscore(mdl30_new_psprise_pct_fy1_eps))), quantile(multiply(star_eps_surprise_prediction_fy1, inverse(ts_std_dev(mdl30_new_smartestimate_f12m_eps, 20))))), industry), 0.6)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "B - Industry-relative dynamics of fundamentals and price",
+      "description": "inspired by [98],[99]; subtract recent zscore of vrv91 minus long-run zscore and combined with zscore of fundamentals stddev diff, group_rank industry signed_power 0.7",
+      "implementation": "signed_power(group_rank(min(subtract(ts_zscore(mdl25_vrv421_91v, 30), zscore(mdl25_vrv421_91v)), subtract(ts_zscore(ts_backfill(vec_avg(mdl138_4idpc), 30), 10), ts_zscore(ts_backfill(vec_stddev(mdl138_4idpc), 30), 10))), industry), 0.7)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "B - News*momentum vs model rank ratio",
+      "description": "inspired by [2],[41] and ALPHA_IDEAS; multiply ts_delta of sentiment with region momentum and compare to model-to-price rank ratio, group_rank subindustry signed_power 0.55",
+      "implementation": "signed_power(group_rank(max(multiply(rank(ts_delta(nws17_comp_d1_event_sentiment_score, 15)), rank(region_value_momentum_rank)), divide(rank(mdl25_21v), add(rank(global_price_momentum_percentile_2), 1))), subindustry), 0.55)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "B - Composite of backfilled fundamentals and psr deviation",
+      "description": "inspired by [110],[97]; combine ts_backfill of combined vec_avgs and ts_delta of vrv deltas, group_scale subindustry",
+      "implementation": "group_scale(add(multiply(rank(ts_backfill(add(vec_avg(mdl138_3idpc), vec_avg(mdl138_5idpc)), 30), 1), 0.6), multiply(rank(subtract(ts_delta(mdl25_21v,5), ts_delta(mdl25_vrv421_71v,5)), 1), 0.4)), subindustry)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "B - Ratio of returns zscore to volatility with group rank",
+      "description": "inspired by [53] and [152]; divide ts_zscore returns by ts_std_dev returns then group_rank industry and signed_power 0.6",
+      "implementation": "signed_power(group_rank(divide(ts_zscore(ts_returns(mdl25_vrv421_81v, 63), 63), ts_std_dev(ts_returns(mdl25_vrv421_81v, 63), 63)), industry), 0.6)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "B - Weighted rank of vec_avg fundamentals vs psr percentile",
+      "description": "inspired by [95],[49]; average zscores of vec_avg fundamentals and psr ts_zscore then group_rank subindustry signed_power 0.7",
+      "implementation": "signed_power(group_rank(min(add(multiply(rank(vec_avg(mdl138_4idpc), 1), 0.4), multiply(rank(quantile(mdl30_new_psprise_pct_fy1_eps, driver=\"gaussian\"), 1), 0.6)), add(ts_zscore(ts_backfill(vec_avg(mdl138_4idpc), 20), 60), ts_zscore(ts_backfill(vec_avg(mdl138_5idpqc), 20), 60))), subindustry), 0.7)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "B - Momentum stabilization using ts_decay and group_rank",
+      "description": "inspired by [9],[12]; ts_decay of combined zscore returns and normalized model field, then group_rank industry signed_power 0.65",
+      "implementation": "signed_power(group_rank(ts_decay_linear(add(quantile(ts_zscore(ts_returns(mdl25_vrv421_91v, 21), 63)), zscore(divide(add(quantile(mdl25_vrv421_71v), quantile(mdl25_vrv421_81v)), 2))), 21), industry), 0.65)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "B - Subindustry conservative min of vec_avg mean and psr zscore",
+      "description": "inspired by [49],[35]; average two vec_avg backfills then min with psr zscore average, group_scale subindustry",
+      "implementation": "group_scale(min(divide(add(quantile(ts_backfill(vec_avg(mdl138_4idpc), 60)), quantile(ts_backfill(vec_avg(mdl138_3idpc), 60))), 2), divide(add(ts_zscore(ts_backfill(vec_avg(mdl138_4idpc), 20), 60), ts_zscore(ts_backfill(vec_avg(mdl138_5idpqc), 20), 60)), 2)), subindustry)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "B - Price momentum normalized by liquidity",
+      "description": "inspired by [172],[100]; zscore of divide vrv71 by liquidity proxy add(1) to denom and group_rank industry",
+      "implementation": "signed_power(group_rank(zscore(divide(mdl25_vrv421_71v, add(1, ts_mean(mdl25_21v, 63)))), industry), 0.7)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "B - Weighted product of quantile and ts_zscore returns",
+      "description": "inspired by [178],[177]; multiply quantile of vrv91 by ts_zscore of delta of 21v and zscore the product, group_rank industry signed_power 0.6",
+      "implementation": "signed_power(group_rank(zscore(multiply(quantile(mdl25_vrv421_91v), ts_zscore(ts_delta(mdl25_21v, 21), 63))), industry), 0.6)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "B - Trend-following with group neutralization via group_scale",
+      "description": "inspired by [139],[163]; ts_av_diff zscore of vrv81 over long windows combined with sum zscore, group_scale subindustry",
+      "implementation": "group_scale(add(multiply(zscore(ts_av_diff(mdl25_vrv421_81v, 180)), 0.5), multiply(ts_zscore(ts_sum(mdl25_vrv421_71v, 30), 60), 0.5)), subindustry)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "B - Earnings surprise ratio vs estimate with industry rank",
+      "description": "inspired by [71],[73]; quantile of divide eps surprise by smartestimate with tiny floor, group_rank industry signed_power 0.75",
+      "implementation": "signed_power(group_rank(quantile(divide(star_eps_surprise_prediction_fy1, add(mdl30_new_smartestimate_f12m_eps, 0.000001))), industry), 0.75)",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "B - Momentum confirmation gate using returns and ir",
+      "description": "inspired by [41],[22]; gate on positive ts_ir and positive short returns, then rank within subindustry, signed_power 0.5",
+      "implementation": "signed_power(group_rank(and(greater(ts_ir(mdl25_vrv421_91v, 60), 0), greater(ts_delta(mdl25_vrv421_91v, 10), 0)), subindustry), 0.5)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "B - Weighted min of model rank and short-term fundamentals delta",
+      "description": "inspired by [3],[29]; min between normalized model predictions and dual vec_avg deltas then group_rank industry signed_power 0.7",
+      "implementation": "signed_power(group_rank(min(normalize(add(mdl25_21v, 0)), add(ts_delta(ts_backfill(vec_avg(mdl138_4idpqc), 20), 5), ts_delta(ts_backfill(vec_avg(mdl138_5idpqc), 20), 5))), industry), 0.7)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "B - Return momentum over stddev with group scaling",
+      "description": "inspired by [52],[53]; divide recent delta by long stddev then group_scale subindustry",
+      "implementation": "group_scale(divide(ts_delta(mdl25_vrv421_71v, 10), ts_std_dev(mdl25_vrv421_71v, 60)), subindustry)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "B - Mixed horizon zscore average with group rank",
+      "description": "inspired by [32],[34]; sum of ts_zscore at different horizons for vrv71 and vrv91 then group_rank industry signed_power 0.65",
+      "implementation": "signed_power(group_rank(add(ts_zscore(mdl25_vrv421_71v, 10), add(ts_zscore(mdl25_vrv421_71v, 60), ts_zscore(mdl25_vrv421_91v, 90))), industry), 0.65)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "B - Fundamentals momentum vs sector volatility",
+      "description": "inspired by [181],[146]; compare recent deviation of vec_avg 4idpc to its stddev and rank across industry, signed_power 0.7",
+      "implementation": "signed_power(group_rank(zscore(subtract(ts_backfill(vec_avg(mdl138_4idpc), 5), ts_mean(ts_backfill(vec_avg(mdl138_4idpc), 5), 10))), industry), 0.7)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "B - Analyst surprise dampened by asset volatility",
+      "description": "inspired by [3],[79]; quantile of eps surprise divided by smartestimate volatility then group_rank industry signed_power 0.7",
+      "implementation": "signed_power(group_rank(quantile(divide(star_eps_surprise_prediction_fy1, add(inverse(ts_std_dev(mdl30_new_smartestimate_f12m_eps, 20)), 0.000001))), industry), 0.7)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "B - Multi-factor weighted rank with group_scale",
+      "description": "inspired by ALPHA_IDEAS Template C and [13],[35]; weight vec_avg fundamentals rank and analyst field then min with ts_delta risk*momentum, group_scale subindustry",
+      "implementation": "group_scale(min(add(multiply(rank(vec_avg(mdl138_4idpc), 1), 0.4), multiply(rank(star_eps_surprise_prediction_fy2, 1), 0.6)), multiply(rank(ts_delta(default_risk_global_percentile_d1, 10)), rank(industry_value_momentum_rank))), subindustry)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "B - Subindustry product of zscored returns and liquidity",
+      "description": "inspired by [179],[180]; multiply returns zscore by liquidity mdl25_21v and zscore result then group_rank subindustry signed_power 0.6",
+      "implementation": "signed_power(group_rank(zscore(multiply(ts_zscore(ts_returns(mdl25_vrv421_81v, 63), 63), mdl25_21v)), subindustry), 0.6)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "B - Long-short momentum ratio normalized by industry stddev",
+      "description": "inspired by [100],[175]; subtract returns zscore of different tickers and divide by industry stddev, group_rank industry signed_power 0.65",
+      "implementation": "signed_power(group_rank(divide(subtract(ts_zscore(ts_returns(mdl25_vrv421_71v, 63), 63), ts_zscore(ts_returns(mdl25_01v, 63), 63)), add(group_std_dev(mdl25_vrv421_71v, industry), 0.000001)), industry), 0.65)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "B - Contrarian news with model support using group_rank",
+      "description": "inspired by ALPHA_IDEAS and [41]; apply contrarian rule: positive ts_ir and decreasing price stddev, group_rank industry signed_power 0.7",
+      "implementation": "signed_power(group_rank(min(divide(rank(ts_ir(mdl25_vrv421_91v, 60)), add(rank(ts_std_dev(mdl25_vrv421_91v, 90)), 1)), rank(ts_delta(mdl25_vrv421_91v, 10))), industry), 0.7)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "B - Weighted add of backfilled vec_avgs over horizons",
+      "description": "inspired by [110],[113],[116]; add multiple ts_backfill vec_avg signals with different weights and group_scale subindustry",
+      "implementation": "group_scale(add(multiply(rank(ts_backfill(vec_avg(mdl138_4idpc), 30), 1), 0.5), multiply(rank(ts_backfill(vec_avg(mdl138_3idpc), 30), 1), 0.3), multiply(rank(ts_backfill(vec_avg(mdl138_5idpc), 30), 1), 0.2)), subindustry)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "B - Volatility-smoothed earnings surprise signal",
+      "description": "inspired by [94],[81]; zscore of product of smartestimate and eps surprise then quantile and group_rank industry signed_power 0.72",
+      "implementation": "signed_power(group_rank(quantile(zscore(multiply(mdl30_new_smartestimate_f12m_eps, star_eps_surprise_prediction_fy1))), industry), 0.72)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "B - Momentum confirmation with volatility floor",
+      "description": "inspired by [57],[161]; multiply returns zscore by an indicator of positive mdl25_01v and winsorize to reduce tails, group_rank subindustry signed_power 0.55",
+      "implementation": "signed_power(group_rank(multiply(ts_zscore(ts_returns(mdl25_vrv421_91v, 20), 20), if_else(greater(zscore(mdl25_01v), 0), 1, 0)), subindustry), 0.55)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "B - Combine quantile of psr with ts_rank momentum",
+      "description": "inspired by [86],[129]; quantile rank of psr plus ts_rank momentum blended then group_rank industry signed_power 0.63",
+      "implementation": "signed_power(group_rank(add(quantile(mdl30_psprise_pct_fy1_eps), rank(ts_rank(mdl30_psprise_pct_fy1_eps, 30))), industry), 0.63)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "B - Earnings momentum normalized by estimate dispersion",
+      "description": "inspired by [128],[155]; ts_quantile of ts_delta(smartestimate,5) zscored then group_scale subindustry",
+      "implementation": "group_scale(ts_quantile(ts_delta(mdl30_new_smartestimate_f12m_eps, 5), 20), subindustry)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "B - Multi-horizon zscore difference for vrv91",
+      "description": "inspired by [138],[136]; subtract long-run zscore from short-run zscore and group_rank industry signed_power 0.66",
+      "implementation": "signed_power(group_rank(subtract(ts_zscore(subtract(mdl25_vrv421_91v, ts_mean(mdl25_vrv421_91v, 90)), 90), ts_zscore(mdl25_vrv421_91v, 15)), industry), 0.66)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "B - Weighted rank of analyst psr and model psr with group normalization",
+      "description": "inspired by [63],[68]; add zscores of eps surprise and psr then quantile and group_scale subindustry",
+      "implementation": "group_scale(quantile(add(zscore(star_eps_surprise_prediction_fy1), zscore(mdl30_new_psprise_pct_fy1_eps))), subindustry)",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "B - Cross-sectional return ranking with group zscore",
+      "description": "inspired by [208],[207]; ts_zscore of industry value momentum rank and max diff then group_rank industry signed_power 0.6",
+      "implementation": "signed_power(group_rank(min(ts_zscore(industry_value_momentum_rank, 15), ts_max_diff(mdl39_d1_val_mo_industry_rank, 5)), industry), 0.6)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "B - Relative psr gap vs 1y mean with group_scale",
+      "description": "inspired by [84],[85]; quantile of psr minus its 252-day mean then group_scale subindustry",
+      "implementation": "group_scale(quantile(subtract(mdl30_new_psprise_pct_fy1_eps, ts_mean(mdl30_new_psprise_pct_fy1_eps, 252))), subindustry)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "B - Combine returns skew with analyst surprise for stability",
+      "description": "inspired by [161],[63]; winsorize returns zscore and add quantile of zscored eps surprise, then group_rank industry signed_power 0.66",
+      "implementation": "signed_power(group_rank(add(winsorize(ts_zscore(ts_returns(mdl25_vrv421_91v, 63), 63), std=4), quantile(zscore(star_eps_surprise_prediction_fy1))), industry), 0.66)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "B - Industry-adjusted model delta momentum",
+      "description": "inspired by [103],[105]; ts_av_diff of mdl25_21v combined with ts_av_diff of vec_avg fundamentals and group_rank industry signed_power 0.7",
+      "implementation": "signed_power(group_rank(add(ts_av_diff(mdl25_21v, 252), ts_av_diff(ts_backfill(vec_avg(mdl138_4idpc), 30), 20)), industry), 0.7)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "B - Weighted min of short-term price component and analyst rank",
+      "description": "inspired by [213],[211]; group_zscore of short-term price momentum bucketed then min with rank of analyst short-term signal, group_scale subindustry",
+      "implementation": "group_scale(min(group_zscore(mdl39_d1_price_mo_short_term_component, bucket(rank(mdl39_d1_price_mo_short_term_component), buckets=6)), rank(mdl39_d1_price_mo_short_term_component)), subindustry)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "B - psr over estimate ratio with winsorized numerator",
+      "description": "inspired by [79],[68]; quantile of psr divided by add(1, abs(eps surprise)) to stabilize, group_rank industry signed_power 0.68",
+      "implementation": "signed_power(group_rank(quantile(divide(mdl30_new_psprise_pct_fy1_eps, add(1, abs(star_eps_surprise_prediction_fy1)))), industry), 0.68)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "B - Combined zscore of multiple fundamentals with ts_delta gate",
+      "description": "inspired by [168],[182]; zscore of sum of vec_avg fundamentals and ts_av_diff gating, group_rank industry signed_power 0.66",
+      "implementation": "signed_power(group_rank(zscore(add(vec_avg(mdl138_4idpc), vec_avg(mdl138_4idpqc))), industry), 0.66)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "B - Short-term return rank over long-term vol floor",
+      "description": "inspired by [42],[164]; require positive short and long returns then winsorize returns zscore and group_rank subindustry signed_power 0.55",
+      "implementation": "signed_power(group_rank(and(greater(ts_returns(mdl25_vrv421_91v, 10), 0), greater(ts_returns(mdl25_vrv421_91v, 60), 0)), subindustry), 0.55)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "B - Ratio of rank of model delta to add of industry momentum",
+      "description": "inspired by ALPHA_IDEAS ratio pattern and [1]; divide rank of ts_delta of model by add(rank(industry momentum),1) and group_rank industry signed_power 0.7",
+      "implementation": "signed_power(group_rank(divide(rank(ts_delta(mdl25_21v, 15)), add(rank(industry_value_momentum_rank), 1)), industry), 0.7)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "B - psr momentum decay with group normalization",
+      "description": "inspired by [9],[86]; ts_decay_linear of quantile(ts_zscore(ts_returns of psr)) then group_rank subindustry signed_power 0.6",
+      "implementation": "signed_power(group_rank(ts_decay_linear(quantile(ts_zscore(ts_returns(mdl30_psprise_pct_fy1_eps, 21), 21)), 21), subindustry), 0.6)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "B - Smartestimate-adjusted returns rank",
+      "description": "inspired by [75],[81]; divide recent mean surprise by mean smartestimate then quantile and group_rank industry signed_power 0.7",
+      "implementation": "signed_power(group_rank(quantile(divide(ts_mean(star_eps_surprise_prediction_fy1, 7), add(0.0001, ts_mean(mdl30_new_smartestimate_f12m_eps, 7)))), industry), 0.7)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "B - Volatility-tapered vec_avg signal targeting TVR",
+      "description": "inspired by [132],[133]; ts_target_tvr_decay on vec_avg of fundamentals to target TVR then group_scale subindustry",
+      "implementation": "group_scale(ts_target_tvr_decay(ts_backfill(vec_avg(mdl138_4idpc), 20), lambda_min=0, lambda_max=1, target_tvr=0.1), subindustry)",
+      "confidence_level": 0.55
+    },
+    {
+      "idea": "B - Combine quantile of min(psr variants) with returns rank",
+      "description": "inspired by [77],[87]; quantile of min of two psr fields and combine with ts_returns quantile, group_rank industry signed_power 0.6",
+      "implementation": "signed_power(group_rank(add(quantile(min(mdl30_new_psprise_pct_fy1_eps, mdl30_psprise_pct_fy1_eps)), quantile(ts_returns(mdl25_vrv421_71v, 20))), industry), 0.6)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "B - Dual zscore spread between vec_avg components",
+      "description": "inspired by [99],[146]; subtract zscore of vec_avg and its stddev zscore then group_rank industry signed_power 0.68",
+      "implementation": "signed_power(group_rank(subtract(ts_zscore(ts_backfill(vec_avg(mdl138_4idpc), 30), 10), ts_zscore(ts_backfill(vec_stddev(mdl138_4idpc), 30), 10)), industry), 0.68)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "B - Model momentum scaled by quantile liquidity",
+      "description": "inspired by [177],[125]; multiply quantile of model 21v by ts_zscore of its delta then zscore result and group_rank industry signed_power 0.6",
+      "implementation": "signed_power(group_rank(zscore(multiply(quantile(mdl25_21v), ts_zscore(ts_delta(mdl25_21v, 21), 63))), industry), 0.6)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "C - Clipped group_rank of EPS surprise over estimate",
+      "description": "inspired by [71],[73]; variation: use clipping min(max(X,-1),1) on quantile(divide(eps surprise, smartestimate)) then group_rank industry and signed_power 0.8",
+      "implementation": "signed_power(group_rank(min(max(quantile(divide(star_eps_surprise_prediction_fy1, add(mdl30_new_smartestimate_f12m_eps, 0.000001))), -1), 1), industry), 0.8)",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "C - Subindustry clipped blend of fundamentals and psr",
+      "description": "inspired by [39],[49]; variation: clip weighted vec_avg + psr zscore into [-1,1] then group_scale subindustry using signed_power 0.6",
+      "implementation": "group_scale(signed_power(min(max(add(multiply(rank(vec_avg(mdl138_4idpc), 1), 0.5), multiply(rank(quantile(mdl30_new_psprise_pct_fy1_eps, driver=\"gaussian\"), 1), 0.5)), -1), 1), 0.6), subindustry)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "C - Group_rank of ts_decay of returns clipped",
+      "description": "inspired by [9],[29]; variation: ts_decay_linear of combined returns/normalized field clipped to [-1,1], group_rank industry signed_power 0.7",
+      "implementation": "signed_power(group_rank(min(max(ts_decay_linear(add(quantile(ts_zscore(ts_returns(mdl25_vrv421_91v, 21), 63)), zscore(divide(add(quantile(mdl25_vrv421_71v), quantile(mdl25_vrv421_81v)), 2))), 21), -1), 1), industry), 0.7)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "C - Group_scale stabilized ratio of psr delta to estimate",
+      "description": "inspired by [74],[70]; variation: clip ts_delta(psr,10)/smartestimate into [-1,1] then group_scale subindustry",
+      "implementation": "group_scale(min(max(divide(ts_delta(mdl30_new_psprise_pct_fy1_eps, 10), add(mdl30_new_smartestimate_f12m_eps, 0.000001)), -1), 1), subindustry)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "C - Signed_power of clipped multi-horizon zscore blend",
+      "description": "inspired by [32],[34]; variation: clip sum of multiple horizon zscores to [-1,1], group_rank industry then signed_power 0.6",
+      "implementation": "signed_power(group_rank(min(max(add(ts_zscore(mdl25_vrv421_71v, 10), add(ts_zscore(mdl25_vrv421_71v, 60), ts_zscore(mdl25_vrv421_91v, 90))), -1), 1), industry), 0.6)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "C - Subindustry group_scale of clipped fundamentals spread",
+      "description": "inspired by [98],[99]; variation: clip difference between vec_avg and its stddev zscore to [-1,1], then group_scale subindustry",
+      "implementation": "group_scale(min(max(subtract(ts_zscore(ts_backfill(vec_avg(mdl138_4idpc), 30), 10), ts_zscore(ts_backfill(vec_stddev(mdl138_4idpc), 30), 10)), -1), 1), subindustry)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "C - Clipped ratio of vrv delta to stddev with signed_power",
+      "description": "inspired by [26],[52]; variation: clip divide(ts_delta(vrv71,10), ts_std_dev(vrv71,60)) to [-1,1], group_rank industry and signed_power 0.7",
+      "implementation": "signed_power(group_rank(min(max(divide(ts_delta(mdl25_vrv421_71v, 10), ts_std_dev(mdl25_vrv421_71v, 60)), -1), 1), industry), 0.7)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "C - Group_rank of clipped analyst/model average",
+      "description": "inspired by [43],[65]; variation: clip average of quantile(eps surprise) and quantile(smartestimate) between [-1,1], then group_rank industry and signed_power 0.8",
+      "implementation": "signed_power(group_rank(min(max(divide(add(quantile(star_eps_surprise_prediction_fy1), quantile(mdl30_new_smartestimate_f12m_eps)), 2), -1), 1), industry), 0.8)",
+      "confidence_level": 0.73
+    }
+  ]
+}

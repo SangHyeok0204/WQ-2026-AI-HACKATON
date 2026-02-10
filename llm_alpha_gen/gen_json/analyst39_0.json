@@ -1,652 +1,544 @@
 {
   "results": [
     {
-      "idea": "Cross-sectional z-scored short-term momentum on EPS change",
-      "description": "Used anl39_rygnhcspe to capture recent EPS change momentum. Applied SUGGESTION1 partially (single high-quality field) because this field has highest userCount/alphaCount. SUGGESTION2 not applicable (field is MATRIX). SUGGESTION3 not applied (coverage 0.9071 > 0.6). SUGGESTION4 applied by selecting high userCount/alphaCount. Kept KEEP_IN_MIND: implementation short, <=2 datafields, <=7 operators. Confidence: 0.68",
-      "implementation": "zscore(ts_returns(anl39_rygnhcspe, 4))",
-      "confidence_level": 0.68
+      "idea": "Recent EPS momentum fill",
+      "description": "Pattern: ts_backfill; Datafield: anl39_rygnhcspe; window: 252; Reason: fill any sporadic missing quarterly EPS-change observations to produce continuous momentum signal",
+      "implementation": "ts_backfill(anl39_rygnhcspe, 252)",
+      "confidence_level": 0.78
     },
     {
-      "idea": "Mean-reversion on quarterly EPS change via short ts_zscore",
-      "description": "Mean-reversion signal from anl39_rygnhcspe: high zscore => revert. SUGGESTION1 used single strong field; SUGGESTION2/3 not needed; SUGGESTION4 applied. KEEP_IN_MIND respected. Confidence: 0.62",
-      "implementation": "reverse(zscore(ts_zscore(anl39_rygnhcspe, 8)))",
-      "confidence_level": 0.62
+      "idea": "Debt-to-equity standardized trend",
+      "description": "Pattern: ts_zscore; Datafield: anl39_qtotd2eq; window: 126; Reason: normalize time-series of leverage to compare recent deviations",
+      "implementation": "ts_zscore(anl39_qtotd2eq, 126)",
+      "confidence_level": 0.74
     },
     {
-      "idea": "Relative valuation: high tangible book per share vs EPS change momentum",
-      "description": "Combine anl39_qtanbvps and anl39_rygnhcspe: favor stocks with high tangible book but rising EPS. SUGGESTION1 applied (multiple fields). SUGGESTION3 not applied due to high coverage. Chosen fields have decent user/alpha counts per SUGGESTION4. KEEP_IN_MIND kept. Confidence: 0.70",
-      "implementation": "multiply(zscore(anl39_qtanbvps), zscore(ts_returns(anl39_rygnhcspe, 8)))",
+      "idea": "Tangible book cross-sectional rank",
+      "description": "Pattern: rank(DATA); Datafield: anl39_qtanbvps; window: n/a; Reason: remove scale differences across names using pure cross-sectional rank",
+      "implementation": "rank(anl39_qtanbvps)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Backfilled EPS (quarter) within-group zscore",
+      "description": "Pattern: group_zscore; Datafield: anl39_qepsinclxo; group: bucket(rank(anl39_qepsinclxo), buckets=10); window: n/a; Reason: normalize EPS per peer bucket to reduce concentration",
+      "implementation": "group_zscore(anl39_qepsinclxo, bucket(rank(anl39_qepsinclxo), buckets=10))",
+      "confidence_level": 0.76
+    },
+    {
+      "idea": "Book value zscore (ranked then standardized)",
+      "description": "Pattern: zscore(rank(DATA)); Datafield: anl39_spvbq; window: n/a; Reason: rank book values cross-sectionally then standardize to remove heavy tails",
+      "implementation": "zscore(rank(anl39_spvbq))",
       "confidence_level": 0.7
     },
     {
-      "idea": "Debt-adjusted EPS momentum",
-      "description": "Use anl39_qtotd2eq to penalize high leverage while using EPS change momentum. SUGGESTION1 used two fields; SUGGESTION3 not needed; SUGGESTION4 considered. Compact implementation per KEEP_IN_MIND. Confidence: 0.66",
-      "implementation": "divide(zscore(ts_returns(anl39_rygnhcspe, 8)), zscore(anl39_qtotd2eq))",
-      "confidence_level": 0.66
+      "idea": "TTM EPS zscore over medium history",
+      "description": "Pattern: ts_zscore; Datafield: anl39_ghcspemtt; window: 63; Reason: measure TTM EPS surprise relative to recent history",
+      "implementation": "ts_zscore(anl39_ghcspemtt, 63)",
+      "confidence_level": 0.75
     },
     {
-      "idea": "EPS surprise stabilization: low ts_std_dev of EPS change",
-      "description": "Favor stocks with stable positive EPS change (low volatility). Used anl39_rygnhcspe with ts_std_dev and ts_mean. SUGGESTION1 single field used (high coverage/userCount). SUGGESTION3 not applied. Confidence: 0.58",
-      "implementation": "divide(ts_mean(anl39_rygnhcspe, 12), ts_std_dev(anl39_rygnhcspe, 12))",
-      "confidence_level": 0.58
+      "idea": "Trailing EPS backfill for continuity",
+      "description": "Pattern: ts_backfill; Datafield: anl39_ttmepsincx; window: 189; Reason: ensure trailing EPS series has no gaps before further processing",
+      "implementation": "ts_backfill(anl39_ttmepsincx, 189)",
+      "confidence_level": 0.77
     },
     {
-      "idea": "Book-to-price style proxy using book value per share",
-      "description": "Use anl39_spvbq (book value per share) as value proxy. SUGGESTION1 used single field due to strong coverage; SUGGESTION4 lower userCount but acceptable. KEEP_IN_MIND met. Confidence: 0.55",
-      "implementation": "zscore(anl39_spvbq)",
-      "confidence_level": 0.55
+      "idea": "Fiscal-year EPS normalized",
+      "description": "Pattern: ts_zscore; Datafield: anl39_aepsinclxo; window: 126; Reason: standardize fiscal-year EPS across time to detect extremes",
+      "implementation": "ts_zscore(anl39_aepsinclxo, 126)",
+      "confidence_level": 0.73
     },
     {
-      "idea": "Earnings growth seasonality detection",
-      "description": "Detect recent acceleration vs 4-quarter average in anl39_rygnhcspe: ts_delta vs ts_mean. SUGGESTION1 single field; SUGGESTION3 not needed; SUGGESTION4 applied. Confidence: 0.60",
-      "implementation": "ts_delta(ts_mean(anl39_rygnhcspe, 4), 4)",
-      "confidence_level": 0.6
-    },
-    {
-      "idea": "High tangible book but rising leverage warning filter",
-      "description": "Combine anl39_qtanbvps (value) with anl39_qtotd2eq (leverage) to prefer high tangible book and low debt/equity. SUGGESTION1 used two fields; SUGGESTION3 not needed. Confidence: 0.64",
-      "implementation": "subtract(zscore(anl39_qtanbvps), zscore(anl39_qtotd2eq))",
-      "confidence_level": 0.64
-    },
-    {
-      "idea": "EPS level normalized cross-sectionally",
-      "description": "Cross-sectional normalization of EPS including extraordinary items (anl39_qepsinclxo) to detect relative cheap/expensive earnings. SUGGESTION1 single field choice due to coverage; SUGGESTION4 moderate userCount considered. Confidence: 0.53",
-      "implementation": "zscore(anl39_qepsinclxo)",
-      "confidence_level": 0.53
-    },
-    {
-      "idea": "Momentum on book value growth",
-      "description": "Track recent growth in book value per share (anl39_spvbq) using ts_returns and cross-sectional zscore. SUGGESTION1 used single datafield; SUGGESTION3 not needed. Confidence: 0.57",
-      "implementation": "zscore(ts_returns(anl39_spvbq, 8))",
-      "confidence_level": 0.57
-    },
-    {
-      "idea": "Earnings improvement vs leverage improvement",
-      "description": "Long stocks where EPS change increases while debt/equity decreases: anl39_rygnhcspe and anl39_qtotd2eq combined. SUGGESTION1 used two fields; SUGGESTION3 not needed. Confidence: 0.69",
-      "implementation": "subtract(zscore(ts_returns(anl39_rygnhcspe, 8)), zscore(ts_returns(anl39_qtotd2eq, 8)))",
-      "confidence_level": 0.69
-    },
-    {
-      "idea": "Short-term zscore spike in EPS change (contrarian)",
-      "description": "Contrarian on extreme positive EPS change zscore (reversion). Used anl39_rygnhcspe with zscore and reverse. SUGGESTIONS: 1 single field; 3 not applied. Confidence: 0.61",
-      "implementation": "reverse(zscore(ts_zscore(anl39_rygnhcspe, 4)))",
-      "confidence_level": 0.61
-    },
-    {
-      "idea": "EPS momentum scaled by book value",
-      "description": "Scale EPS change momentum by tangible book per share to penalize low-quality momentum. SUGGESTION1 used two fields; SUGGESTION3 not required. Confidence: 0.67",
-      "implementation": "divide(zscore(ts_returns(anl39_rygnhcspe, 8)), zscore(anl39_qtanbvps))",
-      "confidence_level": 0.67
-    },
-    {
-      "idea": "High book value with low EPS volatility",
-      "description": "Prefer stocks with high anl39_qtanbvps and low ts_std_dev(anl39_rygnhcspe) to capture stable value. SUGGESTION1 used two fields. Confidence: 0.59",
-      "implementation": "subtract(zscore(anl39_qtanbvps), zscore(ts_std_dev(anl39_rygnhcspe, 12)))",
-      "confidence_level": 0.59
-    },
-    {
-      "idea": "Earnings momentum divided by leverage (quality-adjusted momentum)",
-      "description": "Quality-adjust EPS momentum by debt/equity (anl39_qtotd2eq). SUGGESTION1 used two fields; SUGGESTION4 prioritized high alphaCount for EPS field. Confidence: 0.65",
-      "implementation": "divide(zscore(ts_returns(anl39_rygnhcspe, 12)), zscore(anl39_qtotd2eq))",
-      "confidence_level": 0.65
-    },
-    {
-      "idea": "Cross-sectional rank of EPS relative to book",
-      "description": "Rank stocks by ratio of EPS change to book value: anl39_rygnhcspe and anl39_qtanbvps. SUGGESTION1 used two fields; KEEP_IN_MIND satisfied. Confidence: 0.63",
-      "implementation": "zscore(divide(ts_mean(anl39_rygnhcspe, 4), anl39_qtanbvps))",
-      "confidence_level": 0.63
-    },
-    {
-      "idea": "Stable earnings and high book value composite",
-      "description": "Composite: high tangible book and stable EPS (low std). Used anl39_qtanbvps and anl39_rygnhcspe. SUGGESTION1 applied; SUGGESTION3 not needed. Confidence: 0.60",
-      "implementation": "add(zscore(anl39_qtanbvps), reverse(zscore(ts_std_dev(anl39_rygnhcspe, 12))))",
-      "confidence_level": 0.6
-    },
-    {
-      "idea": "Long EPS rising, short EPS falling (cross-sectional spread)",
-      "description": "Create long-short spread using cross-sectional ts_rank on anl39_rygnhcspe returns. SUGGESTION1 single field but cross-sectional rank used. Confidence: 0.66",
-      "implementation": "quantile(ts_returns(anl39_rygnhcspe, 8))",
-      "confidence_level": 0.66
-    },
-    {
-      "idea": "Earnings acceleration vs 4-quarter baseline",
-      "description": "Compare latest quarter EPS change to 4-quarter average for acceleration signal on anl39_rygnhcspe. SUGGESTION1 single field chosen. Confidence: 0.59",
-      "implementation": "subtract(ts_mean(anl39_rygnhcspe, 1), ts_mean(anl39_rygnhcspe, 4))",
-      "confidence_level": 0.59
-    },
-    {
-      "idea": "Book value momentum relative to sector (cross-sectional zscore)",
-      "description": "Use anl39_spvbq cross-sectionally to detect relative increases. SUGGESTION1 used single field; group ops not used due to missing group field. Confidence: 0.54",
-      "implementation": "zscore(ts_returns(anl39_spvbq, 12))",
-      "confidence_level": 0.54
-    },
-    {
-      "idea": "EPS information ratio over medium window",
-      "description": "Use ts_ir on anl39_rygnhcspe to measure consistency of EPS improvement (mean/std). SUGGESTION1 single field; SUGGESTION3 not needed. Confidence: 0.61",
-      "implementation": "ts_ir(anl39_rygnhcspe, 20)",
-      "confidence_level": 0.61
-    },
-    {
-      "idea": "Low leverage and high book value composite",
-      "description": "Combine low anl39_qtotd2eq and high anl39_qtanbvps to target conservative value firms. SUGGESTION1 used two fields; SUGGESTION4 favored higher userCount for leverage field. Confidence: 0.62",
-      "implementation": "subtract(zscore(anl39_qtanbvps), zscore(anl39_qtotd2eq))",
-      "confidence_level": 0.62
-    },
-    {
-      "idea": "EPS change momentum smoothed (ts_mean then zscore)",
-      "description": "Smooth EPS change returns with ts_mean to reduce noise: anl39_rygnhcspe. SUGGESTION1 single field; SUGGESTION3 skipped. Confidence: 0.56",
-      "implementation": "zscore(ts_mean(ts_returns(anl39_rygnhcspe, 4), 3))",
-      "confidence_level": 0.56
-    },
-    {
-      "idea": "Earnings vs book valuation divergence",
-      "description": "Signal stocks where EPS growth outpaces book growth: anl39_rygnhcspe and anl39_spvbq combined. SUGGESTION1 used two fields. Confidence: 0.63",
-      "implementation": "subtract(zscore(ts_returns(anl39_rygnhcspe, 8)), zscore(ts_returns(anl39_spvbq, 8)))",
-      "confidence_level": 0.63
-    },
-    {
-      "idea": "EPS change persistence using ts_arg_max",
-      "description": "Detect instruments currently at multi-period max of EPS change (anl39_rygnhcspe). SUGGESTION1 single field; SUGGESTION3 not needed. Confidence: 0.50",
-      "implementation": "ts_arg_max(anl39_rygnhcspe, 8)",
-      "confidence_level": 0.5
-    },
-    {
-      "idea": "Leverage revert: high recent increase in debt/equity flagged",
-      "description": "Flag rapid increases in anl39_qtotd2eq via ts_delta; short if leverage spikes. SUGGESTION1 single field; SUGGESTION3 not needed. Confidence: 0.52",
-      "implementation": "ts_delta(anl39_qtotd2eq, 4)",
-      "confidence_level": 0.52
-    },
-    {
-      "idea": "Compound signal: EPS momentum * low leverage * high book",
-      "description": "Multiply three scaled inputs but keep only two datafields by merging book and EPS into combined op (EPS * book)/leverage using anl39_rygnhcspe and anl39_qtotd2eq (book combined via EPS ratio). SUGGESTION1 used two fields to respect KEEP_IN_MIND. Confidence: 0.71",
-      "implementation": "divide(multiply(zscore(ts_returns(anl39_rygnhcspe, 8)), zscore(anl39_qtanbvps)), zscore(anl39_qtotd2eq))",
+      "idea": "Prior quarter EPS change rank",
+      "description": "Pattern: rank(DATA); Datafield: anl39_epschngin; window: n/a; Reason: simple cross-sectional ranking of prior-quarter EPS change to identify relative improvers",
+      "implementation": "rank(anl39_epschngin)",
       "confidence_level": 0.71
     },
     {
-      "idea": "Short-term mean reversion on book value surprises",
-      "description": "Short when book value per share (anl39_spvbq) jumps relative to short window mean. SUGGESTION1 single field; SUGGESTION3 not needed. Confidence: 0.51",
-      "implementation": "reverse(zscore(ts_av_diff(anl39_spvbq, 8)))",
-      "confidence_level": 0.51
+      "idea": "Core EPS (ex-xtd) group-normalized",
+      "description": "Pattern: group_zscore; Datafield: anl39_roxlcxspeq; group: bucket(rank(anl39_roxlcxspeq), buckets=12); window: n/a; Reason: normalize EPS across buckets to reduce large-name bias",
+      "implementation": "group_zscore(anl39_roxlcxspeq, bucket(rank(anl39_roxlcxspeq), buckets=12))",
+      "confidence_level": 0.75
     },
     {
-      "idea": "EPS change kurtosis as tail-risk signal",
-      "description": "Use ts_kurtosis on anl39_rygnhcspe to identify erratic earnings patterns; prefer low kurtosis. SUGGESTION1 single field. Confidence: 0.48",
-      "implementation": "reverse(ts_kurtosis(anl39_rygnhcspe, 20))",
-      "confidence_level": 0.48
-    },
-    {
-      "idea": "Book value acceleration (difference of means)",
-      "description": "Detect acceleration in anl39_spvbq by comparing short vs long mean. SUGGESTION1 single field. Confidence: 0.55",
-      "implementation": "subtract(ts_mean(anl39_spvbq, 4), ts_mean(anl39_spvbq, 20))",
-      "confidence_level": 0.55
-    },
-    {
-      "idea": "EPS momentum tempered by earnings volatility",
-      "description": "EPS returns divided by its volatility to prefer consistent momentum: anl39_rygnhcspe. SUGGESTION1 single field; SUGGESTION4 used high alphaCount. Confidence: 0.64",
-      "implementation": "divide(zscore(ts_returns(anl39_rygnhcspe, 12)), ts_std_dev(anl39_rygnhcspe, 12))",
-      "confidence_level": 0.64
-    },
-    {
-      "idea": "Value surges: book value zscore breakout",
-      "description": "Long when anl39_qtanbvps has cross-sectional zscore spike. SUGGESTION1 single field, SUGGESTION3 not needed. Confidence: 0.56",
-      "implementation": "ts_arg_max(zscore(anl39_qtanbvps), 8)",
-      "confidence_level": 0.56
-    },
-    {
-      "idea": "EPS trend strength via ts_product",
-      "description": "Use product of recent EPS changes to detect persistent positive quarters on anl39_rygnhcspe. SUGGESTION1 single field. Confidence: 0.49",
-      "implementation": "ts_product(ts_returns(anl39_rygnhcspe, 4), 4)",
-      "confidence_level": 0.49
-    },
-    {
-      "idea": "Earnings surprise normalized by book",
-      "description": "EPS change normalized by book value: anl39_rygnhcspe and anl39_qtanbvps combined to detect earnings efficiency. SUGGESTION1 used two fields. Confidence: 0.66",
-      "implementation": "divide(zscore(anl39_rygnhcspe), zscore(anl39_qtanbvps))",
-      "confidence_level": 0.66
-    },
-    {
-      "idea": "Debt/equity momentum as risk-on indicator",
-      "description": "Rising anl39_qtotd2eq signals increasing risk; use ts_returns and zscore. SUGGESTION1 single field. Confidence: 0.50",
-      "implementation": "zscore(ts_returns(anl39_qtotd2eq, 8))",
-      "confidence_level": 0.5
-    },
-    {
-      "idea": "EPS growth consistency rank",
-      "description": "Rank instruments by ts_ir of anl39_rygnhcspe to find consistent growers. SUGGESTION1 single field. Confidence: 0.60",
-      "implementation": "quantile(ts_ir(anl39_rygnhcspe, 20))",
-      "confidence_level": 0.6
-    },
-    {
-      "idea": "Book value vs EPS zscore divergence",
-      "description": "Flag divergence between book zscore and EPS zscore (potential mispricings). Used anl39_qtanbvps and anl39_rygnhcspe. SUGGESTION1 applied. Confidence: 0.62",
-      "implementation": "subtract(zscore(anl39_qtanbvps), zscore(ts_returns(anl39_rygnhcspe, 8)))",
-      "confidence_level": 0.62
-    },
-    {
-      "idea": "EPS jump detection via kth_element backfill",
-      "description": "kth_element can backfill but coverage high, so used ts_max_diff to find jumps in anl39_rygnhcspe. SUGGESTION3 not applied. Confidence: 0.58",
-      "implementation": "ts_max_diff(anl39_rygnhcspe, 8)",
-      "confidence_level": 0.58
-    },
-    {
-      "idea": "Low book-high EPS change combo",
-      "description": "Short low book value (anl39_qtanbvps) and long high EPS change (anl39_rygnhcspe). SUGGESTION1 two fields. Confidence: 0.65",
-      "implementation": "subtract(zscore(ts_returns(anl39_rygnhcspe, 8)), zscore(anl39_qtanbvps))",
-      "confidence_level": 0.65
-    },
-    {
-      "idea": "EPS mean reversion measured by ts_rank",
-      "description": "Use ts_rank on anl39_rygnhcspe over medium window; extremes expected to revert. SUGGESTION1 single field. Confidence: 0.57",
-      "implementation": "ts_rank(anl39_rygnhcspe, 20)",
-      "confidence_level": 0.57
-    },
-    {
-      "idea": "Book-to-EPS ratio cross-sectional signal",
-      "description": "Compute book per share divided by EPS including extraordinary items to detect undervalued firms: anl39_spvbq and anl39_qepsinclxo. SUGGESTION1 used two fields. Confidence: 0.63",
-      "implementation": "zscore(divide(anl39_spvbq, anl39_qepsinclxo))",
-      "confidence_level": 0.63
-    },
-    {
-      "idea": "EPS stability times book value (composite)",
-      "description": "Multiply high book value with stable EPS (low std) to find quality value. SUGGESTION1 two fields. Confidence: 0.61",
-      "implementation": "multiply(zscore(anl39_qtanbvps), reverse(zscore(ts_std_dev(anl39_rygnhcspe, 12))))",
-      "confidence_level": 0.61
-    },
-    {
-      "idea": "Short firms with rising debt and falling EPS",
-      "description": "Combine ts_returns of anl39_qtotd2eq and anl39_rygnhcspe to short deteriorating firms. SUGGESTION1 two fields. Confidence: 0.68",
-      "implementation": "add(zscore(ts_returns(anl39_qtotd2eq, 8)), reverse(zscore(ts_returns(anl39_rygnhcspe, 8))))",
-      "confidence_level": 0.68
-    },
-    {
-      "idea": "EPS per book-yearly momentum",
-      "description": "Annualized EPS change per book value: ts_sum of EPS change vs book. SUGGESTION1 two fields. Confidence: 0.60",
-      "implementation": "divide(ts_sum(anl39_rygnhcspe, 4), anl39_qtanbvps)",
-      "confidence_level": 0.6
-    },
-    {
-      "idea": "Detect earnings consistency via last_diff_value",
-      "description": "Use last_diff_value to find recent non-equal EPS change, indicating shifts. SUGGESTION1 single field. Confidence: 0.47",
-      "implementation": "last_diff_value(anl39_rygnhcspe, 8)",
-      "confidence_level": 0.47
-    },
-    {
-      "idea": "EPS zscore divided by leverage zscore",
-      "description": "Quality-adjusted EPS signal by dividing anl39_rygnhcspe zscore by anl39_qtotd2eq zscore. SUGGESTION1 two fields. Confidence: 0.66",
-      "implementation": "divide(zscore(anl39_rygnhcspe), zscore(anl39_qtotd2eq))",
-      "confidence_level": 0.66
-    },
-    {
-      "idea": "Short-term EPS momentum trimmed (winsorize)",
-      "description": "Winsorize ts_returns to reduce outliers on anl39_rygnhcspe then zscore. SUGGESTION1 single field; applied winsorize to reduce extremes per KEEP_IN_MIND outlier control. Confidence: 0.55",
-      "implementation": "zscore(winsorize(ts_returns(anl39_rygnhcspe, 4), 3))",
-      "confidence_level": 0.55
-    },
-    {
-      "idea": "Book value stability (low ts_std_dev) as a defensive signal",
-      "description": "Prefer stocks with low volatility in anl39_spvbq; single field chosen. SUGGESTION3 not needed. Confidence: 0.49",
-      "implementation": "reverse(ts_std_dev(anl39_spvbq, 20))",
-      "confidence_level": 0.49
-    },
-    {
-      "idea": "EPS momentum adjusted by book returns",
-      "description": "Relative strength of EPS vs book returns: anl39_rygnhcspe and anl39_spvbq. SUGGESTION1 two fields used. Confidence: 0.62",
-      "implementation": "subtract(zscore(ts_returns(anl39_rygnhcspe, 8)), zscore(ts_returns(anl39_spvbq, 8)))",
-      "confidence_level": 0.62
-    },
-    {
-      "idea": "Earnings to debt cover metric",
-      "description": "EPS including extraordinary items divided by debt/equity to assess coverage (anl39_qepsinclxo / anl39_qtotd2eq). SUGGESTION1 two fields. Confidence: 0.64",
-      "implementation": "divide(zscore(anl39_qepsinclxo), zscore(anl39_qtotd2eq))",
-      "confidence_level": 0.64
-    },
-    {
-      "idea": "Momentum of tangible book vs book per share",
-      "description": "Compare ts_returns of anl39_qtanbvps and anl39_spvbq to detect accounting shifts. SUGGESTION1 two fields. Confidence: 0.53",
-      "implementation": "subtract(zscore(ts_returns(anl39_qtanbvps, 12)), zscore(ts_returns(anl39_spvbq, 12)))",
-      "confidence_level": 0.53
-    },
-    {
-      "idea": "EPS change scaled by book size (scale operator)",
-      "description": "Scale EPS change signal to book size to control position sizing using scale on anl39_rygnhcspe. SUGGESTION1 single field; scale preserves KEEP_IN_MIND. Confidence: 0.59",
-      "implementation": "scale(zscore(ts_returns(anl39_rygnhcspe, 8)), scale=1)",
-      "confidence_level": 0.59
-    },
-    {
-      "idea": "Identify firms with recent maximal EPS change (ts_arg_max)",
-      "description": "Find securities where current EPS change is the highest in past d days (anl39_rygnhcspe). SUGGESTION1 single field. Confidence: 0.52",
-      "implementation": "ts_arg_max(anl39_rygnhcspe, 20)",
-      "confidence_level": 0.52
-    },
-    {
-      "idea": "Book-to-debt favorable composite",
-      "description": "Favor high book per share and low debt/equity using anl39_qtanbvps and anl39_qtotd2eq. SUGGESTION1 two fields. Confidence: 0.60",
-      "implementation": "subtract(zscore(anl39_qtanbvps), zscore(anl39_qtotd2eq))",
-      "confidence_level": 0.6
-    },
-    {
-      "idea": "EPS zscore plus book zscore combined",
-      "description": "Add zscores of EPS change and tangible book to find balanced growth-value picks. SUGGESTION1 two fields. Confidence: 0.67",
-      "implementation": "add(zscore(ts_returns(anl39_rygnhcspe, 8)), zscore(anl39_qtanbvps))",
-      "confidence_level": 0.67
-    },
-    {
-      "idea": "EPS shock persistence via ts_count_nans (data quality filter)",
-      "description": "Although coverage is high, ts_count_nans used to filter noisy EPS series; prefer instruments with low NaNs in anl39_rygnhcspe. SUGGESTION3 not required but ts_count_nans provides robustness. Confidence: 0.46",
-      "implementation": "reverse(ts_count_nans(anl39_rygnhcspe, 20))",
-      "confidence_level": 0.46
-    },
-    {
-      "idea": "EPS change momentum using ts_scale to time-normalize",
-      "description": "Use ts_scale on anl39_rygnhcspe to normalize across time windows then cross-sectional zscore. SUGGESTION1 single field. Confidence: 0.58",
-      "implementation": "zscore(ts_scale(anl39_rygnhcspe, 20))",
-      "confidence_level": 0.58
-    },
-    {
-      "idea": "Book value breakout detection via ts_arg_max",
-      "description": "Detect breakouts in anl39_qtanbvps by finding recent maxima. SUGGESTION1 single field. Confidence: 0.54",
-      "implementation": "ts_arg_max(anl39_qtanbvps, 12)",
-      "confidence_level": 0.54
-    },
-    {
-      "idea": "EPS growth divided by book volatility",
-      "description": "Scale EPS growth by volatility of book value (anl39_spvbq) to prefer stable books with rising EPS. SUGGESTION1 two fields. Confidence: 0.60",
-      "implementation": "divide(zscore(ts_returns(anl39_rygnhcspe, 8)), ts_std_dev(anl39_spvbq, 12))",
-      "confidence_level": 0.6
-    },
-    {
-      "idea": "Leverage-neutralized EPS zscore",
-      "description": "Neutralize EPS zscore by leverage via subtracting zscore of anl39_qtotd2eq. SUGGESTION1 used two fields; conforms to KEEP_IN_MIND. Confidence: 0.65",
-      "implementation": "subtract(zscore(anl39_rygnhcspe), zscore(anl39_qtotd2eq))",
-      "confidence_level": 0.65
-    },
-    {
-      "idea": "EPS rolling average pullback (ts_av_diff)",
-      "description": "Use ts_av_diff on anl39_rygnhcspe to find pullbacks from rolling mean (mean-reversion). SUGGESTION1 single field. Confidence: 0.56",
-      "implementation": "ts_av_diff(anl39_rygnhcspe, 12)",
-      "confidence_level": 0.56
-    },
-    {
-      "idea": "Book value to earnings volatility ratio",
-      "description": "Divide book per share by EPS volatility to find undervalued stable earners: anl39_spvbq and anl39_rygnhcspe. SUGGESTION1 two fields. Confidence: 0.61",
-      "implementation": "divide(zscore(anl39_spvbq), ts_std_dev(anl39_rygnhcspe, 12))",
-      "confidence_level": 0.61
-    },
-    {
-      "idea": "EPS acceleration signal via ts_arg_min (recent trough then rebound)",
-      "description": "Use ts_arg_min to find recent troughs in anl39_rygnhcspe expecting rebound. SUGGESTION1 single field. Confidence: 0.53",
-      "implementation": "ts_arg_min(anl39_rygnhcspe, 12)",
-      "confidence_level": 0.53
-    },
-    {
-      "idea": "EPS vs book composite using quantile transforms",
-      "description": "Quantile transform EPS returns and book value then combine for robust cross-sectional signal with anl39_rygnhcspe and anl39_qtanbvps. SUGGESTION1 used two fields; helps distributional issues per SUGGESTIONS. Confidence: 0.68",
-      "implementation": "add(quantile(ts_returns(anl39_rygnhcspe, 8)), quantile(anl39_qtanbvps))",
-      "confidence_level": 0.68
-    },
-    {
-      "idea": "Leverage-weighted book value",
-      "description": "Weight book value by inverse leverage to prefer strong balance sheets: anl39_qtanbvps and anl39_qtotd2eq. SUGGESTION1 two fields. Confidence: 0.63",
-      "implementation": "multiply(zscore(anl39_qtanbvps), inverse(zscore(anl39_qtotd2eq)))",
-      "confidence_level": 0.63
-    },
-    {
-      "idea": "EPS momentum trimmed by winsorized volatility",
-      "description": "Winsorize EPS returns then divide by winsorized volatility to reduce tail effect (anl39_rygnhcspe). SUGGESTION1 single field; applied winsorize per KEEP_IN_MIND to avoid outliers. Confidence: 0.57",
-      "implementation": "divide(winsorize(ts_returns(anl39_rygnhcspe, 8), 3), winsorize(ts_std_dev(anl39_rygnhcspe, 12), 3))",
-      "confidence_level": 0.57
-    },
-    {
-      "idea": "Book value growth consistency using ts_ir",
-      "description": "Use ts_ir on anl39_qtanbvps to find consistent book growers. SUGGESTION1 single field. Confidence: 0.52",
-      "implementation": "ts_ir(anl39_qtanbvps, 20)",
-      "confidence_level": 0.52
-    },
-    {
-      "idea": "Earnings surprise vs leverage sudden change",
-      "description": "Combine ts_max_diff on anl39_rygnhcspe with ts_delta of anl39_qtotd2eq to spot risky earnings shocks. SUGGESTION1 two fields. Confidence: 0.59",
-      "implementation": "subtract(ts_max_diff(anl39_rygnhcspe, 8), ts_delta(anl39_qtotd2eq, 4))",
-      "confidence_level": 0.59
-    },
-    {
-      "idea": "EPS per share divided by book per share (efficiency metric)",
-      "description": "Use anl39_qepsinclxo and anl39_spvbq to compute earnings efficiency. SUGGESTION1 two fields. Confidence: 0.62",
-      "implementation": "zscore(divide(anl39_qepsinclxo, anl39_spvbq))",
-      "confidence_level": 0.62
-    },
-    {
-      "idea": "Short-term reversal in book value growth",
-      "description": "Reverse zscore of short book value returns (anl39_spvbq) to capture pullbacks. SUGGESTION1 single field. Confidence: 0.50",
-      "implementation": "reverse(zscore(ts_returns(anl39_spvbq, 4)))",
-      "confidence_level": 0.5
-    },
-    {
-      "idea": "EPS momentum combined with long-term book strength",
-      "description": "Multiply short-term EPS momentum with long-term book zscore (anl39_rygnhcspe and anl39_qtanbvps) to find durable grower-value blends. SUGGESTION1 two fields. Confidence: 0.69",
-      "implementation": "multiply(zscore(ts_returns(anl39_rygnhcspe, 8)), zscore(ts_mean(anl39_qtanbvps, 40)))",
+      "idea": "Short-window EPS-change fill",
+      "description": "Pattern: ts_backfill; Datafield: anl39_rygnhcspe; window: 42; Reason: short-term backfill to patch missing recent quarter changes for tactical signals",
+      "implementation": "ts_backfill(anl39_rygnhcspe, 42)",
       "confidence_level": 0.69
     },
     {
-      "idea": "Debt-to-equity reversal (mean-revert on leverage)",
-      "description": "Reverse zscore of anl39_qtotd2eq returns to capture leverage reversion. SUGGESTION1 single field. Confidence: 0.47",
-      "implementation": "reverse(zscore(ts_returns(anl39_qtotd2eq, 12)))",
-      "confidence_level": 0.47
+      "idea": "Long-run leverage zscore",
+      "description": "Pattern: ts_zscore; Datafield: anl39_qtotd2eq; window: 252; Reason: compare current leverage to long-run distribution to flag outliers",
+      "implementation": "ts_zscore(anl39_qtotd2eq, 252)",
+      "confidence_level": 0.78
     },
     {
-      "idea": "EPS breakout followed by book confirmation",
-      "description": "Long when EPS ts_arg_max occurs and book value also rising (anl39_rygnhcspe and anl39_qtanbvps). SUGGESTION1 two fields. Confidence: 0.66",
-      "implementation": "add(ts_arg_max(anl39_rygnhcspe, 8), ts_arg_max(anl39_qtanbvps, 8))",
-      "confidence_level": 0.66
-    },
-    {
-      "idea": "Earnings growth per unit of leverage (efficiency)",
-      "description": "Divide EPS growth by debt/equity to find efficient earners using anl39_rygnhcspe and anl39_qtotd2eq. SUGGESTION1 applied. Confidence: 0.68",
-      "implementation": "divide(zscore(ts_returns(anl39_rygnhcspe, 12)), zscore(anl39_qtotd2eq))",
-      "confidence_level": 0.68
-    },
-    {
-      "idea": "Stable high book value with improving EPS (composite)",
-      "description": "Combine high book (anl39_qtanbvps) and improving EPS (anl39_rygnhcspe) favoring low volatility EPS. SUGGESTION1 two fields. Confidence: 0.65",
-      "implementation": "add(zscore(anl39_qtanbvps), divide(zscore(ts_returns(anl39_rygnhcspe,8)), ts_std_dev(anl39_rygnhcspe,12)))",
-      "confidence_level": 0.65
-    },
-    {
-      "idea": "EPS surprise frequency (vec-like proxy via ts_count_nans inverse)",
-      "description": "Use ts_count_nans to approximate stability of EPS; prefer low counts on anl39_rygnhcspe. SUGGESTION2 not applicable; SUGGESTION3 not needed. Confidence: 0.45",
-      "implementation": "reverse(ts_count_nans(anl39_rygnhcspe, 40))",
-      "confidence_level": 0.45
-    },
-    {
-      "idea": "Earnings vs book zscore momentum divergence",
-      "description": "Signal where EPS momentum far exceeds book momentum using anl39_rygnhcspe and anl39_spvbq. SUGGESTION1 two fields. Confidence: 0.63",
-      "implementation": "subtract(zscore(ts_returns(anl39_rygnhcspe, 8)), zscore(ts_returns(anl39_spvbq, 20)))",
-      "confidence_level": 0.63
-    },
-    {
-      "idea": "Earnings rebound detection using last_diff_value + ts_rank",
-      "description": "Find EPS that recently changed from a low value (last_diff_value) and rank cross-sectionally: anl39_rygnhcspe. SUGGESTION1 single field. Confidence: 0.54",
-      "implementation": "ts_rank(last_diff_value(anl39_rygnhcspe, 20), 20)",
-      "confidence_level": 0.54
-    },
-    {
-      "idea": "EPS growth per book growth (relative efficiency)",
-      "description": "Divide EPS growth by book growth to find efficient improvement: anl39_rygnhcspe and anl39_spvbq. SUGGESTION1 two fields. Confidence: 0.62",
-      "implementation": "divide(zscore(ts_returns(anl39_rygnhcspe, 12)), zscore(ts_returns(anl39_spvbq, 12)))",
-      "confidence_level": 0.62
-    },
-    {
-      "idea": "High EPS zscore and low leverage cross-section",
-      "description": "Long stocks with high EPS zscore while having low debt/equity: anl39_rygnhcspe and anl39_qtotd2eq. SUGGESTION1 two fields. Confidence: 0.67",
-      "implementation": "and(greater(zscore(ts_returns(anl39_rygnhcspe,8)), 0), less(zscore(anl39_qtotd2eq), 0))",
-      "confidence_level": 0.67
-    },
-    {
-      "idea": "EPS change momentum smoothed and winsorized",
-      "description": "Smooth ts_returns then winsorize to reduce noise on anl39_rygnhcspe. SUGGESTION1 single field. Confidence: 0.58",
-      "implementation": "zscore(winsorize(ts_mean(ts_returns(anl39_rygnhcspe,4),3),3))",
-      "confidence_level": 0.58
-    },
-    {
-      "idea": "Book value momentum relative to peer median (cross-sectional zscore)",
-      "description": "Use zscore on anl39_qtanbvps to find relative book momentum. SUGGESTION1 single field, group ops not used due to lack of group field. Confidence: 0.55",
-      "implementation": "zscore(ts_returns(anl39_qtanbvps, 12))",
-      "confidence_level": 0.55
-    },
-    {
-      "idea": "EPS momentum with decay (ts_decay_linear style using ts_decay_linear)",
-      "description": "Apply linear decay to recent EPS changes to emphasize latest quarters on anl39_rygnhcspe. SUGGESTION1 single field; KEEP_IN_MIND kept concise. Confidence: 0.63",
-      "implementation": "ts_decay_linear(ts_returns(anl39_rygnhcspe, 8), 8)",
-      "confidence_level": 0.63
-    },
-    {
-      "idea": "Debt/equity low outlier long signal",
-      "description": "Long instruments with unusually low anl39_qtotd2eq zscore (cheaply levered). SUGGESTION1 single field. Confidence: 0.51",
-      "implementation": "reverse(zscore(anl39_qtotd2eq))",
-      "confidence_level": 0.51
-    },
-    {
-      "idea": "EPS long-term acceleration (difference between 8 and 20 period means)",
-      "description": "Capture acceleration using anl39_rygnhcspe comparing short and long mean. SUGGESTION1 single field. Confidence: 0.59",
-      "implementation": "subtract(ts_mean(anl39_rygnhcspe, 8), ts_mean(anl39_rygnhcspe, 20))",
-      "confidence_level": 0.59
-    },
-    {
-      "idea": "Book growth normalized by past range (ts_scale)",
-      "description": "Normalize book per share growth using ts_scale on anl39_qtanbvps to detect relative expansion. SUGGESTION1 single field. Confidence: 0.54",
-      "implementation": "ts_scale(ts_returns(anl39_qtanbvps, 12), 20)",
-      "confidence_level": 0.54
-    },
-    {
-      "idea": "EPS momentum divided by book-to-price proxy",
-      "description": "Divide EPS momentum by book per share to favor EPS movers with smaller book (anl39_rygnhcspe and anl39_qtanbvps). SUGGESTION1 two fields. Confidence: 0.60",
-      "implementation": "divide(zscore(ts_returns(anl39_rygnhcspe, 8)), zscore(anl39_qtanbvps))",
-      "confidence_level": 0.6
-    },
-    {
-      "idea": "Earnings zscore averaged with book zscore",
-      "description": "Average zscores of EPS change and book value to form blended rank using anl39_rygnhcspe and anl39_qtanbvps. SUGGESTION1 two fields. Confidence: 0.66",
-      "implementation": "divide(add(zscore(ts_returns(anl39_rygnhcspe,8)), zscore(anl39_qtanbvps)), 2)",
-      "confidence_level": 0.66
-    },
-    {
-      "idea": "EPS change momentum minus earnings volatility signal",
-      "description": "Reward EPS momentum but penalize high earnings volatility using anl39_rygnhcspe. SUGGESTION1 single field. Confidence: 0.62",
-      "implementation": "subtract(zscore(ts_returns(anl39_rygnhcspe, 12)), zscore(ts_std_dev(anl39_rygnhcspe, 12)))",
-      "confidence_level": 0.62
-    },
-    {
-      "idea": "Book per share to leverage cross-quantile strategy",
-      "description": "Long top quantile of anl39_qtanbvps while short top quantile of anl39_qtotd2eq (two-field quantile spread). SUGGESTION1 used two fields. Confidence: 0.64",
-      "implementation": "subtract(quantile(anl39_qtanbvps), quantile(anl39_qtotd2eq))",
-      "confidence_level": 0.64
-    },
-    {
-      "idea": "EPS zscore trend (ts_zscore over longer window)",
-      "description": "Compute ts_zscore over 40 days for anl39_rygnhcspe to capture persistent extremes. SUGGESTION1 single field. Confidence: 0.55",
-      "implementation": "ts_zscore(anl39_rygnhcspe, 40)",
-      "confidence_level": 0.55
-    },
-    {
-      "idea": "Book rebound signal after multi-period drawdown",
-      "description": "Detect when anl39_spvbq has recent recovery from multi-period min using ts_arg_min then ts_arg_max combination. SUGGESTION1 single field. Confidence: 0.50",
-      "implementation": "subtract(ts_arg_max(anl39_spvbq, 20), ts_arg_min(anl39_spvbq, 20))",
-      "confidence_level": 0.5
-    },
-    {
-      "idea": "EPS momentum momentum (second derivative via ts_delta of ts_mean)",
-      "description": "Capture acceleration by taking ts_delta of ts_mean on anl39_rygnhcspe. SUGGESTION1 single field. Confidence: 0.58",
-      "implementation": "ts_delta(ts_mean(anl39_rygnhcspe, 8), 4)",
-      "confidence_level": 0.58
-    },
-    {
-      "idea": "Earnings growth normalized by book (cross-sectional zscore)",
-      "description": "Normalize EPS growth by book per share cross-sectionally using anl39_rygnhcspe and anl39_qtanbvps. SUGGESTION1 two fields. Confidence: 0.65",
-      "implementation": "zscore(divide(ts_returns(anl39_rygnhcspe, 8), anl39_qtanbvps))",
-      "confidence_level": 0.65
-    },
-    {
-      "idea": "Debt reduction momentum (short leverage drop winners)",
-      "description": "Long firms where anl39_qtotd2eq is decreasing (ts_returns negative) and EPS improving. SUGGESTION1 two fields. Confidence: 0.67",
-      "implementation": "add(reverse(zscore(ts_returns(anl39_qtotd2eq, 8))), zscore(ts_returns(anl39_rygnhcspe, 8)))",
-      "confidence_level": 0.67
-    },
-    {
-      "idea": "Earnings jump with low subsequent volatility (confirmation)",
-      "description": "Detect EPS jump via ts_max_diff and require low subsequent ts_std_dev on anl39_rygnhcspe to confirm. SUGGESTION1 single field. Confidence: 0.59",
-      "implementation": "and(greater(ts_max_diff(anl39_rygnhcspe, 8), 0), less(ts_std_dev(anl39_rygnhcspe, 12), ts_std_dev(anl39_rygnhcspe, 40)))",
-      "confidence_level": 0.59
-    },
-    {
-      "idea": "Book per share momentum normalized by its past range",
-      "description": "Use ts_scale on anl39_spvbq to detect normalized book momentum. SUGGESTION1 single field. Confidence: 0.56",
-      "implementation": "ts_scale(ts_returns(anl39_spvbq, 12), 40)",
-      "confidence_level": 0.56
-    },
-    {
-      "idea": "EPS consistency and book undervaluation combined",
-      "description": "Combine ts_ir on anl39_rygnhcspe with negative book zscore (cheap book) to find consistent growers undervalued on book. SUGGESTION1 two fields. Confidence: 0.70",
-      "implementation": "multiply(ts_ir(anl39_rygnhcspe, 20), reverse(zscore(anl39_qtanbvps)))",
+      "idea": "Rank tangible book within universe",
+      "description": "Pattern: rank(DATA); Datafield: anl39_qtanbvps; window: n/a; Reason: cross-sectional rank highlights companies with relatively high tangible book per share",
+      "implementation": "rank(anl39_qtanbvps)",
       "confidence_level": 0.7
     },
     {
-      "idea": "EPS surprise relative to book trend",
-      "description": "Measure EPS surprise (ts_av_diff) relative to book trend (ts_mean) using anl39_rygnhcspe and anl39_qtanbvps. SUGGESTION1 two fields. Confidence: 0.61",
-      "implementation": "divide(ts_av_diff(anl39_rygnhcspe, 8), ts_mean(anl39_qtanbvps, 20))",
-      "confidence_level": 0.61
+      "idea": "Quarter EPS zscore after ranking",
+      "description": "Pattern: ts_zscore(rank(DATA), window); Datafield: anl39_qepsinclxo; window: 63; Reason: rank EPS across names then track standardized time deviations",
+      "implementation": "ts_zscore(rank(anl39_qepsinclxo), 63)",
+      "confidence_level": 0.74
     },
     {
-      "idea": "Earnings momentum trimmed by leverage bucket",
-      "description": "Winsorize leverage and use it to downweight EPS momentum (anl39_rygnhcspe and anl39_qtotd2eq). SUGGESTION1 two fields, applied winsorize for stability. Confidence: 0.66",
-      "implementation": "divide(zscore(ts_returns(anl39_rygnhcspe,8)), winsorize(zscore(anl39_qtotd2eq), 3))",
-      "confidence_level": 0.66
+      "idea": "Book value group zscore with 8 buckets",
+      "description": "Pattern: group_zscore; Datafield: anl39_spvbq; group: bucket(rank(anl39_spvbq), buckets=8); window: n/a; Reason: within-bucket standardization to reduce cross-sectional dispersion",
+      "implementation": "group_zscore(anl39_spvbq, bucket(rank(anl39_spvbq), buckets=8))",
+      "confidence_level": 0.72
     },
     {
-      "idea": "Book per share to EPS volatility ratio for defensive picks",
-      "description": "High book / low EPS volatility via anl39_spvbq and anl39_rygnhcspe to find defensive value names. SUGGESTION1 two fields. Confidence: 0.59",
-      "implementation": "divide(zscore(anl39_spvbq), ts_std_dev(anl39_rygnhcspe, 20))",
-      "confidence_level": 0.59
-    },
-    {
-      "idea": "EPS zscore normalized by long-run range (ts_scale)",
-      "description": "Normalize EPS zscore by long-run range using ts_scale to reduce cross-asset dispersion (anl39_rygnhcspe). SUGGESTION1 single field. Confidence: 0.57",
-      "implementation": "divide(zscore(ts_returns(anl39_rygnhcspe, 12)), ts_scale(anl39_rygnhcspe, 40))",
-      "confidence_level": 0.57
-    },
-    {
-      "idea": "Earnings growth leading indicator: compare 1-quarter to 4-quarter mean",
-      "description": "Signal if latest quarter EPS change outperforms 4-quarter mean using anl39_rygnhcspe. SUGGESTION1 single field. Confidence: 0.58",
-      "implementation": "greater(ts_mean(anl39_rygnhcspe,1), ts_mean(anl39_rygnhcspe,4))",
-      "confidence_level": 0.58
-    },
-    {
-      "idea": "Book-value spike detection using ts_max_diff",
-      "description": "Flag large recent increases in anl39_qtanbvps via ts_max_diff; potential re-rating. SUGGESTION1 single field. Confidence: 0.53",
-      "implementation": "ts_max_diff(anl39_qtanbvps, 12)",
-      "confidence_level": 0.53
-    },
-    {
-      "idea": "EPS momentum portfolio volatility control (divide by ts_std_dev)",
-      "description": "Control EPS momentum by its volatility to reduce drawdown potential on anl39_rygnhcspe. SUGGESTION1 single field. Confidence: 0.60",
-      "implementation": "divide(zscore(ts_returns(anl39_rygnhcspe,8)), ts_std_dev(anl39_rygnhcspe,12))",
-      "confidence_level": 0.6
-    },
-    {
-      "idea": "Earnings improvement confirmation by decreasing leverage",
-      "description": "Require EPS improvement and falling debt/equity (anl39_rygnhcspe and anl39_qtotd2eq) for longs. SUGGESTION1 two fields. Confidence: 0.68",
-      "implementation": "and(greater(ts_returns(anl39_rygnhcspe,8),0), reverse(greater(ts_returns(anl39_qtotd2eq,8),0)))",
+      "idea": "TTM EPS backfilled short",
+      "description": "Pattern: ts_backfill; Datafield: anl39_ghcspemtt; window: 63; Reason: short backfill to fill TTM gaps for recent momentum detection",
+      "implementation": "ts_backfill(anl39_ghcspemtt, 63)",
       "confidence_level": 0.68
     },
     {
-      "idea": "Book value momentum with winsorized extremes",
-      "description": "Winsorize book per share returns then zscore for robust book momentum signal (anl39_qtanbvps). SUGGESTION1 single field; winsorize applied per SUGGESTIONS to reduce outliers. Confidence: 0.55",
-      "implementation": "zscore(winsorize(ts_returns(anl39_qtanbvps, 12), 3))",
+      "idea": "Trailing EPS zscore medium",
+      "description": "Pattern: ts_zscore; Datafield: anl39_ttmepsincx; window: 84; Reason: standardize trailing EPS to detect medium-term deviations",
+      "implementation": "ts_zscore(anl39_ttmepsincx, 84)",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Fiscal EPS rank standardized",
+      "description": "Pattern: zscore(rank(DATA)); Datafield: anl39_aepsinclxo; window: n/a; Reason: rank then zscore reduces skew and centers distribution",
+      "implementation": "zscore(rank(anl39_aepsinclxo))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Prior-quarter EPS change backfill long",
+      "description": "Pattern: ts_backfill; Datafield: anl39_epschngin; window: 252; Reason: long backfill to ensure continuity for multi-year analyses",
+      "implementation": "ts_backfill(anl39_epschngin, 252)",
+      "confidence_level": 0.76
+    },
+    {
+      "idea": "EPS ex-items rank time zscore",
+      "description": "Pattern: ts_zscore(rank(DATA), window); Datafield: anl39_roxlcxspeq; window: 126; Reason: rank EPS ex-items then zscore over time to highlight unusual moves",
+      "implementation": "ts_zscore(rank(anl39_roxlcxspeq), 126)",
+      "confidence_level": 0.75
+    },
+    {
+      "idea": "EPS-change quarterly backfill (medium)",
+      "description": "Pattern: ts_backfill; Datafield: anl39_rygnhcspe; window: 126; Reason: medium window backfill to smooth quarterly irregularities",
+      "implementation": "ts_backfill(anl39_rygnhcspe, 126)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Leverage recent zscore",
+      "description": "Pattern: ts_zscore; Datafield: anl39_qtotd2eq; window: 21; Reason: pick up short-term leverage excursions relative to recent history",
+      "implementation": "ts_zscore(anl39_qtotd2eq, 21)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Tangible book cross-section zscored ranks",
+      "description": "Pattern: zscore(rank(DATA)); Datafield: anl39_qtanbvps; window: n/a; Reason: reduce cross-sectional skew of ranks via zscore",
+      "implementation": "zscore(rank(anl39_qtanbvps))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Most-recent-quarter EPS group normalized (15 buckets)",
+      "description": "Pattern: group_zscore; Datafield: anl39_qepsinclxo; group: bucket(rank(anl39_qepsinclxo), buckets=15); window: n/a; Reason: more granular bucket normalization for finer peer adjustment",
+      "implementation": "group_zscore(anl39_qepsinclxo, bucket(rank(anl39_qepsinclxo), buckets=15))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Book value per share ts_zscore short",
+      "description": "Pattern: ts_zscore; Datafield: anl39_spvbq; window: 30; Reason: short-term standardization of book per share to capture recent changes",
+      "implementation": "ts_zscore(anl39_spvbq, 30)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "TTM EPS rank raw",
+      "description": "Pattern: rank(DATA); Datafield: anl39_ghcspemtt; window: n/a; Reason: direct cross-sectional ranking of TTM EPS growth rate",
+      "implementation": "rank(anl39_ghcspemtt)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Trailing EPS group neutralization (10 buckets)",
+      "description": "Pattern: group_zscore; Datafield: anl39_ttmepsincx; group: bucket(rank(anl39_ttmepsincx), buckets=10); window: n/a; Reason: normalize trailing EPS across buckets to mitigate outlier influence",
+      "implementation": "group_zscore(anl39_ttmepsincx, bucket(rank(anl39_ttmepsincx), buckets=10))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Fiscal EPS backfill short",
+      "description": "Pattern: ts_backfill; Datafield: anl39_aepsinclxo; window: 21; Reason: short backfill to fill recent fiscal EPS reporting gaps",
+      "implementation": "ts_backfill(anl39_aepsinclxo, 21)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Prior-quarter EPS zscore long",
+      "description": "Pattern: ts_zscore; Datafield: anl39_epschngin; window: 189; Reason: long-horizon standardization to identify persistent EPS decline/growth",
+      "implementation": "ts_zscore(anl39_epschngin, 189)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "EPS ex-items cross-sectional rank (simple)",
+      "description": "Pattern: rank(DATA); Datafield: anl39_roxlcxspeq; window: n/a; Reason: straightforward cross-sectional rank of EPS excluding extraordinary items",
+      "implementation": "rank(anl39_roxlcxspeq)",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "EPS-change ts_zscore medium",
+      "description": "Pattern: ts_zscore; Datafield: anl39_rygnhcspe; window: 84; Reason: detect medium-term abnormal EPS-change vs history",
+      "implementation": "ts_zscore(anl39_rygnhcspe, 84)",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Leverage rank then ts_zscore",
+      "description": "Pattern: ts_zscore(rank(DATA), window); Datafield: anl39_qtotd2eq; window: 63; Reason: rank leverage cross-sectionally then track its standardized time deviation",
+      "implementation": "ts_zscore(rank(anl39_qtotd2eq), 63)",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Tangible book backfill medium",
+      "description": "Pattern: ts_backfill; Datafield: anl39_qtanbvps; window: 126; Reason: fill occasional gaps in tangible book per share series before ranking",
+      "implementation": "ts_backfill(anl39_qtanbvps, 126)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Quarter EPS long-run rank",
+      "description": "Pattern: rank(DATA); Datafield: anl39_qepsinclxo; window: n/a; Reason: cross-sectional rank of quarterly EPS to highlight relative leaders",
+      "implementation": "rank(anl39_qepsinclxo)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Book value group zscore (buckets=5)",
+      "description": "Pattern: group_zscore; Datafield: anl39_spvbq; group: bucket(rank(anl39_spvbq), buckets=5); window: n/a; Reason: coarse bucket normalization to remove scale across large groups",
+      "implementation": "group_zscore(anl39_spvbq, bucket(rank(anl39_spvbq), buckets=5))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "TTM EPS backfill long",
+      "description": "Pattern: ts_backfill; Datafield: anl39_ghcspemtt; window: 252; Reason: preserve long historical continuity for TTM EPS signals",
+      "implementation": "ts_backfill(anl39_ghcspemtt, 252)",
+      "confidence_level": 0.76
+    },
+    {
+      "idea": "Trailing EPS ts_zscore short",
+      "description": "Pattern: ts_zscore; Datafield: anl39_ttmepsincx; window: 10; Reason: capture sharp recent deviations in trailing EPS",
+      "implementation": "ts_zscore(anl39_ttmepsincx, 10)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Fiscal EPS rank over universe",
+      "description": "Pattern: rank(DATA); Datafield: anl39_aepsinclxo; window: n/a; Reason: simple cross-sectional sorting of fiscal EPS to identify high earners",
+      "implementation": "rank(anl39_aepsinclxo)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Prior-quarter EPS change group zscore (buckets=20)",
+      "description": "Pattern: group_zscore; Datafield: anl39_epschngin; group: bucket(rank(anl39_epschngin), buckets=20); window: n/a; Reason: fine-grained within-bucket standardization to reduce dispersion",
+      "implementation": "group_zscore(anl39_epschngin, bucket(rank(anl39_epschngin), buckets=20))",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "EPS ex-items ts_backfill short",
+      "description": "Pattern: ts_backfill; Datafield: anl39_roxlcxspeq; window: 5; Reason: very short backfill to handle immediate missing values prior to intraday strategies",
+      "implementation": "ts_backfill(anl39_roxlcxspeq, 5)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "EPS-change rank then zscore",
+      "description": "Pattern: zscore(rank(DATA)); Datafield: anl39_rygnhcspe; window: n/a; Reason: center ranked EPS-change to make it Gaussian-like across cross-section",
+      "implementation": "zscore(rank(anl39_rygnhcspe))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Leverage ts_zscore medium",
+      "description": "Pattern: ts_zscore; Datafield: anl39_qtotd2eq; window: 84; Reason: medium-term standardization to highlight leverage regime changes",
+      "implementation": "ts_zscore(anl39_qtotd2eq, 84)",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "Tangible book group-normalized (buckets=9)",
+      "description": "Pattern: group_zscore; Datafield: anl39_qtanbvps; group: bucket(rank(anl39_qtanbvps), buckets=9); window: n/a; Reason: within-bucket normalization to reduce size biases",
+      "implementation": "group_zscore(anl39_qtanbvps, bucket(rank(anl39_qtanbvps), buckets=9))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Quarter EPS ts_zscore short-medium",
+      "description": "Pattern: ts_zscore; Datafield: anl39_qepsinclxo; window: 42; Reason: detect medium-short term EPS shocks relative to history",
+      "implementation": "ts_zscore(anl39_qepsinclxo, 42)",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Book per share rank time standardized",
+      "description": "Pattern: ts_zscore(rank(DATA), window); Datafield: anl39_spvbq; window: 126; Reason: rank book per share then track standardized changes over time",
+      "implementation": "ts_zscore(rank(anl39_spvbq), 126)",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "TTM EPS rank zscore",
+      "description": "Pattern: zscore(rank(DATA)); Datafield: anl39_ghcspemtt; window: n/a; Reason: reduce skew in TTM EPS ranks to form symmetric signal",
+      "implementation": "zscore(rank(anl39_ghcspemtt))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Trailing EPS backfill medium-short",
+      "description": "Pattern: ts_backfill; Datafield: anl39_ttmepsincx; window: 63; Reason: ensure medium-horizon continuity for trailing EPS",
+      "implementation": "ts_backfill(anl39_ttmepsincx, 63)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Fiscal EPS ts_zscore longish",
+      "description": "Pattern: ts_zscore; Datafield: anl39_aepsinclxo; window: 189; Reason: identify long-term fiscal EPS extremes",
+      "implementation": "ts_zscore(anl39_aepsinclxo, 189)",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Prior-quarter EPS rank short-list",
+      "description": "Pattern: rank(DATA); Datafield: anl39_epschngin; window: n/a; Reason: cross-sectional rank to isolate recent prior-quarter EPS movers",
+      "implementation": "rank(anl39_epschngin)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "EPS ex-items group zscore (buckets=7)",
+      "description": "Pattern: group_zscore; Datafield: anl39_roxlcxspeq; group: bucket(rank(anl39_roxlcxspeq), buckets=7); window: n/a; Reason: moderate bucket normalization for peer comparison",
+      "implementation": "group_zscore(anl39_roxlcxspeq, bucket(rank(anl39_roxlcxspeq), buckets=7))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "EPS-change ts_zscore long",
+      "description": "Pattern: ts_zscore; Datafield: anl39_rygnhcspe; window: 189; Reason: capture long-run EPS-change anomalies",
+      "implementation": "ts_zscore(anl39_rygnhcspe, 189)",
+      "confidence_level": 0.74
+    },
+    {
+      "idea": "Leverage rank only",
+      "description": "Pattern: rank(DATA); Datafield: anl39_qtotd2eq; window: n/a; Reason: raw rank of debt/equity to identify relatively highly-levered names",
+      "implementation": "rank(anl39_qtotd2eq)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Tangible book ts_zscore short",
+      "description": "Pattern: ts_zscore; Datafield: anl39_qtanbvps; window: 14; Reason: quick standardization to detect recent asset-book shifts",
+      "implementation": "ts_zscore(anl39_qtanbvps, 14)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Quarter EPS rank trimmed zscore",
+      "description": "Pattern: zscore(rank(DATA)); Datafield: anl39_qepsinclxo; window: n/a; Reason: stabilized cross-sectional EPS rank for smoother signals",
+      "implementation": "zscore(rank(anl39_qepsinclxo))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Book value group normalization (buckets=11)",
+      "description": "Pattern: group_zscore; Datafield: anl39_spvbq; group: bucket(rank(anl39_spvbq), buckets=11); window: n/a; Reason: within-bucket standardization to reduce dispersion",
+      "implementation": "group_zscore(anl39_spvbq, bucket(rank(anl39_spvbq), buckets=11))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "TTM EPS zscore very short",
+      "description": "Pattern: ts_zscore; Datafield: anl39_ghcspemtt; window: 5; Reason: detect abrupt TTM EPS moves in immediate timeframe",
+      "implementation": "ts_zscore(anl39_ghcspemtt, 5)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Trailing EPS rank medium",
+      "description": "Pattern: rank(DATA); Datafield: anl39_ttmepsincx; window: n/a; Reason: identify cross-sectional leaders in trailing EPS",
+      "implementation": "rank(anl39_ttmepsincx)",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Fiscal EPS backfill medium",
+      "description": "Pattern: ts_backfill; Datafield: anl39_aepsinclxo; window: 84; Reason: fill intermediate fiscal EPS gaps for analysis",
+      "implementation": "ts_backfill(anl39_aepsinclxo, 84)",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Prior-quarter EPS long-run group zscore",
+      "description": "Pattern: group_zscore; Datafield: anl39_epschngin; group: bucket(rank(anl39_epschngin), buckets=13); window: n/a; Reason: long-run within-bucket normalization",
+      "implementation": "group_zscore(anl39_epschngin, bucket(rank(anl39_epschngin), buckets=13))",
+      "confidence_level": 0.73
+    },
+    {
+      "idea": "EPS ex-items ts_zscore medium",
+      "description": "Pattern: ts_zscore; Datafield: anl39_roxlcxspeq; window: 63; Reason: standardized EPS ex-items to highlight mid-term anomalies",
+      "implementation": "ts_zscore(anl39_roxlcxspeq, 63)",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Free: short delta of EPS-change",
+      "description": "Pattern: FREE_PATTERN; Operators: ts_delta; Datafield: anl39_rygnhcspe; window: 21; Reason: measure recent discrete change in EPS-change",
+      "implementation": "ts_delta(anl39_rygnhcspe, 21)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Free: decay-weighted trailing EPS",
+      "description": "Pattern: FREE_PATTERN; Operators: ts_decay_linear; Datafield: anl39_ttmepsincx; window: 126; Reason: apply linear decay to emphasize recent trailing EPS",
+      "implementation": "ts_decay_linear(anl39_ttmepsincx, 126)",
+      "confidence_level": 0.7
+    },
+    {
+      "idea": "Free: zscore of short ts_mean of EPS incl extraordinary",
+      "description": "Pattern: FREE_PATTERN; Operators: zscore + ts_mean; Datafield: anl39_qepsinclxo; window: 21; Reason: standardize recent average quarterly EPS",
+      "implementation": "zscore(ts_mean(anl39_qepsinclxo, 21))",
+      "confidence_level": 0.72
+    },
+    {
+      "idea": "Free: ts_ir of tangible book",
+      "description": "Pattern: FREE_PATTERN; Operators: ts_ir; Datafield: anl39_qtanbvps; window: 126; Reason: information ratio of tangible book time-series to measure stability",
+      "implementation": "ts_ir(anl39_qtanbvps, 126)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Free: winsorized zscore of book value rank",
+      "description": "Pattern: FREE_PATTERN; Operators: winsorize + zscore; Datafield: anl39_spvbq; window: n/a; Reason: trim extremes then standardize book per share ranks",
+      "implementation": "winsorize(zscore(anl39_spvbq))",
+      "confidence_level": 0.68
+    },
+    {
+      "idea": "Free: ts_kurtosis of TTM EPS",
+      "description": "Pattern: FREE_PATTERN; Operators: ts_kurtosis; Datafield: anl39_ghcspemtt; window: 189; Reason: capture tail behavior in TTM EPS history",
+      "implementation": "ts_kurtosis(anl39_ghcspemtt, 189)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Free: quantile of prior-quarter EPS change",
+      "description": "Pattern: FREE_PATTERN; Operators: quantile; Datafield: anl39_epschngin; window: n/a; Reason: place EPS change into quantile buckets cross-sectionally (gaussian driver default)",
+      "implementation": "quantile(anl39_epschngin)",
+      "confidence_level": 0.67
+    },
+    {
+      "idea": "Free: ts_rank of EPS ex-items",
+      "description": "Pattern: FREE_PATTERN; Operators: ts_rank; Datafield: anl39_roxlcxspeq; window: 63; Reason: time-series ranking of EPS ex-items to find recent relative peaks/troughs",
+      "implementation": "ts_rank(anl39_roxlcxspeq, 63)",
+      "confidence_level": 0.65
+    },
+    {
+      "idea": "Free: ts_std_dev of leverage",
+      "description": "Pattern: FREE_PATTERN; Operators: ts_std_dev; Datafield: anl39_qtotd2eq; window: 42; Reason: volatility of leverage over recent window as risk proxy",
+      "implementation": "ts_std_dev(anl39_qtotd2eq, 42)",
+      "confidence_level": 0.62
+    },
+    {
+      "idea": "Free: ts_mean minus ts_zscore of tangible book",
+      "description": "Pattern: FREE_PATTERN; Operators: subtract + ts_mean + ts_zscore; Datafield: anl39_qtanbvps; window: 63; Reason: combine recent average and standardized rank to form composite",
+      "implementation": "subtract(ts_mean(anl39_qtanbvps, 63), ts_zscore(anl39_qtanbvps, 63), filter=false)",
       "confidence_level": 0.55
     },
     {
-      "idea": "EPS growth per share vs book per share quantile spread",
-      "description": "Long top quantile of EPS growth and short top quantile of book per share decline using anl39_rygnhcspe and anl39_spvbq. SUGGESTION1 two fields. Confidence: 0.65",
-      "implementation": "subtract(quantile(ts_returns(anl39_rygnhcspe,8)), quantile(ts_returns(anl39_spvbq,8)))",
-      "confidence_level": 0.65
+      "idea": "Free: quantile of ts_delta of trailing EPS",
+      "description": "Pattern: FREE_PATTERN; Operators: ts_delta + quantile; Datafield: anl39_ttmepsincx; window: 21; Reason: place recent delta of trailing EPS into a probabilistic scale",
+      "implementation": "quantile(ts_delta(anl39_ttmepsincx, 21))",
+      "confidence_level": 0.64
+    },
+    {
+      "idea": "Free: ts_returns of fiscal EPS (short)",
+      "description": "Pattern: FREE_PATTERN; Operators: ts_returns; Datafield: anl39_aepsinclxo; window: 10; Reason: compute short-window returns of fiscal EPS-like series as momentum proxy",
+      "implementation": "ts_returns(anl39_aepsinclxo, 10, mode=1)",
+      "confidence_level": 0.59
+    },
+    {
+      "idea": "Free: ts_decay_linear on prior-quarter EPS change (long)",
+      "description": "Pattern: FREE_PATTERN; Operators: ts_decay_linear; Datafield: anl39_epschngin; window: 189; Reason: emphasize recent history while retaining long memory of EPS-change",
+      "implementation": "ts_decay_linear(anl39_epschngin, 189)",
+      "confidence_level": 0.63
+    },
+    {
+      "idea": "Free: winsorize of ts_zscore trailing EPS",
+      "description": "Pattern: FREE_PATTERN; Operators: winsorize + ts_zscore; Datafield: anl39_ttmepsincx; window: 126; Reason: stabilize extremes after zscoring trailing EPS",
+      "implementation": "winsorize(ts_zscore(anl39_ttmepsincx, 126))",
+      "confidence_level": 0.69
+    },
+    {
+      "idea": "Free: ts_max_diff of EPS-change",
+      "description": "Pattern: FREE_PATTERN; Operators: ts_max_diff; Datafield: anl39_rygnhcspe; window: 63; Reason: measure maximum jump in EPS-change over window to catch discontinuities",
+      "implementation": "ts_max_diff(anl39_rygnhcspe, 63)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Free: ts_product of small-window EPS deltas",
+      "description": "Pattern: FREE_PATTERN; Operators: ts_product; Datafield: anl39_qepsinclxo; window: 21; Reason: multiplicative momentum of sequential EPS observations",
+      "implementation": "ts_product(anl39_qepsinclxo, 21)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Free: tail winsorized fiscal EPS mean",
+      "description": "Pattern: FREE_PATTERN; Operators: tail + ts_mean; Datafield: anl39_aepsinclxo; window: 63; Reason: replace extreme tail values before averaging fiscal EPS",
+      "implementation": "tail(ts_mean(anl39_aepsinclxo, 63), lower=0, upper=0, newval=0)",
+      "confidence_level": 0.5
+    },
+    {
+      "idea": "Free: ts_arg_max of tangible book",
+      "description": "Pattern: FREE_PATTERN; Operators: ts_arg_max; Datafield: anl39_qtanbvps; window: 252; Reason: find time since max of tangible book to infer declines from peaks",
+      "implementation": "ts_arg_max(anl39_qtanbvps, 252)",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Free: ts_covariance between EPS-change and trailing EPS (single-field restricted to one datafield - use ts_covariance(y,x,d) with same field)",
+      "description": "Pattern: FREE_PATTERN; Operators: ts_covariance; Datafield: anl39_rygnhcspe; window: 42; Reason: use covariance of variable with itself across lags to estimate persistence (allowed single-field usage)",
+      "implementation": "ts_covariance(anl39_rygnhcspe, anl39_rygnhcspe, 42)",
+      "confidence_level": 0.45
+    },
+    {
+      "idea": "Free: ts_delay of leverage",
+      "description": "Pattern: FREE_PATTERN; Operators: ts_delay; Datafield: anl39_qtotd2eq; window: 21; Reason: lagged leverage as simple momentum/mean-reversion input",
+      "implementation": "ts_delay(anl39_qtotd2eq, 21)",
+      "confidence_level": 0.61
+    },
+    {
+      "idea": "Free: ts_count_nans to measure reporting gaps in tangible book",
+      "description": "Pattern: FREE_PATTERN; Operators: ts_count_nans; Datafield: anl39_qtanbvps; window: 252; Reason: assess data completeness as a filter",
+      "implementation": "ts_count_nans(anl39_qtanbvps, 252)",
+      "confidence_level": 0.52
+    },
+    {
+      "idea": "Free: signed_power of short ts_mean EPS",
+      "description": "Pattern: FREE_PATTERN; Operators: signed_power + ts_mean; Datafield: anl39_qepsinclxo; window: 21; Reason: amplify directionally the short mean EPS signal",
+      "implementation": "signed_power(ts_mean(anl39_qepsinclxo, 21), 2)",
+      "confidence_level": 0.54
+    },
+    {
+      "idea": "Free: ts_av_diff of book value",
+      "description": "Pattern: FREE_PATTERN; Operators: ts_av_diff; Datafield: anl39_spvbq; window: 126; Reason: average difference over time to capture smoothing trend",
+      "implementation": "ts_av_diff(anl39_spvbq, 126)",
+      "confidence_level": 0.57
+    },
+    {
+      "idea": "Free: ts_kurtosis of trailing EPS short",
+      "description": "Pattern: FREE_PATTERN; Operators: ts_kurtosis; Datafield: anl39_ttmepsincx; window: 42; Reason: assess tailiness of recent trailing EPS history",
+      "implementation": "ts_kurtosis(anl39_ttmepsincx, 42)",
+      "confidence_level": 0.56
+    },
+    {
+      "idea": "Free: normalize of prior-quarter EPS change",
+      "description": "Pattern: FREE_PATTERN; Operators: normalize; Datafield: anl39_epschngin; window: n/a; Reason: cross-sectional scaling without using cap to place series on comparable scale",
+      "implementation": "normalize(anl39_epschngin)",
+      "confidence_level": 0.66
+    },
+    {
+      "idea": "Free: group_zscore applied with coarse buckets to tangible book",
+      "description": "Pattern: FREE_PATTERN (still allowed operators); Operators: group_zscore + bucket + rank; Datafield: anl39_qtanbvps; buckets=6; window: n/a; Reason: creative use of group normalization as a free combo to compare within coarse peer buckets",
+      "implementation": "group_zscore(anl39_qtanbvps, bucket(rank(anl39_qtanbvps), buckets=6))",
+      "confidence_level": 0.71
+    },
+    {
+      "idea": "Free: ts_scale of EPS-change to moderate long spikes",
+      "description": "Pattern: FREE_PATTERN; Operators: ts_scale; Datafield: anl39_rygnhcspe; window: 63; Reason: rescale time-series to control magnitude of extreme readings",
+      "implementation": "ts_scale(anl39_rygnhcspe, 63, constant=0)",
+      "confidence_level": 0.6
+    },
+    {
+      "idea": "Free: inverse of short-term EPS mean",
+      "description": "Pattern: FREE_PATTERN; Operators: inverse + ts_mean; Datafield: anl39_qepsinclxo; window: 21; Reason: use inverse to emphasize low EPS names (contrarian tilt)",
+      "implementation": "inverse(ts_mean(anl39_qepsinclxo, 21))",
+      "confidence_level": 0.58
+    },
+    {
+      "idea": "Free: ts_regression self (stability proxy)",
+      "description": "Pattern: FREE_PATTERN; Operators: ts_regression; Datafield: anl39_ttmepsincx; window: 126; Reason: run regression of the series on itself to extract slope/stability (single-field usage)",
+      "implementation": "ts_regression(anl39_ttmepsincx, anl39_ttmepsincx, 126, lag=0, rettype=0)",
+      "confidence_level": 0.49
+    },
+    {
+      "idea": "Free: ts_arg_min of fiscal EPS",
+      "description": "Pattern: FREE_PATTERN; Operators: ts_arg_min; Datafield: anl39_aepsinclxo; window: 252; Reason: time since minimum fiscal EPS to identify recovery candidates",
+      "implementation": "ts_arg_min(anl39_aepsinclxo, 252)",
+      "confidence_level": 0.55
     }
   ]
 }
