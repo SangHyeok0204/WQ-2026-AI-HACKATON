@@ -28,7 +28,7 @@ max(add(multiply(rank(vec_avg(mdl138_ofc_5idp)), 0.7), multiply(rank(star_new_ep
 ```
 group_rank/group_scale(
     min/max(Signal_A, Signal_B),
-    industry/subindustry
+    industry/subindustry/sector/country/region
 )
 ```
 
@@ -104,17 +104,31 @@ rank(ts_rank(X, N))
 
 ## 4. Group 정규화
 
-### 4.1 group_rank
+### 4.1 사용 가능한 Group Identifiers
+| Group | 설명 |
+|-------|------|
+| `industry` | 산업 분류 (가장 자주 사용) |
+| `subindustry` | 세부 산업 분류 |
+| `sector` | 섹터 분류 (industry보다 넓은 범위) |
+| `country` | 국가별 그룹 |
+| `region` | 지역별 그룹 (GLB/ASI 등 멀티리전에서 유용) |
+
+### 4.2 group_rank
 ```
 group_rank(signal, industry)
 group_rank(signal, subindustry)
+group_rank(signal, sector)
+group_rank(signal, country)
+group_rank(signal, region)
 ```
-- 산업/세부산업 내에서 순위화
-- 산업 간 편향 제거
+- 그룹 내에서 순위화 → 그룹 간 편향 제거
+- `industry`/`subindustry`가 가장 일반적, `sector`는 더 넓은 범위
+- `country`/`region`은 글로벌/아시아 유니버스에서 국가/지역 편향 제거에 효과적
 
-### 4.2 group_scale
+### 4.3 group_scale
 ```
 group_scale(signal, subindustry)
+group_scale(signal, sector)
 ```
 - 그룹 내 스케일 정규화
 
@@ -199,7 +213,7 @@ group_scale(
 
 3. **Rank 중첩**: 거의 모든 데이터필드에 rank() 적용하여 극단값 완화
 
-4. **Group 정규화**: group_rank/group_scale로 industry/subindustry 내 상대 위치 계산
+4. **Group 정규화**: group_rank/group_scale로 industry/subindustry/sector/country/region 내 상대 위치 계산
 
 5. **신호 억제**: signed_power(signal, 0.5~0.8)로 극단적 신호 완화
 

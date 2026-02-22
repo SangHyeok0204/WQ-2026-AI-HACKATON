@@ -1,0 +1,582 @@
+================================================================================
+                   알파 발견 파이프라인 상세 설명서
+            WorldQuant Brain IQC 2026 - LLM Alpha Generation
+================================================================================
+
+목차
+────────────────────────────────────────────────────────────────────────────────
+  0. 전체 개요
+  1. 공통 인프라
+  2. Pipeline A: 단일 데이터셋 기반 벌크 생성 (llm_alpha_guide.ipynb)
+  3. Pipeline B: Almost-Alpha 조합/강화 파이프라인 (llm_alpha_refine.ipynb)
+  4. Pipeline C: 교차 데이터셋 조합 파이프라인 (combine_and_simulate_v2.ipynb)
+  5. 핵심 알고리즘: Sanity Checker
+  6. 프롬프트 엔지니어링 전략
+  7. 알파 선별 기준
+  8. 전체 워크플로우 요약
+================================================================================
+
+
+================================================================================
+0. 전체 개요
+================================================================================
+
+이 프로젝트는 LLM(OpenAI GPT 모델)을 활용하여 WorldQuant Brain 플랫폼의 FASTEXPR
+알파 수식을 자동으로 대량 생성하고, 구문/타입 검증(Sanity Check) 후 Brain API로
+시뮬레이션하여 유망한 알파를 발견하는 시스템이다.
+
+3개의 파이프라인이 단계적으로 동작한다:
+
+  [Pipeline A] 데이터셋별 Seed Alpha 벌크 생성
+       ↓ 결과물: 각 dataset별 .txt 파일 (0-fail 알파 누적)
+       ↓ 부산물: almost_alphas.txt (아깝게 통과 못한 알파 232개)
+       ↓
+  [Pipeline B] Almost-Alpha + idea.md 패턴으로 조합/강화
+       ↓ 결과물: final_alphas.txt (701개), submit_ready.txt
+       ↓
+  [Pipeline C] 서로 다른 데이터셋의 0-fail 알파끼리 교차 조합
+       ↓ 결과물: results/combinatorial/combined_alphas.txt
+
+대상 리전/유니버스: EUR / TOP2500 (주로), 대회 허용 데이터셋 화이트리스트 적용
+
+비용: 알파 100개 생성 시도당 약 100원 (GPT-5-mini 기준, 쿼리 6회 ≈ $0.4)
+
+
+================================================================================
+1. 공통 인프라
+================================================================================
+
+1.1 핵심 모듈
+────────────────────────────────────────────────────────────────────────────────
+
+  ace_lib.py    WorldQuant Brain API 래퍼
+                - start_session(): 생체인증 기반 세션 시작 (SingleSession 싱글톤)
+                - get_datasets(): 리전/유니버스별 데이터셋 목록 조회
+                - get_datafields(): 특정 데이터셋의 데이터필드 목록 조회
+                - get_operators(): 사용 가능한 연산자 목록 조회
+                - generate_alpha(): 시뮬레이션용 알파 객체 생성
+                - multi_simulate_alphas_map(): ThreadPool 기반 8개 동시 시뮬레이션
+                - check_session_timeout(): 세션 만료 체크 (< 500초면 재인증)
+
+  llm_functions.py  OpenAI API 래퍼
+                - call_llm_stream(): 스트리밍 방식 LLM 호출 (실시간 토큰 출력)
+                - generate_expressions_from_dataset(): 데이터셋 기반 프롬프트 구성 + LLM 호출
+                - cut_first_to_last_brace(): JSON 응답에서 첫 '{' ~ 마지막 '}' 추출
+
+  parser.py     FASTEXPR 수식 파서
+                - parse_expression(): 중위 표기법 → 함수 호출 형태로 변환
+                - build_tree(): 함수 호출 형태 → TreeNode 트리 구조로 변환
+                - tree_node(): 위 두 단계를 합친 최종 파싱 함수
+                - classify_node(): 노드 타입 분류 (operator/datafield/number/special_argument)
+
+  AAF.py        데이터필드 초기화 및 화이트리스트 관리
+                - ALLOWED_DATASETS: 대회 규정상 허용된 데이터셋 (리전별)
+                - initiate_datafield(): 화이트리스트 데이터셋의 datafield를 JSON으로 캐시
+                - make_total_dicts(): 모든 개별 JSON → total.json 통합
+
+1.2 데이터 흐름
+────────────────────────────────────────────────────────────────────────────────
+
+  [Brain API] → datafield/{delay}/{region}/{universe}/*.json  (데이터필드 메타데이터 캐시)
+                   ↓
+  [LLM 생성] → gen_json/{prefix}_{batch}.json                 (LLM 생성 결과 JSON)
+                   ↓
+  [시뮬레이션] → {dataset}.txt / final_alphas.txt               (시뮬레이션 결과)
+
+1.3 세션 관리
+────────────────────────────────────────────────────────────────────────────────
+
+  - Brain API 인증은 생체인증(Persona) 기반
+  - SingleSession 패턴으로 스레드 안전한 싱글톤 세션 유지
+  - 배치 시뮬레이션 전 check_session_timeout() 호출
+  - 잔여 시간 < 500초이면 자동으로 start_session() 재인증
+
+1.4 Resume(재개) 지원
+────────────────────────────────────────────────────────────────────────────────
+
+  모든 파이프라인은 gen_json/ 디렉토리에 배치별 JSON을 저장하여,
+  중간에 중단되어도 이미 생성된 배치를 스킵하고 이어서 진행 가능.
+  - get_existing_json_count(): 기존 JSON 파일 수 확인
+  - get_next_json_index(): 다음 저장할 인덱스 계산
+  - save_json_safe(): 파일 중복 방지 저장
+
+
+================================================================================
+2. Pipeline A: 단일 데이터셋 기반 벌크 생성 (llm_alpha_guide.ipynb)
+================================================================================
+
+2.1 목적
+────────────────────────────────────────────────────────────────────────────────
+
+  각 데이터셋에서 사용 가능한 데이터필드를 LLM에 제공하고, 단순한 구조의
+  "Seed Alpha"를 대량으로 생성한다. 이 Seed Alpha들이 이후 파이프라인의 원재료가 된다.
+
+2.2 동작 모드: 두 가지
+────────────────────────────────────────────────────────────────────────────────
+
+  [모드 1] 단일 데이터셋 Seed 생성 (generate_expressions_from_dataset)
+  [모드 2] 다중 데이터셋 Combine 생성 (generate_combine_expressions)
+
+2.3 모드 1 - 단일 데이터셋 Seed 생성 상세 흐름
+────────────────────────────────────────────────────────────────────────────────
+
+  Step 1: 초기화
+    - 리전(EUR), 유니버스(TOP2500), 딜레이(1) 설정
+    - Brain 세션 시작 (생체인증)
+    - 데이터필드 캐시 로드 (datafield/1/EUR/TOP2500/1_EUR_TOP2500_total.json)
+
+  Step 2: 데이터셋 탐색
+    - ALLOWED_DATASETS 화이트리스트에서 탐색 대상 선택
+    - EUR 화이트리스트: analyst39, model138, model25, model30, news17 등 24개
+    - 각 데이터셋의 alphaCount 기준 상위 3개 데이터필드 선택
+
+  Step 3: LLM 알파 생성
+    - 모델: gpt-5-mini-2025-08-07 (비용 효율적)
+    - 배치당 50~100개 알파 생성 요청
+    - 생성 비율:
+        70-80%: 4가지 허용 패턴 (ALLOWED_PATTERNS)
+        20-30%: 자유 조합 (FREE_PATTERN)
+
+    [4가지 허용 패턴]
+      Pattern 1 - Backfill:     ts_backfill(DATA, window)
+      Pattern 2 - 시계열 Z-score: ts_zscore(DATA, window)
+      Pattern 3 - 비율 Z-score:  ts_zscore(divide(DATA, cap), window)
+      Pattern 4 - 그룹 Z-score:  group_zscore(rank(DATA), industry)
+
+    [Seed 구조 제약]
+      - 최대 3개 연산자
+      - 신호 데이터필드 1개만 사용 (cap, industry 등은 헬퍼로 허용)
+      - VECTOR 타입은 반드시 vec_* 연산자로 래핑
+      - 시계열 윈도우: 5~252 사이 다양하게
+
+  Step 4: Sanity Check (구문/타입 검증)
+    - parser.py의 tree_node()로 수식을 트리로 파싱
+    - 각 operator 노드의 입력 타입과 자식 노드의 출력 타입 매칭 검증
+    - 최종 출력 타입이 MATRIX인지 확인
+    - 통과하지 못한 수식은 즉시 폐기
+
+  Step 5: Brain API 시뮬레이션
+    - 8개씩 동시 시뮬레이션 (ThreadPool)
+    - 세션 타임아웃 자동 체크 및 재인증
+    - 시뮬레이션 결과에서 Sharpe, Fitness, Turnover, fail_count 추출
+
+  Step 6: 결과 저장
+    - 선별 기준: sharpe > 1.5 AND fail_count <= 1
+    - {dataset}.txt에 정렬 저장 (fail_count ASC, sharpe DESC)
+    - Expression 기준 중복 제거
+
+2.4 모드 2 - 다중 데이터셋 Combine 생성 상세 흐름
+────────────────────────────────────────────────────────────────────────────────
+
+  combine_idea.md 가이드를 기반으로 여러 데이터셋의 데이터필드를 조합하여 알파 생성.
+
+  Step 1: 다중 데이터셋에서 데이터필드 수집
+    - TARGET_DATASET_IDS = ["model138", "analyst39", "news17"] 등 복수 지정
+    - 각 데이터셋에서 alphaCount 기준 상위 N개 데이터필드 수집
+    - 통합 리스트로 합산
+
+  Step 2: LLM 알파 생성 (combine_idea.md 기반)
+    - combine_idea.md의 핵심 개념:
+        정보 소스 → 변화 추출 → 상대 비교 → 편향 제거
+    - 1~2개 데이터필드 조합 허용
+    - 최대 5개 연산자, 트리 깊이 4 이하
+
+  Step 3: is_valid_combine_alpha() 구조 검증
+    - sanity_checker() 타입 검증 통과 필수
+    - 추가 제약: 깊이 ≤ 4, 연산자 ≤ 5, 신호 데이터필드 ≤ 2
+
+  Step 4~6: 시뮬레이션 및 저장 (Seed 모드와 동일)
+
+
+================================================================================
+3. Pipeline B: Almost-Alpha 조합/강화 (llm_alpha_refine.ipynb)
+================================================================================
+
+3.1 목적
+────────────────────────────────────────────────────────────────────────────────
+
+  Pipeline A에서 "거의 통과할 뻔한" 알파 232개(almost_alphas.txt)를
+  idea.md의 성공 패턴을 적용하여 조합/변형/강화한다.
+
+3.2 입력 데이터
+────────────────────────────────────────────────────────────────────────────────
+
+  (1) almost_alphas.txt: 232개의 아깝게 탈락한 알파 수식
+      - Pipeline A에서 시뮬레이션은 통과했지만 Sharpe/Fitness/Turnover/Correlation
+        기준에 아깝게 미달한 알파들을 수동으로 수집
+
+  (2) idea.md: 실제 제출 성공한 알파 4개에서 추출한 구조적 패턴
+      - Template A (Conservative): group_rank + min + signed_power(0.8)
+      - Template B (Aggressive):   group_rank + max + signed_power(0.5)
+      - Template C (Weighted):     group_scale + min + 가중 결합
+      - 핵심 연산 패턴: 가중 결합, 비율 신호, 시계열 변환, Rank 중첩
+      - 그룹 정규화: industry/subindustry/sector/country/region
+
+3.3 LLM 알파 생성 전략 (3가지 타입)
+────────────────────────────────────────────────────────────────────────────────
+
+  배치당 80개 생성, 총 10 배치 = 최대 800개
+
+  Type A (~10%, 약 8개): 직접 조합 (DIRECT COMBINATION)
+    ────────────────────────────────────────────────────
+    - 2~3개의 almost-alpha를 add, subtract, multiply, divide로 직접 결합
+    - 예: add(multiply([alpha_5], 0.6), multiply([alpha_12], 0.4))
+    - 목적: 상호보완적 신호 블렌딩
+
+  Type B (~80%, 약 64개): 아이디어 기반 생성 (IDEA-DRIVEN GENERATION)
+    ────────────────────────────────────────────────────
+    - idea.md의 Template A/B/C 패턴을 almost-alpha에 적용
+    - almost-alpha를 빌딩 블록으로 사용하여 성공 구조에 삽입
+    - 예: signed_power(group_rank(min([alpha_8], [alpha_22]), industry), 0.8)
+    - 패턴 적용 예시:
+        * group_rank + min/max로 두 신호 결합
+        * signed_power로 극단값 억제 (0.3~0.9)
+        * 가중 결합: add(multiply(rank(X), 0.4), multiply(rank(Y), 0.6))
+        * 비율 신호: divide(rank(X), add(rank(Y), 1))
+        * group_scale로 그룹 내 스케일 정규화
+    - 목적: 검증된 구조에 유망한 신호를 결합
+
+  Type C (~10%, 약 8개): 변형 + 구조 조합 (VARIATION + STRUCTURAL COMBINATION)
+    ────────────────────────────────────────────────────
+    - almost-alpha의 파라미터 변형 (윈도우 크기 변경, 유사 연산자 교체)
+    - 변형 후 구조적 패턴 적용:
+        * min(max(X, -1), 1) 신호 클리핑
+        * group_rank(..., industry/subindustry) 그룹 정규화
+        * signed_power(..., 0.5~0.8) 신호 감쇠
+    - 목적: 기존 신호 미세 조정 및 안정화
+
+3.4 실행 흐름
+────────────────────────────────────────────────────────────────────────────────
+
+  for batch in range(10):
+    │
+    ├─ [1] LLM 호출 (gpt-5-mini)
+    │      almost_alphas 232개 + idea.md 패턴 → 80개 새 알파 생성
+    │
+    ├─ [2] JSON 파싱 및 저장
+    │      gen_json/combined_{idx}.json
+    │
+    ├─ [3] Sanity Check
+    │      sanity_checker()로 타입 검증 (Seed 구조 제약 없음, 타입만 검증)
+    │
+    ├─ [4] 시뮬레이션 (8개씩 미니배치)
+    │      ace.multi_simulate_alphas_map()
+    │
+    ├─ [5] 결과 누적 및 저장
+    │      선별: sharpe > 0.5 AND fail_count <= 4
+    │      final_alphas.txt 갱신 (fail_count ASC, sharpe DESC)
+    │      submit_ready.txt 갱신 (0-fail + concentrated weight 없음)
+    │
+    └─ [6] 기존 JSON 재시뮬레이션 모드
+           gen_json에 JSON은 있지만 시뮬 안 된 경우 → 시뮬만 수행
+
+3.5 결과
+────────────────────────────────────────────────────────────────────────────────
+
+  - final_alphas.txt: 701개 알파 (EUR/TOP2500)
+  - submit_ready.txt: 0-fail + 경고 없는 제출 가능 알파
+  - 최고 Sharpe: 12.08 (group_scale + ts_zscore + ts_backfill 조합)
+
+
+================================================================================
+4. Pipeline C: 교차 데이터셋 조합 (combine_and_simulate_v2.ipynb)
+================================================================================
+
+4.1 목적
+────────────────────────────────────────────────────────────────────────────────
+
+  Pipeline A에서 생성된 서로 다른 데이터셋의 0-fail 알파들을 교차 조합하여
+  더 다양하고 강력한 조합 알파를 만든다.
+
+4.2 입력 데이터
+────────────────────────────────────────────────────────────────────────────────
+
+  4개 데이터셋의 기존 0-fail 알파 결과 파일:
+    - model25.txt:   52개 zero-fail 알파 (Earnings Quality)
+    - model30.txt:   29개 zero-fail 알파 (EPS Estimate Model)
+    - model138.txt: 151개 zero-fail 알파 (Accounting-based Factors)
+    - analyst39.txt:  12개 zero-fail 알파 (Analyst Estimates & Ratios)
+    총 244개 검증된 Seed
+
+4.3 실행 흐름 (100 배치)
+────────────────────────────────────────────────────────────────────────────────
+
+  for batch in range(1, 101):
+    │
+    ├─ [1] 데이터셋 선택
+    │      4개 중 랜덤으로 2개 선택
+    │      (재현성 위해 RANDOM_SEED=42 고정)
+    │
+    ├─ [2] Seed 추출
+    │      각 데이터셋에서 0-fail 알파 10개씩 랜덤 샘플 → 총 20개 Seed
+    │
+    ├─ [3] LLM 조합 생성
+    │      모델: gpt-4o (더 강력한 모델 사용)
+    │      20개 Seed → 100개 조합 생성
+    │      각 조합은 2~4개 Seed를 자유롭게 조합
+    │      min(max(..., -1), 1) 클리핑 패턴 권장
+    │
+    ├─ [4] Sanity Check
+    │      parser.py 기반 타입 검증
+    │
+    ├─ [5] 시뮬레이션 (8개씩 배치)
+    │      ace.multi_simulate_alphas_map()
+    │
+    └─ [6] 결과 저장
+           각 배치에서 최고 Sharpe 알파를 combined_alphas.txt에 누적
+           gen_json/combinatorial_batch_{idx}.json에 전체 결과 저장
+           simulated=True 마킹으로 Resume 지원
+
+4.4 LLM 프롬프트 특징
+────────────────────────────────────────────────────────────────────────────────
+
+  - operators_list.json의 전체 연산자를 카테고리별로 정리하여 제공
+  - 연산자 시그니처를 정확히 지켜야 함을 강조 (흔한 실수 목록 포함)
+  - idea.md 참조하여 조합 전략 안내
+  - JSON 형식으로 expression + seeds_used + idea 반환 요구
+
+
+================================================================================
+5. 핵심 알고리즘: Sanity Checker
+================================================================================
+
+5.1 목적
+────────────────────────────────────────────────────────────────────────────────
+
+  LLM이 생성한 FASTEXPR 수식이 Brain 플랫폼에서 실행 가능한지를 시뮬레이션
+  없이 로컬에서 빠르게 검증한다. 이를 통해 잘못된 수식으로 인한 API 호출
+  낭비를 방지한다.
+
+5.2 검증 흐름
+────────────────────────────────────────────────────────────────────────────────
+
+  [원본 수식 문자열]
+       │
+       ├─ parse_expression(): 중위 표기법 변환
+       │     "A + B" → "add(A, B)"
+       │     "A * B / C" → "divide(multiply(A, B), C)"
+       │     "X ? Y : Z" → "if_else(X, Y, Z)"
+       │
+       ├─ build_tree(): 트리 구조 변환
+       │     "add(A, B)" → TreeNode(add, children=[A, B])
+       │
+       ├─ classify_node(): 노드 타입 결정
+       │     - operator: 자식 노드가 있는 노드
+       │     - datafield: 식별자 (데이터필드명)
+       │     - number: 숫자 리터럴
+       │     - special_argument: key=value 형태
+       │
+       ├─ 타입 체크 (operator별)
+       │     operators_list.json에서 각 operator의 input/output 타입 로드
+       │     자식 노드의 output 타입과 부모 operator의 input 타입 매칭
+       │     타입: MATRIX, VECTOR, NUMBER, SPECIAL_ARGUMENT, GROUP
+       │
+       │     예: ts_zscore(DATA, window)
+       │         → input: [MATRIX, NUMBER], output: MATRIX
+       │         → DATA가 MATRIX이고 window가 NUMBER이면 통과
+       │
+       │     특수 규칙:
+       │         - MATRIX 입력에 NUMBER가 와도 허용
+       │         - industry, subindustry 등은 GROUP 타입으로 처리
+       │
+       └─ 최종 출력 타입 확인
+             루트 노드의 output이 MATRIX여야 통과
+
+5.3 operators_list.json
+────────────────────────────────────────────────────────────────────────────────
+
+  Brain API에서 동기화한 83개 연산자 정의 파일.
+  각 연산자의 category, definition, input 타입 리스트, output 타입 포함.
+
+
+================================================================================
+6. 프롬프트 엔지니어링 전략
+================================================================================
+
+6.1 공통 전략
+────────────────────────────────────────────────────────────────────────────────
+
+  (1) 시스템 프롬프트: "quantitative finance expert" 역할 설정
+  (2) JSON 스키마 강제: 응답 형식을 answer_form으로 명시
+  (3) 구조적 제약 명시: 최대 연산자 수, 트리 깊이, 데이터필드 수 제한
+  (4) 금지 필드 목록: cap, market_cap, industry 등 존재하지 않는 필드 명시
+  (5) 다양성 유도: 윈도우 파라미터, 연산자 조합, 데이터필드 활용 다양화 지시
+  (6) 스트리밍 출력: 실시간 토큰 출력으로 진행 상황 모니터링
+
+6.2 Pipeline A 프롬프트 (Seed 생성)
+────────────────────────────────────────────────────────────────────────────────
+
+  <MISSION>         : 단순 Seed Alpha 생성 지시
+  <ALLOWED_PATTERNS>: 4가지 기본 패턴 (70-80%)
+  <FREE_PATTERN>    : 자유 조합 (20-30%) + 예시 9개
+  <OPERATORS_LIST>  : 카테고리별 연산자 compact 리스트
+  <STRICT_RULES>    : 6가지 엄격 규칙
+  <DIVERSITY_GUIDANCE>: 다양성 확보 지침
+  <ALLOWED_DATAFIELDS>: 선택된 데이터필드 스펙 (JSON)
+
+6.3 Pipeline B 프롬프트 (조합/강화)
+────────────────────────────────────────────────────────────────────────────────
+
+  <MISSION>          : Almost-alpha 기반 조합 알파 생성
+  <GENERATION_RATIO> : A(10%)/B(80%)/C(10%) 비율 + 각 타입 설명/예시
+  <ALMOST_ALPHAS>    : 232개 almost-alpha 전체 (인덱스 번호 포함)
+  <ALPHA_IDEAS>      : idea.md 전문 (성공 패턴, 템플릿, 데이터필드 추천)
+  <OPERATORS_LIST>   : 전체 연산자 리스트
+  <RULES>            : 10가지 규칙 (다양한 인덱스 참조, group 식별자 활용 등)
+
+6.4 Pipeline C 프롬프트 (교차 조합)
+────────────────────────────────────────────────────────────────────────────────
+
+  <TASK>              : Seed 조합 + 규칙 (2~4개 Seed 사용)
+  <SEED_EXPRESSIONS>  : 20개 Seed (데이터셋 출처 표시)
+  <ALLOWED_OPERATORS> : 전체 시그니처 포함한 상세 연산자 목록
+  <RECOMMENDED_IDEA>  : idea.md 참조 지시
+  <SYNTAX_RULES>      : 인자 수 규칙 + 흔한 실수 목록
+  <OUTPUT_FORMAT>     : JSON (expression + seeds_used + idea)
+
+
+================================================================================
+7. 알파 선별 기준
+================================================================================
+
+7.1 Brain 시뮬레이션 체크 항목 (제출 필수 통과)
+────────────────────────────────────────────────────────────────────────────────
+
+  체크명               조건
+  ─────────────────────────────────
+  LOW_SHARPE           Sharpe >= 1.58
+  LOW_FITNESS          Fitness >= 1.0
+  LOW_TURNOVER         Turnover >= 0.01
+  HIGH_TURNOVER        Turnover <= 0.7
+  SELF_CORRELATION     < 0.7
+  PROD_CORRELATION     <= 0.7
+
+7.2 Pipeline별 선별 기준
+────────────────────────────────────────────────────────────────────────────────
+
+  Pipeline A (Seed 결과):
+    - sharpe > 1.5 AND fail_count <= 1
+    - 보수적 기준으로 양질의 Seed 확보
+
+  Pipeline B (조합 결과):
+    - sharpe > 0.5 AND fail_count <= 4
+    - 완화된 기준으로 넓은 후보군 확보 (이후 수동 검토)
+
+  Pipeline C (교차 조합 결과):
+    - 각 배치 최고 Sharpe 알파 저장 (fail_count 무관)
+    - 0-fail 알파만 별도 카운트
+
+7.3 Submit-Ready 기준 (최종 제출 후보)
+────────────────────────────────────────────────────────────────────────────────
+
+  - fail_count == 0 (모든 체크 통과)
+  - warnings에 "concentrated_weight" 없음
+  - → submit_ready.txt에 Sharpe 내림차순 저장
+
+7.4 소프트 기준 (우선순위용)
+────────────────────────────────────────────────────────────────────────────────
+
+  - Fitness >= 1.5, Sharpe >= 2.0
+  - Turnover: 0.1 ~ 0.5 범위
+  - 경고 최소화 (SELF_CORRELATION, DATA_DIVERSITY 등)
+
+
+================================================================================
+8. 전체 워크플로우 요약
+================================================================================
+
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │  STEP 0: 환경 준비                                                  │
+  │  - Brain 세션 인증 (생체인증)                                        │
+  │  - 데이터필드 메타데이터 캐시 (initiate_datafield)                    │
+  │  - operators_list.json 동기화                                       │
+  └─────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │  STEP 1: Pipeline A - Seed Alpha 벌크 생성                          │
+  │  llm_alpha_guide.ipynb                                              │
+  │                                                                     │
+  │  [데이터셋 24개] × [상위 3 데이터필드] × [4 패턴 + 자유 조합]         │
+  │           ↓ GPT-5-mini (배치당 50~100개)                            │
+  │  [Sanity Check] → [시뮬레이션 8개씩] → [{dataset}.txt]              │
+  │                                                                     │
+  │  산출물:                                                             │
+  │  - 데이터셋별 .txt 파일 (0-fail 알파)                                │
+  │  - almost_alphas.txt (아깝게 탈락한 알파 232개)                      │
+  │  - model25.txt: 52개, model30.txt: 29개                             │
+  │  - model138.txt: 151개, analyst39.txt: 12개                         │
+  └─────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │  STEP 2: Pipeline B - Almost-Alpha 조합/강화                        │
+  │  llm_alpha_refine.ipynb                                             │
+  │                                                                     │
+  │  [232개 almost-alpha] + [idea.md 성공 패턴]                         │
+  │           ↓ GPT-5-mini (배치당 80개 × 10배치)                       │
+  │  Type A(10%): 직접 조합                                             │
+  │  Type B(80%): 아이디어 패턴 적용                                     │
+  │  Type C(10%): 파라미터 변형 + 구조 조합                              │
+  │           ↓                                                         │
+  │  [Sanity Check] → [시뮬레이션 8개씩] → [final_alphas.txt]           │
+  │                                                                     │
+  │  산출물:                                                             │
+  │  - final_alphas.txt (701개, sharpe > 0.5 & fail ≤ 4)               │
+  │  - submit_ready.txt (0-fail + 경고 없음)                            │
+  │  - 최고 Sharpe: 12.08                                               │
+  └─────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │  STEP 3: Pipeline C - 교차 데이터셋 조합                             │
+  │  combine_and_simulate_v2.ipynb                                      │
+  │                                                                     │
+  │  [4개 데이터셋의 0-fail 알파 244개]                                  │
+  │           ↓ 배치당 2개 데이터셋 랜덤 선택                             │
+  │           ↓ 각 데이터셋에서 10개 Seed 추출 (총 20개)                  │
+  │           ↓ GPT-4o (배치당 100개 × 100배치)                         │
+  │  [Sanity Check] → [시뮬레이션 8개씩]                                │
+  │           → [배치별 최고 Sharpe 저장]                                │
+  │                                                                     │
+  │  산출물:                                                             │
+  │  - results/combinatorial/combined_alphas.txt                        │
+  └─────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │  STEP 4: 수동 검토 및 제출                                           │
+  │                                                                     │
+  │  submit_ready.txt에서 최종 후보 선택                                 │
+  │  Brain 플랫폼에서 수동으로 제출 (submission)                          │
+  └─────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+핵심 인사이트 요약
+================================================================================
+
+1. 단계적 정제: 단순 Seed → 아깝게 탈락한 후보 → 성공 패턴 적용 → 교차 조합
+   점진적으로 알파 품질을 높이는 파이프라인 구조
+
+2. LLM 활용 전략: GPT-5-mini로 대량 생성 (비용 효율), GPT-4o로 정밀 조합 (품질)
+
+3. Sanity Checker: 시뮬레이션 전 로컬 타입 검증으로 API 호출 낭비 80%+ 방지
+
+4. 성공 패턴 추출(idea.md): 실제 통과한 4개 알파에서 구조적 패턴을 추출하여
+   - group_rank/group_scale + min/max 결합
+   - signed_power로 극단값 억제
+   - 가중 결합 (multiply + rank)
+   - 비율 신호 (divide + add(rank, 1))
+
+5. 다양성 확보:
+   - 윈도우 파라미터 다양화 (5~252)
+   - 그룹 식별자 다양화 (industry/subindustry/sector/country/region)
+   - 데이터 카테고리 혼합 (Model + Analyst + News + Risk + Momentum)
+
+6. Resume 지원: 모든 파이프라인에서 중간 결과를 gen_json/에 저장하여
+   중단 후 재개 가능
+
+================================================================================
+                              문서 끝
+================================================================================
